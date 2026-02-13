@@ -909,3 +909,297 @@ export async function transferOwnership(memberId: string): Promise<void> {
     // mock: no-op
   }
 }
+
+// --- Billing types ---
+
+export type PlanTier = "free" | "pro" | "team" | "enterprise";
+
+export interface PlanFeatures {
+  instanceCap: number | null; // null = unlimited
+  channels: string;
+  plugins: string;
+  support: string;
+  extras: string[];
+}
+
+export interface Plan {
+  id: string;
+  tier: PlanTier;
+  name: string;
+  price: number | null; // null = contact sales
+  priceLabel: string;
+  features: PlanFeatures;
+  recommended?: boolean;
+}
+
+export interface BillingUsage {
+  plan: PlanTier;
+  planName: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  instancesRunning: number;
+  instanceCap: number;
+  storageUsedGb: number;
+  storageCapGb: number;
+  apiCalls: number;
+}
+
+export interface ProviderCost {
+  provider: string;
+  estimatedCost: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface UsageDataPoint {
+  date: string;
+  apiCalls: number;
+  instances: number;
+}
+
+export interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  status: "paid" | "pending" | "failed";
+  downloadUrl: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
+}
+
+export interface BillingInfo {
+  email: string;
+  paymentMethods: PaymentMethod[];
+  invoices: Invoice[];
+}
+
+// --- Billing mock data ---
+
+const MOCK_PLANS: Plan[] = [
+  {
+    id: "plan-free",
+    tier: "free",
+    name: "Free",
+    price: 0,
+    priceLabel: "$0 / month",
+    features: {
+      instanceCap: 1,
+      channels: "Web chat only",
+      plugins: "Community plugins",
+      support: "Community support",
+      extras: ["1 GB storage", "1,000 API calls/month"],
+    },
+  },
+  {
+    id: "plan-pro",
+    tier: "pro",
+    name: "Pro",
+    price: 29,
+    priceLabel: "$29 / month",
+    recommended: true,
+    features: {
+      instanceCap: 5,
+      channels: "All channels",
+      plugins: "Marketplace plugins",
+      support: "Priority support",
+      extras: ["10 GB storage", "50,000 API calls/month", "Custom system prompts"],
+    },
+  },
+  {
+    id: "plan-team",
+    tier: "team",
+    name: "Team",
+    price: 99,
+    priceLabel: "$99 / month",
+    features: {
+      instanceCap: 20,
+      channels: "All channels",
+      plugins: "Marketplace + private plugins",
+      support: "SLA-backed support",
+      extras: [
+        "50 GB storage",
+        "200,000 API calls/month",
+        "Org management",
+        "Fleet tools",
+        "Audit logs",
+      ],
+    },
+  },
+  {
+    id: "plan-enterprise",
+    tier: "enterprise",
+    name: "Enterprise",
+    price: null,
+    priceLabel: "Contact sales",
+    features: {
+      instanceCap: null,
+      channels: "All channels + custom",
+      plugins: "All plugins + custom development",
+      support: "Dedicated support engineer",
+      extras: [
+        "Unlimited storage",
+        "Unlimited API calls",
+        "Self-hosted option",
+        "SSO / SAML",
+        "Custom SLA",
+        "Dedicated infrastructure",
+      ],
+    },
+  },
+];
+
+const MOCK_USAGE: BillingUsage = {
+  plan: "pro",
+  planName: "Pro",
+  billingPeriodStart: "2026-02-01T00:00:00Z",
+  billingPeriodEnd: "2026-02-28T23:59:59Z",
+  instancesRunning: 3,
+  instanceCap: 5,
+  storageUsedGb: 2.1,
+  storageCapGb: 10,
+  apiCalls: 12450,
+};
+
+const MOCK_PROVIDER_COSTS: ProviderCost[] = [
+  { provider: "Anthropic", estimatedCost: 23.4, inputTokens: 580000, outputTokens: 410000 },
+  { provider: "OpenAI", estimatedCost: 8.12, inputTokens: 210000, outputTokens: 145000 },
+];
+
+function generateUsageHistory(days: number): UsageDataPoint[] {
+  const now = new Date();
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (days - 1 - i));
+    return {
+      date: d.toISOString().split("T")[0],
+      apiCalls: Math.floor(Math.random() * 800) + 200,
+      instances: Math.floor(Math.random() * 3) + 1,
+    };
+  });
+}
+
+const MOCK_BILLING_INFO: BillingInfo = {
+  email: "billing@acme.com",
+  paymentMethods: [
+    {
+      id: "pm-1",
+      brand: "Visa",
+      last4: "4242",
+      expiryMonth: 12,
+      expiryYear: 2027,
+      isDefault: true,
+    },
+  ],
+  invoices: [
+    {
+      id: "inv-003",
+      date: "2026-02-01T00:00:00Z",
+      amount: 29,
+      status: "pending",
+      downloadUrl: "#",
+    },
+    {
+      id: "inv-002",
+      date: "2026-01-01T00:00:00Z",
+      amount: 29,
+      status: "paid",
+      downloadUrl: "#",
+    },
+    {
+      id: "inv-001",
+      date: "2025-12-01T00:00:00Z",
+      amount: 29,
+      status: "paid",
+      downloadUrl: "#",
+    },
+  ],
+};
+
+// --- Billing API ---
+
+export async function getPlans(): Promise<Plan[]> {
+  try {
+    return await apiFetch<Plan[]>("/billing/plans");
+  } catch {
+    return MOCK_PLANS;
+  }
+}
+
+export async function getCurrentPlan(): Promise<PlanTier> {
+  try {
+    const res = await apiFetch<{ tier: PlanTier }>("/billing/current-plan");
+    return res.tier;
+  } catch {
+    return "pro";
+  }
+}
+
+export async function changePlan(_tier: PlanTier): Promise<void> {
+  try {
+    await apiFetch("/billing/change-plan", {
+      method: "POST",
+      body: JSON.stringify({ tier: _tier }),
+    });
+  } catch {
+    // mock: no-op
+  }
+}
+
+export async function getBillingUsage(): Promise<BillingUsage> {
+  try {
+    return await apiFetch<BillingUsage>("/billing/usage");
+  } catch {
+    return MOCK_USAGE;
+  }
+}
+
+export async function getProviderCosts(): Promise<ProviderCost[]> {
+  try {
+    return await apiFetch<ProviderCost[]>("/billing/provider-costs");
+  } catch {
+    return MOCK_PROVIDER_COSTS;
+  }
+}
+
+export async function getUsageHistory(days?: number): Promise<UsageDataPoint[]> {
+  try {
+    const qs = days ? `?days=${days}` : "";
+    return await apiFetch<UsageDataPoint[]>(`/billing/usage-history${qs}`);
+  } catch {
+    return generateUsageHistory(days ?? 30);
+  }
+}
+
+export async function getBillingInfo(): Promise<BillingInfo> {
+  try {
+    return await apiFetch<BillingInfo>("/billing/info");
+  } catch {
+    return MOCK_BILLING_INFO;
+  }
+}
+
+export async function updateBillingEmail(_email: string): Promise<void> {
+  try {
+    await apiFetch("/billing/email", {
+      method: "PATCH",
+      body: JSON.stringify({ email: _email }),
+    });
+  } catch {
+    // mock: no-op
+  }
+}
+
+export async function removePaymentMethod(_id: string): Promise<void> {
+  try {
+    await apiFetch(`/billing/payment-methods/${_id}`, { method: "DELETE" });
+  } catch {
+    // mock: no-op
+  }
+}

@@ -11,12 +11,14 @@ const navItems = [
   { label: "Plugins", href: "/plugins" },
   { label: "Instances", href: "/instances" },
   { label: "Fleet Health", href: "/fleet/health" },
+  { label: "Billing", href: "/billing/plans" },
   { label: "Settings", href: "/settings/profile" },
 ];
 
 function isNavActive(href: string, pathname: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/settings/profile") return pathname.startsWith("/settings");
+  if (href === "/billing/plans") return pathname.startsWith("/billing");
   return pathname.startsWith(href);
 }
 
