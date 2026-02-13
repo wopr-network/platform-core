@@ -7,6 +7,7 @@ const publicPaths = [
   "/reset-password",
   "/auth/callback",
   "/onboard",
+  "/onboarding",
 ];
 
 export function middleware(request: NextRequest) {
