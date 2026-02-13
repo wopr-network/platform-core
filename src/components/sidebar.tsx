@@ -5,6 +5,7 @@ const navItems = [
   { label: "Channels", href: "/channels" },
   { label: "Plugins", href: "/plugins" },
   { label: "Instances", href: "/instances" },
+  { label: "Fleet Health", href: "/fleet/health" },
   { label: "Settings", href: "/settings" },
 ];
 

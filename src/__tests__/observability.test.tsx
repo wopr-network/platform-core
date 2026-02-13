@@ -1,0 +1,263 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+// Mock recharts to avoid canvas/SVG issues in jsdom
+vi.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+  LineChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="line-chart">{children}</div>
+  ),
+  BarChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="bar-chart">{children}</div>
+  ),
+  Line: () => <div data-testid="line" />,
+  Bar: () => <div data-testid="bar" />,
+  XAxis: () => <div data-testid="x-axis" />,
+  YAxis: () => <div data-testid="y-axis" />,
+  CartesianGrid: () => <div data-testid="cartesian-grid" />,
+  Tooltip: () => <div data-testid="tooltip" />,
+}));
+
+vi.mock("@/lib/api", () => ({
+  getInstanceHealth: vi.fn().mockResolvedValue({
+    status: "healthy",
+    uptime: 86400,
+    activeSessions: 2,
+    totalSessions: 47,
+    plugins: [
+      { name: "memory", status: "healthy", latencyMs: 12, lastCheck: "2026-02-12T09:30:00Z" },
+      {
+        name: "web-search",
+        status: "degraded",
+        latencyMs: 500,
+        lastCheck: "2026-02-12T09:30:00Z",
+      },
+    ],
+    providers: [
+      { name: "anthropic", available: true, latencyMs: 230 },
+      { name: "openai", available: false, latencyMs: null },
+    ],
+    history: [
+      { timestamp: "2026-02-12T09:00:00Z", status: "healthy" },
+      { timestamp: "2026-02-12T09:05:00Z", status: "healthy" },
+    ],
+  }),
+  getInstanceLogs: vi.fn().mockResolvedValue([
+    {
+      id: "log-1",
+      timestamp: "2026-02-12T09:00:00Z",
+      level: "info",
+      source: "daemon",
+      message: "Request processed successfully",
+    },
+    {
+      id: "log-2",
+      timestamp: "2026-02-12T09:01:00Z",
+      level: "error",
+      source: "discord",
+      message: "Connection timeout",
+    },
+    {
+      id: "log-3",
+      timestamp: "2026-02-12T09:02:00Z",
+      level: "warn",
+      source: "memory",
+      message: "High memory usage detected",
+    },
+  ]),
+  getInstanceMetrics: vi.fn().mockResolvedValue({
+    timeseries: [
+      {
+        timestamp: "2026-02-12T09:00:00Z",
+        requestCount: 42,
+        latencyP50: 80,
+        latencyP95: 180,
+        latencyP99: 350,
+        activeSessions: 3,
+        memoryMb: 256,
+      },
+    ],
+    tokenUsage: [
+      { provider: "anthropic", inputTokens: 125000, outputTokens: 89000, totalCost: 4.28 },
+    ],
+    pluginEvents: [{ plugin: "memory", count: 340 }],
+  }),
+  getFleetHealth: vi.fn().mockResolvedValue([
+    {
+      id: "inst-001",
+      name: "prod-assistant",
+      status: "running",
+      health: "healthy",
+      uptime: 86400,
+      pluginCount: 2,
+      sessionCount: 2,
+      provider: "anthropic",
+    },
+    {
+      id: "inst-003",
+      name: "community-mod",
+      status: "degraded",
+      health: "degraded",
+      uptime: 3600,
+      pluginCount: 3,
+      sessionCount: 0,
+      provider: "openai",
+    },
+  ]),
+}));
+
+import { FleetHealth } from "../components/observability/fleet-health";
+import { HealthOverview } from "../components/observability/health-overview";
+import { LogsViewer } from "../components/observability/logs-viewer";
+import { MetricsDashboard } from "../components/observability/metrics-dashboard";
+
+describe("HealthOverview", () => {
+  it("renders health status and uptime", async () => {
+    render(<HealthOverview instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Health Status")).toBeInTheDocument();
+    });
+    expect(screen.getByText("1d 0h 0m")).toBeInTheDocument();
+  });
+
+  it("renders plugin health cards", async () => {
+    render(<HealthOverview instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Plugin Health")).toBeInTheDocument();
+    });
+    expect(screen.getByText("memory")).toBeInTheDocument();
+    expect(screen.getByText("web-search")).toBeInTheDocument();
+    expect(screen.getByText("12ms")).toBeInTheDocument();
+    expect(screen.getByText("500ms")).toBeInTheDocument();
+  });
+
+  it("renders provider availability", async () => {
+    render(<HealthOverview instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("anthropic")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByText("Down")).toBeInTheDocument();
+  });
+
+  it("shows session counts", async () => {
+    render(<HealthOverview instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("/ 47 total")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("LogsViewer", () => {
+  it("renders log entries", async () => {
+    render(<LogsViewer instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Request processed successfully")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Connection timeout")).toBeInTheDocument();
+    expect(screen.getByText("High memory usage detected")).toBeInTheDocument();
+  });
+
+  it("renders filter controls", async () => {
+    render(<LogsViewer instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Search logs...")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Auto-scroll ON")).toBeInTheDocument();
+  });
+
+  it("shows entry count", async () => {
+    render(<LogsViewer instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("(3 entries)")).toBeInTheDocument();
+    });
+  });
+
+  it("toggles auto-scroll", async () => {
+    const user = userEvent.setup();
+    render(<LogsViewer instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Auto-scroll ON")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Auto-scroll ON"));
+    expect(screen.getByText("Auto-scroll OFF")).toBeInTheDocument();
+  });
+});
+
+describe("MetricsDashboard", () => {
+  it("renders chart sections", async () => {
+    render(<MetricsDashboard instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Request Count")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Response Latency (ms)")).toBeInTheDocument();
+    expect(screen.getByText("Token Usage by Provider")).toBeInTheDocument();
+    expect(screen.getByText("Plugin Events")).toBeInTheDocument();
+    expect(screen.getByText("Active Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Memory Usage (MB)")).toBeInTheDocument();
+  });
+
+  it("renders token cost summary", async () => {
+    render(<MetricsDashboard instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("$4.28")).toBeInTheDocument();
+    });
+  });
+
+  it("renders recharts containers", async () => {
+    render(<MetricsDashboard instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("responsive-container").length).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe("FleetHealth", () => {
+  it("renders fleet health heading", async () => {
+    render(<FleetHealth />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fleet Health")).toBeInTheDocument();
+    });
+  });
+
+  it("renders instance cards", async () => {
+    render(<FleetHealth />);
+
+    await waitFor(() => {
+      expect(screen.getByText("prod-assistant")).toBeInTheDocument();
+    });
+    expect(screen.getByText("community-mod")).toBeInTheDocument();
+  });
+
+  it("shows degraded instance count", async () => {
+    render(<FleetHealth />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 needs attention/)).toBeInTheDocument();
+    });
+  });
+
+  it("renders sort selector and refresh button", async () => {
+    render(<FleetHealth />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Refresh")).toBeInTheDocument();
+    });
+  });
+});

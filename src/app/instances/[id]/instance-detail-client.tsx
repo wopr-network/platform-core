@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { HealthOverview } from "@/components/observability/health-overview";
+import { LogsViewer } from "@/components/observability/logs-viewer";
+import { MetricsDashboard } from "@/components/observability/metrics-dashboard";
 import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,11 +129,13 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="health">Health</TabsTrigger>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="plugins">Plugins</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="config">Config</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -145,6 +150,21 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             <MetricCard title="Active Sessions" value={String(instance.sessions.length)} />
             <MetricCard title="Created" value={new Date(instance.createdAt).toLocaleDateString()} />
           </div>
+        </TabsContent>
+
+        {/* Health Tab */}
+        <TabsContent value="health" className="mt-4">
+          <HealthOverview instanceId={instanceId} />
+        </TabsContent>
+
+        {/* Metrics Tab */}
+        <TabsContent value="metrics" className="mt-4">
+          <MetricsDashboard instanceId={instanceId} />
+        </TabsContent>
+
+        {/* Logs Tab (enhanced) */}
+        <TabsContent value="logs" className="mt-4">
+          <LogsViewer instanceId={instanceId} />
         </TabsContent>
 
         {/* Plugins Tab */}
@@ -282,38 +302,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               Save Config
             </Button>
           </div>
-        </TabsContent>
-
-        {/* Logs Tab */}
-        <TabsContent value="logs" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Real-time Logs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px] rounded-md bg-zinc-950 p-4 font-mono text-xs text-zinc-400">
-                <p className="text-zinc-500">Waiting for WebSocket connection...</p>
-                <p className="text-zinc-500">
-                  Real-time log streaming will be available when the backend WebSocket endpoint is
-                  connected.
-                </p>
-                {instance.status === "running" && (
-                  <>
-                    <p className="mt-4 text-emerald-400">
-                      [INFO] Instance {instance.name} is running
-                    </p>
-                    <p className="text-zinc-400">[INFO] {instance.plugins.length} plugins loaded</p>
-                    <p className="text-zinc-400">
-                      [INFO] {instance.channelDetails.length} channels connected
-                    </p>
-                    <p className="text-zinc-400">
-                      [INFO] {instance.sessions.length} active sessions
-                    </p>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
