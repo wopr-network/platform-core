@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const settingsNav = [
   { label: "Profile", href: "/settings/profile" },
+  { label: "Account", href: "/settings/account" },
   { label: "Provider Keys", href: "/settings/providers" },
   { label: "API Keys", href: "/settings/api-keys" },
   { label: "Organization", href: "/settings/org" },

@@ -481,6 +481,10 @@ export async function removePaymentMethod(id: string): Promise<void> {
   await apiFetch(`/billing/payment-methods/${id}`, { method: "DELETE" });
 }
 
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>("/billing/portal-session", { method: "POST" });
+}
+
 // --- Capability settings types ---
 
 export type CapabilityName = "transcription" | "image-gen" | "text-gen" | "embeddings";

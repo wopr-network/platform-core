@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
+  BillingUsage,
   CapabilitySetting,
   Organization,
   PlatformApiKey,
@@ -157,6 +158,18 @@ const MOCK_CAPABILITIES: CapabilitySetting[] = [
   },
 ];
 
+const MOCK_BILLING_USAGE: BillingUsage = {
+  plan: "pro",
+  planName: "Pro",
+  billingPeriodStart: "2026-02-01T00:00:00Z",
+  billingPeriodEnd: "2026-03-01T00:00:00Z",
+  instancesRunning: 2,
+  instanceCap: 5,
+  storageUsedGb: 3.2,
+  storageCapGb: 10,
+  apiCalls: 12500,
+};
+
 // Mock @/lib/api with test fixtures
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -184,6 +197,10 @@ vi.mock("@/lib/api", async (importOriginal) => {
     inviteMember: vi.fn().mockResolvedValue(MOCK_ORG.members[2]),
     removeMember: vi.fn().mockResolvedValue(undefined),
     transferOwnership: vi.fn().mockResolvedValue(undefined),
+    getBillingUsage: vi.fn().mockResolvedValue(MOCK_BILLING_USAGE),
+    createBillingPortalSession: vi
+      .fn()
+      .mockResolvedValue({ url: "https://billing.stripe.com/session/test" }),
   };
 });
 
@@ -431,6 +448,44 @@ describe("Organization page", () => {
   });
 });
 
+describe("Account page", () => {
+  it("renders account heading", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+
+    expect(screen.getByText("Loading account...")).toBeInTheDocument();
+    expect(await screen.findByText("Account")).toBeInTheDocument();
+    expect(screen.getByText("Manage your password and billing settings")).toBeInTheDocument();
+  });
+
+  it("renders current plan tier", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+
+    expect(await screen.findByText("Current Plan")).toBeInTheDocument();
+    expect(screen.getByText("Pro")).toBeInTheDocument();
+    expect(screen.getByText("2 of 5 instances used")).toBeInTheDocument();
+  });
+
+  it("renders manage billing button", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+
+    expect(await screen.findByRole("button", { name: "Manage Billing" })).toBeInTheDocument();
+  });
+
+  it("renders password change form", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+
+    expect(await screen.findByText("Change Password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Current password")).toBeInTheDocument();
+    expect(screen.getByLabelText("New password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm new password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change password" })).toBeInTheDocument();
+  });
+});
+
 describe("Settings layout", () => {
   it("renders settings navigation links", async () => {
     const { default: SettingsLayout } = await import("../app/(dashboard)/settings/layout");
@@ -441,6 +496,7 @@ describe("Settings layout", () => {
     );
 
     expect(screen.getByText("Profile")).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
     expect(screen.getByText("Provider Keys")).toBeInTheDocument();
     expect(screen.getByText("API Keys")).toBeInTheDocument();
     expect(screen.getByText("Organization")).toBeInTheDocument();
