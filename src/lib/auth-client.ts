@@ -1,14 +1,8 @@
 import { createAuthClient } from "better-auth/react";
-
-const baseURL = process.env.NEXT_PUBLIC_API_URL;
-if (!baseURL && typeof window !== "undefined" && window.location.hostname !== "localhost") {
-  console.error(
-    "[auth-client] NEXT_PUBLIC_API_URL is not set. Auth requests will fall back to localhost.",
-  );
-}
+import { PLATFORM_BASE_URL } from "./api-config";
 
 export const authClient = createAuthClient({
-  baseURL: baseURL ?? "http://localhost:3000",
+  baseURL: PLATFORM_BASE_URL,
 });
 
 export const { useSession, signIn, signUp, signOut } = authClient;

@@ -969,10 +969,10 @@ export const ALL_CATEGORIES: { id: PluginCategory; label: string }[] = [
 
 // --- API functions (mock-first, same pattern as api.ts) ---
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+import { API_BASE_URL } from "./api-config";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
