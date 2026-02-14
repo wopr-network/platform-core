@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ModelSelection } from "@/lib/api";
-import { getModelSelection, updateModelSelection } from "@/lib/api";
+import { getModelSelection, saveProviderKey, updateModelSelection } from "@/lib/api";
 import {
   additionalModels,
   allModels,
@@ -28,12 +28,20 @@ export default function BrainSettingsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("models");
   const [byokKey, setByokKey] = useState("");
   const [byokProvider, setByokProvider] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const sel = await getModelSelection();
-    setSelection(sel);
-    setLoading(false);
+    try {
+      const sel = await getModelSelection();
+      setSelection(sel);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to load model selection:", err);
+      setError("Failed to load model settings. Please try refreshing the page.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -42,27 +50,42 @@ export default function BrainSettingsPage() {
 
   async function handleSelectModel(model: ModelOption) {
     setSaving(true);
-    const updated = await updateModelSelection({
-      modelId: model.id,
-      providerId: model.providerId,
-      mode: "hosted",
-    });
-    setSelection(updated);
-    setSaving(false);
+    setError(null);
+    try {
+      const updated = await updateModelSelection({
+        modelId: model.id,
+        providerId: model.providerId,
+        mode: "hosted",
+      });
+      setSelection(updated);
+    } catch (err) {
+      console.error("Failed to update model selection:", err);
+      setError("Failed to update model selection. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleSaveByokKey(providerId: string) {
     if (!byokKey) return;
     setSaving(true);
-    const updated = await updateModelSelection({
-      modelId: selection?.modelId ?? "anthropic/claude-sonnet-4-20250514",
-      providerId,
-      mode: "byok",
-    });
-    setSelection(updated);
-    setByokKey("");
-    setByokProvider(null);
-    setSaving(false);
+    setError(null);
+    try {
+      await saveProviderKey(providerId, byokKey);
+      const updated = await updateModelSelection({
+        modelId: selection?.modelId ?? "anthropic/claude-sonnet-4-20250514",
+        providerId,
+        mode: "byok",
+      });
+      setSelection(updated);
+      setByokKey("");
+      setByokProvider(null);
+    } catch (err) {
+      console.error("Failed to save BYOK key:", err);
+      setError("Failed to save your API key. Please check the key and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -83,6 +106,12 @@ export default function BrainSettingsPage() {
           Choose which AI model powers your WOPR. Changes take effect immediately.
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
       {/* Current selection */}
       {currentModel && (
