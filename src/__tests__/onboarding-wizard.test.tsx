@@ -463,35 +463,40 @@ describe("StepPlugins hosted mode", () => {
 describe("StepDeploy", () => {
   it("shows launch button when idle", () => {
     render(<StepDeploy status="idle" onDeploy={vi.fn()} />);
-    expect(screen.getByText("Launch Your WOPR")).toBeInTheDocument();
+    expect(screen.getByText("Deploy Fleet")).toBeInTheDocument();
     expect(screen.getByText("Ready to deploy")).toBeInTheDocument();
   });
 
-  it("calls onDeploy when launch button clicked", () => {
-    const onDeploy = vi.fn();
-    render(<StepDeploy status="idle" onDeploy={onDeploy} />);
-    fireEvent.click(screen.getByText("Launch Your WOPR"));
-    expect(onDeploy).toHaveBeenCalledOnce();
+  it("opens nuclear launch modal when deploy button clicked", () => {
+    render(<StepDeploy status="idle" onDeploy={vi.fn()} />);
+    fireEvent.click(screen.getByText("Deploy Fleet"));
+    expect(screen.getByTestId("nuclear-launch-modal")).toBeInTheDocument();
   });
 
   it("shows progress during provisioning", () => {
     render(<StepDeploy status="provisioning" onDeploy={vi.fn()} />);
     expect(screen.getByText("Deploying...")).toBeInTheDocument();
-    expect(screen.getByText("Provisioning")).toBeInTheDocument();
+    expect(screen.getByText("PROVISIONING")).toBeInTheDocument();
   });
 
-  it("shows all deploy stages", () => {
+  it("shows completed and current deploy stages", () => {
     render(<StepDeploy status="configuring" onDeploy={vi.fn()} />);
-    expect(screen.getByText("Provisioning")).toBeInTheDocument();
-    expect(screen.getByText("Configuring")).toBeInTheDocument();
-    expect(screen.getByText("Starting")).toBeInTheDocument();
-    expect(screen.getByText("Health Check")).toBeInTheDocument();
-    expect(screen.getByText("Complete")).toBeInTheDocument();
+    expect(screen.getByText("PROVISIONING")).toBeInTheDocument();
+    expect(screen.getByText("CONFIGURING")).toBeInTheDocument();
+    // Pending stages are not rendered in the streaming terminal
+    expect(screen.queryByText("STARTING")).not.toBeInTheDocument();
   });
 
   it("shows deployed when done", () => {
     render(<StepDeploy status="done" onDeploy={vi.fn()} />);
     expect(screen.getByText("Deployed")).toBeInTheDocument();
+  });
+
+  it("shows retry button on error without modal", () => {
+    const onDeploy = vi.fn();
+    render(<StepDeploy status="error" onDeploy={onDeploy} />);
+    fireEvent.click(screen.getByText("Retry Deploy"));
+    expect(onDeploy).toHaveBeenCalledOnce();
   });
 });
 

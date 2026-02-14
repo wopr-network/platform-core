@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -23,6 +24,13 @@ const STEP_LABELS: Record<string, string> = {
   billing: "Payment",
   deploy: "Deploy",
   done: "Done",
+};
+
+const stepTransition = {
+  initial: { opacity: 0, x: 20 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -20 },
+  transition: { duration: 0.25, ease: "easeInOut" as const },
 };
 
 export function OnboardingWizard() {
@@ -49,58 +57,76 @@ export function OnboardingWizard() {
         </div>
       )}
 
-      {state.step === "presets" && (
-        <StepPresets presets={presetData} onSelect={actions.selectPreset} />
-      )}
+      <AnimatePresence mode="wait">
+        {state.step === "presets" && (
+          <motion.div key="presets" {...stepTransition}>
+            <StepPresets presets={presetData} onSelect={actions.selectPreset} />
+          </motion.div>
+        )}
 
-      {state.step === "channels" && (
-        <StepChannels selected={state.selectedChannels} onToggle={actions.toggleChannel} />
-      )}
+        {state.step === "channels" && (
+          <motion.div key="channels" {...stepTransition}>
+            <StepChannels selected={state.selectedChannels} onToggle={actions.toggleChannel} />
+          </motion.div>
+        )}
 
-      {state.step === "providers" && (
-        <StepProviders
-          selected={state.selectedProviders}
-          onToggle={actions.toggleProvider}
-          providerMode={state.providerMode}
-          onProviderModeChange={actions.setProviderMode}
-        />
-      )}
+        {state.step === "providers" && (
+          <motion.div key="providers" {...stepTransition}>
+            <StepProviders
+              selected={state.selectedProviders}
+              onToggle={actions.toggleProvider}
+              providerMode={state.providerMode}
+              onProviderModeChange={actions.setProviderMode}
+            />
+          </motion.div>
+        )}
 
-      {state.step === "plugins" && (
-        <StepPlugins
-          selected={state.selectedPlugins}
-          onToggle={actions.togglePlugin}
-          providerMode={state.providerMode}
-        />
-      )}
+        {state.step === "plugins" && (
+          <motion.div key="plugins" {...stepTransition}>
+            <StepPlugins
+              selected={state.selectedPlugins}
+              onToggle={actions.togglePlugin}
+              providerMode={state.providerMode}
+            />
+          </motion.div>
+        )}
 
-      {state.step === "keys" && (
-        <StepKeys
-          fields={state.configFields}
-          values={state.keyValues}
-          errors={state.keyErrors}
-          validating={state.keyValidating}
-          onChange={actions.setKeyValue}
-          onValidate={actions.validateKey}
-        />
-      )}
+        {state.step === "keys" && (
+          <motion.div key="keys" {...stepTransition}>
+            <StepKeys
+              fields={state.configFields}
+              values={state.keyValues}
+              errors={state.keyErrors}
+              validating={state.keyValidating}
+              onChange={actions.setKeyValue}
+              onValidate={actions.validateKey}
+            />
+          </motion.div>
+        )}
 
-      {state.step === "billing" && (
-        <StepBilling
-          billingEmail={state.billingEmail}
-          cardComplete={state.billingCardComplete}
-          onEmailChange={actions.setBillingEmail}
-          onCardCompleteChange={actions.setBillingCardComplete}
-        />
-      )}
+        {state.step === "billing" && (
+          <motion.div key="billing" {...stepTransition}>
+            <StepBilling
+              billingEmail={state.billingEmail}
+              cardComplete={state.billingCardComplete}
+              onEmailChange={actions.setBillingEmail}
+              onCardCompleteChange={actions.setBillingCardComplete}
+            />
+          </motion.div>
+        )}
 
-      {state.step === "deploy" && (
-        <StepDeploy status={state.deployStatus} onDeploy={actions.deploy} />
-      )}
+        {state.step === "deploy" && (
+          <motion.div key="deploy" {...stepTransition}>
+            <StepDeploy status={state.deployStatus} onDeploy={actions.deploy} />
+          </motion.div>
+        )}
 
-      {state.step === "done" && (
-        <StepDone onGoToDashboard={handleGoToDashboard} onCreateAnother={actions.reset} />
-      )}
+        {state.step === "done" && (
+          <motion.div key="done" {...stepTransition}>
+            <StepDone onGoToDashboard={handleGoToDashboard} onCreateAnother={actions.reset} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showNav && state.step !== "deploy" && state.step !== "done" && (
         <div className="mt-8 flex justify-between">
