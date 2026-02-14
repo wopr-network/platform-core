@@ -10,8 +10,60 @@ const publicPaths = [
   "/onboarding",
 ];
 
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Validate that a state-changing request originates from this application.
+ * Checks the Origin header (preferred) with Referer as fallback.
+ * Returns true if the request is safe, false if it should be blocked.
+ */
+export function validateCsrfOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const host = request.headers.get("host");
+
+  if (!host) return false;
+
+  // Build the allowed origin using the request's actual protocol only,
+  // preventing protocol downgrade attacks (e.g. HTTP origin to HTTPS endpoint)
+  const protocol = request.nextUrl.protocol; // "https:" or "http:"
+  const allowedOrigin = `${protocol}//${host}`;
+
+  // Check Origin header first (most reliable)
+  if (origin) {
+    return origin === allowedOrigin;
+  }
+
+  // Fall back to Referer header
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      return refererOrigin === allowedOrigin;
+    } catch {
+      return false;
+    }
+  }
+
+  // No Origin or Referer on a mutation request is suspicious — block it.
+  // Legitimate browser form submissions and fetch() calls include Origin.
+  return false;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // CSRF protection: validate Origin/Referer on state-changing API requests.
+  // Exempt /api/auth routes — Better Auth handles its own CSRF protection
+  // and applying ours breaks OAuth callback flows.
+  if (
+    pathname.startsWith("/api") &&
+    !pathname.startsWith("/api/auth") &&
+    MUTATION_METHODS.has(request.method)
+  ) {
+    if (!validateCsrfOrigin(request)) {
+      return NextResponse.json({ error: "CSRF validation failed" }, { status: 403 });
+    }
+  }
 
   // Allow public paths
   if (publicPaths.some((p) => pathname.startsWith(p))) {
