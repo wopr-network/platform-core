@@ -96,6 +96,16 @@ export function LandingPage() {
 
         <span className="mt-8 text-sm text-muted-foreground opacity-60">wopr.bot</span>
       </section>
+
+      {/* ─── Footer ─── */}
+      <footer className="flex justify-center gap-6 px-6 pb-8 text-sm text-muted-foreground">
+        <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
+          Terms
+        </Link>
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+          Privacy
+        </Link>
+      </footer>
     </div>
   );
 }

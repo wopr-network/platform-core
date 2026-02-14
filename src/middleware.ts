@@ -11,7 +11,7 @@ const publicPaths = [
 ];
 
 /** Paths that are public only when matched exactly (not as a prefix). */
-const publicExactPaths = new Set(["/", "/og"]);
+const publicExactPaths = new Set(["/", "/og", "/terms", "/privacy"]);
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
