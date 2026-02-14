@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -61,8 +62,26 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
-        Loading instance...
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-7 w-48" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+        <Skeleton className="h-px w-full" />
+        <Skeleton className="h-9 w-96" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }, (_, n) => `sk-${n}`).map((skId) => (
+            <div key={skId} className="rounded-sm border p-4 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

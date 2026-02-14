@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { InferenceMode, Plan, PlanTier } from "@/lib/api";
 import { changePlan, getCurrentPlan, getInferenceMode, getPlans } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -61,8 +62,25 @@ export default function PlansPage() {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-muted-foreground">
-        Loading plans...
+      <div className="max-w-5xl space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, n) => `sk-${n}`).map((skId) => (
+            <div key={skId} className="flex flex-col rounded-sm border p-6 space-y-4">
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-5 w-24" />
+              <div className="flex-1 space-y-2">
+                {Array.from({ length: 4 }, (_, n) => `skf-${n}`).map((fId) => (
+                  <Skeleton key={fId} className="h-4 w-full" />
+                ))}
+              </div>
+              <Skeleton className="h-9 w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

@@ -209,8 +209,8 @@ describe("Profile page", () => {
     const { default: ProfilePage } = await import("../app/(dashboard)/settings/profile/page");
     render(<ProfilePage />);
 
-    // Initially shows loading
-    expect(screen.getByText("Loading profile...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
 
     // Wait for mock data to load
     expect(await screen.findByText("Profile")).toBeInTheDocument();
@@ -260,7 +260,8 @@ describe("Providers page", () => {
     const { default: ProvidersPage } = await import("../app/(dashboard)/settings/providers/page");
     render(<ProvidersPage />);
 
-    expect(screen.getByText("Loading providers...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Provider Settings")).toBeInTheDocument();
   });
 
@@ -356,7 +357,8 @@ describe("API Keys page", () => {
     const { default: ApiKeysPage } = await import("../app/(dashboard)/settings/api-keys/page");
     render(<ApiKeysPage />);
 
-    expect(screen.getByText("Loading API keys...")).toBeInTheDocument();
+    // Initially shows skeleton loading state (table with skeleton rows)
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("API Keys")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate new key" })).toBeInTheDocument();
   });
@@ -393,7 +395,8 @@ describe("Organization page", () => {
     const { default: OrgPage } = await import("../app/(dashboard)/settings/org/page");
     render(<OrgPage />);
 
-    expect(screen.getByText("Loading organization...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Organization")).toBeInTheDocument();
     expect(screen.getByLabelText("Organization name")).toBeInTheDocument();
     expect(screen.getByLabelText("Billing email")).toBeInTheDocument();
@@ -453,7 +456,8 @@ describe("Account page", () => {
     const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
     render(<AccountPage />);
 
-    expect(screen.getByText("Loading account...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Account")).toBeInTheDocument();
     expect(screen.getByText("Manage your password and billing settings")).toBeInTheDocument();
   });

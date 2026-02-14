@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { CapabilityMode, CapabilityName, CapabilitySetting, ProviderKey } from "@/lib/api";
 import {
   listCapabilities,
@@ -182,8 +183,20 @@ export default function ProvidersPage() {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-muted-foreground">
-        Loading providers...
+      <div className="max-w-2xl space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-80" />
+        </div>
+        {Array.from({ length: 4 }, (_, n) => `sk-${n}`).map((skId) => (
+          <div key={skId} className="rounded-sm border p-6 space-y-4">
+            <Skeleton className="h-5 w-32" />
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

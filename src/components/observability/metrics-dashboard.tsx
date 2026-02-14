@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { InstanceMetrics } from "@/lib/api";
 import { getInstanceMetrics } from "@/lib/api";
 
@@ -41,7 +42,18 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
   }, [load]);
 
   if (loading && !metrics) {
-    return <div className="text-muted-foreground">Loading metrics...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, n) => `sk-${n}`).map((skId) => (
+            <div key={skId} className="rounded-sm border p-4 space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (!metrics) {

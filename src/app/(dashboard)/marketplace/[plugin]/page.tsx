@@ -6,6 +6,7 @@ import { InstallWizard } from "@/components/marketplace/install-wizard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatInstallCount,
@@ -44,8 +45,26 @@ export default function PluginDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-muted-foreground">
-        Loading plugin...
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-36" />
+        <div className="flex items-start gap-4">
+          <Skeleton className="h-14 w-14 rounded-xl" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full max-w-md" />
+            <div className="flex gap-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </div>
+          <Skeleton className="h-9 w-20" />
+        </div>
+        <div className="flex gap-2">
+          {Array.from({ length: 3 }, (_, n) => `sk-${n}`).map((skId, i) => (
+            <Skeleton key={skId} className="h-5 w-20" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditTransaction, CreditTransactionType } from "@/lib/api";
 import { getCreditHistory } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -72,8 +73,19 @@ export function TransactionHistory() {
           <CardTitle>Transaction History</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-20 items-center justify-center text-muted-foreground">
-            Loading transactions...
+          <div className="space-y-3">
+            {Array.from({ length: 4 }, (_, n) => `sk-${n}`).map((skId) => (
+              <div key={skId} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-8 rounded-full" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -159,7 +171,7 @@ export function TransactionHistory() {
             {cursor && (
               <div className="pt-2">
                 <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-                  {loadingMore ? "Loading..." : "Load more"}
+                  {loadingMore ? "Loading more..." : "Load more"}
                 </Button>
               </div>
             )}

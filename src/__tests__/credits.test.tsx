@@ -86,7 +86,8 @@ describe("Credits page", () => {
     const { default: CreditsPage } = await import("../app/(dashboard)/billing/credits/page");
     render(<CreditsPage />);
 
-    expect(screen.getByText("Loading credits...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Credits")).toBeInTheDocument();
   });
 

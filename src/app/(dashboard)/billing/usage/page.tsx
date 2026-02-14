@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import type {
   BillingUsage,
@@ -95,8 +96,27 @@ export default function UsagePage() {
 
   if (loading || !usage) {
     return (
-      <div className="flex h-40 items-center justify-center text-muted-foreground">
-        Loading usage...
+      <div className="max-w-3xl space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="rounded-sm border p-6 space-y-4">
+          <Skeleton className="h-5 w-32" />
+          {Array.from({ length: 3 }, (_, n) => `sk-${n}`).map((skId) => (
+            <div key={skId} className="space-y-1.5">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-2 w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-sm border p-6 space-y-3">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </div>
     );
   }

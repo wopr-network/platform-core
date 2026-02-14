@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getCreditBalance } from "@/lib/api";
 import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -109,7 +110,10 @@ export function Sidebar() {
       </nav>
       <div className="border-t border-sidebar-border px-3 py-3">
         {isPending ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground">Loading...</div>
+          <div className="flex items-center gap-3 px-3 py-2">
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="h-4 w-24" />
+          </div>
         ) : user ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground outline-none">

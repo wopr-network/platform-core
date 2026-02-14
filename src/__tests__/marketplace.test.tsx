@@ -149,8 +149,8 @@ describe("MarketplacePage", () => {
     const { default: MarketplacePage } = await import("../app/(dashboard)/marketplace/page");
     render(<MarketplacePage />);
 
-    // Initially shows loading
-    expect(screen.getByText("Loading marketplace...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
 
     // After loading, shows heading
     expect(await screen.findByText("Plugin Marketplace")).toBeInTheDocument();

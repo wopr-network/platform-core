@@ -265,7 +265,8 @@ describe("Plans page", () => {
     const { default: PlansPage } = await import("../app/(dashboard)/billing/plans/page");
     render(<PlansPage />);
 
-    expect(screen.getByText("Loading plans...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Plans")).toBeInTheDocument();
   });
 
@@ -336,7 +337,8 @@ describe("Usage page", () => {
     const { default: UsagePage } = await import("../app/(dashboard)/billing/usage/page");
     render(<UsagePage />);
 
-    expect(screen.getByText("Loading usage...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Usage")).toBeInTheDocument();
     expect(screen.getByText(/Pro plan/)).toBeInTheDocument();
   });
@@ -397,7 +399,8 @@ describe("Payment page", () => {
     const { default: PaymentPage } = await import("../app/(dashboard)/billing/payment/page");
     render(<PaymentPage />);
 
-    expect(screen.getByText("Loading payment info...")).toBeInTheDocument();
+    // Initially shows skeleton loading state
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Payment")).toBeInTheDocument();
   });
 
