@@ -1,45 +1,109 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { StepBilling } from "@/components/onboarding/step-billing";
 import { StepChannels } from "@/components/onboarding/step-channels";
-import { StepDeploy } from "@/components/onboarding/step-deploy";
-import { StepDone } from "@/components/onboarding/step-done";
-import { StepKeys } from "@/components/onboarding/step-keys";
-import { StepPlugins } from "@/components/onboarding/step-plugins";
-import { StepPresets } from "@/components/onboarding/step-presets";
-import { StepProviders } from "@/components/onboarding/step-providers";
-import { presets } from "@/lib/onboarding-data";
+import { StepConnect } from "@/components/onboarding/step-connect";
+import { StepLaunch } from "@/components/onboarding/step-launch";
+import { StepName } from "@/components/onboarding/step-name";
+import { StepPowerSource } from "@/components/onboarding/step-power-source";
+import { StepSuperpowers } from "@/components/onboarding/step-superpowers";
 
-describe("StepPresets", () => {
-  it("renders all 6 presets", () => {
-    render(<StepPresets presets={presets} onSelect={vi.fn()} />);
-    expect(screen.getByText("Discord AI Bot")).toBeInTheDocument();
-    expect(screen.getByText("Slack AI Assistant")).toBeInTheDocument();
-    expect(screen.getByText("Multi-Channel")).toBeInTheDocument();
-    expect(screen.getByText("Voice-Enabled")).toBeInTheDocument();
-    expect(screen.getByText("API Only")).toBeInTheDocument();
+// ---- Step 1: Name ----
+
+describe("StepName", () => {
+  it("renders heading and name input", () => {
+    render(
+      <StepName
+        name=""
+        personalityId="helpful"
+        customPersonality=""
+        onNameChange={vi.fn()}
+        onPersonalityChange={vi.fn()}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Name your WOPR Bot")).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+  });
+
+  it("renders all personality options", () => {
+    render(
+      <StepName
+        name=""
+        personalityId="helpful"
+        customPersonality=""
+        onNameChange={vi.fn()}
+        onPersonalityChange={vi.fn()}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Helpful assistant")).toBeInTheDocument();
+    expect(screen.getByText("Creative collaborator")).toBeInTheDocument();
+    expect(screen.getByText("Code companion")).toBeInTheDocument();
     expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 
-  it("shows key count for non-custom presets", () => {
-    render(<StepPresets presets={presets} onSelect={vi.fn()} />);
-    // Multiple presets show "2 keys needed" (Discord AI Bot, Slack AI Assistant)
-    const keyLabels = screen.getAllByText(/\d+ keys? needed/);
-    expect(keyLabels.length).toBeGreaterThan(0);
+  it("calls onNameChange when typing", () => {
+    const onNameChange = vi.fn();
+    render(
+      <StepName
+        name=""
+        personalityId="helpful"
+        customPersonality=""
+        onNameChange={onNameChange}
+        onPersonalityChange={vi.fn()}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "jarvis" } });
+    expect(onNameChange).toHaveBeenCalledWith("jarvis");
   });
 
-  it("calls onSelect when a preset is clicked", () => {
-    const onSelect = vi.fn();
-    render(<StepPresets presets={presets} onSelect={onSelect} />);
-    fireEvent.click(screen.getByText("Discord AI Bot"));
-    expect(onSelect).toHaveBeenCalledWith(presets.find((p) => p.id === "discord-ai-bot"));
+  it("calls onPersonalityChange when a personality is clicked", () => {
+    const onPersonalityChange = vi.fn();
+    render(
+      <StepName
+        name=""
+        personalityId="helpful"
+        customPersonality=""
+        onNameChange={vi.fn()}
+        onPersonalityChange={onPersonalityChange}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText("Creative collaborator"));
+    expect(onPersonalityChange).toHaveBeenCalledWith("creative");
   });
 
-  it("renders the getting started heading", () => {
-    render(<StepPresets presets={presets} onSelect={vi.fn()} />);
-    expect(screen.getByText("Get started with WOPR")).toBeInTheDocument();
+  it("shows custom personality input when custom selected", () => {
+    render(
+      <StepName
+        name=""
+        personalityId="custom"
+        customPersonality=""
+        onNameChange={vi.fn()}
+        onPersonalityChange={vi.fn()}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Describe your personality")).toBeInTheDocument();
+  });
+
+  it("hides custom input when non-custom personality selected", () => {
+    render(
+      <StepName
+        name=""
+        personalityId="helpful"
+        customPersonality=""
+        onNameChange={vi.fn()}
+        onPersonalityChange={vi.fn()}
+        onCustomPersonalityChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText("Describe your personality")).not.toBeInTheDocument();
   });
 });
+
+// ---- Step 2: Channels ----
 
 describe("StepChannels", () => {
   it("renders all channel options", () => {
@@ -70,453 +134,298 @@ describe("StepChannels", () => {
   });
 });
 
-describe("StepProviders", () => {
-  it("renders WOPR Hosted hero card", () => {
+// ---- Step 3: Connect ----
+
+describe("StepConnect", () => {
+  it("renders channel connection fields for selected channels", () => {
     render(
-      <StepProviders
-        selected={[]}
-        onToggle={vi.fn()}
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{}}
+        channelKeyErrors={{}}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Connect your channels")).toBeInTheDocument();
+    expect(screen.getByText("Discord")).toBeInTheDocument();
+    expect(screen.getByLabelText("Discord Bot Token")).toBeInTheDocument();
+    expect(screen.getByLabelText("Discord Server ID")).toBeInTheDocument();
+  });
+
+  it("shows empty state when no channels selected", () => {
+    render(
+      <StepConnect
+        selectedChannels={[]}
+        channelKeyValues={{}}
+        channelKeyErrors={{}}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("No channels selected. Go back to add one.")).toBeInTheDocument();
+  });
+
+  it("calls onChannelKeyChange when typing", () => {
+    const onChange = vi.fn();
+    render(
+      <StepConnect
+        selectedChannels={["telegram"]}
+        channelKeyValues={{}}
+        channelKeyErrors={{}}
+        onChannelKeyChange={onChange}
+        onValidateChannelKey={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Telegram Bot Token"), {
+      target: { value: "123:abc" },
+    });
+    expect(onChange).toHaveBeenCalledWith("telegram_bot_token", "123:abc");
+  });
+
+  it("displays error messages", () => {
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{}}
+        channelKeyErrors={{ discord_bot_token: "Invalid token format" }}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Invalid token format")).toBeInTheDocument();
+  });
+});
+
+// ---- Step 4: Superpowers ----
+
+describe("StepSuperpowers", () => {
+  it("renders all superpowers", () => {
+    render(<StepSuperpowers selected={[]} onToggle={vi.fn()} />);
+    expect(screen.getByText("ImageGen")).toBeInTheDocument();
+    expect(screen.getByText("Voice")).toBeInTheDocument();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
+    expect(screen.getByText("Search")).toBeInTheDocument();
+  });
+
+  it("renders the heading", () => {
+    render(<StepSuperpowers selected={[]} onToggle={vi.fn()} />);
+    expect(screen.getByText("Give your WOPR Bot superpowers")).toBeInTheDocument();
+  });
+
+  it("shows toggle switches", () => {
+    render(<StepSuperpowers selected={[]} onToggle={vi.fn()} />);
+    const switches = screen.getAllByRole("switch");
+    expect(switches).toHaveLength(4);
+  });
+
+  it("calls onToggle when a switch is clicked", () => {
+    const onToggle = vi.fn();
+    render(<StepSuperpowers selected={[]} onToggle={onToggle} />);
+    fireEvent.click(screen.getByLabelText("Toggle Memory"));
+    expect(onToggle).toHaveBeenCalledWith("memory");
+  });
+
+  it("shows taglines", () => {
+    render(<StepSuperpowers selected={[]} onToggle={vi.fn()} />);
+    expect(screen.getByText("/imagine anything")).toBeInTheDocument();
+    expect(screen.getByText("Talk out loud")).toBeInTheDocument();
+    expect(screen.getByText("Remembers everything")).toBeInTheDocument();
+    expect(screen.getByText("Web + docs")).toBeInTheDocument();
+  });
+});
+
+// ---- Step 5: Power Source ----
+
+describe("StepPowerSource", () => {
+  it("renders hosted and BYOK options", () => {
+    render(
+      <StepPowerSource
+        selectedSuperpowers={["image-gen"]}
         providerMode="hosted"
         onProviderModeChange={vi.fn()}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
       />,
     );
     expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
+    expect(screen.getByText("Your Keys")).toBeInTheDocument();
     expect(screen.getByText("Recommended")).toBeInTheDocument();
   });
 
-  it("renders BYOK section with toggle", () => {
+  it("shows credit balance in hosted card", () => {
     render(
-      <StepProviders
-        selected={[]}
-        onToggle={vi.fn()}
+      <StepPowerSource
+        selectedSuperpowers={["image-gen"]}
         providerMode="hosted"
         onProviderModeChange={vi.fn()}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
       />,
     );
-    expect(screen.getByText("Already have API keys? Bring your own.")).toBeInTheDocument();
+    expect(screen.getByText("You have $5.00 credit")).toBeInTheDocument();
   });
 
-  it("shows provider grid when BYOK is expanded", () => {
-    render(
-      <StepProviders
-        selected={[]}
-        onToggle={vi.fn()}
-        providerMode="byok"
-        onProviderModeChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Anthropic")).toBeInTheDocument();
-    expect(screen.getByText("OpenAI")).toBeInTheDocument();
-    expect(screen.getByText("Kimi")).toBeInTheDocument();
-    expect(screen.getByText("OpenCode")).toBeInTheDocument();
-  });
-
-  it("shows Selected label for selected providers in BYOK mode", () => {
-    render(
-      <StepProviders
-        selected={["anthropic"]}
-        onToggle={vi.fn()}
-        providerMode="byok"
-        onProviderModeChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Selected")).toBeInTheDocument();
-  });
-
-  it("calls onToggle when a provider is clicked in BYOK mode", () => {
-    const onToggle = vi.fn();
-    render(
-      <StepProviders
-        selected={[]}
-        onToggle={onToggle}
-        providerMode="byok"
-        onProviderModeChange={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByText("Anthropic"));
-    expect(onToggle).toHaveBeenCalledWith("anthropic");
-  });
-
-  it("calls onProviderModeChange when hosted is selected", () => {
+  it("calls onProviderModeChange when hosted is clicked", () => {
     const onModeChange = vi.fn();
     render(
-      <StepProviders
-        selected={[]}
-        onToggle={vi.fn()}
+      <StepPowerSource
+        selectedSuperpowers={["image-gen"]}
         providerMode="byok"
         onProviderModeChange={onModeChange}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByText("WOPR Hosted"));
     expect(onModeChange).toHaveBeenCalledWith("hosted");
   });
 
-  it("shows hosted capabilities", () => {
+  it("shows BYOK key fields when byok mode selected", () => {
     render(
-      <StepProviders
-        selected={[]}
-        onToggle={vi.fn()}
+      <StepPowerSource
+        selectedSuperpowers={["image-gen"]}
+        providerMode="byok"
+        onProviderModeChange={vi.fn()}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("OpenAI API Key")).toBeInTheDocument();
+  });
+
+  it("lists required keys for selected superpowers", () => {
+    render(
+      <StepPowerSource
+        selectedSuperpowers={["image-gen", "voice"]}
+        providerMode="byok"
+        onProviderModeChange={vi.fn()}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("ImageGen")).toBeInTheDocument();
+    expect(screen.getByText("Voice")).toBeInTheDocument();
+  });
+
+  it("hides BYOK key fields when hosted mode selected", () => {
+    render(
+      <StepPowerSource
+        selectedSuperpowers={["image-gen"]}
         providerMode="hosted"
         onProviderModeChange={vi.fn()}
+        creditBalance="$5.00"
+        byokKeyValues={{}}
+        byokKeyErrors={{}}
+        onByokKeyChange={vi.fn()}
+        onValidateByokKey={vi.fn()}
       />,
     );
-    expect(screen.getByText("Text Generation")).toBeInTheDocument();
-    expect(screen.getByText("Image Generation")).toBeInTheDocument();
-    expect(screen.getByText("Transcription")).toBeInTheDocument();
-    expect(screen.getByText("Embeddings")).toBeInTheDocument();
+    expect(screen.queryByText("OpenAI API Key")).not.toBeInTheDocument();
   });
 });
 
-describe("StepPlugins", () => {
-  it("renders plugin categories", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} />);
-    expect(screen.getByText("Memory")).toBeInTheDocument();
-    expect(screen.getByText("Voice")).toBeInTheDocument();
-    expect(screen.getByText("Integration")).toBeInTheDocument();
-    expect(screen.getByText("UI")).toBeInTheDocument();
-  });
+// ---- Step 6: Launch ----
 
-  it("renders individual plugins", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} />);
-    expect(screen.getByText("Semantic Memory Search")).toBeInTheDocument();
-    expect(screen.getByText("ElevenLabs TTS")).toBeInTheDocument();
-    expect(screen.getByText("Deepgram STT")).toBeInTheDocument();
-    expect(screen.getByText("Discord Voice")).toBeInTheDocument();
-    expect(screen.getByText("Webhooks")).toBeInTheDocument();
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
-    expect(screen.getByText("Web UI")).toBeInTheDocument();
-  });
-
-  it("shows toggle switches for each plugin", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} />);
-    const switches = screen.getAllByRole("switch");
-    expect(switches.length).toBeGreaterThan(0);
-  });
-
-  it("calls onToggle when a switch is clicked", () => {
-    const onToggle = vi.fn();
-    render(<StepPlugins selected={[]} onToggle={onToggle} />);
-    const memorySwitch = screen.getByLabelText("Toggle Semantic Memory Search");
-    fireEvent.click(memorySwitch);
-    expect(onToggle).toHaveBeenCalledWith("semantic-memory");
-  });
-
-  it("shows dependency info for plugins with requires", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} />);
-    expect(screen.getByText("Requires: discord")).toBeInTheDocument();
-  });
-});
-
-describe("StepKeys", () => {
-  const fields = [
-    {
-      key: "discord_bot_token",
-      label: "Discord Bot Token",
-      secret: true,
-      placeholder: "Paste your Discord bot token",
-      helpText: "Found in the Developer Portal.",
-      helpUrl: "https://discord.com/developers",
-      validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
-    },
-    {
-      key: "anthropic_api_key",
-      label: "Anthropic API Key",
-      secret: true,
-      placeholder: "sk-ant-...",
-      helpText: "Get from Anthropic Console.",
-    },
-  ];
-
-  it("renders all key fields", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{}}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Discord Bot Token")).toBeInTheDocument();
-    expect(screen.getByText("Anthropic API Key")).toBeInTheDocument();
-  });
-
-  it("shows trust banner", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{}}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByText(/WOPR never proxies, stores centrally, or has access to your keys/),
-    ).toBeInTheDocument();
-  });
-
-  it("masks secret fields by default", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{ discord_bot_token: "secret123" }}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText("Discord Bot Token") as HTMLInputElement;
-    expect(input.type).toBe("password");
-  });
-
-  it("toggles password visibility", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{ discord_bot_token: "secret123" }}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    const showButtons = screen.getAllByText("Show");
-    fireEvent.click(showButtons[0]);
-    const input = screen.getByLabelText("Discord Bot Token") as HTMLInputElement;
-    expect(input.type).toBe("text");
-  });
-
-  it("calls onChange when typing", () => {
-    const onChange = vi.fn();
-    render(
-      <StepKeys
-        fields={fields}
-        values={{}}
-        errors={{}}
-        validating={{}}
-        onChange={onChange}
-        onValidate={vi.fn()}
-      />,
-    );
-    fireEvent.change(screen.getByPlaceholderText("Paste your Discord bot token"), {
-      target: { value: "new-token" },
-    });
-    expect(onChange).toHaveBeenCalledWith("discord_bot_token", "new-token");
-  });
-
-  it("displays error messages", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{}}
-        errors={{ discord_bot_token: "Invalid token format" }}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Invalid token format")).toBeInTheDocument();
-  });
-
-  it("shows validating state", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{ discord_bot_token: "abc" }}
-        errors={{}}
-        validating={{ discord_bot_token: true }}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("validating...")).toBeInTheDocument();
-  });
-
-  it("shows valid state when value present and no error", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{ discord_bot_token: "valid-token" }}
-        errors={{ discord_bot_token: null }}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("valid")).toBeInTheDocument();
-  });
-
-  it("shows help text and link", () => {
-    render(
-      <StepKeys
-        fields={fields}
-        values={{}}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/Found in the Developer Portal/)).toBeInTheDocument();
-    expect(screen.getByText("Open portal")).toBeInTheDocument();
-  });
-
-  it("shows empty state when no fields", () => {
-    render(
-      <StepKeys
-        fields={[]}
-        values={{}}
-        errors={{}}
-        validating={{}}
-        onChange={vi.fn()}
-        onValidate={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("No keys required for your current selection.")).toBeInTheDocument();
-  });
-});
-
-describe("StepBilling", () => {
-  it("renders the payment heading", () => {
-    render(
-      <StepBilling
-        billingEmail=""
-        cardComplete={false}
-        onEmailChange={vi.fn()}
-        onCardCompleteChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Payment method")).toBeInTheDocument();
-  });
-
-  it("renders billing email input", () => {
-    render(
-      <StepBilling
-        billingEmail="test@example.com"
-        cardComplete={false}
-        onEmailChange={vi.fn()}
-        onCardCompleteChange={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText("Billing email") as HTMLInputElement;
-    expect(input.value).toBe("test@example.com");
-  });
-
-  it("calls onEmailChange when email is typed", () => {
-    const onEmailChange = vi.fn();
-    render(
-      <StepBilling
-        billingEmail=""
-        cardComplete={false}
-        onEmailChange={onEmailChange}
-        onCardCompleteChange={vi.fn()}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText("Billing email"), {
-      target: { value: "user@test.com" },
-    });
-    expect(onEmailChange).toHaveBeenCalledWith("user@test.com");
-  });
-
-  it("shows no-commitment messaging", () => {
-    render(
-      <StepBilling
-        billingEmail=""
-        cardComplete={false}
-        onEmailChange={vi.fn()}
-        onCardCompleteChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/No minimum, no commitment/)).toBeInTheDocument();
-  });
-
-  it("renders stripe placeholder", () => {
-    render(
-      <StepBilling
-        billingEmail=""
-        cardComplete={false}
-        onEmailChange={vi.fn()}
-        onCardCompleteChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("stripe-card-placeholder")).toBeInTheDocument();
-  });
-});
-
-describe("StepPlugins hosted mode", () => {
-  it("shows 'Included with WOPR Hosted' badge for hosted-included plugins", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} providerMode="hosted" />);
-    const badges = screen.getAllByText("Included with WOPR Hosted");
-    expect(badges.length).toBeGreaterThan(0);
-  });
-
-  it("does not show hosted badge in byok mode", () => {
-    render(<StepPlugins selected={[]} onToggle={vi.fn()} providerMode="byok" />);
-    expect(screen.queryByText("Included with WOPR Hosted")).not.toBeInTheDocument();
-  });
-});
-
-describe("StepDeploy", () => {
+describe("StepLaunch", () => {
   it("shows launch button when idle", () => {
-    render(<StepDeploy status="idle" onDeploy={vi.fn()} />);
-    expect(screen.getByText("Deploy Fleet")).toBeInTheDocument();
-    expect(screen.getByText("Ready to deploy")).toBeInTheDocument();
+    render(
+      <StepLaunch
+        woprName="jarvis"
+        selectedChannels={["discord"]}
+        selectedSuperpowers={["memory"]}
+        providerMode="hosted"
+        creditBalance="$5.00"
+        deployStatus="idle"
+        onDeploy={vi.fn()}
+        onGoToDashboard={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Launch WOPR Bot")).toBeInTheDocument();
+    expect(screen.getByText("Ready to launch")).toBeInTheDocument();
   });
 
-  it("opens nuclear launch modal when deploy button clicked", () => {
-    render(<StepDeploy status="idle" onDeploy={vi.fn()} />);
-    fireEvent.click(screen.getByText("Deploy Fleet"));
+  it("opens nuclear launch modal when launch button clicked", () => {
+    render(
+      <StepLaunch
+        woprName="jarvis"
+        selectedChannels={["discord"]}
+        selectedSuperpowers={[]}
+        providerMode="hosted"
+        creditBalance="$5.00"
+        deployStatus="idle"
+        onDeploy={vi.fn()}
+        onGoToDashboard={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText("Launch WOPR Bot"));
     expect(screen.getByTestId("nuclear-launch-modal")).toBeInTheDocument();
   });
 
-  it("shows progress during provisioning", () => {
-    render(<StepDeploy status="provisioning" onDeploy={vi.fn()} />);
-    expect(screen.getByText("Deploying...")).toBeInTheDocument();
+  it("shows progress during deployment", () => {
+    render(
+      <StepLaunch
+        woprName="jarvis"
+        selectedChannels={["discord"]}
+        selectedSuperpowers={[]}
+        providerMode="hosted"
+        creditBalance="$5.00"
+        deployStatus="provisioning"
+        onDeploy={vi.fn()}
+        onGoToDashboard={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Launching...")).toBeInTheDocument();
     expect(screen.getByText("PROVISIONING")).toBeInTheDocument();
   });
 
-  it("shows completed and current deploy stages", () => {
-    render(<StepDeploy status="configuring" onDeploy={vi.fn()} />);
-    expect(screen.getByText("PROVISIONING")).toBeInTheDocument();
-    expect(screen.getByText("CONFIGURING")).toBeInTheDocument();
-    // Pending stages are not rendered in the streaming terminal
-    expect(screen.queryByText("STARTING")).not.toBeInTheDocument();
+  it("shows success screen when done", () => {
+    render(
+      <StepLaunch
+        woprName="jarvis"
+        selectedChannels={["discord"]}
+        selectedSuperpowers={["memory"]}
+        providerMode="hosted"
+        creditBalance="$5.00"
+        deployStatus="done"
+        onDeploy={vi.fn()}
+        onGoToDashboard={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Your WOPR Bot is live!")).toBeInTheDocument();
+    expect(screen.getByText("LIVE")).toBeInTheDocument();
   });
 
-  it("shows deployed when done", () => {
-    render(<StepDeploy status="done" onDeploy={vi.fn()} />);
-    expect(screen.getByText("Deployed")).toBeInTheDocument();
-  });
-
-  it("shows retry button on error without modal", () => {
+  it("shows retry button on error", () => {
     const onDeploy = vi.fn();
-    render(<StepDeploy status="error" onDeploy={onDeploy} />);
-    fireEvent.click(screen.getByText("Retry Deploy"));
+    render(
+      <StepLaunch
+        woprName="jarvis"
+        selectedChannels={[]}
+        selectedSuperpowers={[]}
+        providerMode="hosted"
+        creditBalance="$5.00"
+        deployStatus="error"
+        onDeploy={onDeploy}
+        onGoToDashboard={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText("Retry Launch"));
     expect(onDeploy).toHaveBeenCalledOnce();
-  });
-});
-
-describe("StepDone", () => {
-  it("renders completion message", () => {
-    render(<StepDone onGoToDashboard={vi.fn()} onCreateAnother={vi.fn()} />);
-    expect(screen.getByText("Your WOPR is live!")).toBeInTheDocument();
-  });
-
-  it("calls onGoToDashboard when button clicked", () => {
-    const onGo = vi.fn();
-    render(<StepDone onGoToDashboard={onGo} onCreateAnother={vi.fn()} />);
-    fireEvent.click(screen.getByText("Go to Dashboard"));
-    expect(onGo).toHaveBeenCalledOnce();
-  });
-
-  it("calls onCreateAnother when button clicked", () => {
-    const onAnother = vi.fn();
-    render(<StepDone onGoToDashboard={vi.fn()} onCreateAnother={onAnother} />);
-    fireEvent.click(screen.getByText("Create another WOPR"));
-    expect(onAnother).toHaveBeenCalledOnce();
   });
 });

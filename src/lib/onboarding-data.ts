@@ -1,3 +1,103 @@
+// --- Personalities ---
+
+export interface Personality {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export const personalities: Personality[] = [
+  { id: "helpful", name: "Helpful assistant", description: "Friendly and informative." },
+  { id: "creative", name: "Creative collaborator", description: "Imaginative and playful." },
+  { id: "code", name: "Code companion", description: "Technical and precise." },
+  { id: "custom", name: "Custom", description: "Describe your own personality." },
+];
+
+// --- Superpowers ---
+
+export interface Superpower {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  icon: string;
+  color: string;
+  /** Whether this superpower needs an API key under BYOK mode */
+  requiresKey: boolean;
+  configFields: OnboardingConfigField[];
+}
+
+export const superpowers: Superpower[] = [
+  {
+    id: "image-gen",
+    name: "ImageGen",
+    tagline: "/imagine anything",
+    description: "Generate images from text descriptions.",
+    icon: "Image",
+    color: "#F59E0B",
+    requiresKey: true,
+    configFields: [
+      {
+        key: "openai_api_key",
+        label: "OpenAI API Key",
+        secret: true,
+        placeholder: "sk-...",
+        helpUrl: "https://platform.openai.com/api-keys",
+        helpText: "Used for DALL-E image generation.",
+        validation: { pattern: "^sk-", message: "Must start with sk-" },
+      },
+    ],
+  },
+  {
+    id: "voice",
+    name: "Voice",
+    tagline: "Talk out loud",
+    description: "Speech-to-text and text-to-speech.",
+    icon: "Mic",
+    color: "#8B5CF6",
+    requiresKey: true,
+    configFields: [
+      {
+        key: "elevenlabs_api_key",
+        label: "ElevenLabs API Key",
+        secret: true,
+        placeholder: "Paste your ElevenLabs API key",
+        helpUrl: "https://elevenlabs.io/",
+        helpText: "Used for text-to-speech synthesis.",
+      },
+    ],
+  },
+  {
+    id: "memory",
+    name: "Memory",
+    tagline: "Remembers everything",
+    description: "Long-term memory with semantic search across conversations.",
+    icon: "Brain",
+    color: "#10B981",
+    requiresKey: false,
+    configFields: [],
+  },
+  {
+    id: "search",
+    name: "Search",
+    tagline: "Web + docs",
+    description: "Search the web and documents for real-time information.",
+    icon: "Search",
+    color: "#3B82F6",
+    requiresKey: true,
+    configFields: [
+      {
+        key: "serper_api_key",
+        label: "Serper API Key",
+        secret: true,
+        placeholder: "Paste your Serper API key",
+        helpUrl: "https://serper.dev/",
+        helpText: "Used for web search. Free tier available.",
+      },
+    ],
+  },
+];
+
 export interface PluginOption {
   id: string;
   name: string;

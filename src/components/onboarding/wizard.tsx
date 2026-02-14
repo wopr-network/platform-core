@@ -4,28 +4,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { presets as presetData } from "@/lib/onboarding-data";
-import { StepBilling } from "./step-billing";
 import { StepChannels } from "./step-channels";
-import { StepDeploy } from "./step-deploy";
-import { StepDone } from "./step-done";
-import { StepKeys } from "./step-keys";
-import { StepModelSelect } from "./step-model-select";
-import { StepPlugins } from "./step-plugins";
-import { StepPresets } from "./step-presets";
-import { StepProviders } from "./step-providers";
+import { StepConnect } from "./step-connect";
+import { StepLaunch } from "./step-launch";
+import { StepName } from "./step-name";
+import { StepPowerSource } from "./step-power-source";
+import { StepSuperpowers } from "./step-superpowers";
 import { useOnboarding } from "./use-onboarding";
 
 const STEP_LABELS: Record<string, string> = {
-  presets: "Getting Started",
+  name: "Name Your WOPR Bot",
   channels: "Channels",
-  model: "Brain",
-  providers: "Providers",
-  plugins: "Plugins",
-  keys: "Configuration",
-  billing: "Payment",
-  deploy: "Deploy",
-  done: "Done",
+  connect: "Connect",
+  superpowers: "Superpowers",
+  "power-source": "Power Source",
+  launch: "Launch",
 };
 
 const stepTransition = {
@@ -43,26 +36,33 @@ export function OnboardingWizard() {
     router.push("/");
   }
 
-  const showNav = state.step !== "presets" && state.step !== "done";
+  const showBackNext =
+    state.step !== "launch" || (state.step === "launch" && state.deployStatus === "idle");
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      {showNav && (
-        <div className="mb-8 space-y-2">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              {STEP_LABELS[state.step]} — Step {state.stepIndex + 1} of {state.totalSteps}
-            </span>
-            <span>{Math.round(state.progress)}%</span>
-          </div>
-          <Progress value={state.progress} />
+      {/* Progress bar */}
+      <div className="mb-8 space-y-2">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {STEP_LABELS[state.step]} -- Step {state.stepIndex + 1} of {state.totalSteps}
+          </span>
+          <span>{Math.round(state.progress)}%</span>
         </div>
-      )}
+        <Progress value={state.progress} />
+      </div>
 
       <AnimatePresence mode="wait">
-        {state.step === "presets" && (
-          <motion.div key="presets" {...stepTransition}>
-            <StepPresets presets={presetData} onSelect={actions.selectPreset} />
+        {state.step === "name" && (
+          <motion.div key="name" {...stepTransition}>
+            <StepName
+              name={state.woprName}
+              personalityId={state.personalityId}
+              customPersonality={state.customPersonality}
+              onNameChange={actions.setWoprName}
+              onPersonalityChange={actions.setPersonalityId}
+              onCustomPersonalityChange={actions.setCustomPersonality}
+            />
           </motion.div>
         )}
 
@@ -72,87 +72,67 @@ export function OnboardingWizard() {
           </motion.div>
         )}
 
-        {state.step === "model" && (
-          <motion.div key="model" {...stepTransition}>
-            <StepModelSelect
-              selectedModel={state.selectedModel}
-              onSelectModel={actions.selectModel}
+        {state.step === "connect" && (
+          <motion.div key="connect" {...stepTransition}>
+            <StepConnect
+              selectedChannels={state.selectedChannels}
+              channelKeyValues={state.channelKeyValues}
+              channelKeyErrors={state.channelKeyErrors}
+              onChannelKeyChange={actions.setChannelKeyValue}
+              onValidateChannelKey={actions.validateChannelKey}
             />
           </motion.div>
         )}
 
-        {state.step === "providers" && (
-          <motion.div key="providers" {...stepTransition}>
-            <StepProviders
-              selected={state.selectedProviders}
-              onToggle={actions.toggleProvider}
+        {state.step === "superpowers" && (
+          <motion.div key="superpowers" {...stepTransition}>
+            <StepSuperpowers
+              selected={state.selectedSuperpowers}
+              onToggle={actions.toggleSuperpower}
+            />
+          </motion.div>
+        )}
+
+        {state.step === "power-source" && (
+          <motion.div key="power-source" {...stepTransition}>
+            <StepPowerSource
+              selectedSuperpowers={state.selectedSuperpowers}
               providerMode={state.providerMode}
               onProviderModeChange={actions.setProviderMode}
+              creditBalance={state.creditBalance}
+              byokKeyValues={state.byokKeyValues}
+              byokKeyErrors={state.byokKeyErrors}
+              onByokKeyChange={actions.setByokKeyValue}
+              onValidateByokKey={actions.validateByokKey}
             />
           </motion.div>
         )}
 
-        {state.step === "plugins" && (
-          <motion.div key="plugins" {...stepTransition}>
-            <StepPlugins
-              selected={state.selectedPlugins}
-              onToggle={actions.togglePlugin}
+        {state.step === "launch" && (
+          <motion.div key="launch" {...stepTransition}>
+            <StepLaunch
+              woprName={state.woprName}
+              selectedChannels={state.selectedChannels}
+              selectedSuperpowers={state.selectedSuperpowers}
               providerMode={state.providerMode}
+              creditBalance={state.creditBalance}
+              deployStatus={state.deployStatus}
+              onDeploy={actions.deploy}
+              onGoToDashboard={handleGoToDashboard}
             />
-          </motion.div>
-        )}
-
-        {state.step === "keys" && (
-          <motion.div key="keys" {...stepTransition}>
-            <StepKeys
-              fields={state.configFields}
-              values={state.keyValues}
-              errors={state.keyErrors}
-              validating={state.keyValidating}
-              onChange={actions.setKeyValue}
-              onValidate={actions.validateKey}
-            />
-          </motion.div>
-        )}
-
-        {state.step === "billing" && (
-          <motion.div key="billing" {...stepTransition}>
-            <StepBilling
-              billingEmail={state.billingEmail}
-              cardComplete={state.billingCardComplete}
-              onEmailChange={actions.setBillingEmail}
-              onCardCompleteChange={actions.setBillingCardComplete}
-            />
-          </motion.div>
-        )}
-
-        {state.step === "deploy" && (
-          <motion.div key="deploy" {...stepTransition}>
-            <StepDeploy status={state.deployStatus} onDeploy={actions.deploy} />
-          </motion.div>
-        )}
-
-        {state.step === "done" && (
-          <motion.div key="done" {...stepTransition}>
-            <StepDone onGoToDashboard={handleGoToDashboard} onCreateAnother={actions.reset} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {showNav && state.step !== "deploy" && state.step !== "done" && (
+      {/* Navigation */}
+      {showBackNext && state.step !== "launch" && (
         <div className="mt-8 flex justify-between">
-          <Button variant="ghost" onClick={actions.back}>
+          <Button variant="ghost" onClick={actions.back} disabled={state.step === "name"}>
             Back
           </Button>
           <Button onClick={actions.next} disabled={!actions.canAdvance()}>
-            {state.step === "keys" ? "Review & Deploy" : "Continue"}
+            Continue
           </Button>
-        </div>
-      )}
-
-      {state.step === "deploy" && state.deployStatus === "done" && (
-        <div className="mt-8 flex justify-center">
-          <Button onClick={actions.next}>Continue</Button>
         </div>
       )}
     </div>

@@ -2,89 +2,30 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  collectConfigFields,
+  channelPlugins,
   type OnboardingConfigField,
-  type Preset,
-  presets,
-  resolveDependencies,
+  superpowers,
   validateField,
 } from "@/lib/onboarding-data";
 
 export type ProviderMode = "hosted" | "byok";
 
 export type OnboardingStep =
-  | "presets"
+  | "name"
   | "channels"
-  | "model"
-  | "providers"
-  | "plugins"
-  | "keys"
-  | "billing"
-  | "deploy"
-  | "done";
+  | "connect"
+  | "superpowers"
+  | "power-source"
+  | "launch";
 
 const STEP_ORDER: OnboardingStep[] = [
-  "presets",
+  "name",
   "channels",
-  "model",
-  "providers",
-  "plugins",
-  "keys",
-  "deploy",
-  "done",
+  "connect",
+  "superpowers",
+  "power-source",
+  "launch",
 ];
-
-const HOSTED_STEP_ORDER: OnboardingStep[] = [
-  "presets",
-  "model",
-  "providers",
-  "billing",
-  "channels",
-  "plugins",
-  "deploy",
-  "done",
-];
-
-const CUSTOM_STEP_ORDER: OnboardingStep[] = [
-  "channels",
-  "model",
-  "providers",
-  "plugins",
-  "keys",
-  "deploy",
-  "done",
-];
-
-const CUSTOM_HOSTED_STEP_ORDER: OnboardingStep[] = [
-  "model",
-  "providers",
-  "billing",
-  "channels",
-  "plugins",
-  "deploy",
-  "done",
-];
-
-export interface OnboardingState {
-  step: OnboardingStep;
-  stepIndex: number;
-  totalSteps: number;
-  progress: number;
-  selectedPreset: Preset | null;
-  selectedModel: string | null;
-  selectedChannels: string[];
-  selectedProviders: string[];
-  selectedPlugins: string[];
-  keyValues: Record<string, string>;
-  keyErrors: Record<string, string | null>;
-  keyValidating: Record<string, boolean>;
-  configFields: OnboardingConfigField[];
-  deployStatus: DeployStatus;
-  isCustomFlow: boolean;
-  providerMode: ProviderMode;
-  billingEmail: string;
-  billingCardComplete: boolean;
-}
 
 export type DeployStatus =
   | "idle"
@@ -95,110 +36,135 @@ export type DeployStatus =
   | "done"
   | "error";
 
+export interface OnboardingState {
+  step: OnboardingStep;
+  stepIndex: number;
+  totalSteps: number;
+  progress: number;
+  // Step 1: Name + personality
+  woprName: string;
+  personalityId: string;
+  customPersonality: string;
+  // Step 2: Channel selection
+  selectedChannels: string[];
+  // Step 3: Channel connection keys
+  channelKeyValues: Record<string, string>;
+  channelKeyErrors: Record<string, string | null>;
+  // Step 4: Superpowers
+  selectedSuperpowers: string[];
+  // Step 5: Power source
+  providerMode: ProviderMode;
+  creditBalance: string;
+  byokKeyValues: Record<string, string>;
+  byokKeyErrors: Record<string, string | null>;
+  // Step 6: Launch
+  deployStatus: DeployStatus;
+}
+
 export interface OnboardingActions {
-  selectPreset: (preset: Preset) => void;
-  selectModel: (modelId: string) => void;
-  setProviderMode: (mode: ProviderMode) => void;
+  // Step 1
+  setWoprName: (name: string) => void;
+  setPersonalityId: (id: string) => void;
+  setCustomPersonality: (value: string) => void;
+  // Step 2
   toggleChannel: (id: string) => void;
-  toggleProvider: (id: string) => void;
-  togglePlugin: (id: string) => void;
-  setKeyValue: (key: string, value: string) => void;
-  validateKey: (key: string) => void;
-  validateAllKeys: () => boolean;
-  setBillingEmail: (email: string) => void;
-  setBillingCardComplete: (complete: boolean) => void;
+  // Step 3
+  setChannelKeyValue: (key: string, value: string) => void;
+  validateChannelKey: (key: string) => void;
+  // Step 4
+  toggleSuperpower: (id: string) => void;
+  // Step 5
+  setProviderMode: (mode: ProviderMode) => void;
+  setByokKeyValue: (key: string, value: string) => void;
+  validateByokKey: (key: string) => void;
+  // Navigation
   next: () => void;
   back: () => void;
+  canAdvance: () => boolean;
+  // Step 6
   deploy: () => void;
   reset: () => void;
-  canAdvance: () => boolean;
 }
 
 export function useOnboarding(): [OnboardingState, OnboardingActions] {
-  const [step, setStep] = useState<OnboardingStep>("presets");
-  const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string | null>(
-    "anthropic/claude-sonnet-4-20250514",
-  );
+  const [step, setStep] = useState<OnboardingStep>("name");
+  // Step 1
+  const [woprName, setWoprName] = useState("");
+  const [personalityId, setPersonalityId] = useState("helpful");
+  const [customPersonality, setCustomPersonality] = useState("");
+  // Step 2
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
-  const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
-  const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
-  const [keyValues, setKeyValues] = useState<Record<string, string>>({});
-  const [keyErrors, setKeyErrors] = useState<Record<string, string | null>>({});
-  const [keyValidating, setKeyValidating] = useState<Record<string, boolean>>({});
-  const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
-  const [isCustomFlow, setIsCustomFlow] = useState(false);
+  // Step 3
+  const [channelKeyValues, setChannelKeyValues] = useState<Record<string, string>>({});
+  const [channelKeyErrors, setChannelKeyErrors] = useState<Record<string, string | null>>({});
+  // Step 4
+  const [selectedSuperpowers, setSelectedSuperpowers] = useState<string[]>([]);
+  // Step 5
   const [providerMode, setProviderModeState] = useState<ProviderMode>("hosted");
-  const [billingEmail, setBillingEmailState] = useState("");
-  const [billingCardComplete, setBillingCardCompleteState] = useState(false);
+  const [byokKeyValues, setByokKeyValues] = useState<Record<string, string>>({});
+  const [byokKeyErrors, setByokKeyErrors] = useState<Record<string, string | null>>({});
+  // Step 6
+  const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
 
   const deployIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const validateTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     return () => {
       if (deployIntervalRef.current) clearInterval(deployIntervalRef.current);
-      for (const t of Object.values(validateTimeoutsRef.current)) clearTimeout(t);
     };
   }, []);
 
-  const stepOrder = isCustomFlow
-    ? providerMode === "hosted"
-      ? CUSTOM_HOSTED_STEP_ORDER
-      : CUSTOM_STEP_ORDER
-    : providerMode === "hosted"
-      ? HOSTED_STEP_ORDER
-      : STEP_ORDER;
-  const stepIndex = stepOrder.indexOf(step);
-  const totalSteps = stepOrder.length;
+  // Compute effective step order -- skip power-source if no superpowers need keys
+  const effectiveStepOrder = useMemo(() => {
+    const needsPowerSource =
+      selectedSuperpowers.length > 0 &&
+      selectedSuperpowers.some((id) => {
+        const sp = superpowers.find((s) => s.id === id);
+        return sp?.requiresKey;
+      });
+    if (needsPowerSource) return STEP_ORDER;
+    return STEP_ORDER.filter((s) => s !== "power-source");
+  }, [selectedSuperpowers]);
+
+  const stepIndex = effectiveStepOrder.indexOf(step);
+  const totalSteps = effectiveStepOrder.length;
   const progress = totalSteps > 1 ? ((stepIndex + 1) / totalSteps) * 100 : 0;
 
-  const resolvedPlugins = useMemo(
-    () => resolveDependencies(selectedChannels, selectedProviders, selectedPlugins),
-    [selectedChannels, selectedProviders, selectedPlugins],
-  );
-
-  const configFields = useMemo(
-    () => collectConfigFields(selectedChannels, selectedProviders, resolvedPlugins),
-    [selectedChannels, selectedProviders, resolvedPlugins],
-  );
-
-  const selectPreset = useCallback((preset: Preset) => {
-    setSelectedPreset(preset);
-    setKeyValues({});
-    setKeyErrors({});
-    setKeyValidating({});
-    if (preset.id === "custom") {
-      setIsCustomFlow(true);
-      setSelectedChannels([]);
-      setSelectedProviders([]);
-      setSelectedPlugins([]);
-      setStep("channels");
-    } else {
-      setIsCustomFlow(false);
-      setSelectedChannels(preset.channels);
-      setSelectedProviders(preset.providers);
-      setSelectedPlugins(preset.plugins);
-      setProviderModeState("byok");
-      setStep("keys");
+  // Collect config fields for selected channels
+  const channelConfigFields = useMemo(() => {
+    const fields: OnboardingConfigField[] = [];
+    const seen = new Set<string>();
+    for (const id of selectedChannels) {
+      const plugin = channelPlugins.find((c) => c.id === id);
+      if (!plugin) continue;
+      for (const field of plugin.configFields) {
+        if (!seen.has(field.key)) {
+          seen.add(field.key);
+          fields.push(field);
+        }
+      }
     }
-  }, []);
+    return fields;
+  }, [selectedChannels]);
 
-  const selectModel = useCallback((modelId: string) => {
-    setSelectedModel(modelId);
-  }, []);
+  // Collect config fields for BYOK superpowers
+  const byokConfigFields = useMemo(() => {
+    const fields: OnboardingConfigField[] = [];
+    const seen = new Set<string>();
+    for (const id of selectedSuperpowers) {
+      const sp = superpowers.find((s) => s.id === id);
+      if (!sp?.requiresKey) continue;
+      for (const field of sp.configFields) {
+        if (!seen.has(field.key)) {
+          seen.add(field.key);
+          fields.push(field);
+        }
+      }
+    }
+    return fields;
+  }, [selectedSuperpowers]);
 
-  const setProviderMode = useCallback((mode: ProviderMode) => {
-    setProviderModeState(mode);
-  }, []);
-
-  const setBillingEmail = useCallback((email: string) => {
-    setBillingEmailState(email);
-  }, []);
-
-  const setBillingCardComplete = useCallback((complete: boolean) => {
-    setBillingCardCompleteState(complete);
-  }, []);
+  // --- Actions ---
 
   const toggleChannel = useCallback((id: string) => {
     setSelectedChannels((prev) =>
@@ -206,111 +172,130 @@ export function useOnboarding(): [OnboardingState, OnboardingActions] {
     );
   }, []);
 
-  const toggleProvider = useCallback((id: string) => {
-    setSelectedProviders((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
+  const setChannelKeyValue = useCallback((key: string, value: string) => {
+    setChannelKeyValues((prev) => ({ ...prev, [key]: value }));
+    setChannelKeyErrors((prev) => ({ ...prev, [key]: null }));
   }, []);
 
-  const togglePlugin = useCallback((id: string) => {
-    setSelectedPlugins((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
-  }, []);
-
-  const setKeyValue = useCallback((key: string, value: string) => {
-    setKeyValues((prev) => ({ ...prev, [key]: value }));
-    setKeyErrors((prev) => ({ ...prev, [key]: null }));
-  }, []);
-
-  const validateKey = useCallback(
+  const validateChannelKey = useCallback(
     (key: string) => {
-      const field = configFields.find((f) => f.key === key);
+      const field = channelConfigFields.find((f) => f.key === key);
       if (!field) return;
-      const value = keyValues[key] || "";
-      if (validateTimeoutsRef.current[key]) {
-        clearTimeout(validateTimeoutsRef.current[key]);
-      }
-      setKeyValidating((prev) => ({ ...prev, [key]: true }));
-      // Mock async validation
-      validateTimeoutsRef.current[key] = setTimeout(() => {
-        const error = validateField(field, value);
-        setKeyErrors((prev) => ({ ...prev, [key]: error }));
-        setKeyValidating((prev) => ({ ...prev, [key]: false }));
-        delete validateTimeoutsRef.current[key];
-      }, 600);
+      const value = channelKeyValues[key] || "";
+      const error = validateField(field, value);
+      setChannelKeyErrors((prev) => ({ ...prev, [key]: error }));
     },
-    [configFields, keyValues],
+    [channelConfigFields, channelKeyValues],
   );
 
-  const validateAllKeys = useCallback((): boolean => {
-    const errors: Record<string, string | null> = {};
-    let valid = true;
-    for (const field of configFields) {
-      const value = keyValues[field.key] || "";
+  const toggleSuperpower = useCallback((id: string) => {
+    setSelectedSuperpowers((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  }, []);
+
+  const setProviderMode = useCallback((mode: ProviderMode) => {
+    setProviderModeState(mode);
+  }, []);
+
+  const setByokKeyValue = useCallback((key: string, value: string) => {
+    setByokKeyValues((prev) => ({ ...prev, [key]: value }));
+    setByokKeyErrors((prev) => ({ ...prev, [key]: null }));
+  }, []);
+
+  const validateByokKey = useCallback(
+    (key: string) => {
+      const field = byokConfigFields.find((f) => f.key === key);
+      if (!field) return;
+      const value = byokKeyValues[key] || "";
       const error = validateField(field, value);
-      errors[field.key] = error;
-      if (error) valid = false;
-    }
-    setKeyErrors(errors);
-    return valid;
-  }, [configFields, keyValues]);
+      setByokKeyErrors((prev) => ({ ...prev, [key]: error }));
+    },
+    [byokConfigFields, byokKeyValues],
+  );
 
   const canAdvance = useCallback((): boolean => {
     switch (step) {
-      case "presets":
-        return true; // user picks a preset which auto-advances
+      case "name":
+        return woprName.trim().length > 0;
       case "channels":
         return selectedChannels.length > 0;
-      case "model":
-        return selectedModel !== null;
-      case "providers":
-        return providerMode === "hosted" || selectedProviders.length > 0;
-      case "plugins":
-        return true; // plugins are optional
-      case "keys":
-        return configFields.every((f) => {
-          const value = keyValues[f.key] || "";
+      case "connect":
+        return channelConfigFields.every((f) => {
+          const value = channelKeyValues[f.key] || "";
           return validateField(f, value) === null;
         });
-      case "billing":
-        return billingCardComplete && billingEmail.trim().length > 0;
-      case "deploy":
+      case "superpowers":
+        return true; // superpowers are optional
+      case "power-source":
+        if (providerMode === "hosted") return true;
+        // BYOK: all key fields must be valid
+        return byokConfigFields.every((f) => {
+          const value = byokKeyValues[f.key] || "";
+          return validateField(f, value) === null;
+        });
+      case "launch":
         return deployStatus === "done";
-      case "done":
-        return false;
     }
   }, [
     step,
-    selectedModel,
+    woprName,
     selectedChannels,
-    selectedProviders,
+    channelConfigFields,
+    channelKeyValues,
     providerMode,
-    configFields,
-    keyValues,
-    billingCardComplete,
-    billingEmail,
+    byokConfigFields,
+    byokKeyValues,
     deployStatus,
   ]);
 
   const next = useCallback(() => {
-    const currentIndex = stepOrder.indexOf(step);
-    if (currentIndex < stepOrder.length - 1) {
-      if (step === "keys" && !validateAllKeys()) return;
-      setStep(stepOrder[currentIndex + 1]);
+    const currentIndex = effectiveStepOrder.indexOf(step);
+    if (currentIndex < effectiveStepOrder.length - 1) {
+      // Validate channel keys before leaving connect step
+      if (step === "connect") {
+        const errors: Record<string, string | null> = {};
+        let valid = true;
+        for (const field of channelConfigFields) {
+          const value = channelKeyValues[field.key] || "";
+          const error = validateField(field, value);
+          errors[field.key] = error;
+          if (error) valid = false;
+        }
+        setChannelKeyErrors(errors);
+        if (!valid) return;
+      }
+      // Validate BYOK keys before leaving power-source step
+      if (step === "power-source" && providerMode === "byok") {
+        const errors: Record<string, string | null> = {};
+        let valid = true;
+        for (const field of byokConfigFields) {
+          const value = byokKeyValues[field.key] || "";
+          const error = validateField(field, value);
+          errors[field.key] = error;
+          if (error) valid = false;
+        }
+        setByokKeyErrors(errors);
+        if (!valid) return;
+      }
+      setStep(effectiveStepOrder[currentIndex + 1]);
     }
-  }, [step, stepOrder, validateAllKeys]);
+  }, [
+    step,
+    effectiveStepOrder,
+    channelConfigFields,
+    channelKeyValues,
+    providerMode,
+    byokConfigFields,
+    byokKeyValues,
+  ]);
 
   const back = useCallback(() => {
-    const currentIndex = stepOrder.indexOf(step);
+    const currentIndex = effectiveStepOrder.indexOf(step);
     if (currentIndex > 0) {
-      setStep(stepOrder[currentIndex - 1]);
-    } else if (isCustomFlow) {
-      // Go back to presets
-      setIsCustomFlow(false);
-      setStep("presets");
+      setStep(effectiveStepOrder[currentIndex - 1]);
     }
-  }, [step, stepOrder, isCustomFlow]);
+  }, [step, effectiveStepOrder]);
 
   const deploy = useCallback(() => {
     if (deployIntervalRef.current) clearInterval(deployIntervalRef.current);
@@ -333,22 +318,18 @@ export function useOnboarding(): [OnboardingState, OnboardingActions] {
       clearInterval(deployIntervalRef.current);
       deployIntervalRef.current = null;
     }
-    for (const t of Object.values(validateTimeoutsRef.current)) clearTimeout(t);
-    validateTimeoutsRef.current = {};
-    setStep("presets");
-    setSelectedPreset(null);
-    setSelectedModel("anthropic/claude-sonnet-4-20250514");
+    setStep("name");
+    setWoprName("");
+    setPersonalityId("helpful");
+    setCustomPersonality("");
     setSelectedChannels([]);
-    setSelectedProviders([]);
-    setSelectedPlugins([]);
-    setKeyValues({});
-    setKeyErrors({});
-    setKeyValidating({});
-    setDeployStatus("idle");
-    setIsCustomFlow(false);
+    setChannelKeyValues({});
+    setChannelKeyErrors({});
+    setSelectedSuperpowers([]);
     setProviderModeState("hosted");
-    setBillingEmailState("");
-    setBillingCardCompleteState(false);
+    setByokKeyValues({});
+    setByokKeyErrors({});
+    setDeployStatus("idle");
   }, []);
 
   const state: OnboardingState = {
@@ -356,42 +337,37 @@ export function useOnboarding(): [OnboardingState, OnboardingActions] {
     stepIndex,
     totalSteps,
     progress,
-    selectedPreset,
-    selectedModel,
+    woprName,
+    personalityId,
+    customPersonality,
     selectedChannels,
-    selectedProviders,
-    selectedPlugins: resolvedPlugins,
-    keyValues,
-    keyErrors,
-    keyValidating,
-    configFields,
-    deployStatus,
-    isCustomFlow,
+    channelKeyValues,
+    channelKeyErrors,
+    selectedSuperpowers,
     providerMode,
-    billingEmail,
-    billingCardComplete,
+    creditBalance: "$5.00",
+    byokKeyValues,
+    byokKeyErrors,
+    deployStatus,
   };
 
   const actions: OnboardingActions = {
-    selectPreset,
-    selectModel,
-    setProviderMode,
+    setWoprName,
+    setPersonalityId,
+    setCustomPersonality,
     toggleChannel,
-    toggleProvider,
-    togglePlugin,
-    setKeyValue,
-    validateKey,
-    validateAllKeys,
-    setBillingEmail,
-    setBillingCardComplete,
+    setChannelKeyValue,
+    validateChannelKey,
+    toggleSuperpower,
+    setProviderMode,
+    setByokKeyValue,
+    validateByokKey,
     next,
     back,
+    canAdvance,
     deploy,
     reset,
-    canAdvance,
   };
 
   return [state, actions];
 }
-
-export { presets };
