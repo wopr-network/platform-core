@@ -125,7 +125,7 @@ export default function PlansPage() {
                   </Button>
                 ) : plan.price === null ? (
                   <Button variant="outline" className="w-full" asChild>
-                    <a href="mailto:sales@wopr.network">Contact sales</a>
+                    <a href="mailto:sales@wopr.bot">Contact sales</a>
                   </Button>
                 ) : (
                   <Button

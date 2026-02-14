@@ -11,8 +11,35 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://wopr.bot"),
-  title: "WOPR Bot",
+  title: {
+    default: "WOPR — AI Agent Platform",
+    template: "%s | WOPR",
+  },
   description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+  openGraph: {
+    type: "website",
+    siteName: "WOPR",
+    title: "WOPR — AI Agent Platform",
+    description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+    url: "https://wopr.bot",
+    images: [{ url: "/og", width: 1200, height: 630, alt: "WOPR — AI Agent Platform" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WOPR — AI Agent Platform",
+    description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+    images: ["/og"],
+  },
+  alternates: {
+    canonical: "https://wopr.bot",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon",
+  },
 };
 
 export default function RootLayout({

@@ -244,7 +244,7 @@ describe("Plans page", () => {
 
     const contactLink = await screen.findByRole("link", { name: "Contact sales" });
     expect(contactLink).toBeInTheDocument();
-    expect(contactLink).toHaveAttribute("href", "mailto:sales@wopr.network");
+    expect(contactLink).toHaveAttribute("href", "mailto:sales@wopr.bot");
   });
 });
 
