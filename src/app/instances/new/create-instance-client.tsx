@@ -12,35 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import type { InstanceTemplate } from "@/lib/api";
 import { createInstance, listTemplates } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const PROVIDERS = [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google" },
-];
-
-const AVAILABLE_CHANNELS = [
-  { value: "discord-general", label: "Discord — #general" },
-  { value: "discord-dev", label: "Discord — #dev" },
-  { value: "slack-eng", label: "Slack — #engineering" },
-  { value: "slack-general", label: "Slack — #general" },
-];
-
-const AVAILABLE_PLUGINS = [
-  { value: "memory", label: "Memory" },
-  { value: "web-search", label: "Web Search" },
-  { value: "code-executor", label: "Code Executor" },
-  { value: "git", label: "Git" },
-  { value: "discord", label: "Discord" },
-  { value: "moderation", label: "Moderation" },
-  { value: "data-tools", label: "Data Tools" },
-  { value: "chart-gen", label: "Chart Generator" },
-];
-
 export function CreateInstanceClient() {
+  const { providerOptions, channelOptions, pluginOptions } = usePluginRegistry();
   const [templates, setTemplates] = useState<InstanceTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -181,7 +159,7 @@ export function CreateInstanceClient() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PROVIDERS.map((p) => (
+              {providerOptions.map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
                 </SelectItem>
@@ -197,7 +175,7 @@ export function CreateInstanceClient() {
       <div className="space-y-3">
         <h2 className="text-sm font-medium">Channels</h2>
         <div className="flex flex-wrap gap-2">
-          {AVAILABLE_CHANNELS.map((ch) => (
+          {channelOptions.map((ch) => (
             <Button
               key={ch.value}
               variant={selectedChannels.includes(ch.value) ? "default" : "outline"}
@@ -216,7 +194,7 @@ export function CreateInstanceClient() {
       <div className="space-y-3">
         <h2 className="text-sm font-medium">Plugins</h2>
         <div className="flex flex-wrap gap-2">
-          {AVAILABLE_PLUGINS.map((p) => (
+          {pluginOptions.map((p) => (
             <Button
               key={p.value}
               variant={selectedPlugins.includes(p.value) ? "default" : "outline"}

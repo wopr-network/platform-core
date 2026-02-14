@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type OnboardingConfigField, superpowers } from "@/lib/onboarding-data";
+import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
 import type { ProviderMode, WizardMode } from "./use-onboarding";
 
@@ -33,6 +33,7 @@ export function StepPowerSource({
   onValidateByokKey,
   mode = "onboarding",
 }: StepPowerSourceProps) {
+  const { superpowers } = usePluginRegistry();
   const isFleetAdd = mode === "fleet-add";
   const keySuperpowers = superpowers.filter(
     (sp) => selectedSuperpowers.includes(sp.id) && sp.requiresKey,

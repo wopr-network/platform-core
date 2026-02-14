@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { pluginCategories } from "@/lib/onboarding-data";
+import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import type { ProviderMode } from "./use-onboarding";
 
 interface StepPluginsProps {
@@ -16,6 +16,8 @@ interface StepPluginsProps {
 const HOSTED_INCLUDED_PLUGINS = new Set(["elevenlabs-tts", "deepgram-stt", "openai-tts"]);
 
 export function StepPlugins({ selected, onToggle, providerMode }: StepPluginsProps) {
+  const { categories: pluginCategories } = usePluginRegistry();
+
   return (
     <div className="space-y-6">
       <div className="text-center">

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { superpowers } from "@/lib/onboarding-data";
+import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import type { ExistingBot, WizardMode } from "./use-onboarding";
 
 interface StepSuperpowersProps {
@@ -19,6 +19,7 @@ export function StepSuperpowers({
   mode = "onboarding",
   existingBots = [],
 }: StepSuperpowersProps) {
+  const { superpowers } = usePluginRegistry();
   const isFleetAdd = mode === "fleet-add";
 
   // Build a map of superpower id -> list of bot names that use it

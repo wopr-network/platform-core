@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { channelPlugins } from "@/lib/onboarding-data";
+import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
 
 interface StepChannelsProps {
@@ -10,6 +10,8 @@ interface StepChannelsProps {
 }
 
 export function StepChannels({ selected, onToggle }: StepChannelsProps) {
+  const { channels: channelPlugins } = usePluginRegistry();
+
   return (
     <div className="space-y-6">
       <div className="text-center">

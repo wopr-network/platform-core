@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { providerPlugins } from "@/lib/onboarding-data";
+import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
 import type { ProviderMode } from "./use-onboarding";
 
@@ -27,6 +27,7 @@ export function StepProviders({
   providerMode,
   onProviderModeChange,
 }: StepProvidersProps) {
+  const { providers: providerPlugins } = usePluginRegistry();
   const [byokExpanded, setByokExpanded] = useState(providerMode === "byok");
 
   useEffect(() => {

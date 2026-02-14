@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { channelPlugins, type OnboardingConfigField } from "@/lib/onboarding-data";
+import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
 
 interface StepConnectProps {
@@ -22,6 +22,7 @@ export function StepConnect({
   onChannelKeyChange,
   onValidateChannelKey,
 }: StepConnectProps) {
+  const { channels: channelPlugins } = usePluginRegistry();
   const channels = channelPlugins.filter((c) => selectedChannels.includes(c.id));
 
   return (
