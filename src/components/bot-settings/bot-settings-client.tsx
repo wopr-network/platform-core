@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -612,8 +613,9 @@ function DiscoverPluginCard({ plugin }: { plugin: DiscoverPlugin }) {
 
 function UsageTab({ settings }: { settings: BotSettings }) {
   const { usage } = settings;
-  const spendPercent = (usage.totalSpend / (usage.totalSpend + usage.creditBalance)) * 100;
-  const balanceLow = usage.creditBalance < (usage.totalSpend + usage.creditBalance) * 0.2;
+  const denom = usage.totalSpend + usage.creditBalance;
+  const spendPercent = denom > 0 ? (usage.totalSpend / denom) * 100 : 0;
+  const balanceLow = denom > 0 && usage.creditBalance < denom * 0.2;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -706,6 +708,7 @@ function UsageTab({ settings }: { settings: BotSettings }) {
 // --- Tab 7: Danger Zone ---
 
 function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: string }) {
+  const router = useRouter();
   const [confirmAction, setConfirmAction] = useState<"stop" | "archive" | "delete" | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [acting, setActing] = useState(false);
@@ -717,6 +720,10 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
     if (confirmAction === "delete" && confirmText !== botName) return;
     setActing(true);
     await controlBot(botId, confirmAction);
+    if (confirmAction === "delete" || confirmAction === "archive") {
+      router.push("/dashboard");
+      return;
+    }
     setActing(false);
     setConfirmAction(null);
     setConfirmText("");
