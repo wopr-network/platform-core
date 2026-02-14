@@ -10,6 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://wopr.bot"),
   title: "WOPR Bot",
   description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
 };

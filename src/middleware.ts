@@ -10,6 +10,9 @@ const publicPaths = [
   "/onboarding",
 ];
 
+/** Paths that are public only when matched exactly (not as a prefix). */
+const publicExactPaths = new Set(["/", "/og"]);
+
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /**
@@ -65,8 +68,18 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Redirect authenticated users from "/" to "/marketplace" so they see the dashboard
+  if (pathname === "/") {
+    const sessionToken =
+      request.cookies.get("better-auth.session_token") ??
+      request.cookies.get("__Secure-better-auth.session_token");
+    if (sessionToken?.value.trim()) {
+      return NextResponse.redirect(new URL("/marketplace", request.url));
+    }
+  }
+
   // Allow public paths
-  if (publicPaths.some((p) => pathname.startsWith(p))) {
+  if (publicExactPaths.has(pathname) || publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

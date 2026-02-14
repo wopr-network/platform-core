@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import Home from "../app/(dashboard)/page";
+import { LandingPage } from "../components/landing/landing-page";
 
 describe("Smoke test", () => {
-  it("renders the home page with WOPR Platform heading", () => {
-    render(<Home />);
-    expect(screen.getByText("WOPR Platform")).toBeInTheDocument();
+  it("renders the landing page with the tagline", () => {
+    render(<LandingPage />);
+    expect(screen.getByText("What would you do with your own WOPR Bot?")).toBeInTheDocument();
   });
 });
