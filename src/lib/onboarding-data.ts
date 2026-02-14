@@ -62,7 +62,7 @@ export const superpowers: Superpower[] = [
         label: "ElevenLabs API Key",
         secret: true,
         placeholder: "Paste your ElevenLabs API key",
-        helpUrl: "https://elevenlabs.io/",
+        helpUrl: "https://elevenlabs.io/app/settings/api-keys",
         helpText: "Used for text-to-speech synthesis.",
       },
     ],
