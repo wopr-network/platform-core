@@ -1,0 +1,824 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import type {
+  ActiveSuperpower,
+  AvailableSuperpower,
+  BotSettings,
+  DiscoverPlugin,
+  InstalledPlugin,
+} from "@/lib/bot-settings-data";
+import {
+  activateSuperpower,
+  controlBot,
+  getBotSettings,
+  PERSONALITY_TEMPLATES,
+  updateBotIdentity,
+} from "@/lib/bot-settings-data";
+
+export function BotSettingsClient({ botId }: { botId: string }) {
+  const [settings, setSettings] = useState<BotSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getBotSettings(botId);
+      setSettings(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load bot settings");
+    } finally {
+      setLoading(false);
+    }
+  }, [botId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
+        Loading bot settings...
+      </div>
+    );
+  }
+
+  if (error || !settings) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">{error ?? "Bot not found"}</p>
+        <Button variant="outline" asChild>
+          <a href="/dashboard">Back to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" asChild>
+          <a href="/dashboard">&larr; Back to Fleet</a>
+        </Button>
+        <StatusDot status={settings.status} />
+        <h1 className="text-2xl font-bold tracking-tight">{settings.identity.name}</h1>
+      </div>
+
+      <Separator />
+
+      {/* Tabs */}
+      <Tabs defaultValue="identity">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="identity">Identity</TabsTrigger>
+          <TabsTrigger value="brain">Brain</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
+          <TabsTrigger value="superpowers">Superpowers</TabsTrigger>
+          <TabsTrigger value="plugins">Plugins</TabsTrigger>
+          <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="danger">Danger Zone</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="identity" className="mt-4">
+          <IdentityTab settings={settings} botId={botId} onUpdate={setSettings} />
+        </TabsContent>
+
+        <TabsContent value="brain" className="mt-4">
+          <BrainTab settings={settings} />
+        </TabsContent>
+
+        <TabsContent value="channels" className="mt-4">
+          <ChannelsTab settings={settings} />
+        </TabsContent>
+
+        <TabsContent value="superpowers" className="mt-4">
+          <SuperpowersTab settings={settings} botId={botId} onUpdate={load} />
+        </TabsContent>
+
+        <TabsContent value="plugins" className="mt-4">
+          <PluginsTab settings={settings} />
+        </TabsContent>
+
+        <TabsContent value="usage" className="mt-4">
+          <UsageTab settings={settings} />
+        </TabsContent>
+
+        <TabsContent value="danger" className="mt-4">
+          <DangerZoneTab settings={settings} botId={botId} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// --- Status dot ---
+
+function StatusDot({ status }: { status: BotSettings["status"] }) {
+  const colors = {
+    running: "bg-emerald-500",
+    stopped: "bg-zinc-400",
+    archived: "bg-amber-500",
+  };
+  return <span className={`inline-block size-3 rounded-full ${colors[status]}`} />;
+}
+
+// --- Tab 1: Identity ---
+
+function IdentityTab({
+  settings,
+  botId,
+  onUpdate,
+}: {
+  settings: BotSettings;
+  botId: string;
+  onUpdate: (s: BotSettings) => void;
+}) {
+  const [name, setName] = useState(settings.identity.name);
+  const [personality, setPersonality] = useState(settings.identity.personality);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    const updated = await updateBotIdentity(botId, {
+      name,
+      avatar: settings.identity.avatar,
+      personality,
+    });
+    onUpdate({ ...settings, identity: updated });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Identity</h2>
+        <p className="text-sm text-muted-foreground">Customize your bot's name and personality.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="bot-name" className="text-sm font-medium">
+            Name
+          </label>
+          <Input id="bot-name" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="bot-personality" className="text-sm font-medium">
+            Personality
+          </label>
+          <Textarea
+            id="bot-personality"
+            className="min-h-[120px]"
+            value={personality}
+            onChange={(e) => setPersonality(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-sm font-medium">Personality templates</span>
+          <div className="flex flex-wrap gap-2">
+            {PERSONALITY_TEMPLATES.map((t) => (
+              <Button
+                key={t.id}
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (t.text) setPersonality(t.text);
+                }}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save changes"}
+        </Button>
+        {saved && <span className="text-sm text-emerald-500">Saved!</span>}
+      </div>
+    </div>
+  );
+}
+
+// --- Tab 2: Brain ---
+
+function BrainTab({ settings }: { settings: BotSettings }) {
+  const { brain } = settings;
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Brain</h2>
+        <p className="text-sm text-muted-foreground">Model and provider configuration.</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Model</CardTitle>
+          <CardDescription>
+            {brain.model} (via {brain.mode === "hosted" ? "WOPR Hosted" : "BYOK"})
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{brain.costPerMessage}</span>
+            <span>&middot;</span>
+            <span>{brain.description}</span>
+          </div>
+          <Button variant="outline" size="sm">
+            Change model
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Provider Mode</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+            <input
+              type="radio"
+              name="provider-mode"
+              value="hosted"
+              checked={brain.mode === "hosted"}
+              readOnly
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">WOPR Hosted</span>
+                {brain.mode === "hosted" && <Badge variant="default">Active</Badge>}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Everything routed through WOPR. Uses credits. No API keys needed.
+              </p>
+            </div>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+            <input
+              type="radio"
+              name="provider-mode"
+              value="byok"
+              checked={brain.mode === "byok"}
+              readOnly
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <span className="text-sm font-medium">Bring Your Own Key</span>
+              <p className="text-sm text-muted-foreground">
+                Use your own Anthropic/OpenAI key. You pay the provider directly.
+              </p>
+              {brain.mode !== "byok" && (
+                <Button variant="outline" size="sm" className="mt-2">
+                  Switch to BYOK
+                </Button>
+              )}
+            </div>
+          </label>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// --- Tab 3: Channels ---
+
+function ChannelsTab({ settings }: { settings: BotSettings }) {
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Channels</h2>
+        <p className="text-sm text-muted-foreground">
+          Connected channels and available integrations.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {settings.channels.map((ch) => (
+          <Card key={ch.id}>
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{ch.type}</span>
+                  <ChannelStatusBadge status={ch.status} />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {ch.name} &middot; {ch.stats}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  Configure
+                </Button>
+                {ch.status === "connected" && (
+                  <Button variant="ghost" size="sm">
+                    Disconnect
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Add More Channels</CardTitle>
+          <CardDescription>
+            Your WOPR works everywhere you do. All channels are free.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {settings.availableChannels.map((ch) => (
+              <Button key={ch.type} variant="outline">
+                + Add {ch.label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// --- Channel status badge ---
+
+function ChannelStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; className: string }> = {
+    connected: {
+      label: "Connected",
+      className: "bg-emerald-500/15 text-emerald-500 border-emerald-500/25",
+    },
+    disconnected: {
+      label: "Disconnected",
+      className: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
+    },
+    "always-on": {
+      label: "Always On",
+      className: "bg-blue-500/15 text-blue-500 border-blue-500/25",
+    },
+  };
+  const c = config[status] ?? config.disconnected;
+  return (
+    <Badge variant="outline" className={c.className}>
+      {c.label}
+    </Badge>
+  );
+}
+
+// --- Tab 4: Superpowers ---
+
+function SuperpowersTab({
+  settings,
+  botId,
+  onUpdate,
+}: {
+  settings: BotSettings;
+  botId: string;
+  onUpdate: () => void;
+}) {
+  const [activating, setActivating] = useState<string | null>(null);
+
+  async function handleActivate(superpowerId: string) {
+    setActivating(superpowerId);
+    await activateSuperpower(botId, superpowerId);
+    setActivating(null);
+    onUpdate();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Superpowers</h2>
+        <p className="text-sm text-muted-foreground">
+          Capabilities that make your bot extraordinary.
+        </p>
+      </div>
+
+      {/* Active superpowers */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Active
+        </h3>
+        {settings.activeSuperpowers.map((sp) => (
+          <ActiveSuperpowerCard key={sp.id} superpower={sp} />
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* Available superpowers */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Your WOPR can do more
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {settings.availableSuperpowers.map((sp) => (
+            <AvailableSuperpowerCard
+              key={sp.id}
+              superpower={sp}
+              activating={activating === sp.id}
+              onActivate={() => handleActivate(sp.id)}
+            />
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">One click to activate. Uses your credits.</p>
+      </div>
+    </div>
+  );
+}
+
+function ActiveSuperpowerCard({ superpower }: { superpower: ActiveSuperpower }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between p-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{superpower.name}</span>
+            <Badge variant="outline">{superpower.mode === "hosted" ? "Hosted" : "BYOK"}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {superpower.usageCount} {superpower.usageLabel} &middot; ${superpower.spend.toFixed(2)}{" "}
+            spent
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Provider: {superpower.provider} &middot; {superpower.model}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm">
+            Configure
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AvailableSuperpowerCard({
+  superpower,
+  activating,
+  onActivate,
+}: {
+  superpower: AvailableSuperpower;
+  activating: boolean;
+  onActivate: () => void;
+}) {
+  return (
+    <Card className="flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{superpower.name}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{superpower.description}</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-muted-foreground">{superpower.pricing}</span>
+          <Button size="sm" onClick={onActivate} disabled={activating}>
+            {activating ? "Adding..." : "+ Add"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Tab 5: Plugins ---
+
+function PluginsTab({ settings }: { settings: BotSettings }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Plugins</h2>
+        <p className="text-sm text-muted-foreground">Installed plugins and plugin discovery.</p>
+      </div>
+
+      {/* Installed */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Installed
+        </h3>
+        {settings.installedPlugins.map((plugin) => (
+          <InstalledPluginCard key={plugin.id} plugin={plugin} />
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* Discover */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Discover Plugins
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {settings.discoverPlugins.map((plugin) => (
+            <DiscoverPluginCard key={plugin.id} plugin={plugin} />
+          ))}
+        </div>
+        <Button variant="outline" asChild>
+          <a href="/marketplace">Browse all plugins</a>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function InstalledPluginCard({ plugin }: { plugin: InstalledPlugin }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between p-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{plugin.name}</span>
+            <Badge
+              variant="outline"
+              className={
+                plugin.status === "active"
+                  ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/25"
+                  : "bg-zinc-500/15 text-zinc-400 border-zinc-500/25"
+              }
+            >
+              {plugin.status === "active" ? "Active" : "Disabled"}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{plugin.description}</p>
+          <p className="text-xs text-muted-foreground">Uses: {plugin.capabilities.join(", ")}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm">
+            Configure
+          </Button>
+          <Button variant="ghost" size="sm">
+            {plugin.status === "active" ? "Disable" : "Enable"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiscoverPluginCard({ plugin }: { plugin: DiscoverPlugin }) {
+  return (
+    <Card className="flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{plugin.name}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{plugin.description}</p>
+        {plugin.needs.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {plugin.needs.map((n) => (
+              <Badge key={n} variant="secondary" className="text-xs">
+                Needs: {n}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <Button size="sm">Install</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Tab 6: Usage ---
+
+function UsageTab({ settings }: { settings: BotSettings }) {
+  const { usage } = settings;
+  const spendPercent = (usage.totalSpend / (usage.totalSpend + usage.creditBalance)) * 100;
+  const balanceLow = usage.creditBalance < (usage.totalSpend + usage.creditBalance) * 0.2;
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Usage -- {settings.identity.name}</h2>
+        <p className="text-sm text-muted-foreground">Per-bot credit consumption breakdown.</p>
+      </div>
+
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <div className="text-sm text-muted-foreground">
+            This week: ${usage.totalSpend.toFixed(2)} of ${usage.creditBalance.toFixed(2)} remaining
+            credits
+          </div>
+          <Progress value={spendPercent} className="h-2" />
+        </CardContent>
+      </Card>
+
+      {/* By Capability */}
+      <Card>
+        <CardHeader>
+          <CardTitle>By Capability</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {usage.capabilities.map((cap) => (
+            <div key={cap.capability} className="flex items-center gap-3">
+              <span className="w-24 text-sm font-medium">{cap.capability}</span>
+              <div className="flex-1">
+                <Progress value={cap.percent} className="h-2" />
+              </div>
+              <span className="w-16 text-right text-sm font-medium">${cap.spend.toFixed(2)}</span>
+              <span className="w-12 text-right text-xs text-muted-foreground">{cap.percent}%</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Trend */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Trend</CardTitle>
+          <CardDescription>Daily spend over the last 14 days</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex h-24 items-end gap-1">
+            {usage.trend.map((point) => {
+              const maxSpend = Math.max(...usage.trend.map((p) => p.spend));
+              const height = maxSpend > 0 ? (point.spend / maxSpend) * 100 : 0;
+              return (
+                <div
+                  key={point.date}
+                  className="flex flex-1 flex-col items-center gap-1"
+                  title={`${point.date}: $${point.spend.toFixed(2)}`}
+                >
+                  <div
+                    className="w-full rounded-t bg-primary/60"
+                    style={{ height: `${height}%` }}
+                  />
+                  <span className="text-[10px] text-muted-foreground">{point.date.slice(-2)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Top-up CTA */}
+      {balanceLow && (
+        <Card className="border-amber-500/25 bg-amber-500/5">
+          <CardContent className="flex items-center justify-between p-4">
+            <span className="text-sm font-medium">Running low on credits?</span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <a href="/billing/credits">Top up -- $10</a>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <a href="/billing/credits">$25</a>
+              </Button>
+              <Button size="sm" asChild>
+                <a href="/billing/credits">$50</a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// --- Tab 7: Danger Zone ---
+
+function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: string }) {
+  const [confirmAction, setConfirmAction] = useState<"stop" | "archive" | "delete" | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [acting, setActing] = useState(false);
+
+  const botName = settings.identity.name;
+
+  async function handleConfirm() {
+    if (!confirmAction) return;
+    if (confirmAction === "delete" && confirmText !== botName) return;
+    setActing(true);
+    await controlBot(botId, confirmAction);
+    setActing(false);
+    setConfirmAction(null);
+    setConfirmText("");
+  }
+
+  const actions = [
+    {
+      key: "stop" as const,
+      label: `Stop ${botName}`,
+      description: "Pause this bot. Channels go offline. Can restart anytime.",
+      variant: "outline" as const,
+    },
+    {
+      key: "archive" as const,
+      label: `Archive ${botName}`,
+      description: "Remove from fleet. Keeps config and memories for 30 days. Can restore.",
+      variant: "outline" as const,
+    },
+    {
+      key: "delete" as const,
+      label: `Delete ${botName}`,
+      description: "Permanent. All data destroyed. This cannot be undone.",
+      variant: "destructive" as const,
+    },
+  ];
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-destructive">Danger Zone</h2>
+        <p className="text-sm text-muted-foreground">
+          Irreversible and destructive actions. Proceed with caution.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {actions.map((action) => (
+          <Card key={action.key} className={action.key === "delete" ? "border-destructive/50" : ""}>
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{action.description}</p>
+              </div>
+              <Button variant={action.variant} onClick={() => setConfirmAction(action.key)}>
+                {action.label}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Confirmation dialog */}
+      <Dialog open={confirmAction !== null} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === "stop" && `Stop ${botName}?`}
+              {confirmAction === "archive" && `Archive ${botName}?`}
+              {confirmAction === "delete" && `Delete ${botName} permanently?`}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === "stop" &&
+                "This will pause your bot. All channels will go offline. You can restart it at any time."}
+              {confirmAction === "archive" &&
+                "This will remove your bot from the fleet. Config and memories are kept for 30 days. You can restore it within that window."}
+              {confirmAction === "delete" && (
+                <>
+                  This action is permanent and cannot be undone. All data, memories, and
+                  configuration will be destroyed. Type{" "}
+                  <strong className="text-foreground">{botName}</strong> to confirm.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmAction === "delete" && (
+            <Input
+              placeholder={`Type "${botName}" to confirm`}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+            />
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirm}
+              disabled={acting || (confirmAction === "delete" && confirmText !== botName)}
+            >
+              {acting
+                ? "Processing..."
+                : confirmAction === "stop"
+                  ? "Stop bot"
+                  : confirmAction === "archive"
+                    ? "Archive bot"
+                    : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
