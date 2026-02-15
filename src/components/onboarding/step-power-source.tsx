@@ -12,7 +12,6 @@ import {
   type ByokAiProvider,
   getAiKeyField,
   getAiKeySuperpowers,
-  superpowers,
 } from "@/lib/onboarding-data";
 import { cn } from "@/lib/utils";
 import type { ProviderMode, WizardMode } from "./use-onboarding";

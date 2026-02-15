@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -118,7 +119,7 @@ export function Sidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground outline-none">
               {user.image ? (
-                <img
+                <Image
                   src={user.image}
                   alt={user.name ?? "User avatar"}
                   width={32}

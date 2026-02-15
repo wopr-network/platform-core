@@ -1,7 +1,9 @@
 "use client";
 
+import { animate, motion, useMotionValue, useTransform } from "framer-motion";
+import { Activity, CreditCard, Plus, Puzzle } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,14 +129,115 @@ function computeFleetStats(instances: FleetInstance[]) {
   // TODO: Replace with real resource usage from API
   const totalCpu = instances.length > 0 ? Math.min(100, Math.round(instances.length * 12.5)) : 0;
   const totalMemory = instances.length > 0 ? instances.length * 256 : 0;
+  // Memory capacity assumption: 2048 MB total available fleet capacity for percentage calculation
+  const memoryCapacity = 2048;
 
-  return { running, stopped, degraded, totalCpu, totalMemory };
+  return { running, stopped, degraded, totalCpu, totalMemory, memoryCapacity };
 }
+
+// ---------------------------------------------------------------------------
+// Inline components (no separate files per spec)
+// ---------------------------------------------------------------------------
+
+function BlinkingCursor() {
+  return (
+    <motion.span
+      className="ml-1 inline-block text-primary"
+      animate={{ opacity: [1, 1, 0, 0] }}
+      transition={{
+        duration: 1.06,
+        repeat: Infinity,
+        times: [0, 0.49, 0.5, 1],
+        ease: "linear",
+      }}
+    >
+      _
+    </motion.span>
+  );
+}
+
+function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const motionValue = useMotionValue(0);
+  const rounded = useTransform(motionValue, (v) => Math.round(v));
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+
+  useEffect(() => {
+    const from = prevRef.current;
+    prevRef.current = value;
+
+    const controls = animate(motionValue, value, {
+      duration: from === 0 ? 1.0 : 0.6,
+      ease: "easeOut",
+    });
+
+    return () => controls.stop();
+  }, [value, motionValue]);
+
+  useEffect(() => {
+    const unsubscribe = rounded.on("change", (v) => setDisplay(v));
+    return () => unsubscribe();
+  }, [rounded]);
+
+  return (
+    <span>
+      {display}
+      {suffix}
+    </span>
+  );
+}
+
+function PulsingDot({ color, speed = 2 }: { color: string; speed?: number }) {
+  return (
+    <motion.span
+      className={`size-2 rounded-full ${color}`}
+      animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+      transition={{ duration: speed, repeat: Infinity, ease: "easeInOut" }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Framer-motion variants
+// ---------------------------------------------------------------------------
+
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08 } },
+} as const;
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: "easeOut" as const },
+  },
+} as const;
+
+const activityContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } },
+} as const;
+
+const activityItem = {
+  hidden: { opacity: 0, x: -8 },
+  show: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.25, ease: "easeOut" as const },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export function CommandCenter() {
   const [instances, setInstances] = useState<FleetInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState(Date.now());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -142,6 +245,7 @@ export function CommandCenter() {
     try {
       const data = await getFleetHealth();
       setInstances(data);
+      setLastRefreshed(Date.now());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load fleet health");
     } finally {
@@ -162,8 +266,20 @@ export function CommandCenter() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Command Center</h1>
-        <p className="text-sm text-muted-foreground">Fleet overview and quick actions</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Command Center
+          <BlinkingCursor />
+        </h1>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">Fleet overview and quick actions</p>
+          <motion.div
+            key={lastRefreshed}
+            initial={{ scale: 1.4, opacity: 0.8 }}
+            animate={{ scale: 1, opacity: 0.4 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="size-1.5 rounded-full bg-terminal"
+          />
+        </div>
       </div>
 
       {/* Error Banner */}
@@ -180,104 +296,154 @@ export function CommandCenter() {
       )}
 
       {/* Fleet Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Running</p>
-              <span className="size-2 rounded-full bg-emerald-500" />
-            </div>
-            <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="running-count">
-              {loading ? "--" : stats.running}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {stats.running === 1 ? "instance" : "instances"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Stopped</p>
-              <span className="size-2 rounded-full bg-zinc-400" />
-            </div>
-            <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="stopped-count">
-              {loading ? "--" : stats.stopped}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {stats.stopped === 1 ? "instance" : "instances"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Degraded</p>
-              {stats.degraded > 0 ? (
-                <span className="size-2 rounded-full bg-red-500" />
-              ) : (
-                <span className="size-2 rounded-full bg-zinc-700" />
-              )}
-            </div>
-            <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="degraded-count">
-              {loading ? "--" : stats.degraded}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {stats.degraded > 0 ? "need attention" : "all clear"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Resources</p>
-            <div className="mt-2 space-y-1">
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">CPU</span>
-                <span className="text-sm font-bold tabular-nums" data-testid="cpu-usage">
-                  {loading ? "--" : `${stats.totalCpu}%`}
-                </span>
+      <motion.div
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Running */}
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Running</p>
+                <PulsingDot color="bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
               </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">Memory</span>
-                <span className="text-sm font-bold tabular-nums" data-testid="memory-usage">
-                  {loading ? "--" : `${stats.totalMemory} MB`}
-                </span>
+              <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="running-count">
+                {loading ? "--" : <CountUp value={stats.running} />}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.running === 1 ? "instance" : "instances"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Stopped */}
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Stopped</p>
+                <span className="size-2 rounded-full bg-zinc-400" />
               </div>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">across fleet</p>
-          </CardContent>
-        </Card>
-      </div>
+              <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="stopped-count">
+                {loading ? "--" : <CountUp value={stats.stopped} />}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.stopped === 1 ? "instance" : "instances"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Degraded */}
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Degraded</p>
+                {stats.degraded > 0 ? (
+                  <PulsingDot color="bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]" speed={1.2} />
+                ) : (
+                  <span className="size-2 rounded-full bg-zinc-700" />
+                )}
+              </div>
+              <p className="mt-2 text-3xl font-bold tabular-nums" data-testid="degraded-count">
+                {loading ? "--" : <CountUp value={stats.degraded} />}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.degraded > 0 ? "need attention" : "all clear"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Resources */}
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">Resources</p>
+              <div className="mt-2 space-y-2">
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-muted-foreground">CPU</span>
+                    <span className="text-sm font-bold tabular-nums" data-testid="cpu-usage">
+                      {loading ? "--" : <CountUp value={stats.totalCpu} suffix="%" />}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <motion.div
+                      className="h-full rounded-full bg-primary"
+                      initial={{ width: "0%" }}
+                      animate={{ width: loading ? "0%" : `${stats.totalCpu}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-muted-foreground">Memory</span>
+                    <span className="text-sm font-bold tabular-nums" data-testid="memory-usage">
+                      {loading ? "--" : <CountUp value={stats.totalMemory} suffix=" MB" />}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <motion.div
+                      className="h-full rounded-full bg-primary"
+                      initial={{ width: "0%" }}
+                      animate={{
+                        width: loading
+                          ? "0%"
+                          : `${Math.min(100, (stats.totalMemory / stats.memoryCapacity) * 100)}%`,
+                      }}
+                      transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">across fleet</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Activity Feed */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Recent Activity</CardTitle>
+          <CardTitle className="text-base">
+            Recent Activity
+            <BlinkingCursor />
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-0 divide-y divide-border">
+          <motion.div
+            className="space-y-0 divide-y divide-border"
+            variants={activityContainer}
+            initial="hidden"
+            animate="show"
+          >
             {activity.map((evt) => (
-              <Link
-                key={evt.id}
-                href={evt.targetHref}
-                className="flex items-center justify-between py-2.5 text-sm transition-colors hover:text-primary"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="secondary" className="shrink-0 text-xs">
-                    {evt.actor}
-                  </Badge>
-                  <span className="text-muted-foreground">{evt.action}</span>
-                  <span className="truncate font-medium">{evt.target}</span>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground ml-4">
-                  {formatRelativeTime(evt.timestamp)}
-                </span>
-              </Link>
+              <motion.div key={evt.id} variants={activityItem}>
+                <Link
+                  href={evt.targetHref}
+                  className="flex items-center justify-between py-2.5 text-sm transition-colors hover:text-primary"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="secondary" className="shrink-0 text-xs">
+                      {evt.actor}
+                    </Badge>
+                    <span className="text-muted-foreground">{evt.action}</span>
+                    <span className="truncate font-medium">{evt.target}</span>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground ml-4">
+                    {formatRelativeTime(evt.timestamp)}
+                  </span>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </CardContent>
       </Card>
 
@@ -286,88 +452,131 @@ export function CommandCenter() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {instances.map((inst) => (
             <Link key={inst.id} href={`/instances/${inst.id}`}>
-              <Card className="h-full cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`size-2 rounded-full ${
-                        inst.status === "running" ? "bg-emerald-500" : "bg-zinc-400"
-                      }`}
-                    />
-                    <p className="font-semibold">{inst.name}</p>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground capitalize">{inst.status}</p>
-                </CardContent>
-              </Card>
+              <motion.div
+                whileHover={{ y: -4, scale: 1.015 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <Card className="h-full cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      {inst.status === "running" ? (
+                        <PulsingDot color="bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
+                      ) : (
+                        <span className="size-2 rounded-full bg-zinc-400" />
+                      )}
+                      <p className="font-semibold">{inst.name}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground capitalize">{inst.status}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </Link>
           ))}
 
           {/* Add another WOPR Bot CTA card */}
           <Link href="/onboarding?mode=fleet-add">
-            <Card className="flex h-full cursor-pointer items-center justify-center border-dashed transition-all hover:shadow-md hover:border-primary/30">
-              <CardContent className="p-6 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-muted-foreground/20 text-muted-foreground">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    role="img"
-                    aria-label="Add"
+            <motion.div
+              className="h-full rounded-sm border border-dashed border-terminal/20"
+              animate={{
+                borderColor: [
+                  "hsl(var(--terminal) / 0.2)",
+                  "hsl(var(--terminal) / 0.5)",
+                  "hsl(var(--terminal) / 0.2)",
+                ],
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Card className="flex h-full cursor-pointer items-center justify-center border-0 transition-all hover:shadow-md">
+                <CardContent className="p-6 text-center">
+                  <motion.div
+                    className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-terminal/30 text-terminal"
+                    animate={{ scale: [1, 1.08, 1] }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 2.5,
+                      ease: "easeInOut",
+                    }}
                   >
-                    <path d="M12 5v14" />
-                    <path d="M5 12h14" />
-                  </svg>
-                </div>
-                <p className="font-semibold">Add another WOPR Bot</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Name it. Teach it. Give it superpowers.
-                </p>
-              </CardContent>
-            </Card>
+                    <Plus size={24} />
+                  </motion.div>
+                  <p className="font-semibold">Add another WOPR Bot</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Name it. Teach it. Give it superpowers.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           </Link>
         </div>
       )}
 
       {/* Quick Actions */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Button asChild size="lg" className="h-auto py-4">
+        <Button
+          asChild
+          variant="terminal"
+          size="lg"
+          className="h-auto py-4 hover:shadow-[0_0_16px_rgba(0,255,65,0.25)]"
+        >
           <Link href="/onboarding?mode=fleet-add">
-            <div className="text-center">
-              <p className="font-semibold">Add Another WOPR Bot</p>
-              <p className="text-xs opacity-70">Grow your fleet</p>
+            <div className="flex items-center gap-3">
+              <Plus size={18} />
+              <div className="text-left">
+                <p className="font-semibold">Add Another WOPR Bot</p>
+                <p className="text-xs opacity-70">Grow your fleet</p>
+              </div>
             </div>
           </Link>
         </Button>
 
-        <Button asChild variant="outline" size="lg" className="h-auto py-4">
+        <Button
+          asChild
+          variant="outline"
+          size="lg"
+          className="h-auto py-4 hover:shadow-[0_0_12px_rgba(0,255,65,0.15)] hover:border-terminal/40"
+        >
           <Link href="/fleet/health">
-            <div className="text-center">
-              <p className="font-semibold">Fleet Health</p>
-              <p className="text-xs opacity-70">Monitor all instances</p>
+            <div className="flex items-center gap-3">
+              <Activity size={18} />
+              <div className="text-left">
+                <p className="font-semibold">Fleet Health</p>
+                <p className="text-xs opacity-70">Monitor all instances</p>
+              </div>
             </div>
           </Link>
         </Button>
 
-        <Button asChild variant="outline" size="lg" className="h-auto py-4">
+        <Button
+          asChild
+          variant="outline"
+          size="lg"
+          className="h-auto py-4 hover:shadow-[0_0_12px_rgba(0,255,65,0.15)] hover:border-terminal/40"
+        >
           <Link href="/plugins">
-            <div className="text-center">
-              <p className="font-semibold">Manage Plugins</p>
-              <p className="text-xs opacity-70">Install and configure</p>
+            <div className="flex items-center gap-3">
+              <Puzzle size={18} />
+              <div className="text-left">
+                <p className="font-semibold">Manage Plugins</p>
+                <p className="text-xs opacity-70">Install and configure</p>
+              </div>
             </div>
           </Link>
         </Button>
 
-        <Button asChild variant="outline" size="lg" className="h-auto py-4">
+        <Button
+          asChild
+          variant="outline"
+          size="lg"
+          className="h-auto py-4 hover:shadow-[0_0_12px_rgba(0,255,65,0.15)] hover:border-terminal/40"
+        >
           <Link href="/billing/usage">
-            <div className="text-center">
-              <p className="font-semibold">Billing Overview</p>
-              <p className="text-xs opacity-70">Usage and costs</p>
+            <div className="flex items-center gap-3">
+              <CreditCard size={18} />
+              <div className="text-left">
+                <p className="font-semibold">Billing Overview</p>
+                <p className="text-xs opacity-70">Usage and costs</p>
+              </div>
             </div>
           </Link>
         </Button>

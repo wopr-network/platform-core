@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
-import { type ByokAiProvider, getAiKeyField, superpowers } from "@/lib/onboarding-data";
+import { type ByokAiProvider, getAiKeyField } from "@/lib/onboarding-data";
 
 export type WizardMode = "onboarding" | "fleet-add";
 
