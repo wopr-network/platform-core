@@ -15,8 +15,7 @@ on:
 
 jobs:
   validate:
-    # Using ubuntu-latest because this org does not have self-hosted runners configured.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Require confirmation
         if: inputs.confirm != 'promote'
@@ -40,8 +39,7 @@ jobs:
             echo "Validated: ${{ inputs.staging_ref }} is deployed to staging"
 
   ci:
-    # Using ubuntu-latest because this org does not have self-hosted runners configured.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     needs: validate
     steps:
       - uses: actions/checkout@v4
@@ -71,8 +69,7 @@ jobs:
         run: pnpm test
 
   deploy:
-    # Using ubuntu-latest because this org does not have self-hosted runners configured.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     needs: ci
     environment: production
     permissions:
