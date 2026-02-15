@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,8 @@ interface StepNameProps {
   existingBots?: ExistingBot[];
   cloneFromBotId?: string;
   onCloneFromBot?: (botId: string) => void;
+  stepNumber?: string;
+  stepCode?: string;
 }
 
 export function StepName({
@@ -38,12 +41,20 @@ export function StepName({
   existingBots = [],
   cloneFromBotId = "",
   onCloneFromBot,
+  stepNumber = "01",
+  stepCode = "DESIGNATION",
 }: StepNameProps) {
   const isFleetAdd = mode === "fleet-add";
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
+      <div className="text-center space-y-2">
+        <div
+          className="inline-block font-mono text-xs tracking-[0.3em] text-terminal uppercase"
+          aria-hidden="true"
+        >
+          STEP {stepNumber} {"//"} {stepCode}
+        </div>
         <h2 className="text-2xl font-bold tracking-tight">
           {isFleetAdd ? "Name your new WOPR" : "Name your WOPR Bot"}
         </h2>
@@ -88,30 +99,58 @@ export function StepName({
       <div className="space-y-3">
         <Label>Personality</Label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {personalities.map((p: Personality) => (
-            <button
-              key={p.id}
-              type="button"
-              className="text-left"
-              onClick={() => onPersonalityChange(p.id)}
-            >
-              <Card
-                className={cn(
-                  "h-full cursor-pointer transition-all hover:shadow-md",
-                  personalityId === p.id
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "hover:border-primary/30",
-                )}
+          {personalities.map((p: Personality) => {
+            const isSelected = personalityId === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className="text-left"
+                onClick={() => onPersonalityChange(p.id)}
               >
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm">{p.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="py-0 pb-3">
-                  <p className="text-xs text-muted-foreground">{p.description}</p>
-                </CardContent>
-              </Card>
-            </button>
-          ))}
+                <Card
+                  className={cn(
+                    "h-full cursor-pointer transition-all relative",
+                    isSelected
+                      ? "border-terminal bg-terminal/5 shadow-[0_0_12px_rgba(0,255,65,0.2)]"
+                      : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
+                  )}
+                >
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm">{p.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-0 pb-3">
+                    <p className="text-xs text-muted-foreground">{p.description}</p>
+                  </CardContent>
+                  {isSelected && (
+                    <motion.div
+                      className="absolute top-2 right-2"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                    >
+                      <div
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-terminal/20 text-terminal"
+                        aria-hidden="true"
+                      >
+                        <svg
+                          className="h-3 w-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                          role="img"
+                          aria-label="Selected"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </motion.div>
+                  )}
+                </Card>
+              </button>
+            );
+          })}
         </div>
       </div>
 

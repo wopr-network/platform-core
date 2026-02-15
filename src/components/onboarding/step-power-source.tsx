@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useCallback, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ interface StepPowerSourceProps {
   onByokKeyChange: (key: string, value: string) => void;
   onValidateByokKey: (key: string) => void;
   mode?: WizardMode;
+  stepNumber?: string;
+  stepCode?: string;
 }
 
 export function StepPowerSource({
@@ -42,6 +45,8 @@ export function StepPowerSource({
   onByokKeyChange,
   onValidateByokKey,
   mode = "onboarding",
+  stepNumber = "05",
+  stepCode = "POWER SOURCE",
 }: StepPowerSourceProps) {
   const { superpowers } = usePluginRegistry();
   const isFleetAdd = mode === "fleet-add";
@@ -79,7 +84,13 @@ export function StepPowerSource({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
+      <div className="text-center space-y-2">
+        <div
+          className="inline-block font-mono text-xs tracking-[0.3em] text-terminal uppercase"
+          aria-hidden="true"
+        >
+          STEP {stepNumber} {"//"} {stepCode}
+        </div>
         <h2 className="text-2xl font-bold tracking-tight">How do you want to power them?</h2>
         <p className="mt-2 text-muted-foreground">
           {isFleetAdd
@@ -101,13 +112,19 @@ export function StepPowerSource({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Hosted option */}
-        <button type="button" className="text-left" onClick={() => onProviderModeChange("hosted")}>
+        <motion.button
+          type="button"
+          className="text-left"
+          onClick={() => onProviderModeChange("hosted")}
+          whileHover={{ scale: 1.02, x: -4 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
           <Card
             className={cn(
-              "h-full cursor-pointer transition-all hover:shadow-md",
+              "h-full cursor-pointer transition-all",
               providerMode === "hosted"
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "hover:border-primary/30",
+                ? "border-terminal bg-terminal/5 shadow-[0_0_16px_rgba(0,255,65,0.25)]"
+                : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
             )}
           >
             <CardHeader>
@@ -124,21 +141,24 @@ export function StepPowerSource({
                 <p className="text-sm font-medium text-terminal">You have {creditBalance} credit</p>
                 <p className="text-xs text-muted-foreground">~100 images or ~250 min voice</p>
               </div>
-              {providerMode === "hosted" && (
-                <p className="text-xs font-medium text-primary">Selected</p>
-              )}
             </CardContent>
           </Card>
-        </button>
+        </motion.button>
 
         {/* BYOK option */}
-        <button type="button" className="text-left" onClick={() => onProviderModeChange("byok")}>
+        <motion.button
+          type="button"
+          className="text-left"
+          onClick={() => onProviderModeChange("byok")}
+          whileHover={{ scale: 1.02, x: 4 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
           <Card
             className={cn(
-              "h-full cursor-pointer transition-all hover:shadow-md",
+              "h-full cursor-pointer transition-all",
               providerMode === "byok"
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "hover:border-primary/30",
+                ? "border-terminal bg-terminal/5 shadow-[0_0_16px_rgba(0,255,65,0.25)]"
+                : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
             )}
           >
             <CardHeader>
@@ -158,12 +178,9 @@ export function StepPowerSource({
                   </ul>
                 </div>
               )}
-              {providerMode === "byok" && (
-                <p className="text-xs font-medium text-primary">Selected</p>
-              )}
             </CardContent>
           </Card>
-        </button>
+        </motion.button>
       </div>
 
       {/* BYOK key entry */}
@@ -192,10 +209,10 @@ export function StepPowerSource({
                 >
                   <Card
                     className={cn(
-                      "h-full cursor-pointer transition-all hover:shadow-md",
+                      "h-full cursor-pointer transition-all",
                       byokAiProvider === "openai"
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "hover:border-primary/30",
+                        ? "border-terminal bg-terminal/5 shadow-[0_0_12px_rgba(0,255,65,0.2)]"
+                        : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
                     )}
                   >
                     <CardHeader className="pb-2">
@@ -208,9 +225,6 @@ export function StepPowerSource({
                     </CardHeader>
                     <CardContent className="pt-0">
                       <p className="text-xs text-muted-foreground">GPT-4o, o3, embeddings</p>
-                      {byokAiProvider === "openai" && (
-                        <p className="mt-2 text-xs font-medium text-primary">Selected</p>
-                      )}
                     </CardContent>
                   </Card>
                 </button>
@@ -223,10 +237,10 @@ export function StepPowerSource({
                 >
                   <Card
                     className={cn(
-                      "h-full cursor-pointer transition-all hover:shadow-md",
+                      "h-full cursor-pointer transition-all",
                       byokAiProvider === "openrouter"
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "hover:border-primary/30",
+                        ? "border-terminal bg-terminal/5 shadow-[0_0_12px_rgba(0,255,65,0.2)]"
+                        : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
                     )}
                   >
                     <CardHeader className="pb-2">
@@ -242,9 +256,6 @@ export function StepPowerSource({
                     </CardHeader>
                     <CardContent className="pt-0">
                       <p className="text-xs text-muted-foreground">200+ models, one key</p>
-                      {byokAiProvider === "openrouter" && (
-                        <p className="mt-2 text-xs font-medium text-primary">Selected</p>
-                      )}
                     </CardContent>
                   </Card>
                 </button>
@@ -358,10 +369,22 @@ function ByokField({
         <Label htmlFor={`byok-${field.key}`}>{field.label}</Label>
         <div className="flex items-center gap-2 text-xs">
           {isValid && <span className="text-green-500">valid</span>}
-          {error && <span className="text-destructive">{error}</span>}
+          {error && (
+            <motion.span
+              className="text-destructive"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {error}
+            </motion.span>
+          )}
         </div>
       </div>
-      <div className="flex gap-2">
+      <motion.div
+        className="flex gap-2"
+        animate={error ? { x: [0, -4, 4, -4, 0] } : undefined}
+        transition={error ? { duration: 0.3 } : undefined}
+      >
         <Input
           id={`byok-${field.key}`}
           type={field.secret && !showSecret ? "password" : "text"}
@@ -369,21 +392,25 @@ function ByokField({
           value={value}
           onChange={(e) => onChange(field.key, e.target.value)}
           onBlur={handleBlur}
-          className={cn(error && "border-destructive")}
+          className={cn(
+            "bg-black/50 border-terminal/30 font-mono text-sm placeholder:text-terminal/20",
+            "focus-visible:border-terminal focus-visible:ring-terminal/30",
+            error && "border-destructive ring-destructive/20",
+          )}
           aria-invalid={!!error}
         />
         {field.secret && (
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="shrink-0"
+            className="shrink-0 font-mono text-xs text-terminal/60 hover:text-terminal"
             onClick={() => setShowSecret(!showSecret)}
           >
-            {showSecret ? "Hide" : "Show"}
+            {showSecret ? "[HIDE]" : "[SHOW]"}
           </Button>
         )}
-      </div>
+      </motion.div>
       {field.helpText && (
         <p className="text-xs text-muted-foreground">
           {field.helpText}

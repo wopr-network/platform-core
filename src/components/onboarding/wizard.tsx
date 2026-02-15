@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { StepChannels } from "./step-channels";
 import { StepConnect } from "./step-connect";
 import { StepLaunch } from "./step-launch";
@@ -21,11 +21,23 @@ const STEP_LABELS: Record<string, string> = {
   launch: "Launch",
 };
 
+const STEP_META: Record<string, { number: string; code: string }> = {
+  name: { number: "01", code: "DESIGNATION" },
+  channels: { number: "02", code: "CHANNELS" },
+  connect: { number: "03", code: "CONNECT" },
+  superpowers: { number: "04", code: "SUPERPOWERS" },
+  "power-source": { number: "05", code: "POWER SOURCE" },
+  launch: { number: "06", code: "LAUNCH" },
+};
+
 const stepTransition = {
   initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
+  animate: {
+    opacity: [0, 1, 0.95, 1],
+    x: 0,
+  },
   exit: { opacity: 0, x: -20 },
-  transition: { duration: 0.25, ease: "easeInOut" as const },
+  transition: { duration: 0.3, ease: "easeInOut" as const },
 };
 
 interface OnboardingWizardProps {
@@ -43,17 +55,51 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
   const showBackNext =
     state.step !== "launch" || (state.step === "launch" && state.deployStatus === "idle");
 
+  const currentMeta = STEP_META[state.step];
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      {/* Progress bar */}
-      <div className="mb-8 space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            {STEP_LABELS[state.step]} -- Step {state.stepIndex + 1} of {state.totalSteps}
-          </span>
-          <span>{Math.round(state.progress)}%</span>
+      {/* Terminal progress bar */}
+      <div className="mb-8 space-y-3">
+        {/* Terminal progress header */}
+        <div className="flex items-center justify-between font-mono text-xs">
+          <span className="text-terminal tracking-wider uppercase">MISSION BRIEFING</span>
+          <span className="text-terminal tabular-nums">[{Math.round(state.progress)}%]</span>
         </div>
-        <Progress value={state.progress} />
+
+        {/* Terminal progress bar */}
+        <div className="relative h-2 w-full overflow-hidden rounded-none bg-black border border-terminal/20">
+          <motion.div
+            className="h-full bg-terminal"
+            animate={{ width: `${state.progress}%` }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          />
+        </div>
+
+        {/* Step tick marks */}
+        <div className="flex justify-between">
+          {Object.entries(STEP_LABELS).map(([key, label], i) => {
+            const isActive = i <= state.stepIndex;
+            return (
+              <div key={key} className="flex flex-col items-center">
+                <div
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full mb-1",
+                    isActive ? "bg-terminal" : "bg-terminal/20",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-mono tracking-wider hidden sm:block",
+                    isActive ? "text-terminal/80" : "text-muted-foreground/40",
+                  )}
+                >
+                  {label.split(" ")[0].toUpperCase()}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -70,13 +116,20 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               existingBots={state.existingBots}
               cloneFromBotId={state.cloneFromBotId}
               onCloneFromBot={actions.setCloneFromBot}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
             />
           </motion.div>
         )}
 
         {state.step === "channels" && (
           <motion.div key="channels" {...stepTransition}>
-            <StepChannels selected={state.selectedChannels} onToggle={actions.toggleChannel} />
+            <StepChannels
+              selected={state.selectedChannels}
+              onToggle={actions.toggleChannel}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
+            />
           </motion.div>
         )}
 
@@ -88,6 +141,8 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               channelKeyErrors={state.channelKeyErrors}
               onChannelKeyChange={actions.setChannelKeyValue}
               onValidateChannelKey={actions.validateChannelKey}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
             />
           </motion.div>
         )}
@@ -99,6 +154,8 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               onToggle={actions.toggleSuperpower}
               mode={state.mode}
               existingBots={state.existingBots}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
             />
           </motion.div>
         )}
@@ -117,6 +174,8 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               onByokKeyChange={actions.setByokKeyValue}
               onValidateByokKey={actions.validateByokKey}
               mode={state.mode}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
             />
           </motion.div>
         )}
@@ -133,6 +192,8 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               onDeploy={actions.deploy}
               onGoToDashboard={handleGoToDashboard}
               mode={state.mode}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
             />
           </motion.div>
         )}
@@ -144,7 +205,14 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
           <Button variant="ghost" onClick={actions.back} disabled={state.step === "name"}>
             Back
           </Button>
-          <Button onClick={actions.next} disabled={!actions.canAdvance()}>
+          <Button
+            variant="terminal"
+            onClick={actions.next}
+            disabled={!actions.canAdvance()}
+            className={cn(
+              actions.canAdvance() && "animate-[terminal-pulse_2s_ease-in-out_infinite]",
+            )}
+          >
             Continue
           </Button>
         </div>

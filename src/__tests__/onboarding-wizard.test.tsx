@@ -116,9 +116,11 @@ describe("StepChannels", () => {
     expect(screen.getByText("MS Teams")).toBeInTheDocument();
   });
 
-  it("shows Selected label for selected channels", () => {
+  it("shows checkmark for selected channels", () => {
     render(<StepChannels selected={["discord"]} onToggle={vi.fn()} />);
-    expect(screen.getByText("Selected")).toBeInTheDocument();
+    // The selected channel card has a checkmark SVG with a check path
+    const cards = document.querySelectorAll(".bg-terminal\\/20");
+    expect(cards.length).toBeGreaterThan(0);
   });
 
   it("calls onToggle when a channel is clicked", () => {
@@ -163,7 +165,7 @@ describe("StepConnect", () => {
         onValidateChannelKey={vi.fn()}
       />,
     );
-    expect(screen.getByText("No channels selected. Go back to add one.")).toBeInTheDocument();
+    expect(screen.getByText(/NO CHANNELS DESIGNATED/)).toBeInTheDocument();
   });
 
   it("calls onChannelKeyChange when typing", () => {

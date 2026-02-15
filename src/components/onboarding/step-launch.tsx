@@ -18,6 +18,8 @@ interface StepLaunchProps {
   onDeploy: () => void;
   onGoToDashboard: () => void;
   mode?: WizardMode;
+  stepNumber?: string;
+  stepCode?: string;
 }
 
 const DEPLOY_STAGES: {
@@ -46,6 +48,8 @@ export function StepLaunch({
   onDeploy,
   onGoToDashboard,
   mode = "onboarding",
+  stepNumber = "06",
+  stepCode = "LAUNCH",
 }: StepLaunchProps) {
   const isFleetAdd = mode === "fleet-add";
   const [showModal, setShowModal] = useState(false);
@@ -79,7 +83,13 @@ export function StepLaunch({
       <div className="space-y-6">
         {/* Pre-deploy / deploying header */}
         {!isDone && (
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <div
+              className="inline-block font-mono text-xs tracking-[0.3em] text-terminal uppercase"
+              aria-hidden="true"
+            >
+              STEP {stepNumber} {"//"} {stepCode}
+            </div>
             <h2 className="text-2xl font-bold tracking-tight">
               {deployStatus === "idle"
                 ? "Ready to launch"
@@ -126,7 +136,7 @@ export function StepLaunch({
                 transition={{ duration: 0.8, ease: "easeInOut" }}
               />
             </div>
-            <div className="overflow-hidden rounded-md border border-border bg-black/50 font-mono text-sm">
+            <div className="overflow-hidden rounded-md border border-border bg-black/50 font-mono text-sm shadow-[0_0_12px_rgba(0,255,65,0.2)]">
               <div className="flex items-center gap-2 border-b border-border/50 px-3 py-1.5 text-xs text-muted-foreground">
                 <span className="inline-block h-2 w-2 rounded-full bg-terminal" />
                 <span>WOPR LAUNCH TERMINAL</span>

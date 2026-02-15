@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ interface StepConnectProps {
   channelKeyErrors: Record<string, string | null>;
   onChannelKeyChange: (key: string, value: string) => void;
   onValidateChannelKey: (key: string) => void;
+  stepNumber?: string;
+  stepCode?: string;
 }
 
 export function StepConnect({
@@ -21,13 +24,21 @@ export function StepConnect({
   channelKeyErrors,
   onChannelKeyChange,
   onValidateChannelKey,
+  stepNumber = "03",
+  stepCode = "CONNECT",
 }: StepConnectProps) {
   const { channels: channelPlugins } = usePluginRegistry();
   const channels = channelPlugins.filter((c) => selectedChannels.includes(c.id));
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
+      <div className="text-center space-y-2">
+        <div
+          className="inline-block font-mono text-xs tracking-[0.3em] text-terminal uppercase"
+          aria-hidden="true"
+        >
+          STEP {stepNumber} {"//"} {stepCode}
+        </div>
         <h2 className="text-2xl font-bold tracking-tight">Connect your channels</h2>
         <p className="mt-2 text-muted-foreground">
           Paste the tokens or credentials for each channel.
@@ -61,8 +72,10 @@ export function StepConnect({
       </div>
 
       {channels.length === 0 && (
-        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          No channels selected. Go back to add one.
+        <div className="rounded-lg border border-dashed border-terminal/20 p-8 text-center">
+          <p className="font-mono text-xs tracking-wider text-terminal/40">
+            NO CHANNELS DESIGNATED — RETURN TO PREVIOUS STEP
+          </p>
         </div>
       )}
     </div>
@@ -94,9 +107,21 @@ function ConnectField({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <Label htmlFor={field.key}>{field.label}</Label>
-        {error && <span className="text-xs text-destructive">{error}</span>}
+        {error && (
+          <motion.span
+            className="text-xs text-destructive"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {error}
+          </motion.span>
+        )}
       </div>
-      <div className="flex gap-2">
+      <motion.div
+        className="flex gap-2"
+        animate={error ? { x: [0, -4, 4, -4, 0] } : undefined}
+        transition={error ? { duration: 0.3 } : undefined}
+      >
         <Input
           id={field.key}
           type={field.secret && !showSecret ? "password" : "text"}
@@ -104,21 +129,25 @@ function ConnectField({
           value={value}
           onChange={(e) => onChange(field.key, e.target.value)}
           onBlur={handleBlur}
-          className={cn(error && "border-destructive")}
+          className={cn(
+            "bg-black/50 border-terminal/30 font-mono text-sm placeholder:text-terminal/20",
+            "focus-visible:border-terminal focus-visible:ring-terminal/30",
+            error && "border-destructive ring-destructive/20",
+          )}
           aria-invalid={!!error}
         />
         {field.secret && (
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="shrink-0"
+            className="shrink-0 font-mono text-xs text-terminal/60 hover:text-terminal"
             onClick={() => setShowSecret(!showSecret)}
           >
-            {showSecret ? "Hide" : "Show"}
+            {showSecret ? "[HIDE]" : "[SHOW]"}
           </Button>
         )}
-      </div>
+      </motion.div>
       {field.helpText && (
         <p className="text-xs text-muted-foreground">
           {field.helpText}

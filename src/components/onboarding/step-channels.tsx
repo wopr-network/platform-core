@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
@@ -7,14 +8,27 @@ import { cn } from "@/lib/utils";
 interface StepChannelsProps {
   selected: string[];
   onToggle: (id: string) => void;
+  stepNumber?: string;
+  stepCode?: string;
 }
 
-export function StepChannels({ selected, onToggle }: StepChannelsProps) {
+export function StepChannels({
+  selected,
+  onToggle,
+  stepNumber = "02",
+  stepCode = "CHANNELS",
+}: StepChannelsProps) {
   const { channels: channelPlugins } = usePluginRegistry();
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
+      <div className="text-center space-y-2">
+        <div
+          className="inline-block font-mono text-xs tracking-[0.3em] text-terminal uppercase"
+          aria-hidden="true"
+        >
+          STEP {stepNumber} {"//"} {stepCode}
+        </div>
         <h2 className="text-2xl font-bold tracking-tight">Pick your channels</h2>
         <p className="mt-2 text-muted-foreground">
           Select one or more messaging platforms to connect.
@@ -32,8 +46,10 @@ export function StepChannels({ selected, onToggle }: StepChannelsProps) {
             >
               <Card
                 className={cn(
-                  "h-full cursor-pointer transition-all hover:shadow-md",
-                  isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:border-primary/30",
+                  "h-full cursor-pointer transition-all relative",
+                  isSelected
+                    ? "border-terminal bg-terminal/5 shadow-[0_0_12px_rgba(0,255,65,0.2)]"
+                    : "border-border/50 hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
                 )}
               >
                 <CardHeader>
@@ -51,13 +67,42 @@ export function StepChannels({ selected, onToggle }: StepChannelsProps) {
                       </CardDescription>
                     </div>
                   </div>
-                  {isSelected && <p className="mt-2 text-xs font-medium text-primary">Selected</p>}
                 </CardHeader>
+                {isSelected && (
+                  <motion.div
+                    className="absolute top-2 right-2"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  >
+                    <div
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-terminal/20 text-terminal"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                        role="img"
+                        aria-label="Selected"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </motion.div>
+                )}
               </Card>
             </button>
           );
         })}
       </div>
+      {selected.length === 0 && (
+        <p className="text-center font-mono text-xs tracking-wider text-terminal/40 mt-4">
+          AWAITING CHANNEL DESIGNATION
+        </p>
+      )}
     </div>
   );
 }
