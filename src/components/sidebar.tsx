@@ -57,7 +57,7 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function Sidebar() {
+export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, isPending } = useSession();
@@ -84,15 +84,16 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-sidebar-border px-6">
-        <span className="text-lg font-semibold tracking-tight">WOPR</span>
+        <span className="text-lg font-semibold tracking-tight">WOPR Bot</span>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             className={cn(
               "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               isNavActive(item.href, pathname)
@@ -167,6 +168,14 @@ export function Sidebar() {
           </Link>
         )}
       </div>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <SidebarContent />
     </aside>
   );
 }

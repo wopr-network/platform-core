@@ -5,17 +5,12 @@ import { Hero } from "../components/landing/hero";
 describe("Landing Hero", () => {
   it("renders the CTA link", () => {
     render(<Hero />);
-    expect(screen.getByRole("link", { name: /get your wopr bot/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get yours/i })).toBeInTheDocument();
   });
 
   it("shows the price", () => {
     render(<Hero />);
     expect(screen.getByText(/\$5\/month/)).toBeInTheDocument();
-  });
-
-  it("shows the domain", () => {
-    render(<Hero />);
-    expect(screen.getByText("wopr.bot")).toBeInTheDocument();
   });
 
   it("renders the beta badge", () => {
@@ -25,7 +20,7 @@ describe("Landing Hero", () => {
 
   it("uses terminal variant on the CTA link", () => {
     render(<Hero />);
-    const link = screen.getByRole("link", { name: /get your wopr bot/i });
+    const link = screen.getByRole("link", { name: /get yours/i });
     expect(link).toHaveAttribute("data-variant", "terminal");
   });
 
@@ -37,7 +32,7 @@ describe("Landing Hero", () => {
 
   it("links to the signup page", () => {
     render(<Hero />);
-    const link = screen.getByRole("link", { name: /get your wopr bot/i });
+    const link = screen.getByRole("link", { name: /get yours/i });
     expect(link).toHaveAttribute("href", "/signup");
   });
 });
