@@ -106,6 +106,39 @@ export function hasHostedOption(capabilities: string[]): boolean {
   return HOSTED_ADAPTERS.some((a) => capabilities.includes(a.capability));
 }
 
+// --- Capability Color Map ---
+// Consistent color-coded badges for capability types across all marketplace surfaces.
+
+export const CAPABILITY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  channel: { bg: "bg-blue-500/15", text: "text-blue-500", border: "border-blue-500/25" },
+  llm: { bg: "bg-purple-500/15", text: "text-purple-500", border: "border-purple-500/25" },
+  tts: { bg: "bg-amber-500/15", text: "text-amber-500", border: "border-amber-500/25" },
+  stt: { bg: "bg-cyan-500/15", text: "text-cyan-500", border: "border-cyan-500/25" },
+  voice: { bg: "bg-pink-500/15", text: "text-pink-500", border: "border-pink-500/25" },
+  memory: { bg: "bg-violet-500/15", text: "text-violet-500", border: "border-violet-500/25" },
+  embeddings: { bg: "bg-indigo-500/15", text: "text-indigo-500", border: "border-indigo-500/25" },
+  webhook: { bg: "bg-yellow-500/15", text: "text-yellow-500", border: "border-yellow-500/25" },
+  integration: { bg: "bg-orange-500/15", text: "text-orange-500", border: "border-orange-500/25" },
+  ui: { bg: "bg-sky-500/15", text: "text-sky-500", border: "border-sky-500/25" },
+  moderation: { bg: "bg-red-500/15", text: "text-red-500", border: "border-red-500/25" },
+  analytics: { bg: "bg-emerald-500/15", text: "text-emerald-500", border: "border-emerald-500/25" },
+  "image-gen": {
+    bg: "bg-fuchsia-500/15",
+    text: "text-fuchsia-500",
+    border: "border-fuchsia-500/25",
+  },
+};
+
+export function getCapabilityColor(cap: string) {
+  return (
+    CAPABILITY_COLORS[cap] ?? {
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      border: "border-border",
+    }
+  );
+}
+
 // --- Mock Plugin Manifests ---
 
 export const MOCK_MANIFESTS: PluginManifest[] = [

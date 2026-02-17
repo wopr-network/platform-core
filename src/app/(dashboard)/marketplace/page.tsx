@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CategoryFilter } from "@/components/marketplace/category-filter";
+import { MarketplaceEmptyState } from "@/components/marketplace/empty-state";
 import { PluginCard } from "@/components/marketplace/plugin-card";
-import { Input } from "@/components/ui/input";
+import { TerminalSearch } from "@/components/marketplace/terminal-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   listMarketplacePlugins,
@@ -92,24 +93,17 @@ export default function MarketplacePage() {
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Input
-          placeholder="Search plugins..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+        <TerminalSearch value={search} onChange={setSearch} placeholder="Search plugins..." />
       </div>
 
       <CategoryFilter selected={category} onSelect={setCategory} counts={categoryCounts} />
 
       {filtered.length === 0 ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">
-          No plugins found matching your criteria.
-        </div>
+        <MarketplaceEmptyState hasSearch={search.trim().length > 0} searchTerm={search} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((plugin) => (
-            <PluginCard key={plugin.id} plugin={plugin} />
+          {filtered.map((plugin, i) => (
+            <PluginCard key={plugin.id} plugin={plugin} index={i} />
           ))}
         </div>
       )}

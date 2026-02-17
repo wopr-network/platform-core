@@ -202,7 +202,8 @@ describe("MarketplacePage", () => {
     await screen.findByText("Plugin Marketplace");
 
     // Semantic Memory has 'embeddings' capability which matches a hosted adapter
-    const hostedBadges = screen.getAllByText("WOPR Hosted Available");
+    // Cards show shortened "WOPR Hosted" badge text
+    const hostedBadges = screen.getAllByText("WOPR Hosted");
     expect(hostedBadges.length).toBeGreaterThan(0);
   });
 
@@ -216,7 +217,7 @@ describe("MarketplacePage", () => {
     const searchInput = screen.getByPlaceholderText("Search plugins...");
     await user.type(searchInput, "nonexistentplugin12345");
 
-    expect(screen.getByText("No plugins found matching your criteria.")).toBeInTheDocument();
+    expect(screen.getByText(/No results for/)).toBeInTheDocument();
   });
 });
 
@@ -257,7 +258,7 @@ describe("PluginDetailPage", () => {
     render(<PluginDetailPage />);
 
     await screen.findByText("Semantic Memory");
-    expect(screen.getByText("WOPR Hosted Available")).toBeInTheDocument();
+    expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
     expect(screen.getByText("WOPR Hosted Options")).toBeInTheDocument();
     expect(screen.getByText("WOPR Hosted Embeddings")).toBeInTheDocument();
   });
@@ -387,14 +388,15 @@ describe("PluginCard", () => {
     expect(link).toHaveAttribute("href", "/marketplace/discord-channel");
   });
 
-  it("shows WOPR Hosted Available badge for eligible plugins", async () => {
+  it("shows WOPR Hosted badge for eligible plugins", async () => {
     const { PluginCard } = await import("../components/marketplace/plugin-card");
     // semantic-memory has embeddings capability
     const plugin = findManifest("semantic-memory");
 
     render(<PluginCard plugin={plugin} />);
 
-    expect(screen.getByText("WOPR Hosted Available")).toBeInTheDocument();
+    // Cards show shortened "WOPR Hosted" badge text
+    expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
   });
 
   it("does not show WOPR Hosted badge for plugins without hosted capabilities", async () => {
@@ -404,7 +406,7 @@ describe("PluginCard", () => {
 
     render(<PluginCard plugin={plugin} />);
 
-    expect(screen.queryByText("WOPR Hosted Available")).not.toBeInTheDocument();
+    expect(screen.queryByText("WOPR Hosted")).not.toBeInTheDocument();
   });
 });
 
