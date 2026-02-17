@@ -1,6 +1,8 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,13 +37,26 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwError, setPwError] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const saveSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pwSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimer.current) clearTimeout(saveSuccessTimer.current);
+      if (pwSuccessTimer.current) clearTimeout(pwSuccessTimer.current);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,20 +79,35 @@ export default function ProfilePage() {
     setProfile(updated);
     setSaveMsg("Profile updated.");
     setSaving(false);
+    setSaveSuccess(true);
+    saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
   }
 
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault();
     setPwMsg(null);
+    setPwError(false);
     if (newPassword !== confirmPassword) {
       setPwMsg("Passwords do not match.");
+      setPwError(true);
       return;
     }
-    await changePassword({ currentPassword, newPassword });
-    setPwMsg("Password changed.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    setChangingPw(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      setPwMsg("Password changed.");
+      setPwError(false);
+      setPwSuccess(true);
+      pwSuccessTimer.current = setTimeout(() => setPwSuccess(false), 2000);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch {
+      setPwMsg("Failed to change password.");
+      setPwError(true);
+    } finally {
+      setChangingPw(false);
+    }
   }
 
   async function handleOauthToggle(provider: string, connected: boolean) {
@@ -149,9 +179,43 @@ export default function ProfilePage() {
                 required
               />
             </div>
-            {saveMsg && <p className="text-sm text-muted-foreground">{saveMsg}</p>}
-            <Button type="submit" className="w-fit" disabled={saving}>
-              {saving ? "Saving..." : "Save changes"}
+            <AnimatePresence>
+              {saveMsg && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-sm text-terminal"
+                >
+                  {saveMsg}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <Button type="submit" variant="terminal" className="w-fit" disabled={saving}>
+              <AnimatePresence mode="wait">
+                {saveSuccess ? (
+                  <motion.span
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-1"
+                  >
+                    <CheckIcon className="size-4" />
+                    Saved
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="save"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {saving ? "Saving..." : "Save changes"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Button>
           </form>
         </CardContent>
@@ -194,9 +258,43 @@ export default function ProfilePage() {
                 required
               />
             </div>
-            {pwMsg && <p className="text-sm text-muted-foreground">{pwMsg}</p>}
-            <Button type="submit" className="w-fit">
-              Change password
+            <AnimatePresence>
+              {pwMsg && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className={`text-sm ${pwError ? "text-destructive" : "text-terminal"}`}
+                >
+                  {pwMsg}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <Button type="submit" variant="terminal" className="w-fit" disabled={changingPw}>
+              <AnimatePresence mode="wait">
+                {pwSuccess ? (
+                  <motion.span
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-1"
+                  >
+                    <CheckIcon className="size-4" />
+                    Changed
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="default"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {changingPw ? "Changing..." : "Change password"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Button>
           </form>
         </CardContent>
@@ -225,9 +323,14 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Separator />
+      {/* Danger zone separator */}
+      <div className="flex items-center gap-3 pt-4">
+        <Separator className="flex-1 bg-destructive/30" />
+        <span className="text-xs font-mono text-destructive/70">DANGER ZONE</span>
+        <Separator className="flex-1 bg-destructive/30" />
+      </div>
 
-      <Card className="border-destructive/50">
+      <Card className="border-destructive/50 bg-destructive/5">
         <CardHeader>
           <CardTitle className="text-destructive">Delete Account</CardTitle>
           <CardDescription>

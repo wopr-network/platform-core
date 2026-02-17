@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PlatformApiKey } from "@/lib/api";
 import { createApiKey, listApiKeys, revokeApiKey } from "@/lib/api";
 
@@ -91,26 +94,50 @@ export default function ApiKeysPage() {
         />
       </div>
 
-      {newSecret && (
-        <Card className="border-green-500/50 bg-green-500/5">
-          <CardContent className="pt-6">
-            <p className="mb-2 text-sm font-medium">
-              Your new API key has been created. Copy it now -- it will not be shown again.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono break-all">
-                {newSecret}
-              </code>
-              <Button variant="outline" size="sm" onClick={handleCopy}>
-                {copied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm" className="mt-2" onClick={() => setNewSecret(null)}>
-              Dismiss
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence>
+        {newSecret && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card className="border-terminal/50 bg-terminal/5">
+              <CardContent className="pt-6">
+                <p className="mb-2 text-sm font-medium">
+                  Your new API key has been created. Copy it now -- it will not be shown again.
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono break-all">
+                    {newSecret}
+                  </code>
+                  <Tooltip open={copied}>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={handleCopy}>
+                        {copied ? (
+                          <CheckIcon className="size-4" />
+                        ) : (
+                          <CopyIcon className="size-4" />
+                        )}
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copied!</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setNewSecret(null)}
+                >
+                  Dismiss
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="rounded-md border">
@@ -118,7 +145,7 @@ export default function ApiKeysPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Prefix</TableHead>
+                <TableHead>Key</TableHead>
                 <TableHead>Scope</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Last Used</TableHead>
@@ -133,7 +160,7 @@ export default function ApiKeysPage() {
                     <Skeleton className="h-4 w-24" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-32" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-5 w-14" />
@@ -160,12 +187,12 @@ export default function ApiKeysPage() {
           No API keys yet. Create one to get started.
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Prefix</TableHead>
+                <TableHead>Key</TableHead>
                 <TableHead>Scope</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Last Used</TableHead>
@@ -178,7 +205,10 @@ export default function ApiKeysPage() {
                 <TableRow key={key.id}>
                   <TableCell className="font-medium">{key.name}</TableCell>
                   <TableCell>
-                    <code className="text-xs">{key.prefix}...</code>
+                    <code className="text-xs font-mono">
+                      {key.prefix}
+                      <span className="text-muted-foreground">{"*".repeat(12)}</span>
+                    </code>
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{key.scope}</Badge>
@@ -224,7 +254,7 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Generate new key</Button>
+        <Button variant="terminal">Generate new key</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

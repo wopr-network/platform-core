@@ -1,9 +1,12 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogClose,
@@ -35,6 +38,7 @@ import {
   updateCapability,
   updateProviderModel,
 } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // --- Capability metadata ---
 
@@ -105,10 +109,28 @@ export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, "success" | "fail" | null>>({});
   const [testingCap, setTestingCap] = useState<CapabilityName | null>(null);
+  const [testCapResult, setTestCapResult] = useState<
+    Partial<Record<CapabilityName, "success" | "fail" | null>>
+  >({});
   const [savingCap, setSavingCap] = useState<CapabilityName | null>(null);
+  const [saveCapSuccess, setSaveCapSuccess] = useState<Partial<Record<CapabilityName, boolean>>>(
+    {},
+  );
   const [byokKeys, setByokKeys] = useState<Partial<Record<CapabilityName, string>>>({});
   const [billingGate, setBillingGate] = useState<CapabilityName | null>(null);
+  const saveCapSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const testCapResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const testResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveCapSuccessTimer.current) clearTimeout(saveCapSuccessTimer.current);
+      if (testCapResultTimer.current) clearTimeout(testCapResultTimer.current);
+      if (testResultTimer.current) clearTimeout(testResultTimer.current);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,11 +146,9 @@ export default function ProvidersPage() {
 
   async function handleModeChange(capability: CapabilityName, mode: CapabilityMode) {
     if (mode === "hosted") {
-      // Trigger billing gate -- the billing page handles payment method setup
       setBillingGate(capability);
       return;
     }
-    // Switching to BYOK: just update mode, don't clear existing key
     setSavingCap(capability);
     const updated = await updateCapability(capability, { mode });
     setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
@@ -151,24 +171,54 @@ export default function ProvidersPage() {
     setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
     setByokKeys((prev) => ({ ...prev, [capability]: "" }));
     setSavingCap(null);
+    setSaveCapSuccess((prev) => ({ ...prev, [capability]: true }));
+    saveCapSuccessTimer.current = setTimeout(
+      () => setSaveCapSuccess((prev) => ({ ...prev, [capability]: false })),
+      2000,
+    );
   }
 
   async function handleTestCapability(capability: CapabilityName) {
     setTestingCap(capability);
-    await testCapabilityKey(capability);
-    // Reload to get updated status
-    const caps = await listCapabilities();
-    setCapabilities(caps);
+    setTestCapResult((prev) => ({ ...prev, [capability]: null }));
+    try {
+      await testCapabilityKey(capability);
+      const caps = await listCapabilities();
+      setCapabilities(caps);
+      const updatedCap = caps.find((c) => c.capability === capability);
+      setTestCapResult((prev) => ({
+        ...prev,
+        [capability]: updatedCap?.keyStatus === "valid" ? "success" : "fail",
+      }));
+    } catch {
+      setTestCapResult((prev) => ({ ...prev, [capability]: "fail" }));
+    }
     setTestingCap(null);
+    testCapResultTimer.current = setTimeout(
+      () => setTestCapResult((prev) => ({ ...prev, [capability]: null })),
+      2000,
+    );
   }
 
-  // Provider key handlers (existing functionality)
   async function handleTest(id: string) {
     setTesting(id);
-    await testProviderKey(id);
+    setTestResult((prev) => ({ ...prev, [id]: null }));
+    try {
+      const result = await testProviderKey(id);
+      setTestResult((prev) => ({
+        ...prev,
+        [id]: result.valid ? "success" : "fail",
+      }));
+    } catch {
+      setTestResult((prev) => ({ ...prev, [id]: "fail" }));
+    }
     const provs = await listProviderKeys();
     setProviders(provs);
     setTesting(null);
+    testResultTimer.current = setTimeout(
+      () => setTestResult((prev) => ({ ...prev, [id]: null })),
+      2000,
+    );
   }
 
   async function handleRemove(id: string) {
@@ -219,6 +269,8 @@ export default function ProvidersPage() {
         const isSaving = savingCap === capName;
         const isTesting = testingCap === capName;
         const byokKey = byokKeys[capName] ?? "";
+        const capTestResult = testCapResult[capName];
+        const isCapSaveSuccess = saveCapSuccess[capName] ?? false;
 
         return (
           <Card key={capName} data-testid={`capability-${capName}`}>
@@ -227,7 +279,12 @@ export default function ProvidersPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Hosted option */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+              <label
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
+                  mode === "hosted" && "border-terminal/30 bg-terminal/5",
+                )}
+              >
                 <input
                   type="radio"
                   name={`mode-${capName}`}
@@ -247,7 +304,12 @@ export default function ProvidersPage() {
               </label>
 
               {/* BYOK option */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+              <label
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
+                  mode === "byok" && "border-primary/30 bg-primary/5",
+                )}
+              >
                 <input
                   type="radio"
                   name={`mode-${capName}`}
@@ -265,49 +327,118 @@ export default function ProvidersPage() {
                 </div>
               </label>
 
-              {/* BYOK key input, shown when BYOK is selected */}
+              {/* BYOK key input with progressive disclosure */}
               {mode === "byok" && (
-                <div className="ml-8 space-y-3">
-                  {cap?.maskedKey && (
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs text-muted-foreground">{cap.maskedKey}</code>
-                      {cap.keyStatus && (
-                        <Badge variant={keyStatusVariant(cap.keyStatus)}>{cap.keyStatus}</Badge>
+                <Collapsible defaultOpen={!!cap?.maskedKey}>
+                  <CollapsibleTrigger className="ml-8 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                    <ChevronDownIcon className="size-3" />
+                    {cap?.maskedKey ? "Manage key" : "Add your API key"}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="ml-8 space-y-3 pt-2">
+                      {cap?.maskedKey && (
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs text-muted-foreground">{cap.maskedKey}</code>
+                          {cap.keyStatus && (
+                            <Badge variant={keyStatusVariant(cap.keyStatus)}>{cap.keyStatus}</Badge>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          placeholder={
+                            cap?.maskedKey ? "Enter new key to replace" : "Enter your API key"
+                          }
+                          value={byokKey}
+                          onChange={(e) =>
+                            setByokKeys((prev) => ({ ...prev, [capName]: e.target.value }))
+                          }
+                          className="flex-1"
+                          aria-label={`${meta.label} API key`}
+                        />
+                        <Button
+                          variant="terminal"
+                          size="sm"
+                          onClick={() => handleSaveByokKey(capName)}
+                          disabled={!byokKey || isSaving}
+                        >
+                          <AnimatePresence mode="wait">
+                            {isCapSaveSuccess ? (
+                              <motion.span
+                                key="success"
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="flex items-center gap-1"
+                              >
+                                <CheckIcon className="size-3" />
+                                Saved
+                              </motion.span>
+                            ) : (
+                              <motion.span
+                                key="default"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                              >
+                                {isSaving ? "Saving..." : "Save"}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </Button>
+                      </div>
+                      {cap?.maskedKey && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestCapability(capName)}
+                          disabled={isTesting}
+                        >
+                          <AnimatePresence mode="wait">
+                            {isTesting ? (
+                              <motion.span
+                                key="testing"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                              >
+                                Testing...
+                              </motion.span>
+                            ) : capTestResult === "success" ? (
+                              <motion.span
+                                key="success"
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex items-center gap-1 text-terminal"
+                              >
+                                <CheckIcon className="size-3" />
+                                Valid
+                              </motion.span>
+                            ) : capTestResult === "fail" ? (
+                              <motion.span
+                                key="fail"
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex items-center gap-1 text-destructive"
+                              >
+                                <XIcon className="size-3" />
+                                Failed
+                              </motion.span>
+                            ) : (
+                              <motion.span
+                                key="idle"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                              >
+                                Test Key
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </Button>
                       )}
                     </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder={
-                        cap?.maskedKey ? "Enter new key to replace" : "Enter your API key"
-                      }
-                      value={byokKey}
-                      onChange={(e) =>
-                        setByokKeys((prev) => ({ ...prev, [capName]: e.target.value }))
-                      }
-                      className="flex-1"
-                      aria-label={`${meta.label} API key`}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => handleSaveByokKey(capName)}
-                      disabled={!byokKey || isSaving}
-                    >
-                      {isSaving ? "Saving..." : "Save"}
-                    </Button>
-                  </div>
-                  {cap?.maskedKey && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleTestCapability(capName)}
-                      disabled={isTesting}
-                    >
-                      {isTesting ? "Testing..." : "Test Key"}
-                    </Button>
-                  )}
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </CardContent>
           </Card>
@@ -336,7 +467,18 @@ export default function ProvidersPage() {
         <Card key={provider.id}>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>{provider.provider}</CardTitle>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    provider.status === "valid" && "bg-terminal",
+                    provider.status === "invalid" && "bg-destructive",
+                    provider.status === "unchecked" && provider.maskedKey && "bg-amber-500",
+                    provider.status === "unchecked" && !provider.maskedKey && "bg-muted-foreground",
+                  )}
+                />
+                <CardTitle>{provider.provider}</CardTitle>
+              </div>
               <Badge variant={providerKeyStatusVariant(provider.status)}>
                 {provider.status === "unchecked" && !provider.maskedKey
                   ? "Not configured"
@@ -378,7 +520,41 @@ export default function ProvidersPage() {
                     onClick={() => handleTest(provider.id)}
                     disabled={testing === provider.id}
                   >
-                    {testing === provider.id ? "Testing..." : "Test connection"}
+                    <AnimatePresence mode="wait">
+                      {testing === provider.id ? (
+                        <motion.span
+                          key="testing"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
+                          Testing...
+                        </motion.span>
+                      ) : testResult[provider.id] === "success" ? (
+                        <motion.span
+                          key="success"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center gap-1 text-terminal"
+                        >
+                          <CheckIcon className="size-3" />
+                          Valid
+                        </motion.span>
+                      ) : testResult[provider.id] === "fail" ? (
+                        <motion.span
+                          key="fail"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center gap-1 text-destructive"
+                        >
+                          <XIcon className="size-3" />
+                          Failed
+                        </motion.span>
+                      ) : (
+                        <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                          Test connection
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </Button>
                   <RotateKeyDialog provider={provider} onSaved={load} />
                   <Button

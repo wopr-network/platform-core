@@ -1,6 +1,8 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +45,8 @@ import {
 } from "@/lib/api";
 
 function roleBadgeVariant(role: OrgMember["role"]) {
-  if (role === "owner") return "default" as const;
-  if (role === "admin") return "secondary" as const;
+  if (role === "owner") return "terminal" as const;
+  if (role === "admin") return "default" as const;
   return "outline" as const;
 }
 
@@ -56,6 +58,14 @@ export default function OrgPage() {
   const [billingEmail, setBillingEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const saveSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimer.current) clearTimeout(saveSuccessTimer.current);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +88,8 @@ export default function OrgPage() {
     setOrg(updated);
     setSaveMsg("Organization updated.");
     setSaving(false);
+    setSaveSuccess(true);
+    saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
   }
 
   async function handleRemove(memberId: string) {
@@ -160,15 +172,70 @@ export default function OrgPage() {
                 required
               />
             </div>
-            {saveMsg && <p className="text-sm text-muted-foreground">{saveMsg}</p>}
-            <Button type="submit" className="w-fit" disabled={saving}>
-              {saving ? "Saving..." : "Save changes"}
+            <AnimatePresence>
+              {saveMsg && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-sm text-terminal"
+                >
+                  {saveMsg}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <Button type="submit" variant="terminal" className="w-fit" disabled={saving}>
+              <AnimatePresence mode="wait">
+                {saveSuccess ? (
+                  <motion.span
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-1"
+                  >
+                    <CheckIcon className="size-4" />
+                    Saved
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="save"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {saving ? "Saving..." : "Save changes"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Button>
           </form>
         </CardContent>
       </Card>
 
       <Separator />
+
+      {/* Member avatar grid */}
+      <div className="flex flex-wrap gap-2">
+        {org.members.map((member) => (
+          <div
+            key={member.id}
+            className={`flex size-10 items-center justify-center rounded-full bg-muted text-xs font-semibold ${
+              member.role === "owner" ? "ring-2 ring-terminal/50" : ""
+            }`}
+            title={`${member.name} (${member.role})`}
+          >
+            {member.name
+              .split(" ")
+              .map((p) => p[0])
+              .filter(Boolean)
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()}
+          </div>
+        ))}
+      </div>
 
       <div className="flex items-center justify-between">
         <div>
@@ -180,7 +247,7 @@ export default function OrgPage() {
         <InviteDialog onInvited={load} />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -246,7 +313,7 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Invite member</Button>
+        <Button variant="terminal">Invite member</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -346,7 +413,7 @@ function TransferDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-400">
           Transfer
         </Button>
       </DialogTrigger>

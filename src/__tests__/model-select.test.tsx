@@ -140,7 +140,9 @@ describe("Brain settings page", () => {
 
     await user.click(screen.getByRole("button", { name: "Bring Your Own Key" }));
 
-    expect(screen.getByText("Anthropic")).toBeInTheDocument();
+    // "Anthropic" appears in both the current model card and the BYOK provider list
+    const anthropicElements = screen.getAllByText("Anthropic");
+    expect(anthropicElements).toHaveLength(2);
     expect(screen.getByText("OpenAI")).toBeInTheDocument();
     expect(screen.getByText("OpenRouter")).toBeInTheDocument();
   });

@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ModelSelection } from "@/lib/api";
@@ -20,15 +23,35 @@ import { cn } from "@/lib/utils";
 
 type ViewMode = "models" | "byok";
 
+function categoryBadgeVariant(cat: ModelOption["category"]) {
+  const map: Record<ModelOption["category"], "default" | "secondary" | "outline" | "terminal"> = {
+    reasoning: "default",
+    general: "secondary",
+    fast: "outline",
+    code: "terminal",
+    vision: "secondary",
+    "open-source": "outline",
+  };
+  return map[cat];
+}
+
 export default function BrainSettingsPage() {
   const [selection, setSelection] = useState<ModelSelection | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("models");
   const [byokKey, setByokKey] = useState("");
   const [byokProvider, setByokProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const saveSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimer.current) clearTimeout(saveSuccessTimer.current);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +103,8 @@ export default function BrainSettingsPage() {
       setSelection(updated);
       setByokKey("");
       setByokProvider(null);
+      setSaveSuccess(true);
+      saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       console.error("Failed to save BYOK key:", err);
       setError("Failed to save your API key. Please check the key and try again.");
@@ -107,11 +132,18 @@ export default function BrainSettingsPage() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Current selection */}
       {currentModel && (
@@ -129,6 +161,15 @@ export default function BrainSettingsPage() {
               <div>
                 <p className="font-medium">{currentModel.name}</p>
                 <p className="text-sm text-muted-foreground">{currentModel.description}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge
+                    variant={categoryBadgeVariant(currentModel.category)}
+                    className="text-[10px]"
+                  >
+                    {currentModel.category}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{currentModel.provider}</span>
+                </div>
               </div>
               <span className="text-sm font-medium">{currentModel.costPerMessage}</span>
             </div>
@@ -168,13 +209,20 @@ export default function BrainSettingsPage() {
               >
                 <Card
                   className={cn(
-                    "h-full transition-all hover:shadow-md",
+                    "relative h-full transition-all hover:shadow-md",
                     selection?.modelId === model.id
                       ? "border-primary bg-primary/5 shadow-sm"
                       : "hover:border-primary/30",
                   )}
                   data-testid={`model-card-${model.id}`}
                 >
+                  {selection?.modelId === model.id && (
+                    <motion.div
+                      layoutId="selected-model"
+                      className="pointer-events-none absolute inset-0 rounded-sm border-2 border-primary"
+                      transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                    />
+                  )}
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{model.name}</CardTitle>
@@ -183,8 +231,13 @@ export default function BrainSettingsPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">{model.description}</p>
-                    <div className="mt-2 flex items-center justify-between">
+                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                      <Badge variant={categoryBadgeVariant(model.category)} className="text-[10px]">
+                        {model.category}
+                      </Badge>
                       <span className="text-xs text-muted-foreground">{model.provider}</span>
+                    </div>
+                    <div className="mt-1 text-right">
                       <span className="text-xs font-medium">{model.costPerMessage}</span>
                     </div>
                   </CardContent>
@@ -193,20 +246,19 @@ export default function BrainSettingsPage() {
             ))}
           </div>
 
-          {/* More models */}
-          <div className="space-y-3">
-            <button
-              type="button"
+          {/* More models -- Collapsible */}
+          <Collapsible open={showMore} onOpenChange={setShowMore}>
+            <CollapsibleTrigger
               className="flex w-full items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setShowMore(!showMore)}
               data-testid="more-models-toggle"
             >
-              <span className="text-xs">{showMore ? "v" : ">"}</span>
+              <motion.div animate={{ rotate: showMore ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                <ChevronDownIcon className="size-4" />
+              </motion.div>
               <span>More models -- {MODEL_COUNT} models available</span>
-            </button>
-
-            {showMore && (
-              <div className="grid gap-3 sm:grid-cols-2">
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="grid gap-3 pt-3 sm:grid-cols-2">
                 {additionalModels.map((model) => (
                   <button
                     key={model.id}
@@ -217,19 +269,34 @@ export default function BrainSettingsPage() {
                   >
                     <Card
                       className={cn(
-                        "h-full transition-all hover:shadow-md",
+                        "relative h-full transition-all hover:shadow-md",
                         selection?.modelId === model.id
                           ? "border-primary bg-primary/5 shadow-sm"
                           : "hover:border-primary/30",
                       )}
                     >
+                      {selection?.modelId === model.id && (
+                        <motion.div
+                          layoutId="selected-model"
+                          className="pointer-events-none absolute inset-0 rounded-sm border-2 border-primary"
+                          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                        />
+                      )}
                       <CardHeader className="pb-0">
                         <CardTitle className="text-sm">{model.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <p className="text-xs text-muted-foreground">{model.description}</p>
-                        <div className="mt-2 flex items-center justify-between">
+                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                          <Badge
+                            variant={categoryBadgeVariant(model.category)}
+                            className="text-[10px]"
+                          >
+                            {model.category}
+                          </Badge>
                           <span className="text-xs text-muted-foreground">{model.provider}</span>
+                        </div>
+                        <div className="mt-1 text-right">
                           <span className="text-xs font-medium">{model.costPerMessage}</span>
                         </div>
                       </CardContent>
@@ -237,8 +304,8 @@ export default function BrainSettingsPage() {
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </>
       )}
 
@@ -296,12 +363,35 @@ export default function BrainSettingsPage() {
                         onChange={(e) => setByokKey(e.target.value)}
                       />
                       <Button
+                        variant="terminal"
                         size="sm"
                         className="w-full"
                         onClick={() => handleSaveByokKey(provider.id)}
                         disabled={!byokKey || saving}
                       >
-                        {saving ? "Saving..." : "Save key"}
+                        <AnimatePresence mode="wait">
+                          {saveSuccess ? (
+                            <motion.span
+                              key="success"
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="flex items-center gap-1"
+                            >
+                              <CheckIcon className="size-4" />
+                              Saved
+                            </motion.span>
+                          ) : (
+                            <motion.span
+                              key="default"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                            >
+                              {saving ? "Saving..." : "Save key"}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
                       </Button>
                     </div>
                   )}

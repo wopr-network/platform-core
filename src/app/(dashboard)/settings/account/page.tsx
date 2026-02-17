@@ -1,6 +1,8 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckIcon } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +23,17 @@ export default function AccountPage() {
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwError, setPwError] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   const [portalLoading, setPortalLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const pwSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pwSuccessTimer.current) clearTimeout(pwSuccessTimer.current);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +68,8 @@ export default function AccountPage() {
       await changePassword({ currentPassword, newPassword });
       setPwMsg("Password changed successfully.");
       setPwError(false);
+      setPwSuccess(true);
+      pwSuccessTimer.current = setTimeout(() => setPwSuccess(false), 2000);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -146,7 +158,7 @@ export default function AccountPage() {
               </span>
             </div>
             <Button
-              variant="outline"
+              variant="terminal"
               size="sm"
               onClick={handleManageBilling}
               disabled={portalLoading}
@@ -198,13 +210,43 @@ export default function AccountPage() {
                 required
               />
             </div>
-            {pwMsg && (
-              <p className={`text-sm ${pwError ? "text-destructive" : "text-muted-foreground"}`}>
-                {pwMsg}
-              </p>
-            )}
-            <Button type="submit" className="w-fit" disabled={changingPw}>
-              {changingPw ? "Changing..." : "Change password"}
+            <AnimatePresence>
+              {pwMsg && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className={`text-sm ${pwError ? "text-destructive" : "text-terminal"}`}
+                >
+                  {pwMsg}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <Button type="submit" variant="terminal" className="w-fit" disabled={changingPw}>
+              <AnimatePresence mode="wait">
+                {pwSuccess ? (
+                  <motion.span
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-1"
+                  >
+                    <CheckIcon className="size-4" />
+                    Changed
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="default"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {changingPw ? "Changing..." : "Change password"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Button>
           </form>
         </CardContent>
