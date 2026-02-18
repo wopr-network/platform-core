@@ -7,16 +7,24 @@ import { TypingEffect } from "./typing-effect";
 
 export function Hero() {
   return (
-    <section className="relative min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 text-center overflow-hidden">
+    <section className="crt-scanlines relative min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 text-center overflow-hidden">
       {/* Grid dot background */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(#00FF4115_1px,transparent_1px)] bg-[size:24px_24px]"
+        className="animate-grid-drift pointer-events-none absolute inset-0 bg-[radial-gradient(#00FF4115_1px,transparent_1px)] bg-[size:24px_24px]"
         style={{
           maskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
           WebkitMaskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
         }}
         aria-hidden="true"
       />
+
+      {/* Radial glow pulse */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <div className="animate-gentle-pulse h-[600px] w-[600px] rounded-full bg-terminal/5 blur-[120px]" />
+      </div>
 
       <div className="relative z-10 flex flex-col items-center">
         <Badge variant="terminal" className="mb-8">

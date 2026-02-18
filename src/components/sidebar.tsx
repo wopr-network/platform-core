@@ -46,7 +46,7 @@ function balanceColorClass(balance: number): string {
   if (balance === 0) return "text-red-500";
   if (balance < 1) return "text-red-500";
   if (balance <= 2) return "text-amber-500";
-  return "text-muted-foreground";
+  return "text-terminal";
 }
 
 function getInitials(name: string): string {
@@ -88,7 +88,9 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-sidebar-border px-6">
-        <span className="text-lg font-semibold tracking-tight">WOPR Bot</span>
+        <span className="text-lg font-semibold tracking-tight text-terminal [text-shadow:0_0_12px_rgba(0,255,65,0.4)]">
+          WOPR Bot
+        </span>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems
@@ -103,10 +105,10 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-foreground",
                 isNavActive(item.href, pathname)
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70",
+                  ? "bg-terminal/5 border-l-2 border-terminal text-terminal"
+                  : "text-muted-foreground",
               )}
             >
               {item.label}

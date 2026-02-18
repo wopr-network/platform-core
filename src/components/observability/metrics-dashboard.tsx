@@ -57,7 +57,11 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
   }
 
   if (!metrics) {
-    return <div className="text-muted-foreground">No metrics data available.</div>;
+    return (
+      <div className="flex flex-col gap-1">
+        <p className="font-mono text-sm text-terminal">&gt; NO METRICS DATA. AWAITING TELEMETRY.</p>
+      </div>
+    );
   }
 
   const timeseriesData = metrics.timeseries.map((s) => ({
@@ -97,7 +101,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
               <Line
                 type="monotone"
                 dataKey="requestCount"
-                stroke="#3b82f6"
+                stroke="var(--terminal)"
                 strokeWidth={2}
                 dot={false}
                 name="Requests"
@@ -125,7 +129,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
               <Line
                 type="monotone"
                 dataKey="latencyP50"
-                stroke="#22c55e"
+                stroke="var(--terminal)"
                 strokeWidth={2}
                 dot={false}
                 name="p50"
@@ -133,7 +137,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
               <Line
                 type="monotone"
                 dataKey="latencyP95"
-                stroke="#eab308"
+                stroke="color-mix(in srgb, var(--terminal) 65%, transparent)"
                 strokeWidth={2}
                 dot={false}
                 name="p95"
@@ -141,7 +145,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
               <Line
                 type="monotone"
                 dataKey="latencyP99"
-                stroke="#ef4444"
+                stroke="var(--destructive)"
                 strokeWidth={2}
                 dot={false}
                 name="p99"
@@ -167,8 +171,12 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
                   contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
                   labelStyle={{ color: "#888" }}
                 />
-                <Bar dataKey="input" fill="#3b82f6" name="Input Tokens" />
-                <Bar dataKey="output" fill="#8b5cf6" name="Output Tokens" />
+                <Bar dataKey="input" fill="var(--terminal)" name="Input Tokens" />
+                <Bar
+                  dataKey="output"
+                  fill="color-mix(in srgb, var(--terminal) 45%, transparent)"
+                  name="Output Tokens"
+                />
               </BarChart>
             </ResponsiveContainer>
             <div className="mt-3 space-y-1">
@@ -200,7 +208,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
                   contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
                   labelStyle={{ color: "#888" }}
                 />
-                <Bar dataKey="events" fill="#22c55e" name="Events" />
+                <Bar dataKey="events" fill="var(--terminal)" name="Events" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -226,7 +234,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
                 <Line
                   type="monotone"
                   dataKey="activeSessions"
-                  stroke="#f59e0b"
+                  stroke="var(--terminal)"
                   strokeWidth={2}
                   dot={false}
                   name="Sessions"
@@ -254,7 +262,7 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
                 <Line
                   type="monotone"
                   dataKey="memoryMb"
-                  stroke="#ec4899"
+                  stroke="var(--terminal)"
                   strokeWidth={2}
                   dot={false}
                   name="Memory"

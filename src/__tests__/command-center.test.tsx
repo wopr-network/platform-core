@@ -126,7 +126,7 @@ describe("CommandCenter", () => {
     (getActivityFeed as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
     render(<CommandCenter />);
     await waitFor(() => {
-      expect(screen.getByText("No recent activity")).toBeInTheDocument();
+      expect(screen.getByText(/STANDING BY/)).toBeInTheDocument();
     });
   });
 
@@ -137,6 +137,6 @@ describe("CommandCenter", () => {
     await waitFor(() => {
       expect(screen.getByTestId("running-count")).toHaveTextContent("2");
     });
-    expect(screen.getByText("No recent activity")).toBeInTheDocument();
+    expect(screen.getByText(/STANDING BY/)).toBeInTheDocument();
   });
 });

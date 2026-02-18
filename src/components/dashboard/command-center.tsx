@@ -328,7 +328,12 @@ export function CommandCenter() {
         </CardHeader>
         <CardContent>
           {activity.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No recent activity</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <p className="font-mono text-sm text-terminal">&gt; STANDING BY</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                NO EVENTS LOGGED. AWAITING ACTIVITY.
+              </p>
+            </div>
           ) : (
             <motion.div
               className="space-y-0 divide-y divide-border"

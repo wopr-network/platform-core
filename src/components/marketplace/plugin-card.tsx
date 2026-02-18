@@ -102,7 +102,7 @@ export function PluginCard({ plugin, index = 0 }: PluginCardProps) {
                   );
                 })}
                 {hostedAvailable && (
-                  <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/25 text-[10px]">
+                  <Badge variant="terminal" className="text-[10px]">
                     WOPR Hosted
                   </Badge>
                 )}

@@ -31,7 +31,7 @@ export default function DashboardLayout({
       {/* Desktop layout - hidden on mobile with CSS */}
       <div className="hidden lg:flex h-screen">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-auto">
+        <div className="crt-scanlines flex flex-1 flex-col overflow-auto">
           <SuspensionBanner />
           <AnimatePresence mode="wait">
             <motion.main
@@ -49,7 +49,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Mobile layout - hidden on desktop with CSS */}
-      <div className="flex lg:hidden h-screen flex-col">
+      <div className="crt-scanlines flex lg:hidden h-screen flex-col">
         <header className="flex h-14 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-4 gap-3">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>

@@ -108,7 +108,7 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
         />
 
         <Button
-          variant={autoScroll ? "default" : "outline"}
+          variant={autoScroll ? "terminal" : "outline"}
           size="sm"
           onClick={() => setAutoScroll(!autoScroll)}
         >
