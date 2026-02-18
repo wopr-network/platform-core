@@ -59,7 +59,7 @@ export default function OnboardPluginsPage() {
             return (
               <div
                 key={plugin.id}
-                className={`flex items-center justify-between rounded-lg border p-4 transition-colors ${
+                className={`flex items-center justify-between rounded-sm border p-4 transition-colors ${
                   isEnabled ? "border-primary bg-primary/5" : "border-border"
                 }`}
               >

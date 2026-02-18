@@ -1,5 +1,6 @@
 "use client";
 
+import { Banner } from "@/components/ui/banner";
 import type { ConfigField, SetupStep } from "@/lib/mock-manifests";
 import { FieldInteractive } from "./field-interactive";
 import { FieldOAuth } from "./field-oauth";
@@ -51,14 +52,14 @@ export function StepRenderer({ step, values, errors, onChange }: StepRendererPro
   return (
     <div className="space-y-6">
       {step.instruction && (
-        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
-          <p className="text-sm text-blue-400">{step.instruction}</p>
+        <Banner variant="info" className="flex-col items-start gap-1">
+          <span>{step.instruction}</span>
           {step.externalUrl && (
             <a
               href={step.externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm text-blue-400 underline underline-offset-4 hover:text-blue-300"
+              className="underline underline-offset-4 hover:text-blue-300"
             >
               Open {(() => {
                 try {
@@ -69,13 +70,13 @@ export function StepRenderer({ step, values, errors, onChange }: StepRendererPro
               })()}
             </a>
           )}
-        </div>
+        </Banner>
       )}
 
       {!hasFields && !step.instruction && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-            <span className="text-lg text-green-500">&#10003;</span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+            <span className="text-lg text-emerald-500">&#10003;</span>
           </div>
           <p className="text-sm text-muted-foreground">{step.description}</p>
         </div>

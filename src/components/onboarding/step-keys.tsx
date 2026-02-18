@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,13 +34,11 @@ export function StepKeys({
         </p>
       </div>
 
-      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
-        <p className="text-sm text-blue-200">
-          Your keys connect directly to your providers. WOPR never proxies, stores centrally, or has
-          access to your keys outside your instance. You pay your providers directly — we provide
-          zero inference.
-        </p>
-      </div>
+      <Banner variant="info">
+        Your keys connect directly to your providers. WOPR never proxies, stores centrally, or has
+        access to your keys outside your instance. You pay your providers directly — we provide zero
+        inference.
+      </Banner>
 
       <div className="space-y-4">
         {fields.map((field) => (
@@ -96,7 +95,7 @@ function KeyField({
         <Label htmlFor={field.key}>{field.label}</Label>
         <div className="flex items-center gap-2 text-xs">
           {isValidating && <span className="text-muted-foreground">validating...</span>}
-          {isValid && <span className="text-green-500">valid</span>}
+          {isValid && <span className="text-emerald-500">valid</span>}
           {error && !isValidating && <span className="text-destructive">{error}</span>}
         </div>
       </div>

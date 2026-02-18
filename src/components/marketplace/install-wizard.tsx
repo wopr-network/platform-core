@@ -242,7 +242,7 @@ function RequirementsCheck({ plugin }: { plugin: PluginManifest }) {
         </ul>
       )}
       {plugin.install.length > 0 && (
-        <div className="mt-4 rounded-lg border border-dashed p-3">
+        <div className="mt-4 rounded-sm border border-dashed p-3">
           <p className="text-xs text-muted-foreground">
             The following will be auto-installed: {plugin.install.join(", ")}
           </p>
@@ -269,7 +269,7 @@ function ProviderSelector({
       {adapters.map((adapter) => {
         const choice = choices[adapter.capability] ?? "hosted";
         return (
-          <div key={adapter.capability} className="rounded-lg border p-4">
+          <div key={adapter.capability} className="rounded-sm border p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{adapter.label}</p>

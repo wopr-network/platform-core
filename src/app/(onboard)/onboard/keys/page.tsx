@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export default function OnboardKeysPage() {
           const meta = AI_PROVIDERS.find((p) => p.id === provider.id);
           if (!meta) return null;
           return (
-            <div key={provider.id} className="space-y-2 rounded-lg border p-4">
+            <div key={provider.id} className="space-y-2 rounded-sm border p-4">
               <div className="flex items-center gap-2">
                 <div
                   className="flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white"
@@ -78,7 +79,7 @@ export default function OnboardKeysPage() {
                 </div>
                 <Label className="font-medium">{meta.name} API Key</Label>
                 {provider.validated && (
-                  <Badge variant="secondary" className="text-green-500">
+                  <Badge variant="secondary" className="text-emerald-500">
                     Validated
                   </Badge>
                 )}
@@ -120,9 +121,9 @@ export default function OnboardKeysPage() {
           );
         })}
 
-        <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 text-sm text-green-400">
+        <Banner variant="terminal">
           Your keys are stored locally in your instance. We never see or proxy your API calls.
-        </div>
+        </Banner>
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="ghost" asChild>

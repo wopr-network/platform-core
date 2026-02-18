@@ -5,6 +5,7 @@ import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { CreditBalance } from "@/components/billing/credit-balance";
 import { LowBalanceBanner } from "@/components/billing/low-balance-banner";
 import { TransactionHistory } from "@/components/billing/transaction-history";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditBalance as CreditBalanceData } from "@/lib/api";
 import { getCreditBalance } from "@/lib/api";
@@ -58,9 +59,9 @@ export default function CreditsPage() {
     return (
       <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
         <p>{error ?? "Unable to load credits."}</p>
-        <button type="button" onClick={load} className="text-sm underline hover:text-foreground">
+        <Button variant="ghost" size="sm" onClick={load}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

@@ -32,6 +32,7 @@ import {
   PERSONALITY_TEMPLATES,
   updateBotIdentity,
 } from "@/lib/bot-settings-data";
+import { DEFAULT_STATUS_STYLE, PLUGIN_STATUS_STYLES } from "@/lib/status-colors";
 
 export function BotSettingsClient({ botId }: { botId: string }) {
   const [settings, setSettings] = useState<BotSettings | null>(null);
@@ -561,11 +562,7 @@ function InstalledPluginCard({ plugin }: { plugin: InstalledPlugin }) {
             <span className="font-medium">{plugin.name}</span>
             <Badge
               variant="outline"
-              className={
-                plugin.status === "active"
-                  ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/25"
-                  : "bg-zinc-500/15 text-zinc-400 border-zinc-500/25"
-              }
+              className={PLUGIN_STATUS_STYLES[plugin.status] ?? DEFAULT_STATUS_STYLE}
             >
               {plugin.status === "active" ? "Active" : "Disabled"}
             </Badge>

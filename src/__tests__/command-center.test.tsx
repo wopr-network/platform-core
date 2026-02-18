@@ -90,9 +90,9 @@ describe("CommandCenter", () => {
   it("renders the activity feed", async () => {
     render(<CommandCenter />);
     await waitFor(() => {
-      expect(screen.getByText("Recent Activity")).toBeInTheDocument();
+      expect(screen.getByText("created instance")).toBeInTheDocument();
     });
-    expect(screen.getByText("created instance")).toBeInTheDocument();
+    expect(screen.getByText("Recent Activity")).toBeInTheDocument();
     expect(screen.getByText("installed plugin")).toBeInTheDocument();
   });
 

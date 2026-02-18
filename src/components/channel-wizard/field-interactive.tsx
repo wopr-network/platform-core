@@ -22,7 +22,7 @@ export function FieldInteractive({ field, value, onChange, error }: FieldInterac
               key={option.value}
               type="button"
               onClick={() => onChange(field.key, option.value)}
-              className={`flex w-full items-center rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+              className={`flex w-full items-center rounded-sm border px-4 py-3 text-left text-sm transition-colors ${
                 value === option.value
                   ? "border-primary bg-primary/10 text-foreground"
                   : "border-border hover:border-primary/50 hover:bg-accent"

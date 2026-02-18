@@ -79,8 +79,8 @@ export default function OnboardChannelSetupPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col items-center gap-3 py-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-              <span className="text-lg text-green-500">&#10003;</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+              <span className="text-lg text-emerald-500">&#10003;</span>
             </div>
             <p className="text-sm text-muted-foreground">
               All {channels.length} channel{channels.length > 1 ? "s" : ""} configured.

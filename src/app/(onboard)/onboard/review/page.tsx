@@ -84,8 +84,8 @@ export default function OnboardReviewPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center gap-3 py-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
-              <span className="text-3xl text-green-500">&#10003;</span>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
+              <span className="text-3xl text-emerald-500">&#10003;</span>
             </div>
             <p className="text-muted-foreground">
               Instance <span className="font-mono font-medium text-foreground">{instanceName}</span>{" "}
@@ -124,7 +124,7 @@ export default function OnboardReviewPage() {
         </div>
 
         <div className="space-y-3">
-          <div className="rounded-lg border p-4">
+          <div className="rounded-sm border p-4">
             <h3 className="mb-2 text-sm font-medium">AI Providers</h3>
             <div className="flex flex-wrap gap-2">
               {state.providers.map((p) => {
@@ -132,7 +132,7 @@ export default function OnboardReviewPage() {
                 return (
                   <Badge key={p.id} variant="secondary">
                     {meta?.name ?? p.id}
-                    {p.validated && <span className="ml-1 text-green-500">&#10003;</span>}
+                    {p.validated && <span className="ml-1 text-emerald-500">&#10003;</span>}
                   </Badge>
                 );
               })}
@@ -142,7 +142,7 @@ export default function OnboardReviewPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border p-4">
+          <div className="rounded-sm border p-4">
             <h3 className="mb-2 text-sm font-medium">Channels</h3>
             <div className="flex flex-wrap gap-2">
               {state.channels.map((id) => {
@@ -151,7 +151,7 @@ export default function OnboardReviewPage() {
                 return (
                   <Badge key={id} variant="secondary">
                     {manifest?.name ?? id}
-                    {isConfigured && <span className="ml-1 text-green-500">&#10003;</span>}
+                    {isConfigured && <span className="ml-1 text-emerald-500">&#10003;</span>}
                   </Badge>
                 );
               })}
@@ -161,7 +161,7 @@ export default function OnboardReviewPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border p-4">
+          <div className="rounded-sm border p-4">
             <h3 className="mb-2 text-sm font-medium">Plugins</h3>
             <div className="flex flex-wrap gap-2">
               {state.plugins.map((id) => {

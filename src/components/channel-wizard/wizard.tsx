@@ -138,7 +138,7 @@ export function Wizard({ manifest, onComplete, onCancel }: WizardProps) {
               {testing ? "Testing..." : manifest.connectionTest.label}
             </Button>
             {testResult === "success" && (
-              <p className="text-sm text-green-500">Connection successful</p>
+              <p className="text-sm text-emerald-500">Connection successful</p>
             )}
             {testResult === "failure" && (
               <p className="text-sm text-destructive">Connection failed. Check your settings.</p>

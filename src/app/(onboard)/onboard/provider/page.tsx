@@ -66,7 +66,7 @@ export default function OnboardProviderPage() {
                 key={provider.id}
                 type="button"
                 onClick={() => toggle(provider.id)}
-                className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+                className={`flex flex-col items-start gap-2 rounded-sm border p-4 text-left transition-colors ${
                   isSelected
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-muted-foreground/50"
@@ -89,7 +89,7 @@ export default function OnboardProviderPage() {
                       </Badge>
                     )}
                     {isSelected && (
-                      <Badge className="text-xs text-green-500" variant="secondary">
+                      <Badge className="text-xs text-emerald-500" variant="secondary">
                         Selected
                       </Badge>
                     )}

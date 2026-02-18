@@ -1,24 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import type { InstanceStatus } from "@/lib/api";
+import { INSTANCE_STATUS_STYLES } from "@/lib/status-colors";
 import { cn } from "@/lib/utils";
 
 const statusConfig: Record<InstanceStatus, { label: string; className: string }> = {
-  running: {
-    label: "Running",
-    className: "bg-emerald-500/15 text-emerald-500 border-emerald-500/25",
-  },
-  stopped: {
-    label: "Stopped",
-    className: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
-  },
-  degraded: {
-    label: "Degraded",
-    className: "bg-yellow-500/15 text-yellow-500 border-yellow-500/25",
-  },
-  error: {
-    label: "Error",
-    className: "bg-red-500/15 text-red-500 border-red-500/25",
-  },
+  running: { label: "Running", className: INSTANCE_STATUS_STYLES.running },
+  stopped: { label: "Stopped", className: INSTANCE_STATUS_STYLES.stopped },
+  degraded: { label: "Degraded", className: INSTANCE_STATUS_STYLES.degraded },
+  error: { label: "Error", className: INSTANCE_STATUS_STYLES.error },
 };
 
 export function StatusBadge({ status }: { status: InstanceStatus }) {

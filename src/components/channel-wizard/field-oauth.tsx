@@ -42,7 +42,7 @@ export function FieldOAuth({ field, value, onChange, error }: FieldOAuthProps) {
           {status === "authorizing" && "Authorizing..."}
           {status === "authorized" && "Re-authorize"}
         </Button>
-        {status === "authorized" && <span className="text-sm text-green-500">Connected</span>}
+        {status === "authorized" && <span className="text-sm text-emerald-500">Connected</span>}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

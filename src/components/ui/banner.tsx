@@ -10,6 +10,7 @@ const bannerVariants = cva("w-full px-4 py-3 text-sm font-mono border-b flex ite
       terminal: "bg-terminal/5 text-terminal border-terminal/20",
       destructive: "bg-destructive/10 text-destructive border-destructive/20",
       warning: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      info: "border-blue-500/25 bg-blue-500/10 text-blue-400 [&>svg]:text-blue-400",
     },
   },
   defaultVariants: {
