@@ -28,6 +28,7 @@ const navItems = [
   { label: "Credits", href: "/billing/credits" },
   { label: "Billing", href: "/billing/plans" },
   { label: "Settings", href: "/settings/profile" },
+  { label: "Admin", href: "/admin/tenants" },
 ];
 
 function isNavActive(href: string, pathname: string): boolean {
@@ -37,6 +38,7 @@ function isNavActive(href: string, pathname: string): boolean {
   if (href === "/billing/plans")
     return pathname.startsWith("/billing") && !pathname.startsWith("/billing/credits");
   if (href === "/billing/credits") return pathname.startsWith("/billing/credits");
+  if (href === "/admin/tenants") return pathname.startsWith("/admin");
   return pathname.startsWith(href);
 }
 
@@ -89,26 +91,28 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <span className="text-lg font-semibold tracking-tight">WOPR Bot</span>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              isNavActive(item.href, pathname)
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/70",
-            )}
-          >
-            {item.label}
-            {item.label === "Credits" && creditBalance !== null && (
-              <span className={cn("text-xs font-mono", balanceColorClass(creditBalance))}>
-                ${creditBalance.toFixed(2)}
-              </span>
-            )}
-          </Link>
-        ))}
+        {navItems
+          .filter((item) => item.href !== "/admin/tenants" || user?.role === "platform_admin")
+          .map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                isNavActive(item.href, pathname)
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70",
+              )}
+            >
+              {item.label}
+              {item.label === "Credits" && creditBalance !== null && (
+                <span className={cn("text-xs font-mono", balanceColorClass(creditBalance))}>
+                  ${creditBalance.toFixed(2)}
+                </span>
+              )}
+            </Link>
+          ))}
       </nav>
       <div className="border-t border-sidebar-border px-3 py-3">
         {isPending ? (
