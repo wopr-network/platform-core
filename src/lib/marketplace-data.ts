@@ -1002,7 +1002,8 @@ export const ALL_CATEGORIES: { id: PluginCategory; label: string }[] = [
 
 // --- API functions (mock-first, same pattern as api.ts) ---
 
-import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
+import { fleetFetch } from "./api";
+import { API_BASE_URL } from "./api-config";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -1013,23 +1014,6 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// Fleet routes are mounted at /fleet (not /api/fleet), so we use PLATFORM_BASE_URL directly.
-// credentials: "include" is required for session cookie auth on fleet routes.
-async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${PLATFORM_BASE_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { error?: string }).error ?? `API error: ${res.status} ${res.statusText}`,
-    );
-  }
-  return res.json() as Promise<T>;
-}
-
 export interface BotSummary {
   id: string;
   name: string;
@@ -1037,12 +1021,8 @@ export interface BotSummary {
 }
 
 export async function listBots(): Promise<BotSummary[]> {
-  try {
-    const data = await fleetFetch<{ bots: BotSummary[] }>("/fleet/bots");
-    return data.bots;
-  } catch {
-    return [];
-  }
+  const data = await fleetFetch<{ bots: BotSummary[] }>("/bots");
+  return data.bots;
 }
 
 export async function listMarketplacePlugins(): Promise<PluginManifest[]> {
@@ -1067,7 +1047,7 @@ export async function installPlugin(
   config: Record<string, unknown>,
   providerChoices: Record<string, string>,
 ): Promise<{ success: boolean; botId: string; pluginId: string; installedPlugins: string[] }> {
-  return fleetFetch(`/fleet/bots/${botId}/plugins/${pluginId}`, {
+  return fleetFetch(`/bots/${botId}/plugins/${pluginId}`, {
     method: "POST",
     body: JSON.stringify({ config, providerChoices }),
   });

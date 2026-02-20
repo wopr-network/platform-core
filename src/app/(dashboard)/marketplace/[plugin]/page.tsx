@@ -136,6 +136,7 @@ export default function PluginDetailPage() {
       const providerChoices = (config._providerChoices as Record<string, string>) ?? {};
       const { _providerChoices: _, ...pluginConfig } = config;
       await installPlugin(plugin.id, botId, pluginConfig, providerChoices);
+      setInstalling(false);
       setShowTerminalLog(true);
     } catch (err) {
       setInstalling(false);

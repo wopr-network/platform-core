@@ -62,12 +62,18 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [bots, setBots] = useState<BotSummary[]>([]);
   const [botsLoading, setBotsLoading] = useState(true);
+  const [botsError, setBotsError] = useState<string | null>(null);
 
   useEffect(() => {
-    listBots().then((data) => {
-      setBots(data);
-      setBotsLoading(false);
-    });
+    listBots()
+      .then((data) => {
+        setBots(data);
+        setBotsLoading(false);
+      })
+      .catch((err: unknown) => {
+        setBotsError(err instanceof Error ? err.message : "Failed to load bots");
+        setBotsLoading(false);
+      });
   }, []);
 
   const currentPhase = phases[currentPhaseIndex];
@@ -204,6 +210,7 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
             loading={botsLoading}
             selectedBotId={selectedBotId}
             onSelect={setSelectedBotId}
+            loadError={botsError}
             error={errors._botId}
           />
         )}
@@ -263,12 +270,14 @@ function BotSelector({
   loading,
   selectedBotId,
   onSelect,
+  loadError,
   error,
 }: {
   bots: BotSummary[];
   loading: boolean;
   selectedBotId: string | null;
   onSelect: (id: string) => void;
+  loadError?: string | null;
   error?: string;
 }) {
   if (loading) {
@@ -276,6 +285,14 @@ function BotSelector({
       <div className="space-y-3">
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-4 text-center">
+        <p className="text-sm text-destructive">{loadError}</p>
       </div>
     );
   }
