@@ -226,6 +226,25 @@ export async function createInstance(data: {
   });
 }
 
+// --- Channel API ---
+
+/** Connect a channel (plugin) to a bot instance. */
+export async function connectChannel(
+  botId: string,
+  pluginId: string,
+  credentials: Record<string, string>,
+): Promise<ChannelInfo> {
+  return fleetFetch<ChannelInfo>(`/bots/${botId}/channels/${pluginId}`, {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+/** List channels connected to a bot instance. */
+export async function listChannels(botId: string): Promise<ChannelInfo[]> {
+  return fleetFetch<ChannelInfo[]>(`/bots/${botId}/channels`);
+}
+
 export async function controlInstance(
   id: string,
   action: "start" | "stop" | "restart" | "destroy",

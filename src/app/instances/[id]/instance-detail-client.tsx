@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { HealthOverview } from "@/components/observability/health-overview";
 import { LogsViewer } from "@/components/observability/logs-viewer";
@@ -27,6 +28,8 @@ import { controlInstance, getInstance } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") ?? "overview";
   const [instance, setInstance] = useState<InstanceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +165,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       <Separator />
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="bg-transparent border-b border-border rounded-none p-0 h-auto gap-0">
           {[
             "overview",

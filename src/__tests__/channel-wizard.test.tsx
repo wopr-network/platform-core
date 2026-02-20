@@ -10,6 +10,7 @@ import { channelManifests, getManifest } from "@/lib/mock-manifests";
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("mock-manifests", () => {
@@ -357,6 +358,22 @@ describe("Wizard", () => {
     expect(screen.getByText("25%")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Continue"));
     expect(screen.getByText("50%")).toBeInTheDocument();
+  });
+
+  it("disables Finish button when submitting is true", () => {
+    render(<Wizard manifest={discord} onComplete={vi.fn()} onCancel={vi.fn()} submitting={true} />);
+
+    // Navigate to final step
+    fireEvent.click(screen.getByText("Continue")); // step 1
+    fireEvent.change(screen.getByPlaceholderText("Paste your Discord bot token"), {
+      target: { value: "valid-token-123" },
+    });
+    fireEvent.click(screen.getByText("Continue")); // step 2
+    fireEvent.click(screen.getByText("WOPR HQ")); // select guild
+    fireEvent.click(screen.getByText("Continue")); // step 3
+
+    const finishBtn = screen.getByText("Connecting...");
+    expect(finishBtn.closest("button")).toBeDisabled();
   });
 });
 

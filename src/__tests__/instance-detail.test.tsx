@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InstanceDetailClient } from "../app/instances/[id]/instance-detail-client";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/lib/api", () => ({
   getInstance: vi.fn().mockResolvedValue({
     id: "inst-001",

@@ -18,9 +18,10 @@ interface WizardProps {
   manifest: ChannelManifest;
   onComplete: (values: Record<string, string>) => void;
   onCancel: () => void;
+  submitting?: boolean;
 }
 
-export function Wizard({ manifest, onComplete, onCancel }: WizardProps) {
+export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -159,7 +160,9 @@ export function Wizard({ manifest, onComplete, onCancel }: WizardProps) {
             </Button>
           )}
         </div>
-        <Button onClick={handleNext}>{isLastStep ? "Finish" : "Continue"}</Button>
+        <Button onClick={handleNext} disabled={isLastStep && submitting}>
+          {isLastStep && submitting ? "Connecting..." : isLastStep ? "Finish" : "Continue"}
+        </Button>
       </CardFooter>
     </Card>
   );
