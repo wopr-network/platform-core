@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api-config";
+import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
 
 export type InstanceStatus = "running" | "stopped" | "degraded" | "error";
 
@@ -70,14 +70,117 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${PLATFORM_BASE_URL}/fleet${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 // --- Instance API ---
 
+/** Shape returned by GET /fleet/bots on the backend */
+interface BotStatusResponse {
+  id: string;
+  name: string;
+  state: string;
+  health: string | null;
+  uptime: string | null;
+  startedAt: string | null;
+  createdAt?: string;
+  stats: {
+    cpuPercent: number;
+    memoryUsageMb: number;
+    memoryLimitMb: number;
+    memoryPercent: number;
+  } | null;
+  [key: string]: unknown;
+}
+
+function mapBotState(state: string): InstanceStatus {
+  if (state === "running") return "running";
+  if (state === "error" || state === "dead") return "error";
+  return "stopped";
+}
+
+function mapBotStatusToFleetInstance(bot: BotStatusResponse): FleetInstance {
+  const status = mapBotState(bot.state);
+
+  let health: HealthStatus;
+  if (bot.health === "healthy") health = "healthy";
+  else if (bot.health === "unhealthy") health = "unhealthy";
+  else if (bot.health === "degraded" || bot.health === "starting") health = "degraded";
+  else if (status === "running") health = "healthy";
+  else if (status === "stopped" || status === "error") health = "degraded";
+  else health = "healthy";
+
+  let uptime: number | null = null;
+  if (bot.uptime) {
+    const startedMs = new Date(bot.uptime).getTime();
+    if (!Number.isNaN(startedMs)) {
+      uptime = Math.floor((Date.now() - startedMs) / 1000);
+    }
+  }
+
+  return {
+    id: bot.id,
+    name: bot.name,
+    status,
+    health,
+    uptime,
+    pluginCount: 0,
+    sessionCount: 0,
+    provider: "",
+  };
+}
+
 export async function listInstances(): Promise<Instance[]> {
-  return apiFetch<Instance[]>("/fleet/bots");
+  const data = await fleetFetch<{ bots: BotStatusResponse[] }>("/bots");
+  const bots = data.bots ?? [];
+  return bots.map((bot) => ({
+    id: bot.id,
+    name: bot.name,
+    template: "",
+    status: mapBotState(bot.state),
+    provider: "",
+    channels: [],
+    plugins: [],
+    uptime: (() => {
+      const ms = bot.uptime ? new Date(bot.uptime).getTime() : NaN;
+      return Number.isNaN(ms) ? null : Math.floor((Date.now() - ms) / 1000);
+    })(),
+    createdAt: (bot.createdAt as string | undefined) ?? new Date().toISOString(),
+  }));
 }
 
 export async function getInstance(id: string): Promise<InstanceDetail> {
-  return apiFetch<InstanceDetail>(`/fleet/bots/${id}`);
+  const bot = await fleetFetch<BotStatusResponse>(`/bots/${id}`);
+  const uptimeMs = bot.uptime ? new Date(bot.uptime).getTime() : NaN;
+  return {
+    id: bot.id,
+    name: bot.name,
+    template: "",
+    status: mapBotState(bot.state),
+    provider: "",
+    channels: [],
+    plugins: [],
+    uptime: Number.isNaN(uptimeMs) ? null : Math.floor((Date.now() - uptimeMs) / 1000),
+    createdAt: (bot.createdAt as string | undefined) ?? new Date().toISOString(),
+    config: {},
+    channelDetails: [],
+    sessions: [],
+    resourceUsage: {
+      memoryMb: bot.stats?.memoryUsageMb ?? 0,
+      cpuPercent: bot.stats?.cpuPercent ?? 0,
+    },
+  };
 }
 
 export async function createInstance(data: {
@@ -87,7 +190,7 @@ export async function createInstance(data: {
   channels: string[];
   plugins: string[];
 }): Promise<Instance> {
-  return apiFetch<Instance>("/fleet/bots", {
+  return fleetFetch<Instance>("/bots", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -98,9 +201,9 @@ export async function controlInstance(
   action: "start" | "stop" | "restart" | "destroy",
 ): Promise<void> {
   if (action === "destroy") {
-    await apiFetch(`/fleet/bots/${id}`, { method: "DELETE" });
+    await fleetFetch(`/bots/${id}`, { method: "DELETE" });
   } else {
-    await apiFetch(`/fleet/bots/${id}/${action}`, { method: "POST" });
+    await fleetFetch(`/bots/${id}/${action}`, { method: "POST" });
   }
 }
 
@@ -206,7 +309,7 @@ export interface FleetResources {
 // --- Observability API ---
 
 export async function getInstanceHealth(id: string): Promise<InstanceHealth> {
-  return apiFetch<InstanceHealth>(`/fleet/bots/${id}/health`);
+  return fleetFetch<InstanceHealth>(`/bots/${id}/health`);
 }
 
 export async function getInstanceLogs(
@@ -218,15 +321,17 @@ export async function getInstanceLogs(
   if (params?.source) qs.set("source", params.source);
   if (params?.search) qs.set("search", params.search);
   const query = qs.toString();
-  return apiFetch<LogEntry[]>(`/fleet/bots/${id}/logs${query ? `?${query}` : ""}`);
+  return fleetFetch<LogEntry[]>(`/bots/${id}/logs${query ? `?${query}` : ""}`);
 }
 
 export async function getInstanceMetrics(id: string): Promise<InstanceMetrics> {
-  return apiFetch<InstanceMetrics>(`/fleet/bots/${id}/metrics`);
+  return fleetFetch<InstanceMetrics>(`/bots/${id}/metrics`);
 }
 
 export async function getFleetHealth(): Promise<FleetInstance[]> {
-  return apiFetch<FleetInstance[]>("/fleet/bots/health");
+  const data = await fleetFetch<{ bots: BotStatusResponse[] }>("/bots");
+  const bots = data.bots ?? [];
+  return bots.map(mapBotStatusToFleetInstance);
 }
 
 export async function getActivityFeed(): Promise<ActivityEvent[]> {
@@ -234,7 +339,7 @@ export async function getActivityFeed(): Promise<ActivityEvent[]> {
 }
 
 export async function getFleetResources(): Promise<FleetResources> {
-  return apiFetch<FleetResources>("/fleet/resources");
+  return fleetFetch<FleetResources>("/resources");
 }
 
 // --- Settings types ---

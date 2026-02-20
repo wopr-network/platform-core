@@ -10,7 +10,8 @@ vi.stubGlobal("fetch", mockFetch);
 
 // Mock api-config
 vi.mock("@/lib/api-config", () => ({
-  API_BASE_URL: "https://api.test",
+  API_BASE_URL: "https://api.test/api",
+  PLATFORM_BASE_URL: "https://api.test",
 }));
 
 describe("controlInstance HTTP behavior", () => {
