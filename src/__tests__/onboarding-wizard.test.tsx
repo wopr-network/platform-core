@@ -653,6 +653,7 @@ vi.mock("better-auth/react", () => ({
 
 vi.mock("@/lib/api", () => ({
   getCreditBalance: vi.fn().mockResolvedValue({ balance: 5.0, dailyBurn: 0.33, runway: 15 }),
+  listInstances: vi.fn().mockResolvedValue([]),
 }));
 
 describe("OnboardingWizard integration", () => {

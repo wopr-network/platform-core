@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
+import { getCreditBalance, listInstances } from "@/lib/api";
 import { type ByokAiProvider, getAiKeyField } from "@/lib/onboarding-data";
 
 export type WizardMode = "onboarding" | "fleet-add";
@@ -34,7 +35,6 @@ export type DeployStatus =
   | "done"
   | "error";
 
-/** Mock data for existing bots in fleet-add mode */
 export interface ExistingBot {
   id: string;
   name: string;
@@ -42,23 +42,6 @@ export interface ExistingBot {
   customPersonality: string;
   superpowers: string[];
 }
-
-const MOCK_EXISTING_BOTS: ExistingBot[] = [
-  {
-    id: "bot-1",
-    name: "Jarvis",
-    personalityId: "helpful",
-    customPersonality: "",
-    superpowers: ["image-gen", "memory"],
-  },
-  {
-    id: "bot-2",
-    name: "Friday",
-    personalityId: "creative",
-    customPersonality: "",
-    superpowers: ["voice", "memory", "search"],
-  },
-];
 
 export interface OnboardingState {
   mode: WizardMode;
@@ -123,17 +106,61 @@ export function useOnboarding(
   const registry = usePluginRegistry();
   const isFleetAdd = mode === "fleet-add";
 
+  // Fetch real bots from API in fleet-add mode
+  const [fetchedBots, setFetchedBots] = useState<ExistingBot[]>([]);
+
+  useEffect(() => {
+    if (!isFleetAdd) return;
+    let cancelled = false;
+    listInstances()
+      .then((instances) => {
+        if (cancelled) return;
+        setFetchedBots(
+          instances.map((inst) => ({
+            id: inst.id,
+            name: inst.name,
+            personalityId: "helpful",
+            customPersonality: "",
+            superpowers: inst.plugins.filter((p) => p.enabled).map((p) => p.id),
+          })),
+        );
+      })
+      .catch(() => {
+        // Fail silently — fleet-add works fine with empty existing bots
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFleetAdd]);
+
+  // Fetch real credit balance from API
+  const [realCreditBalance, setRealCreditBalance] = useState<string>("$0.00");
+
+  useEffect(() => {
+    let cancelled = false;
+    getCreditBalance()
+      .then((data) => {
+        if (!cancelled) setRealCreditBalance(`$${data.balance.toFixed(2)}`);
+      })
+      .catch(() => {
+        // Keep default $0.00 on error
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Pre-check superpowers from existing bots in fleet-add mode
   const fleetSuperpowers = useMemo(() => {
     if (!isFleetAdd) return [];
     const ids = new Set<string>();
-    for (const bot of MOCK_EXISTING_BOTS) {
+    for (const bot of fetchedBots) {
       for (const sp of bot.superpowers) {
         ids.add(sp);
       }
     }
     return [...ids];
-  }, [isFleetAdd]);
+  }, [isFleetAdd, fetchedBots]);
 
   const [step, setStep] = useState<OnboardingStep>("name");
   // Step 1
@@ -148,6 +175,13 @@ export function useOnboarding(
   const [channelKeyErrors, setChannelKeyErrors] = useState<Record<string, string | null>>({});
   // Step 4 — pre-check superpowers from fleet in fleet-add mode
   const [selectedSuperpowers, setSelectedSuperpowers] = useState<string[]>(fleetSuperpowers);
+
+  // Sync fleet superpowers when they load async
+  useEffect(() => {
+    if (isFleetAdd && fleetSuperpowers.length > 0) {
+      setSelectedSuperpowers(fleetSuperpowers);
+    }
+  }, [isFleetAdd, fleetSuperpowers]);
   // Step 5
   const [providerMode, setProviderModeState] = useState<ProviderMode>("hosted");
   const [byokAiProvider, setByokAiProviderState] = useState<ByokAiProvider>("openrouter");
@@ -229,15 +263,18 @@ export function useOnboarding(
 
   // --- Actions ---
 
-  const setCloneFromBot = useCallback((botId: string) => {
-    setCloneFromBotId(botId);
-    if (!botId) return;
-    const bot = MOCK_EXISTING_BOTS.find((b) => b.id === botId);
-    if (!bot) return;
-    setPersonalityId(bot.personalityId);
-    setCustomPersonality(bot.customPersonality);
-    setSelectedSuperpowers([...bot.superpowers]);
-  }, []);
+  const setCloneFromBot = useCallback(
+    (botId: string) => {
+      setCloneFromBotId(botId);
+      if (!botId) return;
+      const bot = fetchedBots.find((b) => b.id === botId);
+      if (!bot) return;
+      setPersonalityId(bot.personalityId);
+      setCustomPersonality(bot.customPersonality);
+      setSelectedSuperpowers([...bot.superpowers]);
+    },
+    [fetchedBots],
+  );
 
   const toggleChannel = useCallback((id: string) => {
     setSelectedChannels((prev) =>
@@ -445,11 +482,11 @@ export function useOnboarding(
     selectedSuperpowers,
     providerMode,
     byokAiProvider,
-    creditBalance: "$5.00",
+    creditBalance: realCreditBalance,
     byokKeyValues,
     byokKeyErrors,
     deployStatus,
-    existingBots: isFleetAdd ? MOCK_EXISTING_BOTS : [],
+    existingBots: isFleetAdd ? fetchedBots : [],
     cloneFromBotId,
   };
 
