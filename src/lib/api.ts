@@ -557,6 +557,10 @@ export async function removePaymentMethod(id: string): Promise<void> {
   await apiFetch(`/billing/payment-methods/${id}`, { method: "DELETE" });
 }
 
+export async function createSetupIntent(): Promise<{ clientSecret: string }> {
+  return apiFetch<{ clientSecret: string }>("/billing/setup-intent", { method: "POST" });
+}
+
 export async function createBillingPortalSession(): Promise<{ url: string }> {
   return apiFetch<{ url: string }>("/billing/portal-session", { method: "POST" });
 }

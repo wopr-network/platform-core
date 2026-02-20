@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CreditCardIcon, LockIcon, ShieldCheckIcon } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { AddPaymentMethodDialog } from "@/components/billing/add-payment-method-dialog";
 import { ByokCallout } from "@/components/billing/byok-callout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export default function PaymentPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
+  const [showAddPayment, setShowAddPayment] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -191,7 +193,14 @@ export default function PaymentPage() {
               })}
             </div>
           )}
-          <Button variant="outline">Add payment method</Button>
+          <Button variant="outline" onClick={() => setShowAddPayment(true)}>
+            Add payment method
+          </Button>
+          <AddPaymentMethodDialog
+            open={showAddPayment}
+            onOpenChange={setShowAddPayment}
+            onSuccess={load}
+          />
           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <LockIcon className="size-3" />
@@ -206,9 +215,6 @@ export default function PaymentPage() {
               Powered by Stripe
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Stripe integration coming soon. Payment methods will be managed via Stripe Elements.
-          </p>
         </CardContent>
       </Card>
 
