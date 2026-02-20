@@ -278,7 +278,7 @@ describe("Billing layout with Credits nav", () => {
     );
 
     expect(screen.getByText("Credits")).toBeInTheDocument();
-    expect(screen.getByText("Plans")).toBeInTheDocument();
+    expect(screen.getByText("Your Plan")).toBeInTheDocument();
     expect(screen.getByText("Usage")).toBeInTheDocument();
     expect(screen.getByText("Payment")).toBeInTheDocument();
   });
