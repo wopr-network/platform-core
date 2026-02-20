@@ -29,9 +29,12 @@ export default function ChannelsPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retryKey is an intentional trigger, not a value used inside the effect
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     async function load() {
       try {
         const data = await listInstances();
@@ -46,7 +49,7 @@ export default function ChannelsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryKey]);
 
   const connectedPluginIds = new Set(instances.flatMap((inst) => inst.channels));
 
@@ -101,13 +104,7 @@ export default function ChannelsPage() {
             size="sm"
             onClick={() => {
               setError(null);
-              setLoading(true);
-              listInstances()
-                .then(setInstances)
-                .catch((err) =>
-                  setError(err instanceof Error ? err.message : "Failed to load instances"),
-                )
-                .finally(() => setLoading(false));
+              setRetryKey((k) => k + 1);
             }}
           >
             RETRY
