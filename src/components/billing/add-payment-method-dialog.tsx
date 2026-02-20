@@ -17,7 +17,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSetupIntent } from "@/lib/api";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "");
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+if (!stripePublishableKey) {
+  console.error(
+    "[AddPaymentMethodDialog] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Stripe Elements will not load.",
+  );
+}
+const stripePromise = loadStripe(stripePublishableKey ?? "");
 
 interface AddPaymentMethodDialogProps {
   open: boolean;
