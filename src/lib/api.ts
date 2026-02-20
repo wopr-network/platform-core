@@ -790,7 +790,7 @@ export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryR
       type: mapTransactionType(e.type),
       description: e.reason,
       amount: e.amount_cents / 100,
-      createdAt: new Date(e.created_at).toISOString(),
+      createdAt: new Date(e.created_at * 1000).toISOString(),
     })),
     nextCursor: null, // TODO(WOP-687): implement cursor-based pagination
   };
@@ -805,7 +805,9 @@ export async function createCreditCheckout(amount: number): Promise<CheckoutResp
       cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
     },
   );
-  return { checkoutUrl: res.url ?? "" };
+  const url = res.url;
+  if (!url) throw new Error("Portal URL unavailable");
+  return { checkoutUrl: url };
 }
 
 // --- Hosted usage API (tRPC) ---
@@ -832,10 +834,7 @@ export async function getSpendingLimits(): Promise<SpendingLimits> {
 }
 
 export async function updateSpendingLimits(limits: SpendingLimits): Promise<void> {
-  await trpcMutate<SpendingLimits>(
-    "billing.updateSpendingLimits",
-    limits as unknown as Record<string, unknown>,
-  );
+  await trpcMutate<SpendingLimits>("billing.updateSpendingLimits", { ...limits });
 }
 
 // --- Model selection types ---
