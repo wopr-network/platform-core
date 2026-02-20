@@ -1,13 +1,28 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import { PLATFORM_BASE_URL } from "./api-config";
 import type { AppRouter } from "./trpc-types";
 
 export const trpc = createTRPCReact<AppRouter>();
+
+/**
+ * Vanilla tRPC client for imperative calls (not React hooks).
+ * Used by admin-api.ts and other non-component code.
+ */
+export const trpcVanilla = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: `${PLATFORM_BASE_URL}/trpc`,
+      fetch(url, options) {
+        return fetch(url, { ...options, credentials: "include" });
+      },
+    }),
+  ],
+});
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({

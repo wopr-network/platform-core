@@ -1,14 +1,4 @@
-import { PLATFORM_BASE_URL } from "./api-config";
-
-async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${PLATFORM_BASE_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`Admin API error: ${res.status} ${res.statusText}`);
-  return res.json() as Promise<T>;
-}
+import { trpcVanilla } from "./trpc";
 
 // ---- Types ----
 
@@ -89,50 +79,90 @@ export interface BotInstance {
   updatedAt: string;
 }
 
+// ---- Typed admin client stub ----
+// AppRouter is a placeholder until @wopr-network/sdk publishes the full types.
+// We define the shape we need here to avoid raw fetch boilerplate while keeping
+// the call sites type-checked against our own interface declarations.
+
+interface AdminProcedures {
+  tenantDetail: { query(input: { tenantId: string }): Promise<TenantDetailResponse> };
+  tenantAgents: { query(input: { tenantId: string }): Promise<{ agents: BotInstance[] }> };
+  notesList: { query(input: { tenantId: string }): Promise<{ notes: AdminNote[] }> };
+  notesCreate: { mutate(input: { tenantId: string; content: string }): Promise<AdminNote> };
+  suspendTenant: { mutate(input: { tenantId: string; reason: string }): Promise<void> };
+  reactivateTenant: { mutate(input: { tenantId: string }): Promise<void> };
+  creditsGrant: {
+    mutate(input: { tenantId: string; amount_cents: number; reason: string }): Promise<void>;
+  };
+  creditsRefund: {
+    mutate(input: { tenantId: string; amount_cents: number; reason: string }): Promise<void>;
+  };
+  tenantChangeRole: {
+    mutate(input: { userId: string; tenantId: string; role: string }): Promise<void>;
+  };
+  banTenant: {
+    mutate(input: {
+      tenantId: string;
+      reason: string;
+      tosReference: string;
+      confirmName: string;
+    }): Promise<void>;
+  };
+  creditsTransactionsExport: { query(input: { tenantId: string }): Promise<{ csv: string }> };
+  creditsTransactions: {
+    query(input: {
+      tenantId: string;
+      type?: string;
+      from?: number;
+      to?: number;
+      limit?: number;
+      offset?: number;
+    }): Promise<{ entries: CreditAdjustment[]; total: number }>;
+  };
+  tenantUsageByCapability: {
+    query(input: { tenantId: string; days: number }): Promise<{ usage: UsageSummary[] }>;
+  };
+  usersList: {
+    query(input: {
+      search?: string;
+      limit?: number;
+      offset?: number;
+    }): Promise<{ users: AdminUserSummary[]; total: number }>;
+  };
+}
+
+// Cast via unknown to avoid @typescript/no-explicit-any while bridging the
+// placeholder AppRouter gap. Remove once @wopr-network/sdk ships real types.
+const adminClient = (trpcVanilla as unknown as { admin: AdminProcedures }).admin;
+
 // ---- API calls ----
-// These call tRPC procedures via the HTTP adapter mounted at /trpc.
-// Queries use GET with ?input=JSON; mutations use POST with JSON body.
 
 export async function getTenantDetail(tenantId: string): Promise<TenantDetailResponse> {
-  const params = new URLSearchParams({ input: JSON.stringify({ tenantId }) });
-  return adminFetch<{ result: { data: TenantDetailResponse } }>(
-    `/trpc/admin.tenantDetail?${params}`,
-  ).then((r) => r.result.data);
+  return adminClient.tenantDetail.query({ tenantId });
 }
 
 export async function getTenantAgents(tenantId: string): Promise<BotInstance[]> {
-  const params = new URLSearchParams({ input: JSON.stringify({ tenantId }) });
-  return adminFetch<{ result: { data: { agents: BotInstance[] } } }>(
-    `/trpc/admin.tenantAgents?${params}`,
-  ).then((r) => r.result.data.agents);
+  const result = await adminClient.tenantAgents.query({ tenantId });
+  return result.agents;
 }
 
 export async function getTenantNotes(tenantId: string): Promise<AdminNote[]> {
-  const params = new URLSearchParams({ input: JSON.stringify({ tenantId }) });
-  return adminFetch<{ result: { data: { notes: AdminNote[] } } }>(
-    `/trpc/admin.tenantNotes?${params}`,
-  ).then((r) => r.result.data.notes);
+  // Backend procedure is notesList, not tenantNotes
+  const result = await adminClient.notesList.query({ tenantId });
+  return result.notes;
 }
 
 export async function addTenantNote(tenantId: string, content: string): Promise<AdminNote> {
-  return adminFetch<{ result: { data: AdminNote } }>("/trpc/admin.tenantNoteAdd", {
-    method: "POST",
-    body: JSON.stringify({ tenantId, content }),
-  }).then((r) => r.result.data);
+  // Backend procedure is notesCreate, not tenantNoteAdd
+  return adminClient.notesCreate.mutate({ tenantId, content });
 }
 
 export async function suspendTenant(tenantId: string, reason: string): Promise<void> {
-  await adminFetch("/trpc/admin.suspendTenant", {
-    method: "POST",
-    body: JSON.stringify({ tenantId, reason }),
-  });
+  await adminClient.suspendTenant.mutate({ tenantId, reason });
 }
 
 export async function reactivateTenant(tenantId: string): Promise<void> {
-  await adminFetch("/trpc/admin.reactivateTenant", {
-    method: "POST",
-    body: JSON.stringify({ tenantId }),
-  });
+  await adminClient.reactivateTenant.mutate({ tenantId });
 }
 
 export async function grantCredits(
@@ -140,10 +170,7 @@ export async function grantCredits(
   amount_cents: number,
   reason: string,
 ): Promise<void> {
-  await adminFetch("/trpc/admin.creditsGrant", {
-    method: "POST",
-    body: JSON.stringify({ tenantId, amount_cents, reason }),
-  });
+  await adminClient.creditsGrant.mutate({ tenantId, amount_cents, reason });
 }
 
 export async function refundCredits(
@@ -151,17 +178,11 @@ export async function refundCredits(
   amount_cents: number,
   reason: string,
 ): Promise<void> {
-  await adminFetch("/trpc/admin.creditsRefund", {
-    method: "POST",
-    body: JSON.stringify({ tenantId, amount_cents, reason }),
-  });
+  await adminClient.creditsRefund.mutate({ tenantId, amount_cents, reason });
 }
 
 export async function changeRole(userId: string, tenantId: string, role: string): Promise<void> {
-  await adminFetch("/trpc/admin.tenantChangeRole", {
-    method: "POST",
-    body: JSON.stringify({ userId, tenantId, role }),
-  });
+  await adminClient.tenantChangeRole.mutate({ userId, tenantId, role });
 }
 
 export async function banTenant(
@@ -170,17 +191,12 @@ export async function banTenant(
   tosReference: string,
   confirmName: string,
 ): Promise<void> {
-  await adminFetch("/trpc/admin.banTenant", {
-    method: "POST",
-    body: JSON.stringify({ tenantId, reason, tosReference, confirmName }),
-  });
+  await adminClient.banTenant.mutate({ tenantId, reason, tosReference, confirmName });
 }
 
 export async function getTransactionsCsv(tenantId: string): Promise<string> {
-  const params = new URLSearchParams({ input: JSON.stringify({ tenantId }) });
-  return adminFetch<{ result: { data: { csv: string } } }>(
-    `/trpc/admin.creditsTransactionsExport?${params}`,
-  ).then((r) => r.result.data.csv);
+  const result = await adminClient.creditsTransactionsExport.query({ tenantId });
+  return result.csv;
 }
 
 export async function getTransactions(
@@ -193,22 +209,15 @@ export async function getTransactions(
     offset?: number;
   },
 ): Promise<{ entries: CreditAdjustment[]; total: number }> {
-  const params = new URLSearchParams({
-    input: JSON.stringify({ tenantId, ...filters }),
-  });
-  return adminFetch<{ result: { data: { entries: CreditAdjustment[]; total: number } } }>(
-    `/trpc/admin.creditsTransactions?${params}`,
-  ).then((r) => r.result.data);
+  return adminClient.creditsTransactions.query({ tenantId, ...filters });
 }
 
 export async function getTenantUsageByCapability(
   tenantId: string,
   days = 30,
 ): Promise<UsageSummary[]> {
-  const params = new URLSearchParams({ input: JSON.stringify({ tenantId, days }) });
-  return adminFetch<{ result: { data: { usage: UsageSummary[] } } }>(
-    `/trpc/admin.tenantUsageByCapability?${params}`,
-  ).then((r) => r.result.data.usage);
+  const result = await adminClient.tenantUsageByCapability.query({ tenantId, days });
+  return result.usage;
 }
 
 export async function getUsersList(params?: {
@@ -216,8 +225,5 @@ export async function getUsersList(params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ users: AdminUserSummary[]; total: number }> {
-  const input = new URLSearchParams({ input: JSON.stringify(params ?? {}) });
-  return adminFetch<{ result: { data: { users: AdminUserSummary[]; total: number } } }>(
-    `/trpc/admin.usersList?${input}`,
-  ).then((r) => r.result.data);
+  return adminClient.usersList.query(params ?? {});
 }
