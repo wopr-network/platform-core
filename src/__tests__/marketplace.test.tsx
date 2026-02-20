@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ALL_CATEGORIES,
   formatInstallCount,
@@ -339,6 +339,10 @@ describe("InstallWizard", () => {
         json: async () => ({ bots: mockBots }),
       }),
     );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("renders wizard with cancel and continue buttons", async () => {
