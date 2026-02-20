@@ -433,3 +433,73 @@ describe("Danger Zone tab", () => {
     expect(controlBot).toHaveBeenCalledWith("bot-001", "stop");
   });
 });
+
+describe("Error handling", () => {
+  it("shows error when getBotSettings fails", async () => {
+    const { getBotSettings } = await import("@/lib/bot-settings-data");
+    vi.mocked(getBotSettings).mockRejectedValueOnce(
+      new Error("API error: 500 Internal Server Error"),
+    );
+    const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
+    render(<BotSettingsClient botId="bot-001" />);
+    expect(await screen.findByText("API error: 500 Internal Server Error")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Back to Dashboard/ })).toBeInTheDocument();
+  });
+
+  it("shows error when updateBotIdentity fails", async () => {
+    const user = userEvent.setup();
+    const { updateBotIdentity } = await import("@/lib/bot-settings-data");
+    const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
+    render(<BotSettingsClient botId="bot-001" />);
+    await screen.findByText("Jarvis");
+
+    vi.mocked(updateBotIdentity).mockRejectedValueOnce(new Error("Save failed"));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText(/Failed to save/)).toBeInTheDocument();
+  });
+
+  it("does not show Saved! when save fails", async () => {
+    const user = userEvent.setup();
+    const { updateBotIdentity } = await import("@/lib/bot-settings-data");
+    const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
+    render(<BotSettingsClient botId="bot-001" />);
+    await screen.findByText("Jarvis");
+
+    vi.mocked(updateBotIdentity).mockRejectedValueOnce(new Error("Save failed"));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await screen.findByText(/Failed to save/);
+    expect(screen.queryByText("Saved!")).not.toBeInTheDocument();
+  });
+
+  it("shows error when activateSuperpower fails", async () => {
+    const user = userEvent.setup();
+    const { activateSuperpower } = await import("@/lib/bot-settings-data");
+    const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
+    render(<BotSettingsClient botId="bot-001" />);
+    await screen.findByText("Jarvis");
+
+    await user.click(screen.getByRole("tab", { name: "Superpowers" }));
+    vi.mocked(activateSuperpower).mockRejectedValueOnce(new Error("Activation failed"));
+    const addButtons = screen.getAllByRole("button", { name: "+ Add" });
+    await user.click(addButtons[0]);
+
+    expect(await screen.findByText(/Failed to activate/)).toBeInTheDocument();
+  });
+
+  it("shows error when controlBot fails", async () => {
+    const user = userEvent.setup();
+    const { controlBot } = await import("@/lib/bot-settings-data");
+    const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
+    render(<BotSettingsClient botId="bot-001" />);
+    await screen.findByText("Jarvis");
+
+    await user.click(screen.getByRole("tab", { name: "Danger Zone" }));
+    vi.mocked(controlBot).mockRejectedValueOnce(new Error("Control failed"));
+    await user.click(screen.getByRole("button", { name: "Stop Jarvis" }));
+    await user.click(screen.getByRole("button", { name: "Stop bot" }));
+
+    expect(await screen.findByText(/Failed to stop bot/)).toBeInTheDocument();
+  });
+});

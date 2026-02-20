@@ -158,18 +158,25 @@ function IdentityTab({
   const [personality, setPersonality] = useState(settings.identity.personality);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleSave() {
     setSaving(true);
-    const updated = await updateBotIdentity(botId, {
-      name,
-      avatar: settings.identity.avatar,
-      personality,
-    });
-    onUpdate({ ...settings, identity: updated });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      const updated = await updateBotIdentity(botId, {
+        name,
+        avatar: settings.identity.avatar,
+        personality,
+      });
+      onUpdate({ ...settings, identity: updated });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError("Failed to save \u2014 please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -223,6 +230,7 @@ function IdentityTab({
           {saving ? "Saving..." : "Save changes"}
         </Button>
         {saved && <span className="text-sm text-emerald-500">Saved!</span>}
+        {saveError && <p className="text-sm text-destructive">{saveError}</p>}
       </div>
     </div>
   );
@@ -409,12 +417,19 @@ function SuperpowersTab({
   onUpdate: () => void;
 }) {
   const [activating, setActivating] = useState<string | null>(null);
+  const [activateError, setActivateError] = useState<string | null>(null);
 
   async function handleActivate(superpowerId: string) {
     setActivating(superpowerId);
-    await activateSuperpower(botId, superpowerId);
-    setActivating(null);
-    onUpdate();
+    setActivateError(null);
+    try {
+      await activateSuperpower(botId, superpowerId);
+      onUpdate();
+    } catch {
+      setActivateError("Failed to activate capability \u2014 please try again.");
+    } finally {
+      setActivating(null);
+    }
   }
 
   return (
@@ -454,6 +469,7 @@ function SuperpowersTab({
           ))}
         </div>
         <p className="text-sm text-muted-foreground">One click to activate. Uses your credits.</p>
+        {activateError && <p className="text-sm text-destructive">{activateError}</p>}
       </div>
     </div>
   );
@@ -709,21 +725,33 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
   const [confirmAction, setConfirmAction] = useState<"stop" | "archive" | "delete" | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [acting, setActing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const botName = settings.identity.name;
+
+  function handleDialogClose() {
+    setConfirmAction(null);
+    setActionError(null);
+  }
 
   async function handleConfirm() {
     if (!confirmAction) return;
     if (confirmAction === "delete" && confirmText !== botName) return;
     setActing(true);
-    await controlBot(botId, confirmAction);
-    if (confirmAction === "delete" || confirmAction === "archive") {
-      router.push("/dashboard");
-      return;
+    setActionError(null);
+    try {
+      await controlBot(botId, confirmAction);
+      if (confirmAction === "delete" || confirmAction === "archive") {
+        router.push("/dashboard");
+        return;
+      }
+      setConfirmAction(null);
+      setConfirmText("");
+    } catch {
+      setActionError(`Failed to ${confirmAction} bot \u2014 please try again.`);
+    } finally {
+      setActing(false);
     }
-    setActing(false);
-    setConfirmAction(null);
-    setConfirmText("");
   }
 
   const actions = [
@@ -772,7 +800,7 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
       </div>
 
       {/* Confirmation dialog */}
-      <Dialog open={confirmAction !== null} onOpenChange={() => setConfirmAction(null)}>
+      <Dialog open={confirmAction !== null} onOpenChange={handleDialogClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -795,6 +823,8 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
             </DialogDescription>
           </DialogHeader>
 
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+
           {confirmAction === "delete" && (
             <Input
               placeholder={`Type "${botName}" to confirm`}
@@ -804,7 +834,7 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+            <Button variant="outline" onClick={handleDialogClose}>
               Cancel
             </Button>
             <Button

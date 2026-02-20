@@ -312,52 +312,36 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getBotSettings(botId: string): Promise<BotSettings> {
-  try {
-    return await apiFetch<BotSettings>(`/fleet/bots/${botId}/settings`);
-  } catch {
-    return { ...MOCK_BOT_SETTINGS, id: botId };
-  }
+  return apiFetch<BotSettings>(`/fleet/bots/${botId}/settings`);
 }
 
 export async function updateBotIdentity(
   botId: string,
   identity: BotIdentity,
 ): Promise<BotIdentity> {
-  try {
-    return await apiFetch<BotIdentity>(`/fleet/bots/${botId}/identity`, {
-      method: "PUT",
-      body: JSON.stringify(identity),
-    });
-  } catch {
-    return identity;
-  }
+  return apiFetch<BotIdentity>(`/fleet/bots/${botId}/identity`, {
+    method: "PUT",
+    body: JSON.stringify(identity),
+  });
 }
 
 export async function activateSuperpower(
   botId: string,
   superpowerId: string,
 ): Promise<{ success: boolean }> {
-  try {
-    return await apiFetch<{ success: boolean }>(
-      `/fleet/bots/${botId}/capabilities/${superpowerId}/activate`,
-      { method: "POST" },
-    );
-  } catch {
-    return { success: true };
-  }
+  return apiFetch<{ success: boolean }>(
+    `/fleet/bots/${botId}/capabilities/${superpowerId}/activate`,
+    { method: "POST" },
+  );
 }
 
 export async function controlBot(
   botId: string,
   action: "stop" | "archive" | "delete",
 ): Promise<void> {
-  try {
-    if (action === "delete") {
-      await apiFetch(`/fleet/bots/${botId}`, { method: "DELETE" });
-    } else {
-      await apiFetch(`/fleet/bots/${botId}/${action}`, { method: "POST" });
-    }
-  } catch {
-    // Mock: no-op
+  if (action === "delete") {
+    await apiFetch(`/fleet/bots/${botId}`, { method: "DELETE" });
+  } else {
+    await apiFetch(`/fleet/bots/${botId}/${action}`, { method: "POST" });
   }
 }
