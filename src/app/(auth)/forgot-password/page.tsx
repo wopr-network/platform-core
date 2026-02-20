@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const { error: fetchError } = await authClient.$fetch("/forget-password", {
+      const { error: fetchError } = await authClient.$fetch("/request-password-reset", {
         method: "POST",
         body: { email, redirectTo: "/reset-password" },
       });
