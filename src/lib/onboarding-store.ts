@@ -54,19 +54,32 @@ export function saveOnboardingState(state: OnboardingState): void {
 
 export function clearOnboardingState(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore — storage may be blocked in private browsing
+  }
 }
 
 const COMPLETE_KEY = "wopr-onboarding-complete";
 
 export function isOnboardingComplete(): boolean {
   if (typeof window === "undefined") return true; // SSR: never gate
-  return localStorage.getItem(COMPLETE_KEY) === "1";
+  try {
+    return localStorage.getItem(COMPLETE_KEY) === "1";
+  } catch {
+    // Fail open — don't block dashboard access if storage is unavailable
+    return true;
+  }
 }
 
 export function markOnboardingComplete(): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(COMPLETE_KEY, "1");
+  try {
+    localStorage.setItem(COMPLETE_KEY, "1");
+  } catch {
+    // ignore — storage may be blocked in private browsing
+  }
 }
 
 export const AI_PROVIDERS = [
