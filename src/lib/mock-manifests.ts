@@ -14,6 +14,8 @@ export interface ConfigField {
     pattern?: string;
     message?: string;
   };
+  /** For setupFlow "oauth": the provider identifier used to request the OAuth URL from the backend. */
+  oauthProvider?: string;
 }
 
 export interface SetupStep {
@@ -140,6 +142,7 @@ export const channelManifests: ChannelManifest[] = [
             required: true,
             secret: true,
             setupFlow: "oauth",
+            oauthProvider: "slack",
             placeholder: "Click Authorize to connect",
             description: "This will open a Slack OAuth window.",
           },
