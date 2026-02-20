@@ -38,14 +38,16 @@ describe("PrelaunchPage", () => {
 
   it("uses full black background", () => {
     render(<PrelaunchPage />);
-    const wrapper = screen.getByLabelText("Coming soon").parentElement!;
-    expect(wrapper.className).toContain("bg-black");
+    const wrapper = screen.getByLabelText("Coming soon").parentElement;
+    expect(wrapper).not.toBeNull();
+    expect(wrapper?.className).toContain("bg-black");
   });
 
   it("uses monospace font for countdown", () => {
     render(<PrelaunchPage />);
     const colons = screen.getAllByText(":");
-    const countdown = colons[0].parentElement!;
-    expect(countdown.className).toContain("font-mono");
+    const countdown = colons[0].parentElement;
+    expect(countdown).not.toBeNull();
+    expect(countdown?.className).toContain("font-mono");
   });
 });

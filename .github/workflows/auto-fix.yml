@@ -19,8 +19,27 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: Skip agent-managed PRs
+        id: agent-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const headRef = pr.data.head.ref;
+            if (headRef.startsWith('agent/') || headRef.startsWith('recover/')) {
+              console.log(`Skipping agent-managed branch: ${headRef}`);
+              core.setOutput('skip', 'true');
+            } else {
+              core.setOutput('skip', 'false');
+            }
+
       - name: Check for auto-fixing label
         id: label-check
+        if: steps.agent-check.outputs.skip == 'false'
         uses: actions/github-script@v7
         with:
           script: |
@@ -37,7 +56,7 @@ jobs:
             }
 
       - name: Add auto-fixing label
-        if: steps.label-check.outputs.skip == 'false'
+        if: steps.agent-check.outputs.skip == 'false' && steps.label-check.outputs.skip == 'false'
         uses: actions/github-script@v7
         with:
           script: |
@@ -51,11 +70,11 @@ jobs:
       # Wait to give the other reviewer a chance to post before Claude reads comments.
       # If coderabbit is rate-limited or absent, we still proceed after the window.
       - name: Wait for other reviewers (3 min window)
-        if: steps.label-check.outputs.skip == 'false'
+        if: steps.agent-check.outputs.skip == 'false' && steps.label-check.outputs.skip == 'false'
         run: sleep 180
 
       - name: Trigger Claude to fix all review feedback
-        if: steps.label-check.outputs.skip == 'false'
+        if: steps.agent-check.outputs.skip == 'false' && steps.label-check.outputs.skip == 'false'
         uses: actions/github-script@v7
         with:
           script: |
@@ -87,7 +106,7 @@ jobs:
             2. Fix every issue they flagged — bugs, security concerns, TypeScript issues, missing error handling, test gaps
             3. Commit and push fixes to this branch
             4. Remove the \`auto-fixing\` label from this PR
-            5. Run \`gh pr merge --auto --squash --repo ${{ github.repository }} ${context.issue.number}\` to queue it for merge
 
-            Do not skip issues. If a reviewer flags something, fix it or leave a clear explanation as a PR comment.`,
+            Do not close or delete the PR. Do not skip issues. If a reviewer flags something, fix it or leave a clear explanation as a PR comment.
+            5. Run \`gh pr merge --auto --squash --repo ${{ github.repository }} ${context.issue.number}\` to queue it for merge once CI passes.`,
             });
