@@ -95,6 +95,7 @@ interface BotStatusResponse {
   uptime: string | null;
   startedAt: string | null;
   createdAt?: string;
+  env?: Record<string, string>;
   stats: {
     cpuPercent: number;
     memoryUsageMb: number;
@@ -102,6 +103,34 @@ interface BotStatusResponse {
     memoryPercent: number;
   } | null;
   [key: string]: unknown;
+}
+
+/** Parse channel IDs from bot env vars (WOPR_PLUGINS_CHANNELS is comma-separated). */
+function parseChannelsFromEnv(env: Record<string, string> | undefined): string[] {
+  const raw = env?.WOPR_PLUGINS_CHANNELS;
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Parse plugin IDs from bot env vars (WOPR_PLUGINS_OTHER + WOPR_PLUGINS_VOICE are comma-separated). */
+function parsePluginsFromEnv(env: Record<string, string> | undefined): PluginInfo[] {
+  if (!env) return [];
+  const ids = new Set<string>();
+  for (const key of ["WOPR_PLUGINS_OTHER", "WOPR_PLUGINS_VOICE", "WOPR_PLUGINS_PROVIDERS"]) {
+    const raw = env[key];
+    if (raw) {
+      for (const id of raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)) {
+        ids.add(id);
+      }
+    }
+  }
+  return [...ids].map((id) => ({ id, name: id, version: "", enabled: true }));
 }
 
 function mapBotState(state: string): InstanceStatus {
@@ -150,8 +179,8 @@ export async function listInstances(): Promise<Instance[]> {
     template: "",
     status: mapBotState(bot.state),
     provider: "",
-    channels: [],
-    plugins: [],
+    channels: parseChannelsFromEnv(bot.env),
+    plugins: parsePluginsFromEnv(bot.env),
     uptime: (() => {
       const ms = bot.uptime ? new Date(bot.uptime).getTime() : NaN;
       return Number.isNaN(ms) ? null : Math.floor((Date.now() - ms) / 1000);

@@ -76,26 +76,33 @@ export function SetupChecklist() {
 
     async function load() {
       try {
-        const [instances, credits] = await Promise.all([listInstances(), getCreditBalance()]);
+        const [instancesResult, creditsResult] = await Promise.allSettled([
+          listInstances(),
+          getCreditBalance(),
+        ]);
         if (cancelled) return;
 
-        setHasInstances(instances.length > 0);
+        if (instancesResult.status === "fulfilled") {
+          const instances = instancesResult.value;
+          setHasInstances(instances.length > 0);
 
-        const channels = new Set<string>();
-        const supers = new Set<string>();
-        for (const inst of instances) {
-          for (const ch of inst.channels) {
-            channels.add(ch);
+          const channels = new Set<string>();
+          const supers = new Set<string>();
+          for (const inst of instances) {
+            for (const ch of inst.channels) {
+              channels.add(ch);
+            }
+            for (const p of inst.plugins) {
+              if (p.enabled) supers.add(p.id);
+            }
           }
-          for (const p of inst.plugins) {
-            if (p.enabled) supers.add(p.id);
-          }
+          setSelectedChannels([...channels]);
+          setSelectedSuperpowers([...supers]);
         }
-        setSelectedChannels([...channels]);
-        setSelectedSuperpowers([...supers]);
-        setCreditBalance(`$${credits.balance.toFixed(2)}`);
-      } catch {
-        // On error, leave empty — checklist will not render
+
+        if (creditsResult.status === "fulfilled") {
+          setCreditBalance(`$${creditsResult.value.balance.toFixed(2)}`);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

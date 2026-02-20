@@ -137,11 +137,17 @@ export function useOnboarding(
   const [realCreditBalance, setRealCreditBalance] = useState<string>("$0.00");
 
   useEffect(() => {
+    let cancelled = false;
     getCreditBalance()
-      .then((data) => setRealCreditBalance(`$${data.balance.toFixed(2)}`))
+      .then((data) => {
+        if (!cancelled) setRealCreditBalance(`$${data.balance.toFixed(2)}`);
+      })
       .catch(() => {
         // Keep default $0.00 on error
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Pre-check superpowers from existing bots in fleet-add mode
