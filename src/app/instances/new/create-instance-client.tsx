@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Check } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,14 +16,20 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
-import type { InstanceTemplate } from "@/lib/api";
-import { createInstance, listTemplates } from "@/lib/api";
+import { createInstance } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+const PRESET_ACCENT_COLORS: Record<string, string> = {
+  "discord-ai-bot": "#5865F2",
+  "slack-ai-assistant": "#4A154B",
+  "multi-channel": "#6366F1",
+  "voice-enabled": "#8B5CF6",
+  "api-only": "#FF6B6B",
+};
+
 export function CreateInstanceClient() {
-  const { providerOptions, channelOptions, pluginOptions } = usePluginRegistry();
-  const [templates, setTemplates] = useState<InstanceTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const { providerOptions, channelOptions, pluginOptions, presets } = usePluginRegistry();
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("anthropic");
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -29,20 +38,22 @@ export function CreateInstanceClient() {
   const [created, setCreated] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const loadTemplates = useCallback(async () => {
-    const data = await listTemplates();
-    setTemplates(data);
-  }, []);
-
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
-
-  function handleTemplateSelect(templateId: string) {
-    setSelectedTemplate(templateId);
-    const tmpl = templates.find((t) => t.id === templateId);
-    if (tmpl) {
-      setSelectedPlugins(tmpl.defaultPlugins);
+  function handlePresetSelect(presetId: string) {
+    if (selectedPreset === presetId) {
+      setSelectedPreset(null);
+      setSelectedChannels([]);
+      setSelectedPlugins([]);
+      setProvider("anthropic");
+      return;
+    }
+    setSelectedPreset(presetId);
+    const preset = presets.find((p) => p.id === presetId);
+    if (preset) {
+      setSelectedChannels(preset.channels);
+      setSelectedPlugins(preset.plugins);
+      if (preset.providers.length > 0) {
+        setProvider(preset.providers[0]);
+      }
     }
   }
 
@@ -57,14 +68,14 @@ export function CreateInstanceClient() {
   }
 
   async function handleSubmit() {
-    if (!name.trim() || !selectedTemplate) return;
+    if (!name.trim()) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const tmpl = templates.find((t) => t.id === selectedTemplate);
+      const preset = presets.find((p) => p.id === selectedPreset);
       await createInstance({
         name: name.trim(),
-        template: tmpl?.name ?? selectedTemplate,
+        template: preset?.name ?? "Custom",
         provider,
         channels: selectedChannels,
         plugins: selectedPlugins,
@@ -79,76 +90,163 @@ export function CreateInstanceClient() {
 
   if (created) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
-        <h2 className="text-xl font-semibold">Instance created</h2>
-        <p className="text-muted-foreground">
-          Your instance &ldquo;{name}&rdquo; has been created successfully.
-        </p>
-        <Button variant="terminal" asChild>
-          <a href="/instances">Back to Instances</a>
-        </Button>
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-6">
+        <motion.div
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-terminal/30 bg-terminal/10"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <Check className="h-8 w-8 text-terminal" />
+        </motion.div>
+        <motion.h2
+          className="text-xl font-semibold"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          Instance created
+        </motion.h2>
+        <motion.p
+          className="text-muted-foreground"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          Your instance <span className="font-medium text-terminal">&ldquo;{name}&rdquo;</span> has
+          been created successfully.
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Button variant="terminal" asChild>
+            <a href="/instances">Back to Instances</a>
+          </Button>
+        </motion.div>
       </div>
     );
   }
 
+  const visiblePresets = presets.filter((p) => p.id !== "custom");
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <motion.div
+      className="mx-auto max-w-3xl space-y-6"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Create Instance</h1>
         <p className="text-sm text-muted-foreground">
-          Choose a template and configure your new WOPR instance.
+          Launch a new WOPR bot. Pick a preset or go custom.
         </p>
       </div>
 
-      {/* Step 1: Template */}
+      {/* Instance Name (required, above presets) */}
+      <div className="space-y-2">
+        <Label htmlFor="instance-name">Instance Name</Label>
+        <Input
+          id="instance-name"
+          placeholder="my-instance"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground/60">
+          Lowercase letters, numbers, and hyphens only
+        </p>
+      </div>
+
+      <Separator />
+
+      {/* Preset (optional) */}
       <div className="space-y-3">
-        <h2 className="text-sm font-medium">Template</h2>
+        <div>
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-terminal/60">
+            QUICK START
+          </div>
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Select a preset to auto-fill, or skip to configure manually
+          </h2>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((tmpl) => (
-            <Card
-              key={tmpl.id}
-              className={cn(
-                "cursor-pointer transition-all hover:border-terminal/50",
-                selectedTemplate === tmpl.id &&
-                  "border-terminal bg-terminal/5 shadow-[0_0_8px_rgba(0,255,65,0.15)]",
-              )}
-              onClick={() => handleTemplateSelect(tmpl.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleTemplateSelect(tmpl.id);
-                }
-              }}
+          {visiblePresets.map((preset, index) => (
+            <motion.div
+              key={preset.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: index * 0.05 }}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{tmpl.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-xs">{tmpl.description}</CardDescription>
-              </CardContent>
-            </Card>
+              <Card
+                className={cn(
+                  "relative cursor-pointer transition-all hover:border-terminal/40 hover:shadow-[0_0_8px_rgba(0,255,65,0.15)]",
+                  "border-l-2",
+                  selectedPreset === preset.id &&
+                    "border-terminal bg-terminal/5 shadow-[0_0_12px_rgba(0,255,65,0.2)]",
+                )}
+                style={{
+                  borderLeftColor: PRESET_ACCENT_COLORS[preset.id] ?? "transparent",
+                }}
+                onClick={() => handlePresetSelect(preset.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handlePresetSelect(preset.id);
+                  }
+                }}
+              >
+                {selectedPreset === preset.id && (
+                  <motion.div
+                    className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-terminal/20 text-terminal"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  >
+                    <Check className="h-3 w-3" />
+                  </motion.div>
+                )}
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{preset.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <CardDescription className="text-xs">{preset.description}</CardDescription>
+                  <div className="flex flex-wrap gap-1">
+                    {[...preset.channels, ...preset.providers, ...preset.plugins].map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-block rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  {preset.keyCount > 0 && (
+                    <p className="text-[10px] text-muted-foreground/70">
+                      {preset.keyCount} {preset.keyCount === 1 ? "key" : "keys"} needed
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </div>
 
       <Separator />
 
-      {/* Step 2: Config */}
+      {/* Configuration */}
       <div className="space-y-4">
-        <h2 className="text-sm font-medium">Configuration</h2>
-
-        <div className="space-y-2">
-          <label htmlFor="instance-name" className="text-sm text-muted-foreground">
-            Instance Name
-          </label>
-          <Input
-            id="instance-name"
-            placeholder="my-instance"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+        <div>
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-terminal/60">
+            CONFIGURATION
+          </div>
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Fine-tune your instance settings
+          </h2>
         </div>
 
         <div className="space-y-2">
@@ -172,7 +270,7 @@ export function CreateInstanceClient() {
 
       <Separator />
 
-      {/* Step 3: Channels */}
+      {/* Channels */}
       <div className="space-y-3">
         <h2 className="text-sm font-medium">Channels</h2>
         <div className="flex flex-wrap gap-2">
@@ -191,7 +289,7 @@ export function CreateInstanceClient() {
 
       <Separator />
 
-      {/* Step 4: Plugins */}
+      {/* Plugins */}
       <div className="space-y-3">
         <h2 className="text-sm font-medium">Plugins</h2>
         <div className="flex flex-wrap gap-2">
@@ -211,23 +309,28 @@ export function CreateInstanceClient() {
       <Separator />
 
       {submitError && (
-        <div className="rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-          {submitError}
-        </div>
+        <motion.div
+          className="rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+        >
+          <span className="font-bold">&gt; ERROR:</span> {submitError}
+        </motion.div>
       )}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
         <Button variant="outline" asChild>
           <a href="/instances">Cancel</a>
         </Button>
         <Button
           variant="terminal"
+          className={cn(submitting && "animate-[terminal-pulse_2s_ease-in-out_infinite]")}
           onClick={handleSubmit}
-          disabled={!name.trim() || !selectedTemplate || submitting}
+          disabled={!name.trim() || submitting}
         >
           {submitting ? "Creating..." : "Create Instance"}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

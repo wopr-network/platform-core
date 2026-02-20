@@ -4,26 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { CreateInstanceClient } from "../app/instances/new/create-instance-client";
 
 vi.mock("@/lib/api", () => ({
-  listTemplates: vi.fn().mockResolvedValue([
-    {
-      id: "general",
-      name: "General Assistant",
-      description: "A versatile assistant.",
-      icon: "Bot",
-      defaultPlugins: ["memory"],
-    },
-    {
-      id: "coding",
-      name: "Code Helper",
-      description: "For code tasks.",
-      icon: "Code",
-      defaultPlugins: ["memory", "code-executor"],
-    },
-  ]),
   createInstance: vi.fn().mockResolvedValue({
     id: "inst-new",
     name: "my-new-instance",
-    template: "General Assistant",
+    template: "Custom",
     status: "stopped",
     provider: "anthropic",
     channels: [],
@@ -34,30 +18,39 @@ vi.mock("@/lib/api", () => ({
 }));
 
 describe("CreateInstanceClient", () => {
-  it("renders the create form heading", async () => {
+  it("renders the create form heading", () => {
     render(<CreateInstanceClient />);
-
     expect(screen.getByRole("heading", { name: "Create Instance" })).toBeInTheDocument();
   });
 
-  it("renders template cards after loading", async () => {
+  it("renders preset cards", () => {
     render(<CreateInstanceClient />);
+    expect(screen.getByText("Discord AI Bot")).toBeInTheDocument();
+    expect(screen.getByText("Slack AI Assistant")).toBeInTheDocument();
+    expect(screen.getByText("Multi-Channel")).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText("General Assistant")).toBeInTheDocument();
-    });
-    expect(screen.getByText("Code Helper")).toBeInTheDocument();
+  it("disables submit button without name", () => {
+    render(<CreateInstanceClient />);
+    const submitBtn = screen.getByRole("button", { name: "Create Instance" });
+    expect(submitBtn).toBeDisabled();
+  });
+
+  it("enables submit button when name is entered without preset", async () => {
+    const user = userEvent.setup();
+    render(<CreateInstanceClient />);
+    const nameInput = screen.getByPlaceholderText("my-instance");
+    await user.type(nameInput, "my-bot");
+    const submitBtn = screen.getByRole("button", { name: "Create Instance" });
+    expect(submitBtn).toBeEnabled();
   });
 
   it("shows confirmation after creating", async () => {
     const user = userEvent.setup();
     render(<CreateInstanceClient />);
 
-    // Select template
-    await waitFor(() => {
-      expect(screen.getByText("General Assistant")).toBeInTheDocument();
-    });
-    await user.click(screen.getByText("General Assistant"));
+    // Select preset
+    await user.click(screen.getByText("Discord AI Bot"));
 
     // Enter name
     const nameInput = screen.getByPlaceholderText("my-instance");
@@ -69,12 +62,5 @@ describe("CreateInstanceClient", () => {
     await waitFor(() => {
       expect(screen.getByText("Instance created")).toBeInTheDocument();
     });
-  });
-
-  it("disables submit button without name and template", () => {
-    render(<CreateInstanceClient />);
-
-    const submitBtn = screen.getByRole("button", { name: "Create Instance" });
-    expect(submitBtn).toBeDisabled();
   });
 });

@@ -46,14 +46,6 @@ export interface InstanceDetail extends Instance {
   };
 }
 
-export interface InstanceTemplate {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  defaultPlugins: string[];
-}
-
 // --- API client ---
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -235,10 +227,6 @@ export async function controlInstance(
   } else {
     await fleetFetch(`/bots/${id}/${action}`, { method: "POST" });
   }
-}
-
-export async function listTemplates(): Promise<InstanceTemplate[]> {
-  return apiFetch<InstanceTemplate[]>("/templates");
 }
 
 // --- Observability types ---
