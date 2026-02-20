@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { getCreditBalance, listInstances } from "@/lib/api";
 import { type ByokAiProvider, getAiKeyField } from "@/lib/onboarding-data";
+import { markOnboardingComplete } from "@/lib/onboarding-store";
 
 export type WizardMode = "onboarding" | "fleet-add";
 
@@ -410,10 +411,19 @@ export function useOnboarding(
         setByokKeyErrors(errors);
         if (!valid) return;
       }
-      setStep(effectiveStepOrder[currentIndex + 1]);
+      const nextStep = effectiveStepOrder[currentIndex + 1];
+      setStep(nextStep);
+      try {
+        window.dispatchEvent(
+          new CustomEvent("wopr:onboarding:step", { detail: { step: nextStep, mode } }),
+        );
+      } catch {
+        // ignore — analytics must never break the flow
+      }
     }
   }, [
     step,
+    mode,
     effectiveStepOrder,
     channelConfigFields,
     channelKeyValues,
@@ -437,14 +447,23 @@ export function useOnboarding(
     let i = 0;
     deployIntervalRef.current = setInterval(() => {
       if (i < stages.length) {
-        setDeployStatus(stages[i]);
+        const status = stages[i];
+        setDeployStatus(status);
+        if (status === "done") {
+          markOnboardingComplete();
+          try {
+            window.dispatchEvent(new CustomEvent("wopr:onboarding:complete", { detail: { mode } }));
+          } catch {
+            // ignore — analytics must never break the flow
+          }
+        }
         i++;
       } else {
         if (deployIntervalRef.current) clearInterval(deployIntervalRef.current);
         deployIntervalRef.current = null;
       }
     }, 1200);
-  }, []);
+  }, [mode]);
 
   const reset = useCallback(() => {
     if (deployIntervalRef.current) {

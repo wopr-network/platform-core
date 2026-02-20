@@ -5,6 +5,7 @@ import { MenuIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SuspensionBanner } from "@/components/billing/suspension-banner";
+import { OnboardingGate } from "@/components/onboarding";
 import { Sidebar, SidebarContent } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -27,7 +28,7 @@ export default function DashboardLayout({
   }, [pathname]);
 
   return (
-    <>
+    <OnboardingGate>
       {/* Desktop layout - hidden on mobile with CSS */}
       <div className="hidden lg:flex h-screen">
         <Sidebar />
@@ -81,6 +82,6 @@ export default function DashboardLayout({
           </motion.main>
         </AnimatePresence>
       </div>
-    </>
+    </OnboardingGate>
   );
 }
