@@ -97,7 +97,11 @@ export async function controlInstance(
   id: string,
   action: "start" | "stop" | "restart" | "destroy",
 ): Promise<void> {
-  await apiFetch(`/fleet/bots/${id}/${action}`, { method: "POST" });
+  if (action === "destroy") {
+    await apiFetch(`/fleet/bots/${id}`, { method: "DELETE" });
+  } else {
+    await apiFetch(`/fleet/bots/${id}/${action}`, { method: "POST" });
+  }
 }
 
 export async function listTemplates(): Promise<InstanceTemplate[]> {

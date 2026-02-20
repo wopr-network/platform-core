@@ -352,7 +352,11 @@ export async function controlBot(
   action: "stop" | "archive" | "delete",
 ): Promise<void> {
   try {
-    await apiFetch(`/fleet/bots/${botId}/${action}`, { method: "POST" });
+    if (action === "delete") {
+      await apiFetch(`/fleet/bots/${botId}`, { method: "DELETE" });
+    } else {
+      await apiFetch(`/fleet/bots/${botId}/${action}`, { method: "POST" });
+    }
   } catch {
     // Mock: no-op
   }
