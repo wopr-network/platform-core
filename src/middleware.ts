@@ -6,6 +6,7 @@ const publicPaths = [
   "/forgot-password",
   "/reset-password",
   "/auth/callback",
+  "/auth/verify",
   "/onboard",
   "/onboarding",
 ];
