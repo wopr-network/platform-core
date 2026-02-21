@@ -337,16 +337,25 @@ export function useOnboarding(
       try {
         const result = await testChannelConnection(channelId, credentials);
         if (result.success) {
-          setChannelValidationStatus((prev) => ({ ...prev, [channelId]: "valid" }));
+          setChannelValidationStatus((prev) => {
+            if (prev[channelId] !== "validating") return prev;
+            return { ...prev, [channelId]: "valid" };
+          });
         } else {
-          setChannelValidationStatus((prev) => ({ ...prev, [channelId]: "invalid" }));
+          setChannelValidationStatus((prev) => {
+            if (prev[channelId] !== "validating") return prev;
+            return { ...prev, [channelId]: "invalid" };
+          });
           setChannelValidationErrors((prev) => ({
             ...prev,
             [channelId]: result.error || "Verification failed",
           }));
         }
       } catch {
-        setChannelValidationStatus((prev) => ({ ...prev, [channelId]: "invalid" }));
+        setChannelValidationStatus((prev) => {
+          if (prev[channelId] !== "validating") return prev;
+          return { ...prev, [channelId]: "invalid" };
+        });
         setChannelValidationErrors((prev) => ({
           ...prev,
           [channelId]: "Could not reach the server. Check your connection.",
