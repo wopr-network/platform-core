@@ -4,11 +4,13 @@ import { ByokElevenLabsWizard } from "@/components/onboarding/byok-elevenlabs-wi
 
 vi.mock("@/lib/api", () => ({
   validateElevenLabsKey: vi.fn(),
+  storeTenantKey: vi.fn(),
 }));
 
-import { validateElevenLabsKey } from "@/lib/api";
+import { storeTenantKey, validateElevenLabsKey } from "@/lib/api";
 
 const mockValidate = vi.mocked(validateElevenLabsKey);
+const mockStore = vi.mocked(storeTenantKey);
 
 describe("ByokElevenLabsWizard", () => {
   it("renders the heading and key input", () => {
@@ -95,6 +97,13 @@ describe("ByokElevenLabsWizard", () => {
 
   it("calls onComplete and shows confirmation step", async () => {
     mockValidate.mockResolvedValue({ valid: true });
+    mockStore.mockResolvedValue({
+      provider: "elevenlabs",
+      hasKey: true,
+      maskedKey: "xi-...yz",
+      createdAt: null,
+      updatedAt: null,
+    });
     const onComplete = vi.fn();
     render(<ByokElevenLabsWizard onComplete={onComplete} />);
 
@@ -109,8 +118,12 @@ describe("ByokElevenLabsWizard", () => {
 
     fireEvent.click(screen.getByText("Continue"));
 
-    expect(onComplete).toHaveBeenCalledWith("my-key");
-    expect(screen.getByText("Voice (TTS) is ready")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledWith("my-key");
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Voice (TTS) is ready")).toBeInTheDocument();
+    });
     expect(screen.getByText("ElevenLabs TTS")).toBeInTheDocument();
     expect(screen.getByText("Connected")).toBeInTheDocument();
   });
@@ -163,6 +176,13 @@ describe("ByokElevenLabsWizard", () => {
 
   it("shows Voice (TTS) capability on confirmation", async () => {
     mockValidate.mockResolvedValue({ valid: true });
+    mockStore.mockResolvedValue({
+      provider: "elevenlabs",
+      hasKey: true,
+      maskedKey: "xi-...yz",
+      createdAt: null,
+      updatedAt: null,
+    });
     render(<ByokElevenLabsWizard onComplete={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/ElevenLabs API Key/), {
@@ -176,7 +196,37 @@ describe("ByokElevenLabsWizard", () => {
 
     fireEvent.click(screen.getByText("Continue"));
 
-    expect(screen.getByText("Voice (TTS) is ready")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Voice (TTS) is ready")).toBeInTheDocument();
+    });
     expect(screen.getByText(/text-to-speech is connected/)).toBeInTheDocument();
+  });
+
+  it("stores key to tenant-key store after validation and continue", async () => {
+    mockValidate.mockResolvedValue({ valid: true });
+    mockStore.mockResolvedValue({
+      provider: "elevenlabs",
+      hasKey: true,
+      maskedKey: "xi-...yz",
+      createdAt: null,
+      updatedAt: null,
+    });
+    const onComplete = vi.fn();
+    render(<ByokElevenLabsWizard onComplete={onComplete} />);
+
+    fireEvent.change(screen.getByLabelText(/ElevenLabs API Key/), {
+      target: { value: "xi-real-key" },
+    });
+    fireEvent.click(screen.getByText("Validate Key"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Continue")).not.toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByText("Continue"));
+
+    await waitFor(() => {
+      expect(mockStore).toHaveBeenCalledWith("elevenlabs", "xi-real-key");
+    });
   });
 });

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { validateDeepgramKey } from "@/lib/api";
+import { storeTenantKey, validateDeepgramKey } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type WizardStep = "enter-key" | "confirmed";
@@ -71,11 +71,16 @@ export function ByokDeepgramWizard({
     }
   }, [apiKey, validating]);
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
     if (validated) {
       const trimmed = apiKey.trim();
+      try {
+        await storeTenantKey("deepgram", trimmed);
+      } catch {
+        // Store failed but validation passed -- still proceed
+      }
       setStep("confirmed");
-      setTimeout(() => onComplete(trimmed), 0);
+      onComplete(trimmed);
     }
   }, [validated, apiKey, onComplete]);
 

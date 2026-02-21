@@ -4,11 +4,13 @@ import { ByokDeepgramWizard } from "@/components/onboarding/byok-deepgram-wizard
 
 vi.mock("@/lib/api", () => ({
   validateDeepgramKey: vi.fn(),
+  storeTenantKey: vi.fn(),
 }));
 
-import { validateDeepgramKey } from "@/lib/api";
+import { storeTenantKey, validateDeepgramKey } from "@/lib/api";
 
 const mockValidate = vi.mocked(validateDeepgramKey);
+const mockStore = vi.mocked(storeTenantKey);
 
 describe("ByokDeepgramWizard", () => {
   it("renders the heading and key input", () => {
@@ -92,6 +94,13 @@ describe("ByokDeepgramWizard", () => {
 
   it("calls onComplete and shows confirmation step", async () => {
     mockValidate.mockResolvedValue({ valid: true });
+    mockStore.mockResolvedValue({
+      provider: "deepgram",
+      hasKey: true,
+      maskedKey: "dg-...xy",
+      createdAt: null,
+      updatedAt: null,
+    });
     const onComplete = vi.fn();
     render(<ByokDeepgramWizard onComplete={onComplete} />);
 
@@ -106,7 +115,9 @@ describe("ByokDeepgramWizard", () => {
 
     fireEvent.click(screen.getByText("Continue"));
 
-    expect(screen.getByText("Voice (STT) is ready")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Voice (STT) is ready")).toBeInTheDocument();
+    });
     expect(screen.getByText("Deepgram STT")).toBeInTheDocument();
     expect(screen.getByText("Connected")).toBeInTheDocument();
 
@@ -141,6 +152,34 @@ describe("ByokDeepgramWizard", () => {
   it("mentions encryption at rest", () => {
     render(<ByokDeepgramWizard onComplete={vi.fn()} />);
     expect(screen.getByText(/encrypted at rest/)).toBeInTheDocument();
+  });
+
+  it("stores key to tenant-key store after validation and continue", async () => {
+    mockValidate.mockResolvedValue({ valid: true });
+    mockStore.mockResolvedValue({
+      provider: "deepgram",
+      hasKey: true,
+      maskedKey: "dg-...xy",
+      createdAt: null,
+      updatedAt: null,
+    });
+    const onComplete = vi.fn();
+    render(<ByokDeepgramWizard onComplete={onComplete} />);
+
+    fireEvent.change(screen.getByLabelText(/Deepgram API Key/), {
+      target: { value: "dg-real-key" },
+    });
+    fireEvent.click(screen.getByText("Validate Key"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Continue")).not.toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByText("Continue"));
+
+    await waitFor(() => {
+      expect(mockStore).toHaveBeenCalledWith("deepgram", "dg-real-key");
+    });
   });
 
   it("disables Validate Key button when input is empty", () => {
