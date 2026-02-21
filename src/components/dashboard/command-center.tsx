@@ -139,6 +139,7 @@ export function CommandCenter() {
   const [instances, setInstances] = useState<FleetInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [resources, setResources] = useState<FleetResources | null>(null);
@@ -146,21 +147,32 @@ export function CommandCenter() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [fleetData, activityData, resourcesData] = await Promise.all([
-        getFleetHealth(),
-        getActivityFeed().catch(() => [] as ActivityEvent[]),
-        getFleetResources().catch(() => null),
-      ]);
-      setInstances(fleetData);
-      setActivity(activityData);
-      setResources(resourcesData);
-      setLastRefreshed(Date.now());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
-    } finally {
+    setActivityError(null);
+    const [fleetResult, activityResult, resourcesResult] = await Promise.allSettled([
+      getFleetHealth(),
+      getActivityFeed(),
+      getFleetResources(),
+    ]);
+    // Fleet health is load-bearing — failure blocks the dashboard
+    if (fleetResult.status === "rejected") {
+      const err = fleetResult.reason;
+      setError(err instanceof Error ? err.message : "Failed to load fleet data");
       setLoading(false);
+      return;
     }
+    setInstances(fleetResult.value);
+    // Activity is supplementary — surface inline without killing fleet data
+    if (activityResult.status === "fulfilled") {
+      setActivity(activityResult.value);
+    } else {
+      setActivity([]);
+      const err = activityResult.reason;
+      setActivityError(err instanceof Error ? err.message : "Failed to load activity");
+    }
+    // Resources are supplementary — silent null degradation
+    setResources(resourcesResult.status === "fulfilled" ? resourcesResult.value : null);
+    setLastRefreshed(Date.now());
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -327,7 +339,15 @@ export function CommandCenter() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {activity.length === 0 ? (
+          {activityError ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-2 py-8 text-center font-mono text-xs text-red-400"
+            >
+              <p>&gt; ACTIVITY UNAVAILABLE</p>
+              <p className="text-muted-foreground">{activityError}</p>
+            </div>
+          ) : activity.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
               <p className="font-mono text-sm text-terminal">&gt; STANDING BY</p>
               <p className="font-mono text-xs text-muted-foreground">
