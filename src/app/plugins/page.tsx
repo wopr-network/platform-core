@@ -74,6 +74,7 @@ export default function PluginsPage() {
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [botsLoading, setBotsLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   // Load bots on mount
   useEffect(() => {
@@ -117,8 +118,10 @@ export default function PluginsPage() {
     const plugin = installed.find((p) => p.pluginId === pluginId);
     if (!plugin) return;
 
-    const newEnabled = !plugin.enabled;
+    const previousEnabled = plugin.enabled;
+    const newEnabled = !previousEnabled;
     setToggling(pluginId);
+    setToggleError(null);
 
     // Optimistic update
     setInstalled((prev) =>
@@ -130,8 +133,9 @@ export default function PluginsPage() {
     } catch {
       // Revert on failure
       setInstalled((prev) =>
-        prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: !newEnabled } : p)),
+        prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: previousEnabled } : p)),
       );
+      setToggleError("Failed to update plugin. Please try again.");
     } finally {
       setToggling(null);
     }
@@ -246,6 +250,11 @@ export default function PluginsPage() {
         </TabsList>
 
         <TabsContent value="installed" className="mt-6">
+          {toggleError && (
+            <div className="mb-4 rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+              {toggleError}
+            </div>
+          )}
           {installedManifests.length === 0 ? (
             <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-terminal/20">
               <p className="font-mono text-sm text-terminal/60">
