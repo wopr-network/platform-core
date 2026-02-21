@@ -194,6 +194,14 @@ vi.mock("@/lib/api", async (importOriginal) => {
     createBillingPortalSession: vi
       .fn()
       .mockResolvedValue({ url: "https://billing.stripe.com/session/test" }),
+    storeTenantKey: vi.fn().mockResolvedValue({
+      provider: "anthropic",
+      hasKey: true,
+      maskedKey: "sk-ant-...xy",
+      createdAt: null,
+      updatedAt: null,
+    }),
+    deleteTenantKey: vi.fn().mockResolvedValue(undefined),
   };
 });
 

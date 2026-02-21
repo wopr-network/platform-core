@@ -609,10 +609,16 @@ export async function testProviderKey(id: string): Promise<{ valid: boolean }> {
 }
 
 export async function removeProviderKey(id: string): Promise<void> {
+  try {
+    await deleteTenantKey(id);
+  } catch {
+    // tenant-key may not exist if it was never stored there -- continue
+  }
   await apiFetch(`/settings/providers/${id}`, { method: "DELETE" });
 }
 
 export async function saveProviderKey(provider: string, key: string): Promise<ProviderKey> {
+  await storeTenantKey(provider, key);
   return apiFetch<ProviderKey>("/settings/providers", {
     method: "POST",
     body: JSON.stringify({ provider, key }),
