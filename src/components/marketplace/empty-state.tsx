@@ -11,7 +11,7 @@ interface EmptyStateProps {
 
 export function MarketplaceEmptyState({ hasSearch, searchTerm }: EmptyStateProps) {
   const suggestedPlugins = [
-    { id: "discord-channel", name: "Discord", description: "Chat & voice channels" },
+    { id: "discord", name: "Discord", description: "Chat & voice channels" },
     { id: "semantic-memory", name: "Semantic Memory", description: "Long-term memory" },
     { id: "elevenlabs-tts", name: "ElevenLabs TTS", description: "Voice synthesis" },
   ];

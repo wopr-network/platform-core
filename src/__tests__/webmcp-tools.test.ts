@@ -45,7 +45,7 @@ const MOCK_INSTANCES = [
 
 const MOCK_PLUGINS = [
   {
-    id: "discord-channel",
+    id: "discord",
     name: "Discord",
     description: "Discord integration",
     version: "3.2.0",
@@ -182,7 +182,7 @@ describe("getWebMCPTools", () => {
       };
 
       expect(result.plugins).toHaveLength(1);
-      expect(result.plugins[0].id).toBe("discord-channel");
+      expect(result.plugins[0].id).toBe("discord");
     });
   });
 
@@ -236,11 +236,11 @@ describe("getWebMCPTools", () => {
 
       const result = (await tool.handler({
         instanceId: "inst-001",
-        pluginName: "discord-channel",
+        pluginName: "discord",
       })) as { status: string; plugin: { id: string } };
 
       expect(result.status).toBe("pending");
-      expect(result.plugin.id).toBe("discord-channel");
+      expect(result.plugin.id).toBe("discord");
     });
 
     it("returns error for unknown plugin name", async () => {
@@ -262,7 +262,7 @@ describe("getWebMCPTools", () => {
         instanceId: "inst-001",
         uptime: 3600,
         sessionCount: 42,
-        plugins: [{ id: "discord-channel", status: "ok" }],
+        plugins: [{ id: "discord", status: "ok" }],
         provider: { name: "anthropic", status: "ok" },
       };
       mockGetInstanceHealth.mockResolvedValue(mockHealth);
