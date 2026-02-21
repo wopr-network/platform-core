@@ -221,8 +221,8 @@ export default function ProvidersPage() {
     );
   }
 
-  async function handleRemove(id: string) {
-    await removeProviderKey(id);
+  async function handleRemove(id: string, providerName: string) {
+    await removeProviderKey(id, providerName);
     setProviders((prev) => prev.filter((p) => p.id !== id));
   }
 
@@ -561,7 +561,7 @@ export default function ProvidersPage() {
                     variant="ghost"
                     size="sm"
                     className="text-destructive"
-                    onClick={() => handleRemove(provider.id)}
+                    onClick={() => handleRemove(provider.id, provider.provider)}
                   >
                     Remove
                   </Button>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { storeTenantKey } from "@/lib/api";
 import {
   AI_PROVIDERS,
   loadOnboardingState,
@@ -35,15 +36,21 @@ export default function OnboardKeysPage() {
     setVisible((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  function validateKey(id: string) {
+  async function validateKey(id: string) {
+    const provider = providers.find((p) => p.id === id);
+    if (!provider || !provider.key) return;
+
     setValidating((prev) => ({ ...prev, [id]: true }));
-    // Mock validation - in production, this would call the provider API
-    setTimeout(() => {
+    try {
+      await storeTenantKey(id, provider.key);
       setProviders((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, validated: p.key.length > 0 } : p)),
+        prev.map((p) => (p.id === id ? { ...p, key: "", validated: true } : p)),
       );
+    } catch {
+      setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, validated: false } : p)));
+    } finally {
       setValidating((prev) => ({ ...prev, [id]: false }));
-    }, 1000);
+    }
   }
 
   function handleContinue() {

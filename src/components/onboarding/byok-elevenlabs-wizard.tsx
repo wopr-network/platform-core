@@ -72,8 +72,10 @@ export function ByokElevenLabsWizard({
 
   const handleContinue = useCallback(() => {
     if (validated) {
+      const trimmed = apiKey.trim();
+      // Key was already stored by validateElevenLabsKey; no need to store again
       setStep("confirmed");
-      onComplete(apiKey.trim());
+      onComplete(trimmed);
     }
   }, [validated, apiKey, onComplete]);
 

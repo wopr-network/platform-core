@@ -641,11 +641,17 @@ export async function testProviderKey(id: string): Promise<{ valid: boolean }> {
   return apiFetch<{ valid: boolean }>(`/settings/providers/${id}/test`, { method: "POST" });
 }
 
-export async function removeProviderKey(id: string): Promise<void> {
+export async function removeProviderKey(id: string, provider: string): Promise<void> {
+  try {
+    await deleteTenantKey(provider);
+  } catch {
+    // tenant-key may not exist if it was never stored there -- continue
+  }
   await apiFetch(`/settings/providers/${id}`, { method: "DELETE" });
 }
 
 export async function saveProviderKey(provider: string, key: string): Promise<ProviderKey> {
+  await storeTenantKey(provider, key);
   return apiFetch<ProviderKey>("/settings/providers", {
     method: "POST",
     body: JSON.stringify({ provider, key }),
@@ -1054,6 +1060,35 @@ export async function updateModelSelection(data: ModelSelection): Promise<ModelS
   });
 }
 
+// --- Tenant key store API (AES-256-GCM encrypted backend) ---
+
+export interface TenantKeyMeta {
+  provider: string;
+  hasKey: boolean;
+  maskedKey: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export async function listTenantKeys(): Promise<TenantKeyMeta[]> {
+  return apiFetch<TenantKeyMeta[]>("/tenant-keys");
+}
+
+export async function getTenantKey(provider: string): Promise<TenantKeyMeta> {
+  return apiFetch<TenantKeyMeta>(`/tenant-keys/${encodeURIComponent(provider)}`);
+}
+
+export async function storeTenantKey(provider: string, key: string): Promise<TenantKeyMeta> {
+  return apiFetch<TenantKeyMeta>(`/tenant-keys/${encodeURIComponent(provider)}`, {
+    method: "PUT",
+    body: JSON.stringify({ key }),
+  });
+}
+
+export async function deleteTenantKey(provider: string): Promise<void> {
+  await apiFetch(`/tenant-keys/${encodeURIComponent(provider)}`, { method: "DELETE" });
+}
+
 // --- BYOK key validation ---
 
 export interface KeyValidationResult {
@@ -1074,19 +1109,14 @@ export async function validateDeepgramKey(key: string): Promise<KeyValidationRes
 
 export async function validateElevenLabsKey(key: string): Promise<KeyValidationResult> {
   try {
-    const res = await fetch("https://api.elevenlabs.io/v1/user", {
-      method: "GET",
-      headers: { "xi-api-key": key },
-    });
-    if (res.ok) {
-      return { valid: true };
-    }
-    if (res.status === 401 || res.status === 403) {
+    await storeTenantKey("elevenlabs", key);
+    return { valid: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("401") || message.includes("403")) {
       return { valid: false, message: "Invalid API key. Please check and try again." };
     }
-    return { valid: false, message: `Unexpected response (${res.status}). Please try again.` };
-  } catch {
-    return { valid: false, message: "Could not reach ElevenLabs. Check your connection." };
+    return { valid: false, message: "Could not reach ElevenLabs. Please try again later." };
   }
 }
 
