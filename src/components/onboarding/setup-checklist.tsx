@@ -6,13 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCreditBalance, listInstances } from "@/lib/api";
+import type { CapabilitySetting, ChannelInfo } from "@/lib/api";
+import { getCreditBalance, listCapabilities, listChannels, listInstances } from "@/lib/api";
 import { channelPlugins, superpowers } from "@/lib/onboarding-data";
 
 const STORAGE_KEY = "wopr:setup-checklist-dismissed";
-
-// Channels that are always ready (no external setup required)
-const ALWAYS_READY_CHANNELS = new Set(["web-ui"]);
 
 interface ChannelStatus {
   id: string;
@@ -29,9 +27,11 @@ interface SuperpowerStatus {
   requiresKey: boolean;
 }
 
-function resolveChannelStatuses(selectedIds: string[]): ChannelStatus[] {
+function resolveChannelStatuses(
+  selectedIds: string[],
+  connectedChannels: Map<string, ChannelInfo["status"]>,
+): ChannelStatus[] {
   return selectedIds.map((id) => {
-    // web-ui is in pluginCategories, not channelPlugins
     if (id === "web-ui") {
       return { id, name: "Web UI", color: "#3B82F6", ready: true };
     }
@@ -40,19 +40,39 @@ function resolveChannelStatuses(selectedIds: string[]): ChannelStatus[] {
       id,
       name: plugin?.name ?? id,
       color: plugin?.color ?? "#71717A",
-      ready: ALWAYS_READY_CHANNELS.has(id),
+      ready: connectedChannels.get(id) === "connected",
     };
   });
 }
 
-function resolveSuperpowerStatuses(selectedIds: string[]): SuperpowerStatus[] {
+// Map superpower IDs to capability names used by the backend
+const SUPERPOWER_TO_CAPABILITY: Record<string, string> = {
+  "image-gen": "image-gen",
+  "video-gen": "image-gen",
+  voice: "transcription",
+  memory: "embeddings",
+  search: "text-gen",
+  "text-gen": "text-gen",
+};
+
+function resolveSuperpowerStatuses(
+  selectedIds: string[],
+  capabilities: CapabilitySetting[],
+): SuperpowerStatus[] {
   return selectedIds.map((id) => {
     const sp = superpowers.find((s) => s.id === id);
+    const capName = SUPERPOWER_TO_CAPABILITY[id];
+    const cap = capName ? capabilities.find((c) => c.capability === capName) : undefined;
+
+    const ready = cap
+      ? cap.mode === "hosted" || (cap.mode === "byok" && cap.keyStatus === "valid")
+      : !sp?.requiresKey;
+
     return {
       id,
       name: sp?.name ?? id,
       color: sp?.color ?? "#71717A",
-      ready: !sp?.requiresKey,
+      ready,
       requiresKey: sp?.requiresKey ?? false,
     };
   });
@@ -65,6 +85,10 @@ export function SetupChecklist() {
   const [creditBalance, setCreditBalance] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasInstances, setHasInstances] = useState(false);
+  const [connectedChannels, setConnectedChannels] = useState<Map<string, ChannelInfo["status"]>>(
+    new Map(),
+  );
+  const [capabilities, setCapabilities] = useState<CapabilitySetting[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -76,9 +100,10 @@ export function SetupChecklist() {
 
     async function load() {
       try {
-        const [instancesResult, creditsResult] = await Promise.allSettled([
+        const [instancesResult, creditsResult, capabilitiesResult] = await Promise.allSettled([
           listInstances(),
           getCreditBalance(),
+          listCapabilities(),
         ]);
         if (cancelled) return;
 
@@ -98,10 +123,33 @@ export function SetupChecklist() {
           }
           setSelectedChannels([...channels]);
           setSelectedSuperpowers([...supers]);
+
+          // Fetch channel connection status for each instance
+          const channelMap = new Map<string, ChannelInfo["status"]>();
+          const channelFetches = instances.map((inst) =>
+            listChannels(inst.id).catch(() => [] as ChannelInfo[]),
+          );
+          const channelResults = await Promise.all(channelFetches);
+          if (!cancelled) {
+            for (const channelList of channelResults) {
+              for (const ch of channelList) {
+                // If any instance has this channel connected, mark it connected
+                const existing = channelMap.get(ch.type);
+                if (!existing || ch.status === "connected") {
+                  channelMap.set(ch.type, ch.status);
+                }
+              }
+            }
+            setConnectedChannels(channelMap);
+          }
         }
 
         if (creditsResult.status === "fulfilled") {
           setCreditBalance(`$${creditsResult.value.balance.toFixed(2)}`);
+        }
+
+        if (capabilitiesResult.status === "fulfilled") {
+          setCapabilities(capabilitiesResult.value);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -143,8 +191,8 @@ export function SetupChecklist() {
   // No instances — checklist is meaningless
   if (!hasInstances) return null;
 
-  const channels = resolveChannelStatuses(selectedChannels);
-  const powers = resolveSuperpowerStatuses(selectedSuperpowers);
+  const channels = resolveChannelStatuses(selectedChannels, connectedChannels);
+  const powers = resolveSuperpowerStatuses(selectedSuperpowers, capabilities);
   const allComplete = channels.every((c) => c.ready) && powers.every((p) => p.ready);
 
   return (
