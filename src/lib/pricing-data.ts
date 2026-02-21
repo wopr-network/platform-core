@@ -40,3 +40,69 @@ export const pricingData = {
 export type PricingData = typeof pricingData;
 export type Capability = PricingData["capabilities"][number];
 export type Model = Capability["models"][number];
+
+/** Shape of a single rate from the API */
+export interface ApiRate {
+  name: string;
+  unit: string;
+  price: number;
+}
+
+/** Shape of GET /api/v1/pricing response */
+export interface ApiPricingResponse {
+  rates: Record<string, ApiRate[]>;
+}
+
+/** UI metadata for a capability key (display label + icon) */
+export interface CapabilityMeta {
+  category: string;
+  icon: "bot" | "mic" | "image" | "smartphone";
+}
+
+/** Map backend capability keys to UI display metadata */
+export const capabilityMeta: Record<string, CapabilityMeta> = {
+  llm: { category: "Text Generation", icon: "bot" },
+  tts: { category: "Voice", icon: "mic" },
+  stt: { category: "Voice", icon: "mic" },
+  image_gen: { category: "Image Generation", icon: "image" },
+  sms: { category: "Messaging", icon: "smartphone" },
+};
+
+/** Merged capability for rendering: metadata + models from API */
+export interface PricingCapability {
+  category: string;
+  icon: "bot" | "mic" | "image" | "smartphone";
+  models: ApiRate[];
+}
+
+/** Ordered list of capability categories for stable rendering order */
+const categoryOrder = ["Text Generation", "Voice", "Image Generation", "Messaging"];
+
+/**
+ * Merge API rates with UI metadata, grouping capabilities that share a category
+ * (e.g. tts + stt both map to "Voice") and ordering by categoryOrder.
+ * Falls back to capitalizing unknown keys with a generic icon.
+ */
+export function mergeApiRates(apiRates: Record<string, ApiRate[]>): PricingCapability[] {
+  const grouped = new Map<string, PricingCapability>();
+
+  for (const [key, models] of Object.entries(apiRates)) {
+    const meta = capabilityMeta[key] ?? {
+      category: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      icon: "bot" as const,
+    };
+    const existing = grouped.get(meta.category);
+    if (existing) {
+      existing.models.push(...models);
+    } else {
+      grouped.set(meta.category, { ...meta, models: [...models] });
+    }
+  }
+
+  // Sort by categoryOrder; unknown categories go to the end
+  return [...grouped.values()].sort((a, b) => {
+    const ai = categoryOrder.indexOf(a.category);
+    const bi = categoryOrder.indexOf(b.category);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+}

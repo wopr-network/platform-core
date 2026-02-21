@@ -1,8 +1,28 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
 import { handleUnauthorized } from "./fetch-utils";
+import type { ApiPricingResponse } from "./pricing-data";
 import { trpcVanilla } from "./trpc";
 
 export { UnauthorizedError } from "./fetch-utils";
+
+// --- Public pricing API (no auth required) ---
+
+/**
+ * Fetch live pricing rates from the backend.
+ * Returns null if the fetch fails (caller should fall back to static data).
+ * Uses no-store to bypass Next.js cache and get fresh rates every request.
+ */
+export async function fetchPublicPricing(): Promise<ApiPricingResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/v1/pricing`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ApiPricingResponse;
+  } catch {
+    return null;
+  }
+}
 
 export type InstanceStatus = "running" | "stopped" | "degraded" | "error";
 
