@@ -18,6 +18,7 @@ export type OnboardingStep =
   | "connect"
   | "superpowers"
   | "power-source"
+  | "billing"
   | "launch";
 
 const STEP_ORDER: OnboardingStep[] = [
@@ -26,6 +27,7 @@ const STEP_ORDER: OnboardingStep[] = [
   "connect",
   "superpowers",
   "power-source",
+  "billing",
   "launch",
 ];
 
@@ -71,6 +73,8 @@ export interface OnboardingState {
   creditBalance: string;
   byokKeyValues: Record<string, string>;
   byokKeyErrors: Record<string, string | null>;
+  // Step 5b: Billing (hosted mode only)
+  paymentMethodReady: boolean;
   // Step 6: Launch
   deployStatus: DeployStatus;
   // Fleet-add mode extras
@@ -97,6 +101,8 @@ export interface OnboardingActions {
   setByokAiProvider: (provider: ByokAiProvider) => void;
   setByokKeyValue: (key: string, value: string) => void;
   validateByokKey: (key: string) => void;
+  // Step 5b
+  setPaymentMethodReady: (ready: boolean) => void;
   // Navigation
   next: () => void;
   back: () => void;
@@ -199,6 +205,8 @@ export function useOnboarding(
   const [byokAiProvider, setByokAiProviderState] = useState<ByokAiProvider>("openrouter");
   const [byokKeyValues, setByokKeyValues] = useState<Record<string, string>>({});
   const [byokKeyErrors, setByokKeyErrors] = useState<Record<string, string | null>>({});
+  // Step 5b: Billing
+  const [paymentMethodReady, setPaymentMethodReady] = useState(false);
   // Step 6
   const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
 
@@ -218,9 +226,17 @@ export function useOnboarding(
         const sp = registry.superpowers.find((s) => s.id === id);
         return sp?.requiresKey;
       });
-    if (needsPowerSource) return STEP_ORDER;
-    return STEP_ORDER.filter((s) => s !== "power-source");
-  }, [selectedSuperpowers, registry.superpowers]);
+
+    let steps = STEP_ORDER;
+    if (!needsPowerSource) {
+      steps = steps.filter((s) => s !== "power-source");
+    }
+    // Only show billing step for hosted mode
+    if (providerMode !== "hosted") {
+      steps = steps.filter((s) => s !== "billing");
+    }
+    return steps;
+  }, [selectedSuperpowers, providerMode, registry.superpowers]);
 
   const stepIndex = effectiveStepOrder.indexOf(step);
   const totalSteps = effectiveStepOrder.length;
@@ -434,6 +450,8 @@ export function useOnboarding(
           const value = byokKeyValues[f.key] || "";
           return registry.validateField(f, value) === null;
         });
+      case "billing":
+        return paymentMethodReady;
       case "launch":
         return deployStatus === "done";
     }
@@ -447,6 +465,7 @@ export function useOnboarding(
     providerMode,
     byokConfigFields,
     byokKeyValues,
+    paymentMethodReady,
     deployStatus,
     registry,
   ]);
@@ -554,6 +573,7 @@ export function useOnboarding(
     setByokAiProviderState("openrouter");
     setByokKeyValues({});
     setByokKeyErrors({});
+    setPaymentMethodReady(false);
     setDeployStatus("idle");
   }, [isFleetAdd, fleetSuperpowers]);
 
@@ -577,6 +597,7 @@ export function useOnboarding(
     creditBalance: realCreditBalance,
     byokKeyValues,
     byokKeyErrors,
+    paymentMethodReady,
     deployStatus,
     existingBots: isFleetAdd ? fetchedBots : [],
     cloneFromBotId,
@@ -596,6 +617,7 @@ export function useOnboarding(
     setByokAiProvider,
     setByokKeyValue,
     validateByokKey,
+    setPaymentMethodReady,
     next,
     back,
     canAdvance,

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { StepBilling } from "./step-billing";
 import { StepChannels } from "./step-channels";
 import { StepConnect } from "./step-connect";
 import { StepLaunch } from "./step-launch";
@@ -18,6 +19,7 @@ const STEP_LABELS: Record<string, string> = {
   connect: "Connect",
   superpowers: "Superpowers",
   "power-source": "Power Source",
+  billing: "Billing",
   launch: "Launch",
 };
 
@@ -27,7 +29,8 @@ const STEP_META: Record<string, { number: string; code: string }> = {
   connect: { number: "03", code: "CONNECT" },
   superpowers: { number: "04", code: "SUPERPOWERS" },
   "power-source": { number: "05", code: "POWER SOURCE" },
-  launch: { number: "06", code: "LAUNCH" },
+  billing: { number: "06", code: "BILLING" },
+  launch: { number: "07", code: "LAUNCH" },
 };
 
 const stepTransition = {
@@ -177,6 +180,16 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               onByokKeyChange={actions.setByokKeyValue}
               onValidateByokKey={actions.validateByokKey}
               mode={state.mode}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
+            />
+          </motion.div>
+        )}
+
+        {state.step === "billing" && (
+          <motion.div key="billing" {...stepTransition}>
+            <StepBilling
+              onPaymentMethodReady={actions.setPaymentMethodReady}
               stepNumber={currentMeta.number}
               stepCode={currentMeta.code}
             />

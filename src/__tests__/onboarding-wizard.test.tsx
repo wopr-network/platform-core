@@ -771,8 +771,8 @@ describe("OnboardingWizard integration", () => {
     render(<OnboardingWizard />);
 
     expect(screen.getByText("MISSION BRIEFING")).toBeInTheDocument();
-    // Progress percentage appears as [20%] for step 1 of 5 (power-source skipped when no superpowers need keys)
-    expect(screen.getByText(/\[20%\]/)).toBeInTheDocument();
+    // Progress percentage appears as [17%] for step 1 of 6 (power-source skipped, billing shown for hosted mode)
+    expect(screen.getByText(/\[17%\]/)).toBeInTheDocument();
   });
 
   it("shows step tick marks for all steps", async () => {
@@ -837,24 +837,24 @@ describe("OnboardingWizard integration", () => {
       expect(screen.getByText("Pick your channels")).toBeInTheDocument();
     });
 
-    // Verify we can see we're on step 2 (40% progress)
-    expect(screen.getByText(/\[40%\]/)).toBeInTheDocument();
+    // Verify we can see we're on step 2 (33% progress for 2/6 steps)
+    expect(screen.getByText(/\[33%\]/)).toBeInTheDocument();
   });
 
   it("Progress percentage increases as steps advance", async () => {
     const { OnboardingWizard } = await import("@/components/onboarding/wizard");
     render(<OnboardingWizard />);
 
-    // Step 1: 20% (1/5 steps since power-source is skipped)
-    expect(screen.getByText(/\[20%\]/)).toBeInTheDocument();
+    // Step 1: 17% (1/6 steps since power-source skipped, billing shown for hosted mode)
+    expect(screen.getByText(/\[17%\]/)).toBeInTheDocument();
 
     // Advance to step 2
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "jarvis" } });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    // Step 2: 40% (2/5)
+    // Step 2: 33% (2/6)
     await waitFor(() => {
-      expect(screen.getByText(/\[40%\]/)).toBeInTheDocument();
+      expect(screen.getByText(/\[33%\]/)).toBeInTheDocument();
     });
   });
 
