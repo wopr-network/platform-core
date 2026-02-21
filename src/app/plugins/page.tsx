@@ -149,7 +149,7 @@ export default function PluginsPage() {
     }));
   }, [installed, catalog]);
 
-  const installedIds = new Set(installed.map((i) => i.pluginId));
+  const installedIds = useMemo(() => new Set(installed.map((i) => i.pluginId)), [installed]);
 
   const availablePlugins = useMemo(() => {
     let result = catalog.filter((p) => !installedIds.has(p.id));
