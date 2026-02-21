@@ -28,6 +28,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,6 +65,11 @@ function LoginForm() {
           <CardDescription>Access your WOPR Bot terminal</CardDescription>
         </CardHeader>
         <CardContent>
+          {reason === "expired" && (
+            <div className="mb-4 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-200">
+              Your session has expired. Please sign in again.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" id="login-form">
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>

@@ -1,4 +1,7 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
+import { handleUnauthorized } from "./fetch-utils";
+
+export { UnauthorizedError } from "./fetch-utils";
 
 export type InstanceStatus = "running" | "stopped" | "degraded" | "error";
 
@@ -57,6 +60,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
@@ -69,6 +75,9 @@ export async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T
     credentials: "include",
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(
@@ -886,6 +895,9 @@ async function trpcFetch<T>(procedure: string, input?: Record<string, unknown>):
     credentials: "include",
     headers: { "Content-Type": "application/json" },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) throw new Error(`tRPC error: ${res.status} ${res.statusText}`);
   const json = (await res.json()) as { result: { data: T } };
   return json.result.data;
@@ -899,6 +911,9 @@ async function trpcMutate<T>(procedure: string, input: Record<string, unknown>):
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ json: input }),
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) throw new Error(`tRPC error: ${res.status} ${res.statusText}`);
   const json = (await res.json()) as { result: { data: T } };
   return json.result.data;
