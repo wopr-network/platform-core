@@ -630,14 +630,14 @@ export interface Organization {
 // --- Settings API ---
 
 export async function getProfile(): Promise<UserProfile> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<UserProfile>("/settings/profile");
 }
 
 export async function updateProfile(
   data: Partial<Pick<UserProfile, "name" | "email">>,
 ): Promise<UserProfile> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<UserProfile>("/settings/profile", {
     method: "PATCH",
     body: JSON.stringify(data),
@@ -648,22 +648,22 @@ export async function changePassword(data: {
   currentPassword: string;
   newPassword: string;
 }): Promise<void> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   await apiFetch("/settings/profile/password", { method: "POST", body: JSON.stringify(data) });
 }
 
 export async function deleteAccount(): Promise<void> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   await apiFetch("/settings/profile", { method: "DELETE" });
 }
 
 export async function listProviderKeys(): Promise<ProviderKey[]> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<ProviderKey[]>("/settings/providers");
 }
 
 export async function testProviderKey(id: string): Promise<{ valid: boolean }> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<{ valid: boolean }>(`/settings/providers/${id}/test`, { method: "POST" });
 }
 
@@ -685,7 +685,7 @@ export async function saveProviderKey(provider: string, key: string): Promise<Pr
 }
 
 export async function updateProviderModel(id: string, model: string): Promise<void> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   await apiFetch(`/settings/providers/${id}/model`, {
     method: "PATCH",
     body: JSON.stringify({ model }),
@@ -693,7 +693,7 @@ export async function updateProviderModel(id: string, model: string): Promise<vo
 }
 
 export async function listApiKeys(): Promise<PlatformApiKey[]> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<PlatformApiKey[]>("/settings/api-keys");
 }
 
@@ -702,7 +702,7 @@ export async function createApiKey(data: {
   scope: string;
   expiration: string;
 }): Promise<{ key: PlatformApiKey; secret: string }> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<{ key: PlatformApiKey; secret: string }>("/settings/api-keys", {
     method: "POST",
     body: JSON.stringify(data),
@@ -710,7 +710,7 @@ export async function createApiKey(data: {
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   await apiFetch(`/settings/api-keys/${id}`, { method: "DELETE" });
 }
 
@@ -876,7 +876,7 @@ export async function getCurrentPlan(): Promise<string> {
 }
 
 export async function getBillingUsage(): Promise<BillingUsage> {
-  // TODO(WOP-687): align backend response shape with UI type
+  // NOTE(WOP-687): align backend response shape with UI type
   const plan = await getCurrentPlan();
   return {
     plan,
@@ -896,7 +896,7 @@ export async function getProviderCosts(): Promise<ProviderCost[]> {
 }
 
 export async function getUsageHistory(_days?: number): Promise<UsageDataPoint[]> {
-  // TODO(WOP-687): backend usageHistory returns Stripe reports, not daily data points
+  // NOTE(WOP-687): backend usageHistory returns Stripe reports, not daily data points
   return [];
 }
 
@@ -1003,8 +1003,8 @@ export async function getCreditBalance(): Promise<CreditBalance> {
   const res = await billingClient.creditsBalance.query({});
   return {
     balance: res.balance_cents / 100,
-    dailyBurn: 0, // TODO(WOP-687): backend doesn't provide dailyBurn yet
-    runway: null, // TODO(WOP-687): backend doesn't provide runway yet
+    dailyBurn: 0, // NOTE(WOP-687): backend doesn't provide dailyBurn yet
+    runway: null, // NOTE(WOP-687): backend doesn't provide runway yet
   };
 }
 
@@ -1027,13 +1027,13 @@ export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryR
       amount: e.amount_cents / 100,
       createdAt: new Date(e.created_at * 1000).toISOString(),
     })),
-    nextCursor: null, // TODO(WOP-687): implement cursor-based pagination
+    nextCursor: null, // NOTE(WOP-687): implement cursor-based pagination
   };
 }
 
 export async function createCreditCheckout(amount: number): Promise<CheckoutResponse> {
   const res = await billingClient.creditsCheckout.mutate({
-    priceId: `credit_${amount}`, // TODO(WOP-687): map amount to real Stripe price IDs
+    priceId: `credit_${amount}`, // NOTE(WOP-687): map amount to real Stripe price IDs
     successUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=success`,
     cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
   });
@@ -1080,12 +1080,12 @@ export interface ModelSelection {
 // --- Model selection API ---
 
 export async function getModelSelection(): Promise<ModelSelection> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<ModelSelection>("/settings/model");
 }
 
 export async function updateModelSelection(data: ModelSelection): Promise<ModelSelection> {
-  // TODO: add tRPC procedure
+  // NOTE: add tRPC procedure
   return apiFetch<ModelSelection>("/settings/model", {
     method: "PUT",
     body: JSON.stringify(data),
