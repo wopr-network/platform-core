@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { pricingData } from "@/lib/pricing-data";
+import { fetchPublicPricing } from "@/lib/api";
+import { mergeApiRates, type PricingCapability, pricingData } from "@/lib/pricing-data";
 
 const iconMap = {
   bot: BotIcon,
@@ -18,10 +19,24 @@ function formatPrice(price: number): string {
   return `$${price.toFixed(2)}`;
 }
 
-export function PricingPage() {
+export async function PricingPage() {
+  // Fetch live rates from backend; fall back to static data on failure
+  let capabilities: PricingCapability[];
+  const apiData = await fetchPublicPricing();
+  if (apiData) {
+    capabilities = mergeApiRates(apiData.rates);
+  } else {
+    // Fallback: convert static pricingData.capabilities to PricingCapability shape
+    capabilities = pricingData.capabilities.map((c) => ({
+      category: c.category,
+      icon: c.icon,
+      models: c.models.map((m) => ({ name: m.name, unit: m.unit, price: m.price })),
+    }));
+  }
+
   return (
     <div className="bg-background text-foreground">
-      {/* ─── Header ─── */}
+      {/* --- Header --- */}
       <section className="flex min-h-[60dvh] flex-col items-center justify-center px-6 text-center">
         <Badge variant="terminal" className="mb-8">
           Transparent pricing
@@ -40,7 +55,7 @@ export function PricingPage() {
         </p>
       </section>
 
-      {/* ─── Bot Price Hero ─── */}
+      {/* --- Bot Price Hero --- */}
       <section className="flex flex-col items-center justify-center px-6 pb-24 text-center">
         <Card className="w-full max-w-md border-terminal">
           <CardHeader className="items-center text-center">
@@ -60,14 +75,14 @@ export function PricingPage() {
         </Card>
       </section>
 
-      {/* ─── Capability Sections ─── */}
+      {/* --- Capability Sections --- */}
       <section className="mx-auto max-w-4xl px-6 pb-24">
         <h2 className="mb-12 text-center text-2xl font-bold tracking-tight sm:text-3xl">
           Pay per use. Nothing hidden.
         </h2>
 
         <div className="flex flex-col gap-12">
-          {pricingData.capabilities.map((capability) => {
+          {capabilities.map((capability) => {
             const Icon = iconMap[capability.icon];
             return (
               <div key={capability.category}>
@@ -97,7 +112,7 @@ export function PricingPage() {
         </div>
       </section>
 
-      {/* ─── Credits Explainer ─── */}
+      {/* --- Credits Explainer --- */}
       <section className="flex flex-col items-center justify-center gap-6 px-6 pb-24 text-center">
         <p className="max-w-lg text-lg text-muted-foreground">
           Your bot is ${pricingData.bot_price.amount}/mo. Usage is billed from credits. Free tier
@@ -108,7 +123,7 @@ export function PricingPage() {
         </p>
       </section>
 
-      {/* ─── CTA ─── */}
+      {/* --- CTA --- */}
       <section className="flex min-h-[40dvh] flex-col items-center justify-center gap-8 px-6 text-center">
         <h2 className="max-w-2xl text-2xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
           Five bucks. Your own WOPR Bot.
@@ -121,7 +136,7 @@ export function PricingPage() {
         <span className="mt-4 text-sm text-muted-foreground opacity-60">wopr.bot</span>
       </section>
 
-      {/* ─── Footer ─── */}
+      {/* --- Footer --- */}
       <footer className="flex justify-center gap-6 px-6 pb-8 text-sm text-muted-foreground">
         <Link href="/" className="underline underline-offset-4 hover:text-foreground">
           Home
