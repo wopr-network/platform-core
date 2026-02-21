@@ -746,6 +746,9 @@ export interface CapabilitySetting {
 
 // --- Capability settings API ---
 
+// TODO(WOP-813): migrate to trpc.capabilities.* once server has matching procedures
+// Server capabilities router has listKeys/storeKey/deleteKey (raw key CRUD by provider),
+// but UI needs capability-level settings (mode, maskedKey, keyStatus). Different data model.
 export async function listCapabilities(): Promise<CapabilitySetting[]> {
   return apiFetch<CapabilitySetting[]>("/settings/capabilities");
 }
