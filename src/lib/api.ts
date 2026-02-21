@@ -233,6 +233,23 @@ export async function connectChannel(
   });
 }
 
+/** Test channel credentials against the provider API before connecting. */
+export async function testChannelConnection(
+  pluginId: string,
+  credentials: Record<string, string>,
+): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(`${PLATFORM_BASE_URL}/api/channels/${pluginId}/test`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credentials }),
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<{ success: boolean; error?: string }>;
+}
+
 /** List channels connected to a bot instance. */
 export async function listChannels(botId: string): Promise<ChannelInfo[]> {
   return fleetFetch<ChannelInfo[]>(`/bots/${botId}/channels`);

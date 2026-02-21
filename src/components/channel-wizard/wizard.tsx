@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { testChannelConnection } from "@/lib/api";
 import type { ChannelManifest } from "@/lib/mock-manifests";
 import { StepRenderer } from "./step-renderer";
 
@@ -27,6 +28,7 @@ export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardPro
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "failure" | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
 
   const step = manifest.setup[currentStep];
   const totalSteps = manifest.setup.length;
@@ -78,6 +80,7 @@ export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardPro
     } else {
       setCurrentStep((s) => s + 1);
       setTestResult(null);
+      setTestError(null);
     }
   }
 
@@ -86,17 +89,26 @@ export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardPro
       setCurrentStep((s) => s - 1);
       setErrors({});
       setTestResult(null);
+      setTestError(null);
     }
   }
 
-  function handleTestConnection() {
+  async function handleTestConnection() {
     setTesting(true);
     setTestResult(null);
-    // Mock connection test
-    setTimeout(() => {
+    setTestError(null);
+    try {
+      const result = await testChannelConnection(manifest.id, values);
+      setTestResult(result.success ? "success" : "failure");
+      if (!result.success && result.error) {
+        setTestError(result.error);
+      }
+    } catch {
+      setTestResult("failure");
+      setTestError("Could not reach the server. Check your connection.");
+    } finally {
       setTesting(false);
-      setTestResult("success");
-    }, 1500);
+    }
   }
 
   return (
@@ -142,7 +154,9 @@ export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardPro
               <p className="text-sm text-emerald-500">Connection successful</p>
             )}
             {testResult === "failure" && (
-              <p className="text-sm text-destructive">Connection failed. Check your settings.</p>
+              <p className="text-sm text-destructive">
+                {testError || "Connection failed. Check your settings."}
+              </p>
             )}
           </div>
         )}

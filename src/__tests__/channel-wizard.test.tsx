@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Wizard } from "@/components/channel-wizard";
 import { FieldInteractive } from "@/components/channel-wizard/field-interactive";
@@ -11,6 +11,11 @@ import { channelManifests, getManifest } from "@/lib/mock-manifests";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
+}));
+
+// Mock @/lib/api for connection test tests
+vi.mock("@/lib/api", () => ({
+  testChannelConnection: vi.fn(),
 }));
 
 describe("mock-manifests", () => {
@@ -398,5 +403,81 @@ describe("Wizard with Telegram (short flow)", () => {
     });
     fireEvent.click(screen.getByText("Continue"));
     expect(screen.getByText("Invalid Telegram bot token format")).toBeInTheDocument();
+  });
+});
+
+describe("Wizard connection test API integration", () => {
+  const discord = getManifest("discord") as ChannelManifest;
+
+  /** Navigate the Discord wizard to the final step with a valid token. */
+  async function navigateToFinalStep() {
+    render(<Wizard manifest={discord} onComplete={vi.fn()} onCancel={vi.fn()} />);
+    fireEvent.click(screen.getByText("Continue")); // step 1
+    fireEvent.change(screen.getByPlaceholderText("Paste your Discord bot token"), {
+      target: { value: "valid-token-123" },
+    });
+    fireEvent.click(screen.getByText("Continue")); // step 2
+    fireEvent.click(screen.getByText("WOPR HQ")); // select guild
+    fireEvent.click(screen.getByText("Continue")); // step 3 → final
+  }
+
+  it("calls API and shows success when connection test passes", async () => {
+    const { testChannelConnection } = await import("@/lib/api");
+    vi.mocked(testChannelConnection).mockResolvedValue({ success: true });
+
+    await navigateToFinalStep();
+    await act(async () => {
+      fireEvent.click(screen.getByText("Test Bot Connection"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Connection successful")).toBeInTheDocument();
+    });
+  });
+
+  it("calls API and shows error message when connection test fails", async () => {
+    const { testChannelConnection } = await import("@/lib/api");
+    vi.mocked(testChannelConnection).mockResolvedValue({
+      success: false,
+      error: "Invalid bot token",
+    });
+
+    await navigateToFinalStep();
+    await act(async () => {
+      fireEvent.click(screen.getByText("Test Bot Connection"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Invalid bot token")).toBeInTheDocument();
+    });
+  });
+
+  it("shows network error message when fetch throws", async () => {
+    const { testChannelConnection } = await import("@/lib/api");
+    vi.mocked(testChannelConnection).mockRejectedValue(new Error("Network error"));
+
+    await navigateToFinalStep();
+    await act(async () => {
+      fireEvent.click(screen.getByText("Test Bot Connection"));
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Could not reach the server. Check your connection."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("shows Testing... and disables button while request is in flight", async () => {
+    const { testChannelConnection } = await import("@/lib/api");
+    vi.mocked(testChannelConnection).mockReturnValue(new Promise(() => {})); // never resolves
+
+    await navigateToFinalStep();
+    await act(async () => {
+      fireEvent.click(screen.getByText("Test Bot Connection"));
+    });
+
+    const btn = screen.getByRole("button", { name: "Testing..." });
+    expect(btn).toBeDisabled();
   });
 });
