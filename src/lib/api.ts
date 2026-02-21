@@ -1,5 +1,6 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
 import { handleUnauthorized } from "./fetch-utils";
+import { trpcVanilla } from "./trpc";
 
 export { UnauthorizedError } from "./fetch-utils";
 
@@ -621,10 +622,65 @@ export interface BillingInfo {
   invoices: Invoice[];
 }
 
+// --- Billing client (typed stub until @wopr-network/sdk ships) ---
+
+interface BillingProcedures {
+  currentPlan: { query(input?: Record<never, never>): Promise<{ tier: string }> };
+  providerCosts: { query(input?: Record<never, never>): Promise<ProviderCost[]> };
+  billingInfo: { query(input?: Record<never, never>): Promise<BillingInfo> };
+  updateBillingEmail: { mutate(input: { email: string }): Promise<{ email: string }> };
+  removePaymentMethod: { mutate(input: { id: string }): Promise<{ removed: boolean }> };
+  portalSession: {
+    mutate(input: { tenant?: string; returnUrl: string }): Promise<{ url: string }>;
+  };
+  creditsBalance: {
+    query(input: { tenant?: string }): Promise<{ tenant: string; balance_cents: number }>;
+  };
+  creditsHistory: {
+    query(input: {
+      tenant?: string;
+      type?: string;
+      from?: number;
+      to?: number;
+      limit?: number;
+      offset?: number;
+    }): Promise<{
+      entries: Array<{
+        id: string;
+        tenant: string;
+        type: string;
+        amount_cents: number;
+        reason: string;
+        admin_user: string;
+        reference_ids: string | null;
+        created_at: number;
+      }>;
+      total: number;
+    }>;
+  };
+  creditsCheckout: {
+    mutate(input: {
+      tenant?: string;
+      priceId: string;
+      successUrl: string;
+      cancelUrl: string;
+    }): Promise<{ url: string | null; sessionId: string }>;
+  };
+  inferenceMode: { query(input?: Record<never, never>): Promise<{ mode: InferenceMode }> };
+  updateSpendingLimits: { mutate(input: SpendingLimits): Promise<SpendingLimits> };
+  spendingLimits: { query(input?: Record<never, never>): Promise<SpendingLimits> };
+  hostedUsageSummary: { query(input?: Record<never, never>): Promise<HostedUsageSummary> };
+  hostedUsageEvents: {
+    query(input?: { capability?: string; from?: string; to?: string }): Promise<HostedUsageEvent[]>;
+  };
+}
+
+const billingClient = (trpcVanilla as unknown as { billing: BillingProcedures }).billing;
+
 // --- Billing API (tRPC) ---
 
 export async function getCurrentPlan(): Promise<string> {
-  const res = await trpcFetch<{ tier: string }>("billing.currentPlan");
+  const res = await billingClient.currentPlan.query();
   return res.tier;
 }
 
@@ -645,7 +701,7 @@ export async function getBillingUsage(): Promise<BillingUsage> {
 }
 
 export async function getProviderCosts(): Promise<ProviderCost[]> {
-  return trpcFetch<ProviderCost[]>("billing.providerCosts");
+  return billingClient.providerCosts.query();
 }
 
 export async function getUsageHistory(_days?: number): Promise<UsageDataPoint[]> {
@@ -654,15 +710,15 @@ export async function getUsageHistory(_days?: number): Promise<UsageDataPoint[]>
 }
 
 export async function getBillingInfo(): Promise<BillingInfo> {
-  return trpcFetch<BillingInfo>("billing.billingInfo");
+  return billingClient.billingInfo.query();
 }
 
 export async function updateBillingEmail(email: string): Promise<void> {
-  await trpcMutate<{ email: string }>("billing.updateBillingEmail", { email });
+  await billingClient.updateBillingEmail.mutate({ email });
 }
 
 export async function removePaymentMethod(id: string): Promise<void> {
-  await trpcMutate<{ removed: boolean }>("billing.removePaymentMethod", { id });
+  await billingClient.removePaymentMethod.mutate({ id });
 }
 
 export async function createSetupIntent(): Promise<{ clientSecret: string }> {
@@ -670,7 +726,7 @@ export async function createSetupIntent(): Promise<{ clientSecret: string }> {
 }
 
 export async function createBillingPortalSession(): Promise<{ url: string }> {
-  return trpcMutate<{ url: string }>("billing.portalSession", {
+  return billingClient.portalSession.mutate({
     returnUrl: typeof window !== "undefined" ? window.location.href : "",
   });
 }
@@ -750,7 +806,7 @@ export interface CheckoutResponse {
 // --- Credits API (tRPC) ---
 
 export async function getCreditBalance(): Promise<CreditBalance> {
-  const res = await trpcFetch<{ tenant: string; balance_cents: number }>("billing.creditsBalance");
+  const res = await billingClient.creditsBalance.query({});
   return {
     balance: res.balance_cents / 100,
     dailyBurn: 0, // TODO(WOP-687): backend doesn't provide dailyBurn yet
@@ -768,19 +824,7 @@ function mapTransactionType(backendType: string): CreditTransactionType {
 }
 
 export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryResponse> {
-  const res = await trpcFetch<{
-    entries: Array<{
-      id: string;
-      tenant: string;
-      type: string;
-      amount_cents: number;
-      reason: string;
-      admin_user: string;
-      reference_ids: string | null;
-      created_at: number;
-    }>;
-    total: number;
-  }>("billing.creditsHistory");
+  const res = await billingClient.creditsHistory.query({});
   return {
     transactions: res.entries.map((e) => ({
       id: e.id,
@@ -794,14 +838,11 @@ export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryR
 }
 
 export async function createCreditCheckout(amount: number): Promise<CheckoutResponse> {
-  const res = await trpcMutate<{ url: string | null; sessionId: string }>(
-    "billing.creditsCheckout",
-    {
-      priceId: `credit_${amount}`, // TODO(WOP-687): map amount to real Stripe price IDs
-      successUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=success`,
-      cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
-    },
-  );
+  const res = await billingClient.creditsCheckout.mutate({
+    priceId: `credit_${amount}`, // TODO(WOP-687): map amount to real Stripe price IDs
+    successUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=success`,
+    cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
+  });
   const url = res.url;
   if (!url) throw new Error("Portal URL unavailable");
   return { checkoutUrl: url };
@@ -810,12 +851,12 @@ export async function createCreditCheckout(amount: number): Promise<CheckoutResp
 // --- Hosted usage API (tRPC) ---
 
 export async function getInferenceMode(): Promise<InferenceMode> {
-  const res = await trpcFetch<{ mode: InferenceMode }>("billing.inferenceMode");
+  const res = await billingClient.inferenceMode.query();
   return res.mode;
 }
 
 export async function getHostedUsageSummary(): Promise<HostedUsageSummary> {
-  return trpcFetch<HostedUsageSummary>("billing.hostedUsageSummary");
+  return billingClient.hostedUsageSummary.query();
 }
 
 export async function getHostedUsageEvents(params?: {
@@ -823,15 +864,15 @@ export async function getHostedUsageEvents(params?: {
   from?: string;
   to?: string;
 }): Promise<HostedUsageEvent[]> {
-  return trpcFetch<HostedUsageEvent[]>("billing.hostedUsageEvents", params ?? {});
+  return billingClient.hostedUsageEvents.query(params ?? {});
 }
 
 export async function getSpendingLimits(): Promise<SpendingLimits> {
-  return trpcFetch<SpendingLimits>("billing.spendingLimits");
+  return billingClient.spendingLimits.query();
 }
 
 export async function updateSpendingLimits(limits: SpendingLimits): Promise<void> {
-  await trpcMutate<SpendingLimits>("billing.updateSpendingLimits", { ...limits });
+  await billingClient.updateSpendingLimits.mutate({ ...limits });
 }
 
 // --- Model selection types ---

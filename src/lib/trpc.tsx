@@ -5,9 +5,18 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import { PLATFORM_BASE_URL } from "./api-config";
+import { handleUnauthorized } from "./fetch-utils";
 import type { AppRouter } from "./trpc-types";
 
 export const trpc = createTRPCReact<AppRouter>();
+
+async function trpcFetchWithAuth(url: RequestInfo | URL, options?: RequestInit) {
+  const res = await fetch(url, { ...options, credentials: "include" });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  return res;
+}
 
 /**
  * Vanilla tRPC client for imperative calls (not React hooks).
@@ -17,9 +26,7 @@ export const trpcVanilla = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: `${PLATFORM_BASE_URL}/trpc`,
-      fetch(url, options) {
-        return fetch(url, { ...options, credentials: "include" });
-      },
+      fetch: trpcFetchWithAuth,
     }),
   ],
 });
@@ -54,9 +61,7 @@ export function TRPCProvider({ children }: Readonly<{ children: React.ReactNode 
       links: [
         httpBatchLink({
           url: `${PLATFORM_BASE_URL}/trpc`,
-          fetch(url, options) {
-            return fetch(url, { ...options, credentials: "include" });
-          },
+          fetch: trpcFetchWithAuth,
         }),
       ],
     }),
