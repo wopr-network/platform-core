@@ -10,14 +10,18 @@ const providers = [
   { id: "google", label: "Google" },
 ] as const;
 
-export function OAuthButtons() {
+interface OAuthButtonsProps {
+  callbackUrl?: string;
+}
+
+export function OAuthButtons({ callbackUrl = "/" }: OAuthButtonsProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
   async function handleOAuth(provider: string) {
     setLoading(provider);
     await signIn.social({
       provider,
-      callbackURL: "/",
+      callbackURL: callbackUrl,
     });
     setLoading(null);
   }

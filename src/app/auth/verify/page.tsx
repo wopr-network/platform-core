@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -76,7 +77,15 @@ function SuccessContent() {
   );
 }
 
-function ErrorContent({ status, reason }: { status: string | null; reason: string | null }) {
+function ErrorContent({
+  status,
+  reason,
+  email,
+}: {
+  status: string | null;
+  reason: string | null;
+  email: string | null;
+}) {
   let icon: React.ReactNode;
   let title: string;
   let description: string;
@@ -91,10 +100,14 @@ function ErrorContent({ status, reason }: { status: string | null; reason: strin
       );
       title = "Link expired";
       description = "This verification link has expired.";
-      footer = (
+      footer = email ? (
+        <CardContent>
+          <ResendVerificationButton email={email} className="w-full" />
+        </CardContent>
+      ) : (
         <CardContent>
           <Button variant="terminal" className="w-full" asChild>
-            <Link href="/signup">Resend verification email</Link>
+            <Link href="/login">Back to sign in</Link>
           </Button>
         </CardContent>
       );
@@ -181,6 +194,7 @@ function VerifyContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get("status");
   const reason = searchParams.get("reason");
+  const emailParam = searchParams.get("email");
 
   const isSuccess = status === "success";
 
@@ -191,7 +205,11 @@ function VerifyContent() {
       </div>
       <div className="relative z-10 w-full max-w-sm">
         <AuthShell>
-          {isSuccess ? <SuccessContent /> : <ErrorContent status={status} reason={reason} />}
+          {isSuccess ? (
+            <SuccessContent />
+          ) : (
+            <ErrorContent status={status} reason={reason} email={emailParam} />
+          )}
         </AuthShell>
       </div>
     </div>

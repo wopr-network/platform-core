@@ -1,10 +1,12 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { AuthError } from "@/components/auth/auth-error";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,7 +59,6 @@ const strengthSegments = [
 ];
 
 function SignupForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,6 +66,7 @@ function SignupForm() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const strength = getPasswordStrength(password);
 
@@ -98,13 +100,54 @@ function SignupForm() {
         return;
       }
 
-      const callbackUrl = searchParams.get("callbackUrl") ?? "/";
-      router.push(callbackUrl);
+      // Show "check your email" interstitial instead of redirecting
+      setSignupSuccess(true);
     } catch {
       setError("A network error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (signupSuccess) {
+    return (
+      <AuthShell>
+        <Card className="crt-scanlines border-terminal/20 bg-black/80 shadow-[0_0_30px_rgba(0,255,65,0.08)]">
+          <CardHeader className="items-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CardTitle className="text-sm font-medium uppercase tracking-widest text-terminal text-center">
+                Transmission sent
+              </CardTitle>
+              <CardDescription className="text-center">
+                We sent a verification link to <code className="text-terminal">{email}</code>
+              </CardDescription>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-center text-muted-foreground">
+              Click the link to verify your account and receive your{" "}
+              <span className="text-terminal font-medium">$5 signup credit</span>.
+            </p>
+            <p className="text-sm text-center text-muted-foreground">
+              If you don&apos;t see it, check your spam folder.
+            </p>
+            <ResendVerificationButton email={email} />
+          </CardContent>
+          <CardFooter className="justify-center">
+            <Link
+              href="/login"
+              className="text-sm text-terminal-dim underline underline-offset-4 hover:text-terminal"
+            >
+              Back to sign in
+            </Link>
+          </CardFooter>
+        </Card>
+      </AuthShell>
+    );
   }
 
   return (
@@ -239,7 +282,7 @@ function SignupForm() {
             </span>
             <Separator className="flex-1" />
           </div>
-          <OAuthButtons />
+          <OAuthButtons callbackUrl={searchParams.get("callbackUrl") ?? "/"} />
         </CardContent>
         <CardFooter className="justify-center">
           <p className="text-sm text-muted-foreground">

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MenuIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
 import { SuspensionBanner } from "@/components/billing/suspension-banner";
 import { OnboardingGate } from "@/components/onboarding";
 import { Sidebar, SidebarContent } from "@/components/sidebar";
@@ -34,6 +35,7 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="crt-scanlines flex flex-1 flex-col overflow-auto">
           <SuspensionBanner />
+          <EmailVerificationBanner />
           <AnimatePresence mode="wait">
             <motion.main
               key={pathname}
@@ -69,6 +71,7 @@ export default function DashboardLayout({
           <span className="text-lg font-semibold tracking-tight">WOPR Bot</span>
         </header>
         <SuspensionBanner />
+        <EmailVerificationBanner />
         <AnimatePresence mode="wait">
           <motion.main
             key={pathname}

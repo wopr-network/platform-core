@@ -22,6 +22,7 @@ vi.mock("better-auth/react", () => ({
     signOut: vi.fn(),
     forgetPassword: vi.fn(),
     resetPassword: vi.fn(),
+    sendVerificationEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
   }),
 }));
 
@@ -30,6 +31,9 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
       <div {...props}>{children}</div>
+    ),
+    p: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <p {...props}>{children}</p>
     ),
   },
 }));

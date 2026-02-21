@@ -16,7 +16,19 @@ vi.mock("better-auth/react", () => ({
     signIn: { email: vi.fn(), social: vi.fn() },
     signUp: { email: vi.fn() },
     signOut: vi.fn(),
+    sendVerificationEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
   }),
+}));
+
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <div {...props}>{children}</div>
+    ),
+    p: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <p {...props}>{children}</p>
+    ),
+  },
 }));
 
 describe("VerifyPage", () => {
@@ -54,7 +66,20 @@ describe("VerifyPage", () => {
     expect(mockPush).toHaveBeenCalledWith("/");
   });
 
-  it("renders token-expired error with correct message", async () => {
+  it("renders token-expired error with resend button when email param present", async () => {
+    mockSearchParams = new URLSearchParams(
+      "status=error&reason=token-expired&email=test@example.com",
+    );
+
+    const { default: VerifyPage } = await import("@/app/auth/verify/page");
+    render(<VerifyPage />);
+
+    expect(screen.getByText("Link expired")).toBeInTheDocument();
+    expect(screen.getByText(/link has expired/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Resend verification email/ })).toBeInTheDocument();
+  });
+
+  it("renders token-expired error with fallback login link when no email param", async () => {
     mockSearchParams = new URLSearchParams("status=error&reason=token-expired");
 
     const { default: VerifyPage } = await import("@/app/auth/verify/page");
@@ -62,10 +87,9 @@ describe("VerifyPage", () => {
 
     expect(screen.getByText("Link expired")).toBeInTheDocument();
     expect(screen.getByText(/link has expired/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Resend verification email/ })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
+    const loginLinks = screen.getAllByRole("link", { name: /Back to sign in/ });
+    expect(loginLinks.length).toBeGreaterThanOrEqual(1);
+    expect(loginLinks[0]).toHaveAttribute("href", "/login");
   });
 
   it("renders already-verified state with login link", async () => {

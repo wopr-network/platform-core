@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { AuthError } from "@/components/auth/auth-error";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,12 +20,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { signIn } from "@/lib/auth-client";
+import { sanitizeRedirectUrl } from "@/lib/utils";
 
 function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<
+    "credentials" | "unverified" | "suspended" | "generic" | null
+  >(null);
   const [loading, setLoading] = useState(false);
 
   const searchParams = useSearchParams();
@@ -32,6 +37,7 @@ function LoginForm() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setErrorType(null);
     setLoading(true);
 
     try {
@@ -41,11 +47,25 @@ function LoginForm() {
       });
 
       if (authError) {
-        setError(authError.message ?? "Invalid credentials");
+        if (authError.status === 403) {
+          setErrorType("unverified");
+          setError("Please verify your email address before signing in.");
+        } else if (
+          authError.code === "ACCOUNT_SUSPENDED" ||
+          authError.code === "ACCOUNT_BANNED" ||
+          authError.message?.toLowerCase().includes("suspended") ||
+          authError.message?.toLowerCase().includes("banned")
+        ) {
+          setErrorType("suspended");
+          setError("Your account has been suspended. Please contact support.");
+        } else {
+          setErrorType("credentials");
+          setError("Invalid email or password. Please try again.");
+        }
         return;
       }
 
-      const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+      const callbackUrl = sanitizeRedirectUrl(searchParams.get("callbackUrl"));
       router.push(callbackUrl);
     } catch {
       setError("A network error occurred. Please try again.");
@@ -99,7 +119,29 @@ function LoginForm() {
                 className="placeholder:text-muted-foreground/50"
               />
             </div>
-            {error && <AuthError message={error} />}
+            {error && (
+              <div className="flex flex-col gap-2">
+                <AuthError message={error} />
+                {errorType === "unverified" && (
+                  <ResendVerificationButton
+                    email={email}
+                    variant="outline"
+                    className="w-full border-terminal/30 hover:border-terminal hover:bg-terminal/5 hover:text-terminal"
+                  />
+                )}
+                {errorType === "suspended" && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    If you believe this is an error, contact{" "}
+                    <a
+                      href="mailto:support@wopr.bot"
+                      className="text-terminal-dim underline underline-offset-4 hover:text-terminal"
+                    >
+                      support@wopr.bot
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
             <Button type="submit" variant="terminal" className="w-full" disabled={loading}>
               {loading ? (
                 <span className="inline-flex items-center gap-1">
@@ -118,7 +160,7 @@ function LoginForm() {
             </span>
             <Separator className="flex-1" />
           </div>
-          <OAuthButtons />
+          <OAuthButtons callbackUrl={sanitizeRedirectUrl(searchParams.get("callbackUrl"))} />
         </CardContent>
         <CardFooter className="justify-center">
           <p className="text-sm text-muted-foreground">
