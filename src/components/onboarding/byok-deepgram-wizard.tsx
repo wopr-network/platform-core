@@ -72,17 +72,20 @@ export function ByokDeepgramWizard({
   }, [apiKey, validating]);
 
   const handleContinue = useCallback(async () => {
-    if (validated) {
-      const trimmed = apiKey.trim();
-      try {
-        await storeTenantKey("deepgram", trimmed);
-      } catch {
-        // Store failed but validation passed -- still proceed
-      }
+    if (!validated || validating) return;
+    const trimmed = apiKey.trim();
+    setValidating(true);
+    setError(null);
+    try {
+      await storeTenantKey("deepgram", trimmed);
       setStep("confirmed");
       onComplete(trimmed);
+    } catch {
+      setError("Failed to save API key. Please try again.");
+    } finally {
+      setValidating(false);
     }
-  }, [validated, apiKey, onComplete]);
+  }, [validated, validating, apiKey, onComplete]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

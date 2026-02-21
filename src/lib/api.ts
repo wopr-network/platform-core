@@ -1078,8 +1078,12 @@ export async function validateElevenLabsKey(key: string): Promise<KeyValidationR
   try {
     await storeTenantKey("elevenlabs", key);
     return { valid: true };
-  } catch {
-    return { valid: false, message: "Invalid API key. Please check and try again." };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("401") || message.includes("403")) {
+      return { valid: false, message: "Invalid API key. Please check and try again." };
+    }
+    return { valid: false, message: "Could not reach ElevenLabs. Please try again later." };
   }
 }
 
