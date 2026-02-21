@@ -130,13 +130,13 @@ describe("CommandCenter", () => {
     });
   });
 
-  it("still renders dashboard when activity endpoint fails", async () => {
+  it("shows error banner when activity endpoint fails", async () => {
     const { getActivityFeed } = await import("@/lib/api");
     (getActivityFeed as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Not found"));
     render(<CommandCenter />);
     await waitFor(() => {
-      expect(screen.getByTestId("running-count")).toHaveTextContent("2");
+      expect(screen.getByRole("alert")).toBeInTheDocument();
     });
-    expect(screen.getByText(/STANDING BY/)).toBeInTheDocument();
+    expect(screen.getByText(/Not found/)).toBeInTheDocument();
   });
 });
