@@ -630,12 +630,14 @@ export interface Organization {
 // --- Settings API ---
 
 export async function getProfile(): Promise<UserProfile> {
+  // TODO: add tRPC procedure
   return apiFetch<UserProfile>("/settings/profile");
 }
 
 export async function updateProfile(
   data: Partial<Pick<UserProfile, "name" | "email">>,
 ): Promise<UserProfile> {
+  // TODO: add tRPC procedure
   return apiFetch<UserProfile>("/settings/profile", {
     method: "PATCH",
     body: JSON.stringify(data),
@@ -646,18 +648,22 @@ export async function changePassword(data: {
   currentPassword: string;
   newPassword: string;
 }): Promise<void> {
+  // TODO: add tRPC procedure
   await apiFetch("/settings/profile/password", { method: "POST", body: JSON.stringify(data) });
 }
 
 export async function deleteAccount(): Promise<void> {
+  // TODO: add tRPC procedure
   await apiFetch("/settings/profile", { method: "DELETE" });
 }
 
 export async function listProviderKeys(): Promise<ProviderKey[]> {
+  // TODO: add tRPC procedure
   return apiFetch<ProviderKey[]>("/settings/providers");
 }
 
 export async function testProviderKey(id: string): Promise<{ valid: boolean }> {
+  // TODO: add tRPC procedure
   return apiFetch<{ valid: boolean }>(`/settings/providers/${id}/test`, { method: "POST" });
 }
 
@@ -679,6 +685,7 @@ export async function saveProviderKey(provider: string, key: string): Promise<Pr
 }
 
 export async function updateProviderModel(id: string, model: string): Promise<void> {
+  // TODO: add tRPC procedure
   await apiFetch(`/settings/providers/${id}/model`, {
     method: "PATCH",
     body: JSON.stringify({ model }),
@@ -686,6 +693,7 @@ export async function updateProviderModel(id: string, model: string): Promise<vo
 }
 
 export async function listApiKeys(): Promise<PlatformApiKey[]> {
+  // TODO: add tRPC procedure
   return apiFetch<PlatformApiKey[]>("/settings/api-keys");
 }
 
@@ -694,6 +702,7 @@ export async function createApiKey(data: {
   scope: string;
   expiration: string;
 }): Promise<{ key: PlatformApiKey; secret: string }> {
+  // TODO: add tRPC procedure
   return apiFetch<{ key: PlatformApiKey; secret: string }>("/settings/api-keys", {
     method: "POST",
     body: JSON.stringify(data),
@@ -701,6 +710,7 @@ export async function createApiKey(data: {
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
+  // TODO: add tRPC procedure
   await apiFetch(`/settings/api-keys/${id}`, { method: "DELETE" });
 }
 
@@ -1070,10 +1080,12 @@ export interface ModelSelection {
 // --- Model selection API ---
 
 export async function getModelSelection(): Promise<ModelSelection> {
+  // TODO: add tRPC procedure
   return apiFetch<ModelSelection>("/settings/model");
 }
 
 export async function updateModelSelection(data: ModelSelection): Promise<ModelSelection> {
+  // TODO: add tRPC procedure
   return apiFetch<ModelSelection>("/settings/model", {
     method: "PUT",
     body: JSON.stringify(data),
