@@ -1,7 +1,9 @@
 "use client";
 
+import { AlertTriangleIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HealthStatus, InstanceHealth } from "@/lib/api";
@@ -48,12 +50,16 @@ function formatUptime(seconds: number): string {
 export function HealthOverview({ instanceId }: { instanceId: string }) {
   const [health, setHealth] = useState<InstanceHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getInstanceHealth(instanceId);
       setHealth(data);
+    } catch {
+      setError("Failed to load health data — please try again.");
     } finally {
       setLoading(false);
     }
@@ -81,8 +87,17 @@ export function HealthOverview({ instanceId }: { instanceId: string }) {
     );
   }
 
-  if (!health) {
-    return <div className="text-muted-foreground">No health data available.</div>;
+  if (error || !health) {
+    return (
+      <div className="flex items-center gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3">
+        <AlertTriangleIcon className="size-5 shrink-0 text-destructive" />
+        <p className="flex-1 text-sm text-destructive">{error ?? "No health data available."}</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw className="size-4" />
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (

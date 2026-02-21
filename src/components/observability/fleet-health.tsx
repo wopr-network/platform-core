@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangleIcon, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -116,13 +116,17 @@ export function FleetHealth() {
   const [sortBy, setSortBy] = useState<SortBy>("status");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     setLoading(true);
+    setError(null);
     try {
       const data = await getFleetHealth();
       setInstances(data);
+    } catch {
+      setError("Failed to load fleet health — please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -148,6 +152,23 @@ export function FleetHealth() {
   const degradedCt = instances.filter((i) => i.health === "degraded").length;
   const unhealthyCt = instances.filter((i) => i.health === "unhealthy").length;
   const allHealthy = instances.length > 0 && degradedCt === 0 && unhealthyCt === 0;
+
+  // --- Error state (no existing data) ---
+  if (error && instances.length === 0) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold tracking-tight">Fleet Health</h1>
+        <div className="flex items-center gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangleIcon className="size-5 shrink-0 text-destructive" />
+          <p className="flex-1 text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={load}>
+            <RefreshCw className="size-4" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // --- Skeleton loading state ---
   if (loading && instances.length === 0) {

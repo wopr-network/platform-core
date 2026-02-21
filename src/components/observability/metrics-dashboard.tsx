@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangleIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   Bar,
@@ -12,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InstanceMetrics } from "@/lib/api";
@@ -24,12 +26,16 @@ function formatTime(timestamp: string): string {
 export function MetricsDashboard({ instanceId }: { instanceId: string }) {
   const [metrics, setMetrics] = useState<InstanceMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getInstanceMetrics(instanceId);
       setMetrics(data);
+    } catch {
+      setError("Failed to load metrics — please try again.");
     } finally {
       setLoading(false);
     }
@@ -56,10 +62,15 @@ export function MetricsDashboard({ instanceId }: { instanceId: string }) {
     );
   }
 
-  if (!metrics) {
+  if (error || !metrics) {
     return (
-      <div className="flex flex-col gap-1">
-        <p className="font-mono text-sm text-terminal">&gt; NO METRICS DATA. AWAITING TELEMETRY.</p>
+      <div className="flex items-center gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3">
+        <AlertTriangleIcon className="size-5 shrink-0 text-destructive" />
+        <p className="flex-1 text-sm text-destructive">{error ?? "No metrics data available."}</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw className="size-4" />
+          Retry
+        </Button>
       </div>
     );
   }

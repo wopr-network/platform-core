@@ -153,6 +153,44 @@ describe("HealthOverview", () => {
       expect(screen.getByText("/ 47 total")).toBeInTheDocument();
     });
   });
+
+  it("shows error state when API fails", async () => {
+    const { getInstanceHealth } = await import("@/lib/api");
+    vi.mocked(getInstanceHealth).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<HealthOverview instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load health data/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("recovers from error on retry", async () => {
+    const user = userEvent.setup();
+    const { getInstanceHealth } = await import("@/lib/api");
+    vi.mocked(getInstanceHealth)
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce({
+        status: "healthy",
+        uptime: 86400,
+        activeSessions: 2,
+        totalSessions: 47,
+        plugins: [],
+        providers: [],
+        history: [],
+      });
+
+    render(<HealthOverview instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load health data/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Health Status")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/failed to load health data/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("LogsViewer", () => {
@@ -225,6 +263,52 @@ describe("MetricsDashboard", () => {
       expect(screen.getAllByTestId("responsive-container").length).toBeGreaterThan(0);
     });
   });
+
+  it("shows error state when API fails", async () => {
+    const { getInstanceMetrics } = await import("@/lib/api");
+    vi.mocked(getInstanceMetrics).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<MetricsDashboard instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load metrics/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("recovers from error on retry", async () => {
+    const user = userEvent.setup();
+    const { getInstanceMetrics } = await import("@/lib/api");
+    vi.mocked(getInstanceMetrics)
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce({
+        timeseries: [
+          {
+            timestamp: "2026-02-12T09:00:00Z",
+            requestCount: 42,
+            latencyP50: 80,
+            latencyP95: 180,
+            latencyP99: 350,
+            activeSessions: 3,
+            memoryMb: 256,
+          },
+        ],
+        tokenUsage: [
+          { provider: "anthropic", inputTokens: 125000, outputTokens: 89000, totalCost: 4.28 },
+        ],
+        pluginEvents: [{ plugin: "memory", count: 340 }],
+      });
+
+    render(<MetricsDashboard instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load metrics/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Request Count")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/failed to load metrics/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("FleetHealth", () => {
@@ -293,5 +377,46 @@ describe("FleetHealth", () => {
     await waitFor(() => {
       expect(screen.getByText(/FLEET EMPTY/)).toBeInTheDocument();
     });
+  });
+
+  it("shows error state when API fails", async () => {
+    const { getFleetHealth } = await import("@/lib/api");
+    vi.mocked(getFleetHealth).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<FleetHealth />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load fleet health/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("clears error and reloads on retry", async () => {
+    const user = userEvent.setup();
+    const { getFleetHealth } = await import("@/lib/api");
+    vi.mocked(getFleetHealth)
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce([
+        {
+          id: "inst-001",
+          name: "prod-assistant",
+          status: "running",
+          health: "healthy",
+          uptime: 86400,
+          pluginCount: 2,
+          sessionCount: 2,
+          provider: "anthropic",
+        },
+      ]);
+
+    render(<FleetHealth />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load fleet health/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => {
+      expect(screen.getByText("prod-assistant")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/failed to load fleet health/i)).not.toBeInTheDocument();
   });
 });
