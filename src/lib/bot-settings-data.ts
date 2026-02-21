@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./api-config";
+import { handleUnauthorized } from "./fetch-utils";
 
 // --- Bot Settings types ---
 
@@ -305,8 +306,12 @@ export const MOCK_BOT_SETTINGS: BotSettings = {
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
   return res.json() as Promise<T>;
 }
