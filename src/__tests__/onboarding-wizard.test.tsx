@@ -145,8 +145,10 @@ describe("StepConnect", () => {
         selectedChannels={["discord"]}
         channelKeyValues={{}}
         channelKeyErrors={{}}
+        channelValidationStatus={{}}
         onChannelKeyChange={vi.fn()}
         onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
       />,
     );
     expect(screen.getByText("Connect your channels")).toBeInTheDocument();
@@ -161,8 +163,10 @@ describe("StepConnect", () => {
         selectedChannels={[]}
         channelKeyValues={{}}
         channelKeyErrors={{}}
+        channelValidationStatus={{}}
         onChannelKeyChange={vi.fn()}
         onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
       />,
     );
     expect(screen.getByText(/NO CHANNELS DESIGNATED/)).toBeInTheDocument();
@@ -175,8 +179,10 @@ describe("StepConnect", () => {
         selectedChannels={["telegram"]}
         channelKeyValues={{}}
         channelKeyErrors={{}}
+        channelValidationStatus={{}}
         onChannelKeyChange={onChange}
         onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
       />,
     );
     fireEvent.change(screen.getByLabelText("Telegram Bot Token"), {
@@ -191,11 +197,113 @@ describe("StepConnect", () => {
         selectedChannels={["discord"]}
         channelKeyValues={{}}
         channelKeyErrors={{ discord_bot_token: "Invalid token format" }}
+        channelValidationStatus={{}}
         onChannelKeyChange={vi.fn()}
         onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
       />,
     );
     expect(screen.getByText("Invalid token format")).toBeInTheDocument();
+  });
+
+  it("renders Verify button for each channel", () => {
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{
+          discord_bot_token: "test-token",
+          discord_guild_id: "12345678901234567",
+        }}
+        channelKeyErrors={{}}
+        channelValidationStatus={{}}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
+        stepNumber="03"
+        stepCode="CONNECT"
+      />,
+    );
+    expect(screen.getByRole("button", { name: /verify/i })).toBeInTheDocument();
+  });
+
+  it("shows validating state on Verify button", () => {
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{
+          discord_bot_token: "test-token",
+          discord_guild_id: "12345678901234567",
+        }}
+        channelKeyErrors={{}}
+        channelValidationStatus={{ discord: "validating" }}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
+        stepNumber="03"
+        stepCode="CONNECT"
+      />,
+    );
+    expect(screen.getByRole("button", { name: /verifying/i })).toBeDisabled();
+  });
+
+  it("shows verified status when channel is valid", () => {
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{
+          discord_bot_token: "test-token",
+          discord_guild_id: "12345678901234567",
+        }}
+        channelKeyErrors={{}}
+        channelValidationStatus={{ discord: "valid" }}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
+        stepNumber="03"
+        stepCode="CONNECT"
+      />,
+    );
+    expect(screen.getByText("VERIFIED")).toBeInTheDocument();
+  });
+
+  it("shows error status when channel is invalid", () => {
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{ discord_bot_token: "bad-token", discord_guild_id: "12345678901234567" }}
+        channelKeyErrors={{}}
+        channelValidationStatus={{ discord: "invalid" }}
+        channelValidationErrors={{ discord: "Invalid Discord bot token" }}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+        onVerifyChannel={vi.fn()}
+        stepNumber="03"
+        stepCode="CONNECT"
+      />,
+    );
+    expect(screen.getByText("Invalid Discord bot token")).toBeInTheDocument();
+  });
+
+  it("calls onVerifyChannel when Verify button is clicked", () => {
+    const onVerify = vi.fn();
+    render(
+      <StepConnect
+        selectedChannels={["discord"]}
+        channelKeyValues={{
+          discord_bot_token: "test-token",
+          discord_guild_id: "12345678901234567",
+        }}
+        channelKeyErrors={{}}
+        channelValidationStatus={{}}
+        onChannelKeyChange={vi.fn()}
+        onValidateChannelKey={vi.fn()}
+        onVerifyChannel={onVerify}
+        stepNumber="03"
+        stepCode="CONNECT"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /verify/i }));
+    expect(onVerify).toHaveBeenCalledWith("discord");
   });
 });
 
@@ -654,6 +762,7 @@ vi.mock("better-auth/react", () => ({
 vi.mock("@/lib/api", () => ({
   getCreditBalance: vi.fn().mockResolvedValue({ balance: 5.0, dailyBurn: 0.33, runway: 15 }),
   listInstances: vi.fn().mockResolvedValue([]),
+  testChannelConnection: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 describe("OnboardingWizard integration", () => {

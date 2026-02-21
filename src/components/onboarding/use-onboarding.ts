@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
-import { getCreditBalance, listInstances } from "@/lib/api";
+import { getCreditBalance, listInstances, testChannelConnection } from "@/lib/api";
 import { type ByokAiProvider, getAiKeyField } from "@/lib/onboarding-data";
 import { markOnboardingComplete } from "@/lib/onboarding-store";
+
+export type ChannelValidationStatus = "idle" | "validating" | "valid" | "invalid";
 
 export type WizardMode = "onboarding" | "fleet-add";
 
@@ -59,6 +61,8 @@ export interface OnboardingState {
   // Step 3: Channel connection keys
   channelKeyValues: Record<string, string>;
   channelKeyErrors: Record<string, string | null>;
+  channelValidationStatus: Record<string, ChannelValidationStatus>;
+  channelValidationErrors: Record<string, string | null>;
   // Step 4: Superpowers
   selectedSuperpowers: string[];
   // Step 5: Power source
@@ -85,6 +89,7 @@ export interface OnboardingActions {
   // Step 3
   setChannelKeyValue: (key: string, value: string) => void;
   validateChannelKey: (key: string) => void;
+  verifyChannel: (channelId: string) => void;
   // Step 4
   toggleSuperpower: (id: string) => void;
   // Step 5
@@ -174,6 +179,12 @@ export function useOnboarding(
   // Step 3
   const [channelKeyValues, setChannelKeyValues] = useState<Record<string, string>>({});
   const [channelKeyErrors, setChannelKeyErrors] = useState<Record<string, string | null>>({});
+  const [channelValidationStatus, setChannelValidationStatus] = useState<
+    Record<string, ChannelValidationStatus>
+  >({});
+  const [channelValidationErrors, setChannelValidationErrors] = useState<
+    Record<string, string | null>
+  >({});
   // Step 4 — pre-check superpowers from fleet in fleet-add mode
   const [selectedSuperpowers, setSelectedSuperpowers] = useState<string[]>(fleetSuperpowers);
 
@@ -283,10 +294,21 @@ export function useOnboarding(
     );
   }, []);
 
-  const setChannelKeyValue = useCallback((key: string, value: string) => {
-    setChannelKeyValues((prev) => ({ ...prev, [key]: value }));
-    setChannelKeyErrors((prev) => ({ ...prev, [key]: null }));
-  }, []);
+  const setChannelKeyValue = useCallback(
+    (key: string, value: string) => {
+      setChannelKeyValues((prev) => ({ ...prev, [key]: value }));
+      setChannelKeyErrors((prev) => ({ ...prev, [key]: null }));
+      // Reset validation status for the channel that owns this key
+      for (const channel of registry.channels) {
+        if (channel.configFields.some((f) => f.key === key)) {
+          setChannelValidationStatus((prev) => ({ ...prev, [channel.id]: "idle" }));
+          setChannelValidationErrors((prev) => ({ ...prev, [channel.id]: null }));
+          break;
+        }
+      }
+    },
+    [registry.channels],
+  );
 
   const validateChannelKey = useCallback(
     (key: string) => {
@@ -297,6 +319,50 @@ export function useOnboarding(
       setChannelKeyErrors((prev) => ({ ...prev, [key]: error }));
     },
     [channelConfigFields, channelKeyValues, registry],
+  );
+
+  const verifyChannel = useCallback(
+    async (channelId: string) => {
+      const channel = registry.channels.find((c) => c.id === channelId);
+      if (!channel) return;
+
+      const credentials: Record<string, string> = {};
+      for (const field of channel.configFields) {
+        credentials[field.key] = channelKeyValues[field.key] || "";
+      }
+
+      setChannelValidationStatus((prev) => ({ ...prev, [channelId]: "validating" }));
+      setChannelValidationErrors((prev) => ({ ...prev, [channelId]: null }));
+
+      try {
+        const result = await testChannelConnection(channelId, credentials);
+        if (result.success) {
+          setChannelValidationStatus((prev) => {
+            if (prev[channelId] !== "validating") return prev;
+            return { ...prev, [channelId]: "valid" };
+          });
+        } else {
+          setChannelValidationStatus((prev) => {
+            if (prev[channelId] !== "validating") return prev;
+            return { ...prev, [channelId]: "invalid" };
+          });
+          setChannelValidationErrors((prev) => ({
+            ...prev,
+            [channelId]: result.error || "Verification failed",
+          }));
+        }
+      } catch {
+        setChannelValidationStatus((prev) => {
+          if (prev[channelId] !== "validating") return prev;
+          return { ...prev, [channelId]: "invalid" };
+        });
+        setChannelValidationErrors((prev) => ({
+          ...prev,
+          [channelId]: "Could not reach the server. Check your connection.",
+        }));
+      }
+    },
+    [channelKeyValues, registry.channels],
   );
 
   const toggleSuperpower = useCallback((id: string) => {
@@ -353,10 +419,12 @@ export function useOnboarding(
       case "channels":
         return selectedChannels.length > 0;
       case "connect":
-        return channelConfigFields.every((f) => {
-          const value = channelKeyValues[f.key] || "";
-          return registry.validateField(f, value) === null;
-        });
+        return (
+          channelConfigFields.every((f) => {
+            const value = channelKeyValues[f.key] || "";
+            return registry.validateField(f, value) === null;
+          }) && selectedChannels.every((id) => channelValidationStatus[id] === "valid")
+        );
       case "superpowers":
         return true; // superpowers are optional
       case "power-source":
@@ -375,6 +443,7 @@ export function useOnboarding(
     selectedChannels,
     channelConfigFields,
     channelKeyValues,
+    channelValidationStatus,
     providerMode,
     byokConfigFields,
     byokKeyValues,
@@ -478,6 +547,8 @@ export function useOnboarding(
     setSelectedChannels([]);
     setChannelKeyValues({});
     setChannelKeyErrors({});
+    setChannelValidationStatus({});
+    setChannelValidationErrors({});
     setSelectedSuperpowers(isFleetAdd ? fleetSuperpowers : []);
     setProviderModeState("hosted");
     setByokAiProviderState("openrouter");
@@ -498,6 +569,8 @@ export function useOnboarding(
     selectedChannels,
     channelKeyValues,
     channelKeyErrors,
+    channelValidationStatus,
+    channelValidationErrors,
     selectedSuperpowers,
     providerMode,
     byokAiProvider,
@@ -517,6 +590,7 @@ export function useOnboarding(
     toggleChannel,
     setChannelKeyValue,
     validateChannelKey,
+    verifyChannel,
     toggleSuperpower,
     setProviderMode,
     setByokAiProvider,

@@ -139,8 +139,11 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               selectedChannels={state.selectedChannels}
               channelKeyValues={state.channelKeyValues}
               channelKeyErrors={state.channelKeyErrors}
+              channelValidationStatus={state.channelValidationStatus}
+              channelValidationErrors={state.channelValidationErrors}
               onChannelKeyChange={actions.setChannelKeyValue}
               onValidateChannelKey={actions.validateChannelKey}
+              onVerifyChannel={actions.verifyChannel}
               stepNumber={currentMeta.number}
               stepCode={currentMeta.code}
             />

@@ -8,12 +8,17 @@ import { Label } from "@/components/ui/label";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
 
+type ChannelValidationStatus = "idle" | "validating" | "valid" | "invalid";
+
 interface StepConnectProps {
   selectedChannels: string[];
   channelKeyValues: Record<string, string>;
   channelKeyErrors: Record<string, string | null>;
+  channelValidationStatus: Record<string, ChannelValidationStatus>;
+  channelValidationErrors?: Record<string, string | null>;
   onChannelKeyChange: (key: string, value: string) => void;
   onValidateChannelKey: (key: string) => void;
+  onVerifyChannel: (channelId: string) => void;
   stepNumber?: string;
   stepCode?: string;
 }
@@ -22,8 +27,11 @@ export function StepConnect({
   selectedChannels,
   channelKeyValues,
   channelKeyErrors,
+  channelValidationStatus,
+  channelValidationErrors,
   onChannelKeyChange,
   onValidateChannelKey,
+  onVerifyChannel,
   stepNumber = "03",
   stepCode = "CONNECT",
 }: StepConnectProps) {
@@ -67,6 +75,37 @@ export function StepConnect({
                 onValidate={onValidateChannelKey}
               />
             ))}
+            {/* Verify button */}
+            <div className="flex items-center gap-3 mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="font-mono text-xs"
+                disabled={
+                  channelValidationStatus[channel.id] === "validating" ||
+                  channel.configFields.some((f) => {
+                    const value = channelKeyValues[f.key] || "";
+                    return !value.trim();
+                  })
+                }
+                onClick={() => onVerifyChannel(channel.id)}
+              >
+                {channelValidationStatus[channel.id] === "validating"
+                  ? "Verifying..."
+                  : channelValidationStatus[channel.id] === "valid"
+                    ? "Verified"
+                    : "Verify"}
+              </Button>
+              {channelValidationStatus[channel.id] === "valid" && (
+                <span className="text-xs text-emerald-500 font-mono">VERIFIED</span>
+              )}
+              {channelValidationStatus[channel.id] === "invalid" && (
+                <span className="text-xs text-destructive font-mono">
+                  {channelValidationErrors?.[channel.id] || "Verification failed"}
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
