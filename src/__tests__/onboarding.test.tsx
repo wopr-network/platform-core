@@ -121,7 +121,7 @@ describe("Welcome page", () => {
 
     expect(screen.getByText(/Let's set up your WOPR/)).toBeInTheDocument();
     expect(screen.getByText("Get Started")).toBeInTheDocument();
-    expect(screen.getByText(/Your keys are stored locally/)).toBeInTheDocument();
+    expect(screen.getByText(/Your keys are encrypted and stored securely/)).toBeInTheDocument();
   });
 
   it("shows 3 value propositions", async () => {
