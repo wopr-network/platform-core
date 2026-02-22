@@ -1,6 +1,6 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
 import { handleUnauthorized } from "./fetch-utils";
-import type { ApiPricingResponse } from "./pricing-data";
+import type { ApiPricingResponse, DividendStats } from "./pricing-data";
 import { trpcVanilla } from "./trpc";
 
 export { UnauthorizedError } from "./fetch-utils";
@@ -19,6 +19,22 @@ export async function fetchPublicPricing(): Promise<ApiPricingResponse | null> {
     });
     if (!res.ok) return null;
     return (await res.json()) as ApiPricingResponse;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch live community dividend pool stats.
+ * Returns null if the endpoint is unavailable (caller should fall back to static projections).
+ */
+export async function fetchDividendStats(): Promise<DividendStats | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/dividend/stats`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as DividendStats;
   } catch {
     return null;
   }

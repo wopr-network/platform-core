@@ -2,32 +2,35 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { pricingData } from "../lib/pricing-data";
 
-// Mock fetchPublicPricing to return null (fallback to static data).
-// The global fetch stub in setup.ts rejects all requests, so fetchPublicPricing
-// would already return null. But we mock the module directly for clarity and
-// to allow individual tests to override the return value.
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     fetchPublicPricing: vi.fn().mockResolvedValue(null),
+    fetchDividendStats: vi.fn().mockResolvedValue(null),
   };
 });
 
-// Helper to render async server component
 async function renderAsync(component: Promise<React.ReactElement> | React.ReactElement) {
   const resolved = await component;
   return render(resolved);
 }
 
 describe("PricingPage", () => {
-  it("renders without crashing (fallback mode)", async () => {
+  it("renders the dividend hero headline", async () => {
     const { PricingPage } = await import("../components/pricing/pricing-page");
     await renderAsync(PricingPage());
-    expect(screen.getByText(/you know exactly what you pay/i)).toBeInTheDocument();
+    expect(screen.getByText(/WOPR pays for itself/i)).toBeInTheDocument();
   });
 
-  it("shows the bot price ($5/month)", async () => {
+  it("shows the community dividend badge", async () => {
+    const { PricingPage } = await import("../components/pricing/pricing-page");
+    await renderAsync(PricingPage());
+    const badge = screen.getByText("Community dividend");
+    expect(badge).toHaveAttribute("data-variant", "terminal");
+  });
+
+  it("shows the bot price as pool eligibility ($5/month)", async () => {
     const { PricingPage } = await import("../components/pricing/pricing-page");
     await renderAsync(PricingPage());
     const priceEl = screen.getByTestId("bot-price");
@@ -67,11 +70,25 @@ describe("PricingPage", () => {
     expect(screen.getByText(/\$5 signup credit/)).toBeInTheDocument();
   });
 
-  it("shows the transparent pricing badge", async () => {
+  it("renders the DividendStats section", async () => {
     const { PricingPage } = await import("../components/pricing/pricing-page");
     await renderAsync(PricingPage());
-    const badge = screen.getByText("Transparent pricing");
-    expect(badge).toHaveAttribute("data-variant", "terminal");
+    expect(screen.getByTestId("pool-amount")).toBeInTheDocument();
+    expect(screen.getByTestId("active-users")).toBeInTheDocument();
+    expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
+  });
+
+  it("renders the DividendCalculator section", async () => {
+    const { PricingPage } = await import("../components/pricing/pricing-page");
+    await renderAsync(PricingPage());
+    expect(screen.getByText(/100K active users/i)).toBeInTheDocument();
+    expect(screen.getByTestId("net-cost")).toBeInTheDocument();
+  });
+
+  it("frames bot price as pool eligibility", async () => {
+    const { PricingPage } = await import("../components/pricing/pricing-page");
+    await renderAsync(PricingPage());
+    expect(screen.getByText(/minimum spend to stay in the dividend pool/i)).toBeInTheDocument();
   });
 
   it("renders with live API data when available", async () => {

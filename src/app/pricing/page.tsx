@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { PricingPage } from "@/components/pricing/pricing-page";
 
 export const metadata: Metadata = {
-  title: "Pricing",
-  description: "Your WOPR Bot is $5/month. Usage billed at cost. No tiers. No gotchas.",
+  title: "Pricing — WOPR pays for itself",
+  description:
+    "Every day, WOPR distributes credits back to active users. The bigger the community grows, the more you receive. Early users get the most.",
   openGraph: {
-    title: "Pricing -- WOPR Bot",
-    description: "Your WOPR Bot is $5/month. Usage billed at cost. No tiers. No gotchas.",
+    title: "Pricing — WOPR pays for itself",
+    description:
+      "Every day, WOPR distributes credits back to active users. The bigger the community grows, the more you receive.",
     url: "https://wopr.bot/pricing",
   },
 };
