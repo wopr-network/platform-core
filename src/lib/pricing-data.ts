@@ -53,6 +53,13 @@ export interface ApiPricingResponse {
   rates: Record<string, ApiRate[]>;
 }
 
+/** Shape of GET /api/v1/billing/dividend/stats response (public, no auth) */
+export interface DividendStats {
+  poolAmountDollars: number;
+  activeUsers: number;
+  projectedDailyDividend: number;
+}
+
 /** UI metadata for a capability key (display label + icon) */
 export interface CapabilityMeta {
   category: string;

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchPublicPricing } from "@/lib/api";
 import { mergeApiRates, type PricingCapability, pricingData } from "@/lib/pricing-data";
+import { DividendCalculator } from "./dividend-calculator";
+import { DividendStats } from "./dividend-stats";
 
 const iconMap = {
   bot: BotIcon,
@@ -20,13 +22,11 @@ function formatPrice(price: number): string {
 }
 
 export async function PricingPage() {
-  // Fetch live rates from backend; fall back to static data on failure
   let capabilities: PricingCapability[];
   const apiData = await fetchPublicPricing();
   if (apiData) {
     capabilities = mergeApiRates(apiData.rates);
   } else {
-    // Fallback: convert static pricingData.capabilities to PricingCapability shape
     capabilities = pricingData.capabilities.map((c) => ({
       category: c.category,
       icon: c.icon,
@@ -36,31 +36,53 @@ export async function PricingPage() {
 
   return (
     <div className="bg-background text-foreground">
-      {/* --- Header --- */}
+      {/* --- Dividend Hero --- */}
       <section className="flex min-h-[60dvh] flex-col items-center justify-center px-6 text-center">
         <Badge variant="terminal" className="mb-8">
-          Transparent pricing
+          Community dividend
         </Badge>
 
         <h1 className="max-w-3xl text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-          You know exactly what you pay.
+          WOPR pays for itself.
         </h1>
 
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          No tiers. No gotchas. Your bot is{" "}
-          <span className="text-terminal font-semibold">
-            ${pricingData.bot_price.amount}/{pricingData.bot_price.period}
-          </span>
-          . Usage is billed at cost.
+          Every day, the platform distributes credits back to active users from its own margin. The
+          bigger the community grows, the more you receive. Early users get the most.
+        </p>
+
+        <p className="mt-4 max-w-lg text-sm text-muted-foreground">
+          At scale, the daily dividend covers your entire credit spend. You&apos;re not paying to
+          run your bots. WOPR is.
         </p>
       </section>
 
-      {/* --- Bot Price Hero --- */}
-      <section className="flex flex-col items-center justify-center px-6 pb-24 text-center">
+      {/* --- Live Pool Stats --- */}
+      <section className="mx-auto max-w-3xl px-6 pb-16">
+        <DividendStats />
+      </section>
+
+      {/* --- Dividend Math --- */}
+      <section className="px-6 pb-24">
+        <DividendCalculator />
+      </section>
+
+      {/* --- Credit Tiers (reframed) --- */}
+      <section className="flex flex-col items-center justify-center px-6 pb-12 text-center">
+        <h2 className="mb-4 text-2xl font-bold tracking-tight sm:text-3xl">Stay in the pool.</h2>
+        <p className="mb-8 max-w-lg text-muted-foreground">
+          Your bot is{" "}
+          <span className="font-semibold text-terminal">
+            ${pricingData.bot_price.amount}/{pricingData.bot_price.period}
+          </span>
+          . That&apos;s the minimum to be eligible for the daily dividend. Usage is billed at cost
+          from credits.
+        </p>
+
         <Card className="w-full max-w-md border-terminal">
           <CardHeader className="items-center text-center">
             <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">
-              Your WOPR Bot
+              Pool eligibility
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
@@ -70,15 +92,15 @@ export async function PricingPage() {
                 /{pricingData.bot_price.period}
               </span>
             </p>
-            <p className="text-muted-foreground">That&apos;s it for the bot. Usage below.</p>
+            <p className="text-muted-foreground">Minimum spend to stay in the dividend pool.</p>
           </CardContent>
         </Card>
       </section>
 
-      {/* --- Capability Sections --- */}
+      {/* --- Capability Pricing --- */}
       <section className="mx-auto max-w-4xl px-6 pb-24">
         <h2 className="mb-12 text-center text-2xl font-bold tracking-tight sm:text-3xl">
-          Pay per use. Nothing hidden.
+          Usage rates. Nothing hidden.
         </h2>
 
         <div className="flex flex-col gap-12">
@@ -119,14 +141,14 @@ export async function PricingPage() {
           includes ${pricingData.signup_credit} signup credit.
         </p>
         <p className="text-sm text-muted-foreground">
-          Credits in, credits out. You&apos;re always in control.
+          Credits in, dividend back. The community grows, your costs shrink.
         </p>
       </section>
 
       {/* --- CTA --- */}
       <section className="flex min-h-[40dvh] flex-col items-center justify-center gap-8 px-6 text-center">
         <h2 className="max-w-2xl text-2xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
-          Five bucks. Your own WOPR Bot.
+          Join early. The math rewards you.
         </h2>
 
         <Button variant="terminal" size="lg" asChild>
