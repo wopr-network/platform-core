@@ -136,7 +136,8 @@ export default function OnboardKeysPage() {
         })}
 
         <Banner variant="terminal">
-          Your keys are stored locally in your instance. We never see or proxy your API calls.
+          Your keys are encrypted and stored securely on the server. We never see or proxy your API
+          calls.
         </Banner>
       </CardContent>
       <CardFooter className="flex justify-between">

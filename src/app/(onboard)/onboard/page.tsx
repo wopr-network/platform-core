@@ -50,7 +50,8 @@ export default function OnboardWelcomePage() {
         </div>
 
         <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 text-sm text-green-400">
-          Your keys are stored locally in your instance. We never see or proxy your API calls.
+          Your keys are encrypted and stored securely on the server. We never see or proxy your API
+          calls.
         </div>
 
         <Button size="lg" asChild>
