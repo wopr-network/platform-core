@@ -91,6 +91,18 @@ vi.mock("@/lib/api", async (importOriginal) => {
     createCreditCheckout: vi
       .fn()
       .mockResolvedValue({ checkoutUrl: "https://checkout.stripe.com/test" }),
+    getAutoTopupSettings: vi.fn().mockResolvedValue({
+      usageBased: { enabled: false, thresholdCents: 500, topupAmountCents: 2000 },
+      scheduled: { enabled: false, amountCents: 2000, interval: "weekly", nextChargeDate: null },
+      paymentMethodLast4: "4242",
+      paymentMethodBrand: "Visa",
+    }),
+    updateAutoTopupSettings: vi.fn().mockResolvedValue({
+      usageBased: { enabled: false, thresholdCents: 500, topupAmountCents: 2000 },
+      scheduled: { enabled: false, amountCents: 2000, interval: "weekly", nextChargeDate: null },
+      paymentMethodLast4: "4242",
+      paymentMethodBrand: "Visa",
+    }),
   };
 });
 
@@ -118,10 +130,11 @@ describe("Credits page", () => {
     render(<CreditsPage />);
 
     expect(await screen.findByText("Buy Credits")).toBeInTheDocument();
-    expect(await screen.findByText("$5")).toBeInTheDocument();
-    expect(screen.getByText("$10")).toBeInTheDocument();
+    // Note: $5, $10, $50 appear in both BuyCreditsPanel and AutoTopupCard dropdowns
+    expect((await screen.findAllByText("$5")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("$10").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("$25")).toBeInTheDocument();
-    expect(screen.getByText("$50")).toBeInTheDocument();
+    expect(screen.getAllByText("$50").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("$100")).toBeInTheDocument();
   });
 

@@ -854,6 +854,26 @@ export interface CreditOption {
   bonusPercent: number;
 }
 
+// --- Auto-topup types ---
+
+export type AutoTopupInterval = "daily" | "weekly" | "monthly";
+
+export interface AutoTopupSettings {
+  usageBased: {
+    enabled: boolean;
+    thresholdCents: number;
+    topupAmountCents: number;
+  };
+  scheduled: {
+    enabled: boolean;
+    amountCents: number;
+    interval: AutoTopupInterval;
+    nextChargeDate: string | null;
+  };
+  paymentMethodLast4: string | null;
+  paymentMethodBrand: string | null;
+}
+
 // --- Billing client (typed stub until @wopr-network/sdk ships) ---
 
 interface BillingProcedures {
@@ -933,6 +953,15 @@ interface BillingProcedures {
       }>;
       total: number;
     }>;
+  };
+  autoTopupSettings: {
+    query(input?: Record<never, never>): Promise<AutoTopupSettings>;
+  };
+  updateAutoTopupSettings: {
+    mutate(input: {
+      usageBased?: { enabled: boolean; thresholdCents: number; topupAmountCents: number };
+      scheduled?: { enabled: boolean; amountCents: number; interval: AutoTopupInterval };
+    }): Promise<AutoTopupSettings>;
   };
 }
 
@@ -1277,6 +1306,19 @@ export async function getAffiliateReferrals(params?: {
     })) as Referral[],
     total: res.total,
   };
+}
+
+// --- Auto-topup API (tRPC) ---
+
+export async function getAutoTopupSettings(): Promise<AutoTopupSettings> {
+  return billingClient.autoTopupSettings.query();
+}
+
+export async function updateAutoTopupSettings(update: {
+  usageBased?: { enabled: boolean; thresholdCents: number; topupAmountCents: number };
+  scheduled?: { enabled: boolean; amountCents: number; interval: AutoTopupInterval };
+}): Promise<AutoTopupSettings> {
+  return billingClient.updateAutoTopupSettings.mutate(update);
 }
 
 // --- Model selection types ---

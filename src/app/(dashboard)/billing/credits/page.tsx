@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AutoTopupCard } from "@/components/billing/auto-topup-card";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { CreditBalance } from "@/components/billing/credit-balance";
 import { DividendBanner } from "@/components/billing/dividend-banner";
@@ -115,6 +116,7 @@ export default function CreditsPage() {
       )}
 
       <BuyCreditsPanel />
+      <AutoTopupCard />
       <TransactionHistory />
 
       {dividendStats && <FirstDividendDialog todayAmountCents={todayDividendCents} />}
