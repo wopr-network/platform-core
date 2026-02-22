@@ -913,6 +913,27 @@ interface BillingProcedures {
   hostedUsageEvents: {
     query(input?: { capability?: string; from?: string; to?: string }): Promise<HostedUsageEvent[]>;
   };
+  affiliateStats: {
+    query(input?: Record<never, never>): Promise<{
+      referral_code: string;
+      referral_url: string;
+      total_referred: number;
+      total_converted: number;
+      total_earned_cents: number;
+    }>;
+  };
+  affiliateReferrals: {
+    query(input?: { limit?: number; offset?: number }): Promise<{
+      referrals: Array<{
+        id: string;
+        masked_email: string;
+        joined_at: string;
+        status: "pending" | "matched";
+        match_amount_cents: number | null;
+      }>;
+      total: number;
+    }>;
+  };
 }
 
 const billingClient = (trpcVanilla as unknown as { billing: BillingProcedures }).billing;
@@ -1041,6 +1062,33 @@ export interface CreditTransaction {
 export interface CreditHistoryResponse {
   transactions: CreditTransaction[];
   nextCursor: string | null;
+}
+
+// --- Affiliate types ---
+
+export type ReferralStatus = "pending" | "matched";
+
+export interface AffiliateStats {
+  referralCode: string;
+  referralUrl: string;
+  totalReferred: number;
+  totalConverted: number;
+  totalEarnedCents: number;
+}
+
+export type Referral =
+  | { id: string; maskedEmail: string; joinedAt: string; status: "pending"; matchAmountCents: null }
+  | {
+      id: string;
+      maskedEmail: string;
+      joinedAt: string;
+      status: "matched";
+      matchAmountCents: number;
+    };
+
+export interface AffiliateReferralsResponse {
+  referrals: Referral[];
+  total: number;
 }
 
 export interface CheckoutResponse {
@@ -1196,6 +1244,39 @@ export async function getSpendingLimits(): Promise<SpendingLimits> {
 
 export async function updateSpendingLimits(limits: SpendingLimits): Promise<void> {
   await billingClient.updateSpendingLimits.mutate({ ...limits });
+}
+
+// --- Affiliate API (tRPC) ---
+
+export async function getAffiliateStats(): Promise<AffiliateStats> {
+  const res = await billingClient.affiliateStats.query();
+  return {
+    referralCode: res.referral_code,
+    referralUrl: res.referral_url,
+    totalReferred: res.total_referred,
+    totalConverted: res.total_converted,
+    totalEarnedCents: res.total_earned_cents,
+  };
+}
+
+export async function getAffiliateReferrals(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<AffiliateReferralsResponse> {
+  const res = await billingClient.affiliateReferrals.query({
+    limit: params?.limit ?? 20,
+    offset: params?.offset ?? 0,
+  });
+  return {
+    referrals: res.referrals.map((r) => ({
+      id: r.id,
+      maskedEmail: r.masked_email,
+      joinedAt: new Date(r.joined_at).toISOString(),
+      status: r.status,
+      matchAmountCents: r.match_amount_cents,
+    })) as Referral[],
+    total: res.total,
+  };
 }
 
 // --- Model selection types ---
