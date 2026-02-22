@@ -22,6 +22,7 @@ export default function OnboardKeysPage() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [validating, setValidating] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const state = loadOnboardingState();
@@ -30,6 +31,7 @@ export default function OnboardKeysPage() {
 
   function updateKey(id: string, key: string) {
     setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, key, validated: false } : p)));
+    setErrors((prev) => ({ ...prev, [id]: "" }));
   }
 
   function toggleVisibility(id: string) {
@@ -48,6 +50,10 @@ export default function OnboardKeysPage() {
       );
     } catch {
       setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, validated: false } : p)));
+      setErrors((prev) => ({
+        ...prev,
+        [id]: "Failed to save API key. Please try again.",
+      }));
     } finally {
       setValidating((prev) => ({ ...prev, [id]: false }));
     }
@@ -116,6 +122,7 @@ export default function OnboardKeysPage() {
                   {validating[provider.id] ? "Checking..." : "Validate"}
                 </Button>
               </div>
+              {errors[provider.id] && <Banner variant="destructive">{errors[provider.id]}</Banner>}
               <a
                 href={meta.keyHelpUrl}
                 target="_blank"

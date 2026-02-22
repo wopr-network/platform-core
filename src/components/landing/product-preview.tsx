@@ -1,7 +1,11 @@
 "use client";
 
-import { motion, useInView, type Variants } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+
+// framer-motion v12 removed the `Variants` named export
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Variants = Record<string, any>;
 
 // ---------------------------------------------------------------------------
 // Types

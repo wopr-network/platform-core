@@ -65,9 +65,10 @@ export default function ProfilePage() {
       setEmail(p.email);
       try {
         const accounts = await listAccounts();
-        const providers = new Set(
-          (accounts.data ?? []).map((a: { providerId: string }) => a.providerId),
+        const providerIds = ((accounts.data ?? []) as { providerId: string }[]).map(
+          (a) => a.providerId,
         );
+        const providers = new Set<string>(providerIds);
         setConnectedProviders(providers);
       } catch {
         setConnectedProviders(
