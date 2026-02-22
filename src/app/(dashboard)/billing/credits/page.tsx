@@ -3,15 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { CreditBalance } from "@/components/billing/credit-balance";
+import { DividendBanner } from "@/components/billing/dividend-banner";
+import { DividendEligibility } from "@/components/billing/dividend-eligibility";
+import { DividendPoolStats } from "@/components/billing/dividend-pool-stats";
+import { FirstDividendDialog } from "@/components/billing/first-dividend-dialog";
 import { LowBalanceBanner } from "@/components/billing/low-balance-banner";
 import { TransactionHistory } from "@/components/billing/transaction-history";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CreditBalance as CreditBalanceData } from "@/lib/api";
-import { getCreditBalance } from "@/lib/api";
+import type { CreditBalance as CreditBalanceData, DividendStats } from "@/lib/api";
+import { getCreditBalance, getDividendStats } from "@/lib/api";
 
 export default function CreditsPage() {
   const [balance, setBalance] = useState<CreditBalanceData | null>(null);
+  const [dividendStats, setDividendStats] = useState<DividendStats | null>(null);
+  const [todayDividendCents, setTodayDividendCents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,8 +25,17 @@ export default function CreditsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getCreditBalance();
-      setBalance(data);
+      const [balanceData, statsData] = await Promise.all([
+        getCreditBalance(),
+        getDividendStats().catch(() => null),
+      ]);
+      setBalance(balanceData);
+      if (statsData) {
+        setDividendStats(statsData);
+        if (statsData.userEligible && statsData.perUserCents > 0) {
+          setTodayDividendCents(statsData.perUserCents);
+        }
+      }
     } catch {
       setError("Failed to load credit balance.");
     } finally {
@@ -39,6 +54,7 @@ export default function CreditsPage() {
           <Skeleton className="h-7 w-24" />
           <Skeleton className="h-4 w-56" />
         </div>
+        <Skeleton className="h-20 w-full rounded-md" />
         <div className="rounded-sm border p-6 space-y-3">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-4 w-48" />
@@ -71,15 +87,37 @@ export default function CreditsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Credits</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your credit balance and purchase history
+          Stay active to keep claiming your daily dividend
         </p>
       </div>
 
       <LowBalanceBanner balance={balance.balance} runway={balance.runway} />
 
+      {dividendStats && (
+        <DividendBanner todayAmountCents={todayDividendCents} stats={dividendStats} />
+      )}
+
       <CreditBalance data={balance} />
+
+      {dividendStats && (
+        <DividendEligibility
+          windowExpiresAt={dividendStats.userWindowExpiresAt}
+          eligible={dividendStats.userEligible}
+        />
+      )}
+
+      {dividendStats && (
+        <DividendPoolStats
+          poolCents={dividendStats.poolCents}
+          activeUsers={dividendStats.activeUsers}
+          perUserCents={dividendStats.perUserCents}
+        />
+      )}
+
       <BuyCreditsPanel />
       <TransactionHistory />
+
+      {dividendStats && <FirstDividendDialog todayAmountCents={todayDividendCents} />}
     </div>
   );
 }

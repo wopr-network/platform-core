@@ -57,6 +57,7 @@ vi.mock("@/lib/api", () => ({
     totalMemoryMb: 768,
     memoryCapacityMb: 2048,
   }),
+  getDividendStats: vi.fn().mockRejectedValue(new Error("Not implemented")),
 }));
 
 import { CommandCenter } from "../components/dashboard/command-center";

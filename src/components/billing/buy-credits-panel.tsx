@@ -47,6 +47,9 @@ export function BuyCreditsPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Buy Credits</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Every purchase resets your 7-day dividend window
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
@@ -64,6 +67,9 @@ export function BuyCreditsPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Buy Credits</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Every purchase resets your 7-day dividend window
+          </p>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -78,6 +84,9 @@ export function BuyCreditsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Buy Credits</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Every purchase resets your 7-day dividend window
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">

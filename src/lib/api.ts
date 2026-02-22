@@ -1027,7 +1027,8 @@ export type CreditTransactionType =
   | "bot_runtime"
   | "refund"
   | "bonus"
-  | "adjustment";
+  | "adjustment"
+  | "community_dividend";
 
 export interface CreditTransaction {
   id: string;
@@ -1062,6 +1063,7 @@ function mapTransactionType(backendType: string): CreditTransactionType {
     grant: "purchase",
     refund: "refund",
     correction: "adjustment",
+    community_dividend: "community_dividend",
   };
   return map[backendType] ?? "adjustment";
 }
@@ -1093,6 +1095,80 @@ export async function createCreditCheckout(priceId: string): Promise<CheckoutRes
   const url = res.url;
   if (!url) throw new Error("Portal URL unavailable");
   return { checkoutUrl: url };
+}
+
+// --- Dividend types ---
+
+export interface DividendStats {
+  poolCents: number;
+  activeUsers: number;
+  perUserCents: number;
+  nextDistributionAt: string;
+  userEligible: boolean;
+  userLastPurchaseAt: string | null;
+  userWindowExpiresAt: string | null;
+}
+
+export interface DividendHistoryEntry {
+  date: string;
+  amountCents: number;
+  poolCents: number;
+  activeUsers: number;
+}
+
+export interface DividendHistoryResponse {
+  dividends: DividendHistoryEntry[];
+}
+
+export interface DividendLifetime {
+  totalCents: number;
+}
+
+// --- Dividend API ---
+
+export async function getDividendStats(): Promise<DividendStats> {
+  const res = await apiFetch<{
+    pool_cents: number;
+    active_users: number;
+    per_user_cents: number;
+    next_distribution_at: string;
+    user_eligible: boolean;
+    user_last_purchase_at: string | null;
+    user_window_expires_at: string | null;
+  }>("/billing/dividend/stats");
+  return {
+    poolCents: res.pool_cents,
+    activeUsers: res.active_users,
+    perUserCents: res.per_user_cents,
+    nextDistributionAt: res.next_distribution_at,
+    userEligible: res.user_eligible,
+    userLastPurchaseAt: res.user_last_purchase_at,
+    userWindowExpiresAt: res.user_window_expires_at,
+  };
+}
+
+export async function getDividendHistory(): Promise<DividendHistoryResponse> {
+  const res = await apiFetch<{
+    dividends: Array<{
+      date: string;
+      amount_cents: number;
+      pool_cents: number;
+      active_users: number;
+    }>;
+  }>("/billing/dividend/history");
+  return {
+    dividends: res.dividends.map((d) => ({
+      date: d.date,
+      amountCents: d.amount_cents,
+      poolCents: d.pool_cents,
+      activeUsers: d.active_users,
+    })),
+  };
+}
+
+export async function getDividendLifetime(): Promise<DividendLifetime> {
+  const res = await apiFetch<{ total_cents: number }>("/billing/dividend/lifetime");
+  return { totalCents: res.total_cents };
 }
 
 // --- Hosted usage API (tRPC) ---

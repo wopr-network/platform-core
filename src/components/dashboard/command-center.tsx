@@ -1,14 +1,15 @@
 "use client";
 
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
-import { Activity, CreditCard, Plus, Puzzle } from "lucide-react";
+import { Activity, CreditCard, Plus, Puzzle, TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ActivityEvent, FleetInstance, FleetResources } from "@/lib/api";
-import { getActivityFeed, getFleetHealth, getFleetResources } from "@/lib/api";
+import type { ActivityEvent, DividendStats, FleetInstance, FleetResources } from "@/lib/api";
+import { getActivityFeed, getDividendStats, getFleetHealth, getFleetResources } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 function formatRelativeTime(timestamp: string): string {
   const now = Date.now();
@@ -143,16 +144,15 @@ export function CommandCenter() {
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [resources, setResources] = useState<FleetResources | null>(null);
+  const [dividendStats, setDividendStats] = useState<DividendStats | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     setActivityError(null);
-    const [fleetResult, activityResult, resourcesResult] = await Promise.allSettled([
-      getFleetHealth(),
-      getActivityFeed(),
-      getFleetResources(),
-    ]);
+    const [fleetResult, activityResult, resourcesResult, dividendResult] = await Promise.allSettled(
+      [getFleetHealth(), getActivityFeed(), getFleetResources(), getDividendStats()],
+    );
     // Fleet health is load-bearing — failure blocks the dashboard
     if (fleetResult.status === "rejected") {
       const err = fleetResult.reason;
@@ -171,6 +171,8 @@ export function CommandCenter() {
     }
     // Resources are supplementary — silent null degradation
     setResources(resourcesResult.status === "fulfilled" ? resourcesResult.value : null);
+    // Dividend stats are supplementary — silent null degradation
+    setDividendStats(dividendResult.status === "fulfilled" ? dividendResult.value : null);
     setLastRefreshed(Date.now());
     setLoading(false);
   }, []);
@@ -218,7 +220,10 @@ export function CommandCenter() {
 
       {/* Fleet Summary Cards */}
       <motion.div
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className={cn(
+          "grid gap-4 sm:grid-cols-2",
+          dividendStats ? "lg:grid-cols-5" : "lg:grid-cols-4",
+        )}
         variants={staggerContainer}
         initial="hidden"
         animate="show"
@@ -328,6 +333,29 @@ export function CommandCenter() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Dividend */}
+        {dividendStats && (
+          <motion.div variants={staggerItem}>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Today&apos;s Dividend</p>
+                  <TrendingUpIcon className="size-4 text-terminal" />
+                </div>
+                <p
+                  className="mt-2 text-3xl font-bold tabular-nums text-terminal"
+                  data-testid="dividend-amount"
+                >
+                  {loading ? "--" : `$${(dividendStats.perUserCents / 100).toFixed(2)}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {dividendStats.userEligible ? "your daily share" : "join the pool to earn"}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Activity Feed */}

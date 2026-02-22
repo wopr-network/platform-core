@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CoinsIcon,
   GiftIcon,
   RotateCcwIcon,
   SlidersHorizontalIcon,
@@ -26,6 +27,7 @@ const TYPE_CONFIG: Record<CreditTransactionType, { icon: typeof ArrowUpIcon; lab
   refund: { icon: RotateCcwIcon, label: "Refund" },
   bonus: { icon: SparklesIcon, label: "Bonus" },
   adjustment: { icon: SlidersHorizontalIcon, label: "Adjustment" },
+  community_dividend: { icon: CoinsIcon, label: "Dividend" },
 };
 
 const staggerItem = {
@@ -154,7 +156,10 @@ export function TransactionHistory() {
                     custom={index}
                     onMouseEnter={() => setHoveredId(tx.id)}
                     onMouseLeave={() => setHoveredId(null)}
-                    className="rounded-md px-3 py-2 text-sm hover:bg-accent/50"
+                    className={cn(
+                      "rounded-md px-3 py-2 text-sm hover:bg-accent/50",
+                      tx.type === "community_dividend" && "bg-terminal/5 border border-terminal/10",
+                    )}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -162,7 +167,10 @@ export function TransactionHistory() {
                         <div>
                           <span className="font-medium">{tx.description}</span>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant={tx.type === "community_dividend" ? "terminal" : "outline"}
+                              className="text-xs"
+                            >
                               {config.label}
                             </Badge>
                             <span className="text-xs text-muted-foreground">
