@@ -12,6 +12,7 @@ interface StepRendererProps {
   values: Record<string, string>;
   errors: Record<string, string>;
   onChange: (key: string, value: string) => void;
+  botId?: string;
 }
 
 function renderField(
@@ -19,6 +20,7 @@ function renderField(
   value: string,
   onChange: (key: string, value: string) => void,
   error?: string,
+  botId?: string,
 ) {
   switch (field.setupFlow) {
     case "oauth":
@@ -27,7 +29,14 @@ function renderField(
       );
     case "qr":
       return (
-        <FieldQR key={field.key} field={field} value={value} onChange={onChange} error={error} />
+        <FieldQR
+          key={field.key}
+          field={field}
+          value={value}
+          onChange={onChange}
+          error={error}
+          botId={botId}
+        />
       );
     case "interactive":
       return (
@@ -46,7 +55,7 @@ function renderField(
   }
 }
 
-export function StepRenderer({ step, values, errors, onChange }: StepRendererProps) {
+export function StepRenderer({ step, values, errors, onChange, botId }: StepRendererProps) {
   const hasFields = step.fields.length > 0;
 
   return (
@@ -85,7 +94,7 @@ export function StepRenderer({ step, values, errors, onChange }: StepRendererPro
       {hasFields && (
         <div className="space-y-4">
           {step.fields.map((field) =>
-            renderField(field, values[field.key] || "", onChange, errors[field.key]),
+            renderField(field, values[field.key] || "", onChange, errors[field.key], botId),
           )}
         </div>
       )}

@@ -310,6 +310,26 @@ export async function deployInstance(payload: DeployBotPayload): Promise<Instanc
   };
 }
 
+// --- WhatsApp QR polling API ---
+
+export type WhatsAppQrStatus = "pending" | "connected" | "expired" | "no-session";
+
+export interface WhatsAppQrResponse {
+  qrPng: string | null;
+  status: WhatsAppQrStatus;
+}
+
+/** Poll the platform for the current WhatsApp QR code state for a given bot. */
+export async function pollWhatsAppQr(botId: string): Promise<WhatsAppQrResponse> {
+  const res = await fetch(`${PLATFORM_BASE_URL}/api/channels/${encodeURIComponent(botId)}/qr`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<WhatsAppQrResponse>;
+}
+
 // --- Channel API ---
 
 /** Connect a channel (plugin) to a bot instance. */
