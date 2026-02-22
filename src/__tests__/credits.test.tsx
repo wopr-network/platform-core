@@ -75,6 +75,19 @@ vi.mock("@/lib/api", async (importOriginal) => {
       if (cursor) return Promise.resolve(MOCK_HISTORY_PAGE2);
       return Promise.resolve(MOCK_HISTORY);
     }),
+    getCreditOptions: vi.fn().mockResolvedValue([
+      { priceId: "price_5", label: "$5", amountCents: 500, creditCents: 500, bonusPercent: 0 },
+      { priceId: "price_10", label: "$10", amountCents: 1000, creditCents: 1000, bonusPercent: 0 },
+      { priceId: "price_25", label: "$25", amountCents: 2500, creditCents: 2550, bonusPercent: 2 },
+      { priceId: "price_50", label: "$50", amountCents: 5000, creditCents: 5250, bonusPercent: 5 },
+      {
+        priceId: "price_100",
+        label: "$100",
+        amountCents: 10000,
+        creditCents: 11000,
+        bonusPercent: 10,
+      },
+    ]),
     createCreditCheckout: vi
       .fn()
       .mockResolvedValue({ checkoutUrl: "https://checkout.stripe.com/test" }),
@@ -105,7 +118,7 @@ describe("Credits page", () => {
     render(<CreditsPage />);
 
     expect(await screen.findByText("Buy Credits")).toBeInTheDocument();
-    expect(screen.getByText("$5")).toBeInTheDocument();
+    expect(await screen.findByText("$5")).toBeInTheDocument();
     expect(screen.getByText("$10")).toBeInTheDocument();
     expect(screen.getByText("$25")).toBeInTheDocument();
     expect(screen.getByText("$50")).toBeInTheDocument();
@@ -116,8 +129,7 @@ describe("Credits page", () => {
     const { default: CreditsPage } = await import("../app/(dashboard)/billing/credits/page");
     render(<CreditsPage />);
 
-    await screen.findByText("Buy Credits");
-    expect(screen.getByText("+2%")).toBeInTheDocument();
+    expect(await screen.findByText("+2%")).toBeInTheDocument();
     expect(screen.getByText("+5%")).toBeInTheDocument();
     expect(screen.getByText("+10%")).toBeInTheDocument();
   });
@@ -175,8 +187,7 @@ describe("Credits page", () => {
     const { default: CreditsPage } = await import("../app/(dashboard)/billing/credits/page");
     render(<CreditsPage />);
 
-    await screen.findByText("Buy Credits");
-    const tier10 = screen.getByText("$10");
+    const tier10 = await screen.findByText("$10");
     await user.click(tier10);
 
     const buyBtn = screen.getByRole("button", { name: "Buy credits" });
