@@ -212,9 +212,23 @@ vi.mock("@/lib/org-api", () => ({
   inviteMember: vi.fn().mockResolvedValue(MOCK_ORG.members[2]),
   removeMember: vi.fn().mockResolvedValue(undefined),
   transferOwnership: vi.fn().mockResolvedValue(undefined),
-  connectOauthProvider: vi.fn().mockResolvedValue(undefined),
-  disconnectOauthProvider: vi.fn().mockResolvedValue(undefined),
 }));
+
+// Mock @/lib/auth-client for OAuth account linking
+vi.mock("@/lib/auth-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth-client")>();
+  return {
+    ...actual,
+    linkSocial: vi.fn(),
+    unlinkAccount: vi.fn().mockResolvedValue({}),
+    listAccounts: vi.fn().mockResolvedValue({
+      data: [
+        { providerId: "github", accountId: "gh-123" },
+        { providerId: "google", accountId: "goog-456" },
+      ],
+    }),
+  };
+});
 
 describe("Profile page", () => {
   it("renders profile heading and form fields", async () => {

@@ -21,11 +21,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UserProfile } from "@/lib/api";
 import { changePassword, deleteAccount, getProfile, updateProfile } from "@/lib/api";
-import { connectOauthProvider, disconnectOauthProvider } from "@/lib/org-api";
+import { linkSocial, listAccounts, unlinkAccount } from "@/lib/auth-client";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectedProviders, setConnectedProviders] = useState<Set<string>>(new Set());
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,6 +59,17 @@ export default function ProfilePage() {
     setProfile(p);
     setName(p.name);
     setEmail(p.email);
+    try {
+      const accounts = await listAccounts();
+      const providers = new Set(
+        (accounts.data ?? []).map((a: { providerId: string }) => a.providerId),
+      );
+      setConnectedProviders(providers);
+    } catch {
+      setConnectedProviders(
+        new Set(p.oauthConnections.filter((c) => c.connected).map((c) => c.provider)),
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -104,13 +116,19 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleOauthToggle(provider: string, connected: boolean) {
-    if (connected) {
-      await disconnectOauthProvider(provider);
-    } else {
-      await connectOauthProvider(provider);
+  async function handleOauthConnect(provider: string) {
+    await linkSocial({
+      provider,
+      callbackURL: "/settings/profile",
+    });
+  }
+
+  async function handleOauthDisconnect(provider: string) {
+    try {
+      await unlinkAccount({ providerId: provider });
+    } finally {
+      await load();
     }
-    await load();
   }
 
   async function handleDelete() {
@@ -301,18 +319,23 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {profile.oauthConnections.map((conn) => (
-              <div key={conn.provider} className="flex items-center justify-between">
-                <span className="text-sm font-medium capitalize">{conn.provider}</span>
-                <Button
-                  variant={conn.connected ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => handleOauthToggle(conn.provider, conn.connected)}
-                >
-                  {conn.connected ? "Disconnect" : "Connect"}
-                </Button>
-              </div>
-            ))}
+            {["github", "discord", "google"].map((provider) => {
+              const connected = connectedProviders.has(provider);
+              return (
+                <div key={provider} className="flex items-center justify-between">
+                  <span className="text-sm font-medium capitalize">{provider}</span>
+                  <Button
+                    variant={connected ? "outline" : "default"}
+                    size="sm"
+                    onClick={() =>
+                      connected ? handleOauthDisconnect(provider) : handleOauthConnect(provider)
+                    }
+                  >
+                    {connected ? "Disconnect" : "Connect"}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

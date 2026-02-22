@@ -14,8 +14,6 @@ interface OrgProcedures {
   inviteMember: { mutate(input: { email: string; role: string }): Promise<OrgMember> };
   removeMember: { mutate(input: { memberId: string }): Promise<void> };
   transferOwnership: { mutate(input: { memberId: string }): Promise<void> };
-  connectOauthProvider: { mutate(input: { provider: string }): Promise<void> };
-  disconnectOauthProvider: { mutate(input: { provider: string }): Promise<void> };
 }
 
 // Cast via unknown to avoid @typescript/no-explicit-any while bridging the
@@ -44,12 +42,4 @@ export async function removeMember(memberId: string): Promise<void> {
 
 export async function transferOwnership(memberId: string): Promise<void> {
   await orgClient.transferOwnership.mutate({ memberId });
-}
-
-export async function connectOauthProvider(provider: string): Promise<void> {
-  await orgClient.connectOauthProvider.mutate({ provider });
-}
-
-export async function disconnectOauthProvider(provider: string): Promise<void> {
-  await orgClient.disconnectOauthProvider.mutate({ provider });
 }
