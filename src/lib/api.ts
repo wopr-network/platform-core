@@ -833,6 +833,14 @@ export interface BillingInfo {
   invoices: Invoice[];
 }
 
+export interface CreditOption {
+  priceId: string;
+  label: string;
+  amountCents: number;
+  creditCents: number;
+  bonusPercent: number;
+}
+
 // --- Billing client (typed stub until @wopr-network/sdk ships) ---
 
 interface BillingProcedures {
@@ -879,6 +887,9 @@ interface BillingProcedures {
   };
   inferenceMode: { query(input?: Record<never, never>): Promise<{ mode: InferenceMode }> };
   updateSpendingLimits: { mutate(input: SpendingLimits): Promise<SpendingLimits> };
+  creditOptions: {
+    query(input?: Record<never, never>): Promise<CreditOption[]>;
+  };
   spendingLimits: { query(input?: Record<never, never>): Promise<SpendingLimits> };
   hostedUsageSummary: { query(input?: Record<never, never>): Promise<HostedUsageSummary> };
   hostedUsageEvents: {
@@ -1051,9 +1062,13 @@ export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryR
   };
 }
 
-export async function createCreditCheckout(amount: number): Promise<CheckoutResponse> {
+export async function getCreditOptions(): Promise<CreditOption[]> {
+  return billingClient.creditOptions.query();
+}
+
+export async function createCreditCheckout(priceId: string): Promise<CheckoutResponse> {
   const res = await billingClient.creditsCheckout.mutate({
-    priceId: `credit_${amount}`, // NOTE(WOP-687): map amount to real Stripe price IDs
+    priceId,
     successUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=success`,
     cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
   });
