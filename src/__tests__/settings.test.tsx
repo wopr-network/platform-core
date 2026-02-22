@@ -1,8 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type {
+  BillingInfo,
   BillingUsage,
   CapabilitySetting,
+  CreditBalance,
   Organization,
   PlatformApiKey,
   ProviderKey,
@@ -202,6 +205,25 @@ vi.mock("@/lib/api", async (importOriginal) => {
       updatedAt: null,
     }),
     deleteTenantKey: vi.fn().mockResolvedValue(undefined),
+    getBillingInfo: vi.fn().mockResolvedValue({
+      email: "billing@acme.com",
+      paymentMethods: [
+        {
+          id: "pm-1",
+          brand: "Visa",
+          last4: "4242",
+          expiryMonth: 12,
+          expiryYear: 2027,
+          isDefault: true,
+        },
+      ],
+      invoices: [],
+    } satisfies BillingInfo),
+    getCreditBalance: vi.fn().mockResolvedValue({
+      balance: 5.0,
+      dailyBurn: 0.33,
+      runway: 15,
+    } satisfies CreditBalance),
   };
 });
 
@@ -375,6 +397,83 @@ describe("Providers page", () => {
     render(<ProvidersPage />);
 
     expect(await screen.findByRole("button", { name: "Add key" })).toBeInTheDocument();
+  });
+});
+
+describe("Providers page - billing gate", () => {
+  it("shows Enable Hosted button when user has payment method", async () => {
+    const user = userEvent.setup();
+    const { default: ProvidersPage } = await import("../app/(dashboard)/settings/providers/page");
+    render(<ProvidersPage />);
+
+    // Wait for capabilities to load
+    await screen.findByText("Transcription");
+
+    // text-gen is in byok mode, click hosted radio to trigger billing gate
+    const textGenCard = screen.getByTestId("capability-text-gen");
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    await user.click(hostedRadio);
+
+    // Dialog opens — wait for billing check to complete
+    expect(await screen.findByText(/Enable WOPR Hosted for Text Generation/)).toBeInTheDocument();
+    // With a payment method on file, the Enable Hosted button should appear
+    expect(await screen.findByRole("button", { name: "Enable Hosted" })).toBeInTheDocument();
+  });
+
+  it("blocks activation and shows add payment prompt when no payment method or credits", async () => {
+    const api = await import("@/lib/api");
+    vi.mocked(api.getBillingInfo).mockResolvedValueOnce({
+      email: "billing@acme.com",
+      paymentMethods: [],
+      invoices: [],
+    });
+    vi.mocked(api.getCreditBalance).mockResolvedValueOnce({
+      balance: 0,
+      dailyBurn: 0,
+      runway: null,
+    });
+
+    const user = userEvent.setup();
+    const { default: ProvidersPage } = await import("../app/(dashboard)/settings/providers/page");
+    render(<ProvidersPage />);
+
+    await screen.findByText("Transcription");
+
+    const textGenCard = screen.getByTestId("capability-text-gen");
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    await user.click(hostedRadio);
+
+    // Dialog opens — should show payment required message instead of Enable Hosted button
+    expect(await screen.findByText(/payment method required/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enable Hosted" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add payment method" })).toBeInTheDocument();
+  });
+
+  it("allows activation when user has credit balance but no payment method", async () => {
+    const api = await import("@/lib/api");
+    vi.mocked(api.getBillingInfo).mockResolvedValueOnce({
+      email: "billing@acme.com",
+      paymentMethods: [],
+      invoices: [],
+    });
+    vi.mocked(api.getCreditBalance).mockResolvedValueOnce({
+      balance: 5.0,
+      dailyBurn: 0.33,
+      runway: 15,
+    });
+
+    const user = userEvent.setup();
+    const { default: ProvidersPage } = await import("../app/(dashboard)/settings/providers/page");
+    render(<ProvidersPage />);
+
+    await screen.findByText("Transcription");
+
+    const textGenCard = screen.getByTestId("capability-text-gen");
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    await user.click(hostedRadio);
+
+    // Has credit balance, so Enable Hosted should be available
+    expect(await screen.findByRole("button", { name: "Enable Hosted" })).toBeInTheDocument();
   });
 });
 
