@@ -27,6 +27,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectedProviders, setConnectedProviders] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,22 +57,28 @@ export default function ProfilePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const p = await getProfile();
-    setProfile(p);
-    setName(p.name);
-    setEmail(p.email);
+    setLoadError(false);
     try {
-      const accounts = await listAccounts();
-      const providers = new Set(
-        (accounts.data ?? []).map((a: { providerId: string }) => a.providerId),
-      );
-      setConnectedProviders(providers);
+      const p = await getProfile();
+      setProfile(p);
+      setName(p.name);
+      setEmail(p.email);
+      try {
+        const accounts = await listAccounts();
+        const providers = new Set(
+          (accounts.data ?? []).map((a: { providerId: string }) => a.providerId),
+        );
+        setConnectedProviders(providers);
+      } catch {
+        setConnectedProviders(
+          new Set(p.oauthConnections.filter((c) => c.connected).map((c) => c.provider)),
+        );
+      }
     } catch {
-      setConnectedProviders(
-        new Set(p.oauthConnections.filter((c) => c.connected).map((c) => c.provider)),
-      );
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -81,12 +89,18 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     setSaveMsg(null);
-    const updated = await updateProfile({ name, email });
-    setProfile(updated);
-    setSaveMsg("Profile updated.");
-    setSaving(false);
-    setSaveSuccess(true);
-    saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
+    setError(null);
+    try {
+      const updated = await updateProfile({ name, email });
+      setProfile(updated);
+      setSaveMsg("Profile updated.");
+      setSaveSuccess(true);
+      saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
+    } catch {
+      setError("Failed to update profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleChangePassword(e: FormEvent) {
@@ -117,23 +131,47 @@ export default function ProfilePage() {
   }
 
   async function handleOauthConnect(provider: string) {
-    await linkSocial({
-      provider,
-      callbackURL: "/settings/profile",
-    });
+    setError(null);
+    try {
+      await linkSocial({
+        provider,
+        callbackURL: "/settings/profile",
+      });
+    } catch {
+      setError(`Failed to connect ${provider}. Please try again.`);
+    }
   }
 
   async function handleOauthDisconnect(provider: string) {
+    setError(null);
     try {
       await unlinkAccount({ providerId: provider });
+    } catch {
+      setError(`Failed to disconnect ${provider}. Please try again.`);
     } finally {
       await load();
     }
   }
 
   async function handleDelete() {
-    await deleteAccount();
-    window.location.href = "/login";
+    setError(null);
+    try {
+      await deleteAccount();
+      window.location.href = "/login";
+    } catch {
+      setError("Failed to delete account. Please try again.");
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">Failed to load profile.</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   if (loading || !profile) {
@@ -164,6 +202,19 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
         <p className="text-sm text-muted-foreground">Manage your account settings</p>
       </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Card>
         <CardHeader>

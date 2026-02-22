@@ -53,6 +53,8 @@ function roleBadgeVariant(role: OrgMember["role"]) {
 export default function OrgPage() {
   const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [orgName, setOrgName] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
@@ -69,11 +71,17 @@ export default function OrgPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await getOrganization();
-    setOrg(data);
-    setOrgName(data.name);
-    setBillingEmail(data.billingEmail);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const data = await getOrganization();
+      setOrg(data);
+      setOrgName(data.name);
+      setBillingEmail(data.billingEmail);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -84,24 +92,51 @@ export default function OrgPage() {
     e.preventDefault();
     setSaving(true);
     setSaveMsg(null);
-    const updated = await updateOrganization({ name: orgName, billingEmail });
-    setOrg(updated);
-    setSaveMsg("Organization updated.");
-    setSaving(false);
-    setSaveSuccess(true);
-    saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
+    setSaveError(null);
+    try {
+      const updated = await updateOrganization({ name: orgName, billingEmail });
+      setOrg(updated);
+      setSaveMsg("Organization updated.");
+      setSaveSuccess(true);
+      saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
+    } catch {
+      setSaveError("Failed to update organization. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleRemove(memberId: string) {
-    await removeMember(memberId);
-    if (org) {
-      setOrg({ ...org, members: org.members.filter((m) => m.id !== memberId) });
+    if (!org) return;
+    const previousMembers = org.members;
+    setOrg({ ...org, members: org.members.filter((m) => m.id !== memberId) });
+    try {
+      await removeMember(memberId);
+    } catch {
+      setOrg({ ...org, members: previousMembers });
+      setSaveError("Failed to remove member. Please try again.");
     }
   }
 
   async function handleTransfer(memberId: string) {
-    await transferOwnership(memberId);
-    await load();
+    setSaveError(null);
+    try {
+      await transferOwnership(memberId);
+      await load();
+    } catch {
+      setSaveError("Failed to transfer ownership. Please try again.");
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">Failed to load organization.</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   if (loading || !org) {
@@ -145,6 +180,19 @@ export default function OrgPage() {
         <h1 className="text-2xl font-bold tracking-tight">Organization</h1>
         <p className="text-sm text-muted-foreground">Manage your organization settings and team</p>
       </div>
+
+      <AnimatePresence>
+        {saveError && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {saveError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Card>
         <CardHeader>
@@ -300,18 +348,30 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("viewer");
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    await inviteMember(email, role);
-    setEmail("");
-    setRole("viewer");
-    setOpen(false);
-    onInvited();
+    setInviteError(null);
+    try {
+      await inviteMember(email, role);
+      setEmail("");
+      setRole("viewer");
+      setOpen(false);
+      onInvited();
+    } catch {
+      setInviteError("Failed to send invitation. Please try again.");
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setInviteError(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="terminal">Invite member</Button>
       </DialogTrigger>
@@ -344,6 +404,7 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
               </SelectContent>
             </Select>
           </div>
+          {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button">

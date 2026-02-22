@@ -108,6 +108,8 @@ export default function ProvidersPage() {
   const [capabilities, setCapabilities] = useState<CapabilitySetting[]>([]);
   const [providers, setProviders] = useState<ProviderKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, "success" | "fail" | null>>({});
   const [testingCap, setTestingCap] = useState<CapabilityName | null>(null);
@@ -134,10 +136,16 @@ export default function ProvidersPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [caps, provs] = await Promise.all([listCapabilities(), listProviderKeys()]);
-    setCapabilities(caps);
-    setProviders(provs);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const [caps, provs] = await Promise.all([listCapabilities(), listProviderKeys()]);
+      setCapabilities(caps);
+      setProviders(provs);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -150,32 +158,50 @@ export default function ProvidersPage() {
       return;
     }
     setSavingCap(capability);
-    const updated = await updateCapability(capability, { mode });
-    setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
-    setSavingCap(null);
+    setError(null);
+    try {
+      const updated = await updateCapability(capability, { mode });
+      setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
+    } catch {
+      setError("Failed to change capability mode. Please try again.");
+    } finally {
+      setSavingCap(null);
+    }
   }
 
   async function handleHostedConfirm(capability: CapabilityName) {
     setSavingCap(capability);
     setBillingGate(null);
-    const updated = await updateCapability(capability, { mode: "hosted" });
-    setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
-    setSavingCap(null);
+    setError(null);
+    try {
+      const updated = await updateCapability(capability, { mode: "hosted" });
+      setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
+    } catch {
+      setError("Failed to enable hosted mode. Please try again.");
+    } finally {
+      setSavingCap(null);
+    }
   }
 
   async function handleSaveByokKey(capability: CapabilityName) {
     const key = byokKeys[capability];
     if (!key) return;
     setSavingCap(capability);
-    const updated = await updateCapability(capability, { mode: "byok", key });
-    setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
-    setByokKeys((prev) => ({ ...prev, [capability]: "" }));
-    setSavingCap(null);
-    setSaveCapSuccess((prev) => ({ ...prev, [capability]: true }));
-    saveCapSuccessTimer.current = setTimeout(
-      () => setSaveCapSuccess((prev) => ({ ...prev, [capability]: false })),
-      2000,
-    );
+    setError(null);
+    try {
+      const updated = await updateCapability(capability, { mode: "byok", key });
+      setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
+      setByokKeys((prev) => ({ ...prev, [capability]: "" }));
+      setSaveCapSuccess((prev) => ({ ...prev, [capability]: true }));
+      saveCapSuccessTimer.current = setTimeout(
+        () => setSaveCapSuccess((prev) => ({ ...prev, [capability]: false })),
+        2000,
+      );
+    } catch {
+      setError("Failed to save API key. Please check the key and try again.");
+    } finally {
+      setSavingCap(null);
+    }
   }
 
   async function handleTestCapability(capability: CapabilityName) {
@@ -222,13 +248,25 @@ export default function ProvidersPage() {
   }
 
   async function handleRemove(id: string, providerName: string) {
-    await removeProviderKey(id, providerName);
+    const previousProviders = providers;
     setProviders((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await removeProviderKey(id, providerName);
+    } catch {
+      setProviders(previousProviders);
+      setError("Failed to remove provider key. Please try again.");
+    }
   }
 
   async function handleModelChange(id: string, model: string) {
-    await updateProviderModel(id, model);
+    const previousProviders = providers;
     setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, defaultModel: model } : p)));
+    try {
+      await updateProviderModel(id, model);
+    } catch {
+      setProviders(previousProviders);
+      setError("Failed to update model. Please try again.");
+    }
   }
 
   if (loading) {
@@ -251,6 +289,17 @@ export default function ProvidersPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">Failed to load provider settings.</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl space-y-8">
       {/* Capability routing section */}
@@ -261,6 +310,19 @@ export default function ProvidersPage() {
           immediately.
         </p>
       </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {CAPABILITY_ORDER.map((capName) => {
         const cap = capabilities.find((c) => c.capability === capName);
@@ -615,17 +677,29 @@ function BillingGateDialog({
 function AddKeyDialog({ provider, onSaved }: { provider: ProviderKey; onSaved: () => void }) {
   const [key, setKey] = useState("");
   const [open, setOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    await saveProviderKey(provider.provider, key);
-    setKey("");
-    setOpen(false);
-    onSaved();
+    setSubmitError(null);
+    try {
+      await saveProviderKey(provider.provider, key);
+      setKey("");
+      setOpen(false);
+      onSaved();
+    } catch {
+      setSubmitError("Failed to save key. Please check and try again.");
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setSubmitError(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button>Add key</Button>
       </DialogTrigger>
@@ -648,6 +722,7 @@ function AddKeyDialog({ provider, onSaved }: { provider: ProviderKey; onSaved: (
               required
             />
           </div>
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button">
@@ -665,17 +740,29 @@ function AddKeyDialog({ provider, onSaved }: { provider: ProviderKey; onSaved: (
 function RotateKeyDialog({ provider, onSaved }: { provider: ProviderKey; onSaved: () => void }) {
   const [key, setKey] = useState("");
   const [open, setOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    await saveProviderKey(provider.provider, key);
-    setKey("");
-    setOpen(false);
-    onSaved();
+    setSubmitError(null);
+    try {
+      await saveProviderKey(provider.provider, key);
+      setKey("");
+      setOpen(false);
+      onSaved();
+    } catch {
+      setSubmitError("Failed to replace key. Please check and try again.");
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setSubmitError(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           Rotate key
@@ -700,6 +787,7 @@ function RotateKeyDialog({ provider, onSaved }: { provider: ProviderKey; onSaved
               required
             />
           </div>
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button">

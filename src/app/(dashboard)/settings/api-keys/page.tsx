@@ -50,14 +50,22 @@ function formatDate(iso: string | null): string {
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<PlatformApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await listApiKeys();
-    setKeys(data);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const data = await listApiKeys();
+      setKeys(data);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -65,8 +73,14 @@ export default function ApiKeysPage() {
   }, [load]);
 
   async function handleRevoke(id: string) {
-    await revokeApiKey(id);
+    const previousKeys = keys;
     setKeys((prev) => prev.filter((k) => k.id !== id));
+    try {
+      await revokeApiKey(id);
+    } catch {
+      setKeys(previousKeys);
+      setError("Failed to revoke API key. Please try again.");
+    }
   }
 
   async function handleCopy() {
@@ -75,6 +89,25 @@ export default function ApiKeysPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">API Keys</h1>
+          <p className="text-sm text-muted-foreground">
+            Generate and manage platform API keys for programmatic access
+          </p>
+        </div>
+        <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+          <p className="text-sm text-destructive">Failed to load API keys.</p>
+          <Button variant="outline" size="sm" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -93,6 +126,19 @@ export default function ApiKeysPage() {
           }}
         />
       </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {newSecret && (
@@ -240,19 +286,31 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
   const [name, setName] = useState("");
   const [scope, setScope] = useState("full");
   const [expiration, setExpiration] = useState("90");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const { secret } = await createApiKey({ name, scope, expiration });
-    setName("");
-    setScope("full");
-    setExpiration("90");
-    setOpen(false);
-    onCreated(secret);
+    setSubmitError(null);
+    try {
+      const { secret } = await createApiKey({ name, scope, expiration });
+      setName("");
+      setScope("full");
+      setExpiration("90");
+      setOpen(false);
+      onCreated(secret);
+    } catch {
+      setSubmitError("Failed to create API key. Please try again.");
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setSubmitError(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="terminal">Generate new key</Button>
       </DialogTrigger>
@@ -301,6 +359,7 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
               </SelectContent>
             </Select>
           </div>
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button">
