@@ -13,6 +13,7 @@ const billingNav = [
   { label: "Usage", href: "/billing/usage", hostedOnly: false },
   { label: "Hosted Usage", href: "/billing/usage/hosted", hostedOnly: true },
   { label: "Payment", href: "/billing/payment", hostedOnly: false },
+  { label: "Refer & Earn", href: "/billing/referrals", hostedOnly: false },
 ];
 
 export default function BillingLayout({
