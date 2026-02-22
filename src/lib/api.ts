@@ -850,7 +850,12 @@ interface BillingProcedures {
     mutate(input: { tenant?: string; returnUrl: string }): Promise<{ url: string }>;
   };
   creditsBalance: {
-    query(input: { tenant?: string }): Promise<{ tenant: string; balance_cents: number }>;
+    query(input: { tenant?: string }): Promise<{
+      tenant: string;
+      balance_cents: number;
+      daily_burn_cents: number;
+      runway_days: number | null;
+    }>;
   };
   creditsHistory: {
     query(input: {
@@ -1031,8 +1036,8 @@ export async function getCreditBalance(): Promise<CreditBalance> {
   const res = await billingClient.creditsBalance.query({});
   return {
     balance: res.balance_cents / 100,
-    dailyBurn: 0, // NOTE(WOP-687): backend doesn't provide dailyBurn yet
-    runway: null, // NOTE(WOP-687): backend doesn't provide runway yet
+    dailyBurn: res.daily_burn_cents / 100,
+    runway: res.runway_days ?? null,
   };
 }
 
