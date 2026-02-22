@@ -20,9 +20,10 @@ interface WizardProps {
   onComplete: (values: Record<string, string>) => void;
   onCancel: () => void;
   submitting?: boolean;
+  botId?: string;
 }
 
-export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardProps) {
+export function Wizard({ manifest, onComplete, onCancel, submitting, botId }: WizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -138,7 +139,13 @@ export function Wizard({ manifest, onComplete, onCancel, submitting }: WizardPro
       </CardHeader>
 
       <CardContent>
-        <StepRenderer step={step} values={values} errors={errors} onChange={handleChange} />
+        <StepRenderer
+          step={step}
+          values={values}
+          errors={errors}
+          onChange={handleChange}
+          botId={botId}
+        />
 
         {manifest.connectionTest && isLastStep && (
           <div className="mt-6 flex flex-col items-center gap-2">

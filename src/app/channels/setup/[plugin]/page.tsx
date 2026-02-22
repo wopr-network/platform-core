@@ -80,6 +80,7 @@ export default function ChannelSetupPage({ params }: { params: Promise<{ plugin:
           onComplete={handleComplete}
           onCancel={handleCancel}
           submitting={submitting}
+          botId={botId ?? undefined}
         />
       </div>
     </div>

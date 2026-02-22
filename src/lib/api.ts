@@ -310,6 +310,26 @@ export async function deployInstance(payload: DeployBotPayload): Promise<Instanc
   };
 }
 
+// --- Channel QR polling API ---
+
+export type ChannelQrStatus = "pending" | "connected" | "expired" | "no-session";
+
+export interface ChannelQrResponse {
+  qrPng: string | null;
+  status: ChannelQrStatus;
+}
+
+/** Poll the platform for the current QR code state for a given bot instance. */
+export async function pollChannelQr(botId: string): Promise<ChannelQrResponse> {
+  const res = await fetch(`${PLATFORM_BASE_URL}/api/channels/${encodeURIComponent(botId)}/qr`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<ChannelQrResponse>;
+}
+
 // --- Channel API ---
 
 /** Connect a channel (plugin) to a bot instance. */
