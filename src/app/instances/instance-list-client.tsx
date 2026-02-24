@@ -5,6 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -38,6 +46,9 @@ export function InstanceListClient() {
   const [statusFilter, setStatusFilter] = useState<InstanceStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [destroyTarget, setDestroyTarget] = useState<Instance | null>(null);
+  const [destroyConfirmText, setDestroyConfirmText] = useState("");
+  const [destroying, setDestroying] = useState(false);
 
   const loadInstances = useCallback(async () => {
     setLoading(true);
@@ -258,7 +269,7 @@ export function InstanceListClient() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                          onClick={() => handleAction(inst.id, "destroy")}
+                          onClick={() => setDestroyTarget(inst)}
                         >
                           Destroy
                         </DropdownMenuItem>
@@ -271,6 +282,72 @@ export function InstanceListClient() {
           </Table>
         </div>
       )}
+
+      {/* Destroy confirmation dialog */}
+      <Dialog
+        open={destroyTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDestroyTarget(null);
+            setDestroyConfirmText("");
+            setActionError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Destroy {destroyTarget?.name} permanently?</DialogTitle>
+            <DialogDescription>
+              This action is permanent and cannot be undone. The instance and all its data will be
+              destroyed. Type <strong className="text-foreground">{destroyTarget?.name}</strong> to
+              confirm.
+            </DialogDescription>
+          </DialogHeader>
+
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+
+          <Input
+            autoFocus
+            placeholder={`Type "${destroyTarget?.name}" to confirm`}
+            value={destroyConfirmText}
+            onChange={(e) => setDestroyConfirmText(e.target.value)}
+          />
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDestroyTarget(null);
+                setDestroyConfirmText("");
+                setActionError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={destroying || destroyConfirmText !== destroyTarget?.name}
+              onClick={async () => {
+                if (!destroyTarget) return;
+                setDestroying(true);
+                setActionError(null);
+                try {
+                  await controlInstance(destroyTarget.id, "destroy");
+                  setDestroyTarget(null);
+                  setDestroyConfirmText("");
+                  await loadInstances();
+                } catch (err) {
+                  setActionError(err instanceof Error ? err.message : "Failed to destroy instance");
+                } finally {
+                  setDestroying(false);
+                }
+              }}
+            >
+              {destroying ? "Destroying..." : "Destroy permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
