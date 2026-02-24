@@ -186,7 +186,7 @@ describe("InstanceDetailClient", () => {
     const { updateInstanceConfig } = await import("@/lib/api");
     expect(updateInstanceConfig).toHaveBeenCalledWith("inst-001", {
       model: "claude-sonnet-4-5-20250514",
-      maxTokens: 4096,
+      maxTokens: "4096",
     });
   });
 
@@ -208,6 +208,7 @@ describe("InstanceDetailClient", () => {
   it("shows snapshot list when Snapshots tab is clicked", async () => {
     const user = userEvent.setup();
     render(<InstanceDetailClient instanceId="inst-001" />);
+
     await waitFor(() => {
       expect(screen.getByText("test-instance")).toBeInTheDocument();
     });
@@ -226,6 +227,7 @@ describe("InstanceDetailClient", () => {
   it("shows Create Snapshot button in Snapshots tab", async () => {
     const user = userEvent.setup();
     render(<InstanceDetailClient instanceId="inst-001" />);
+
     await waitFor(() => {
       expect(screen.getByText("test-instance")).toBeInTheDocument();
     });
@@ -241,6 +243,7 @@ describe("InstanceDetailClient", () => {
     const user = userEvent.setup();
     const { createSnapshot } = await import("@/lib/api");
     render(<InstanceDetailClient instanceId="inst-001" />);
+
     await waitFor(() => {
       expect(screen.getByText("test-instance")).toBeInTheDocument();
     });

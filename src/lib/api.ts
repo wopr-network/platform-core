@@ -264,7 +264,7 @@ export async function getInstance(id: string): Promise<InstanceDetail> {
     plugins: [],
     uptime: Number.isNaN(uptimeMs) ? null : Math.floor((Date.now() - uptimeMs) / 1000),
     createdAt: (bot.createdAt as string | undefined) ?? new Date().toISOString(),
-    config: {},
+    config: bot.env ?? {},
     channelDetails: [],
     sessions: [],
     resourceUsage: {
@@ -392,13 +392,11 @@ export async function controlInstance(
   await (trpcVanilla as unknown as FleetClient).fleet.controlInstance.mutate({ id, action });
 }
 
-export async function updateInstanceConfig(
-  id: string,
-  config: Record<string, unknown>,
-): Promise<void> {
-  await fleetFetch(`/bots/${id}/config`, {
-    method: "PUT",
-    body: JSON.stringify({ config }),
+/** PATCH /fleet/bots/:id — Update bot env config. */
+export async function updateInstanceConfig(id: string, env: Record<string, string>): Promise<void> {
+  await fleetFetch(`/bots/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ env }),
   });
 }
 

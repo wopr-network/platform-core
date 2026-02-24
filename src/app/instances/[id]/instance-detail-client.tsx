@@ -51,7 +51,8 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [configText, setConfigText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-  const [configStatus, setConfigStatus] = useState<"idle" | "saved" | "invalid">("idle");
+  const [configStatus, setConfigStatus] = useState<"idle" | "saved" | "invalid" | "error">("idle");
+  const [configError, setConfigError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
@@ -585,34 +586,55 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             </div>
           </div>
           <div className="flex items-center justify-end gap-3">
-            {configStatus === "saved" && (
-              <span className="text-sm text-emerald-500">Config saved successfully</span>
+            {saving && <span className="text-sm text-muted-foreground">Saving...</span>}
+            {configStatus === "saved" && !saving && (
+              <span className="text-sm text-emerald-500">Config saved</span>
             )}
             {configStatus === "invalid" && (
               <span className="text-sm text-red-500">Invalid JSON</span>
             )}
+            {configStatus === "error" && configError && (
+              <span className="text-sm text-red-500">{configError}</span>
+            )}
             <Button
+              disabled={saving}
               onClick={async () => {
+                setConfigError(null);
+                let parsed: unknown;
                 try {
-                  const parsed = JSON.parse(configText);
-                  setSaving(true);
-                  setConfigStatus("idle");
-                  await updateInstanceConfig(instanceId, parsed);
-                  setConfigStatus("saved");
-                  await load();
-                } catch (err) {
-                  if (err instanceof SyntaxError) {
-                    setConfigStatus("invalid");
-                  } else {
-                    setActionError(err instanceof Error ? err.message : "Failed to save config");
+                  parsed = JSON.parse(configText);
+                } catch {
+                  setConfigStatus("invalid");
+                  return;
+                }
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+                  setConfigStatus("invalid");
+                  return;
+                }
+                setConfigStatus("idle");
+                setSaving(true);
+                try {
+                  const env: Record<string, string> = {};
+                  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+                    if (
+                      v === null ||
+                      (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean")
+                    ) {
+                      throw new Error(`Value for key "${k}" must be a string, number, or boolean`);
+                    }
+                    env[k] = String(v);
                   }
+                  await updateInstanceConfig(instanceId, env);
+                  setConfigStatus("saved");
+                } catch (err) {
+                  setConfigStatus("error");
+                  setConfigError(err instanceof Error ? err.message : "Failed to save config");
                 } finally {
                   setSaving(false);
                 }
               }}
-              disabled={saving}
             >
-              Save Config
+              {saving ? "Saving..." : "Save Config"}
             </Button>
           </div>
         </TabsContent>
