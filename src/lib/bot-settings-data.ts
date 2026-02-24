@@ -168,6 +168,41 @@ export async function activateSuperpower(
   );
 }
 
+// --- Storage tier types ---
+
+export interface StorageTierInfo {
+  key: string;
+  label: string;
+  storageLimitGb: number;
+  dailyCostCents: number;
+  description: string;
+}
+
+export interface StorageUsage {
+  usedBytes: number;
+  totalBytes: number;
+  availableBytes: number;
+}
+
+export async function getStorageTier(botId: string): Promise<{ tier: string }> {
+  return apiFetch<{ tier: string }>(`/fleet/bots/${botId}/storage-tier`);
+}
+
+export async function setStorageTier(botId: string, tier: string): Promise<{ tier: string }> {
+  return apiFetch<{ tier: string }>(`/fleet/bots/${botId}/storage-tier`, {
+    method: "PUT",
+    body: JSON.stringify({ tier }),
+  });
+}
+
+export async function getStorageUsage(botId: string): Promise<StorageUsage | null> {
+  try {
+    return await apiFetch<StorageUsage>(`/fleet/bots/${botId}/storage-usage`);
+  } catch {
+    return null;
+  }
+}
+
 export async function controlBot(
   botId: string,
   action: "stop" | "archive" | "delete",
