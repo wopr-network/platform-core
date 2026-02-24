@@ -10,6 +10,14 @@ import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -23,8 +31,16 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { InstanceDetail, InstanceStatus } from "@/lib/api";
-import { controlInstance, getInstance, updateInstanceConfig } from "@/lib/api";
+import type { InstanceDetail, InstanceStatus, Snapshot } from "@/lib/api";
+import {
+  controlInstance,
+  createSnapshot,
+  deleteSnapshot,
+  getInstance,
+  listSnapshots,
+  restoreSnapshot,
+  updateInstanceConfig,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
@@ -37,6 +53,14 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [configStatus, setConfigStatus] = useState<"idle" | "saved" | "invalid">("idle");
   const [saving, setSaving] = useState(false);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [snapshotsError, setSnapshotsError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState<Snapshot | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Snapshot | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,9 +76,23 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
     }
   }, [instanceId]);
 
+  const loadSnapshots = useCallback(async () => {
+    setSnapshotsLoading(true);
+    setSnapshotsError(null);
+    try {
+      const data = await listSnapshots(instanceId);
+      setSnapshots(data);
+    } catch (err) {
+      setSnapshotsError(err instanceof Error ? err.message : "Failed to load snapshots");
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  }, [instanceId]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadSnapshots();
+  }, [load, loadSnapshots]);
 
   async function handleAction(action: "start" | "stop" | "restart" | "destroy") {
     setActionError(null);
@@ -63,6 +101,46 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       await load();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : `Failed to ${action} instance`);
+    }
+  }
+
+  async function handleCreateSnapshot() {
+    setCreating(true);
+    try {
+      await createSnapshot(instanceId);
+      await loadSnapshots();
+    } catch (err) {
+      setSnapshotsError(err instanceof Error ? err.message : "Failed to create snapshot");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRestore(snapshot: Snapshot) {
+    setRestoring(true);
+    try {
+      await restoreSnapshot(instanceId, snapshot.id);
+      setConfirmRestore(null);
+      await load();
+    } catch (err) {
+      setSnapshotsError(err instanceof Error ? err.message : "Failed to restore snapshot");
+      setConfirmRestore(null);
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  async function handleDelete(snapshot: Snapshot) {
+    setDeleting(true);
+    try {
+      await deleteSnapshot(instanceId, snapshot.id);
+      setConfirmDelete(null);
+      await loadSnapshots();
+    } catch (err) {
+      setSnapshotsError(err instanceof Error ? err.message : "Failed to delete snapshot");
+      setConfirmDelete(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -176,6 +254,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             "plugins",
             "channels",
             "sessions",
+            "snapshots",
             "config",
           ].map((tab) => (
             <TabsTrigger
@@ -332,6 +411,146 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* Snapshots Tab */}
+        <TabsContent value="snapshots" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {snapshots.length} snapshot{snapshots.length !== 1 ? "s" : ""}
+            </h3>
+            <Button size="sm" onClick={handleCreateSnapshot} disabled={creating}>
+              {creating ? "Creating..." : "Create Snapshot"}
+            </Button>
+          </div>
+
+          {snapshotsError && (
+            <div className="rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+              {snapshotsError}
+            </div>
+          )}
+
+          {snapshotsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }, (_, i) => `snap-sk-${i}`).map((skId) => (
+                <Skeleton key={skId} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : snapshots.length === 0 ? (
+            <p className="text-muted-foreground">No snapshots yet.</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Trigger</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {snapshots.map((snap) => (
+                    <TableRow
+                      key={snap.id}
+                      className="transition-colors hover:bg-muted/50 even:bg-muted/20"
+                    >
+                      <TableCell className="font-medium">
+                        {snap.name ?? <span className="text-muted-foreground italic">unnamed</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{snap.type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{snap.trigger}</TableCell>
+                      <TableCell className="text-muted-foreground">{snap.sizeMb} MB</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(snap.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirmRestore(snap)}
+                          >
+                            Restore
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setConfirmDelete(snap)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Restore confirmation dialog */}
+          <Dialog open={!!confirmRestore} onOpenChange={(open) => !open && setConfirmRestore(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Restore Snapshot</DialogTitle>
+                <DialogDescription>This will restart your bot from this snapshot</DialogDescription>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Restoring from snapshot <span className="font-mono">{confirmRestore?.id}</span>
+                {confirmRestore?.name ? ` (${confirmRestore.name})` : ""} created on{" "}
+                {confirmRestore ? new Date(confirmRestore.createdAt).toLocaleString() : ""}.
+              </p>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmRestore(null)}
+                  disabled={restoring}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="terminal"
+                  onClick={() => confirmRestore && handleRestore(confirmRestore)}
+                  disabled={restoring}
+                >
+                  {restoring ? "Restoring..." : "Confirm Restore"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete confirmation dialog */}
+          <Dialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Snapshot</DialogTitle>
+                <DialogDescription>
+                  This will permanently delete this snapshot. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => confirmDelete && handleDelete(confirmDelete)}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete Snapshot"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Config Tab */}

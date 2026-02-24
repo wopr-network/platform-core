@@ -41,6 +41,43 @@ vi.mock("@/lib/api", () => ({
     .mockResolvedValue([
       { id: "log-1", level: "info", message: "Bot started", timestamp: "2026-02-14T10:00:00Z" },
     ]),
+  listSnapshots: vi.fn().mockResolvedValue([
+    {
+      id: "snap-001",
+      instanceId: "inst-001",
+      name: "pre-deploy backup",
+      type: "on-demand",
+      trigger: "manual",
+      sizeMb: 128,
+      createdAt: "2026-02-20T10:00:00Z",
+      expiresAt: null,
+    },
+    {
+      id: "snap-002",
+      instanceId: "inst-001",
+      name: null,
+      type: "nightly",
+      trigger: "scheduled",
+      sizeMb: 256,
+      createdAt: "2026-02-19T03:00:00Z",
+      expiresAt: 1740000000,
+    },
+  ]),
+  createSnapshot: vi.fn().mockResolvedValue({
+    snapshot: {
+      id: "snap-003",
+      instanceId: "inst-001",
+      name: null,
+      type: "on-demand",
+      trigger: "manual",
+      sizeMb: 64,
+      createdAt: "2026-02-24T12:00:00Z",
+      expiresAt: null,
+    },
+    estimatedMonthlyCost: "$0.01/month",
+  }),
+  restoreSnapshot: vi.fn().mockResolvedValue(undefined),
+  deleteSnapshot: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("InstanceDetailClient", () => {
@@ -66,6 +103,7 @@ describe("InstanceDetailClient", () => {
     expect(screen.getByRole("tab", { name: "Sessions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Config" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Snapshots" })).toBeInTheDocument();
   });
 
   it("shows overview metrics by default", async () => {
@@ -165,5 +203,94 @@ describe("InstanceDetailClient", () => {
     await user.click(stopBtn);
 
     expect(controlInstance).toHaveBeenCalledWith("inst-001", "stop");
+  });
+
+  it("shows snapshot list when Snapshots tab is clicked", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const snapshotsTab = screen.getByRole("tab", { name: "Snapshots" });
+    await user.click(snapshotsTab);
+
+    await waitFor(() => {
+      expect(screen.getByText("pre-deploy backup")).toBeInTheDocument();
+    });
+    expect(screen.getByText("128 MB")).toBeInTheDocument();
+    expect(screen.getByText("on-demand")).toBeInTheDocument();
+    expect(screen.getByText("nightly")).toBeInTheDocument();
+  });
+
+  it("shows Create Snapshot button in Snapshots tab", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Snapshots" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Create Snapshot" })).toBeInTheDocument();
+    });
+  });
+
+  it("calls createSnapshot when Create Snapshot is clicked", async () => {
+    const user = userEvent.setup();
+    const { createSnapshot } = await import("@/lib/api");
+    render(<InstanceDetailClient instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Snapshots" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Create Snapshot" })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Create Snapshot" }));
+    expect(createSnapshot).toHaveBeenCalledWith("inst-001");
+  });
+
+  it("shows restore confirmation dialog", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Snapshots" }));
+    await waitFor(() => {
+      expect(screen.getByText("pre-deploy backup")).toBeInTheDocument();
+    });
+
+    const restoreButtons = screen.getAllByRole("button", { name: "Restore" });
+    await user.click(restoreButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("This will restart your bot from this snapshot")).toBeInTheDocument();
+    });
+  });
+
+  it("shows delete confirmation dialog", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Snapshots" }));
+    await waitFor(() => {
+      expect(screen.getByText("pre-deploy backup")).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    await user.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/permanently delete/i)).toBeInTheDocument();
+    });
   });
 });
