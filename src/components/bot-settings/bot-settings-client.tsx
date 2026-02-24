@@ -26,7 +26,6 @@ import type {
   InstalledPlugin,
 } from "@/lib/bot-settings-data";
 import {
-  AVAILABLE_MODELS,
   activateSuperpower,
   controlBot,
   disconnectChannel,
@@ -269,25 +268,25 @@ function BrainTab({
   onUpdate: (s: BotSettings) => void;
 }) {
   const { brain } = settings;
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [changingModel, setChangingModel] = useState(false);
+  const [modelInput, setModelInput] = useState(brain.model);
+  const [savingModel, setSavingModel] = useState(false);
   const [changingMode, setChangingMode] = useState(false);
   const [brainError, setBrainError] = useState<string | null>(null);
 
-  async function handleChangeModel(modelId: string, provider: string, label: string) {
-    setChangingModel(true);
+  async function handleSaveModel() {
+    if (modelInput === brain.model) return;
+    setSavingModel(true);
     setBrainError(null);
     try {
-      await updateBotBrain(botId, { model: modelId, provider });
+      await updateBotBrain(botId, { model: modelInput });
       onUpdate({
         ...settings,
-        brain: { ...settings.brain, model: label, provider },
+        brain: { ...settings.brain, model: modelInput },
       });
-      setShowModelPicker(false);
     } catch {
-      setBrainError("Failed to change model -- please try again.");
+      setBrainError("Failed to update model -- please try again.");
     } finally {
-      setChangingModel(false);
+      setSavingModel(false);
     }
   }
 
@@ -317,20 +316,29 @@ function BrainTab({
 
       <Card>
         <CardHeader>
-          <CardTitle>Current Model</CardTitle>
+          <CardTitle>Model</CardTitle>
           <CardDescription>
-            {brain.model} (via {brain.mode === "hosted" ? "WOPR Hosted" : "BYOK"})
+            LLM model ID (e.g. claude-sonnet-4, gpt-4o). Used via{" "}
+            {brain.mode === "hosted" ? "WOPR Hosted" : "BYOK"}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{brain.costPerMessage}</span>
-            <span>&middot;</span>
-            <span>{brain.description}</span>
+          <div className="flex items-center gap-2">
+            <Input
+              value={modelInput}
+              onChange={(e) => setModelInput(e.target.value)}
+              placeholder="e.g. claude-sonnet-4"
+              className="max-w-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveModel}
+              disabled={savingModel || modelInput === brain.model}
+            >
+              {savingModel ? "Saving..." : "Save"}
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowModelPicker(true)}>
-            Change model
-          </Button>
         </CardContent>
       </Card>
 
@@ -392,39 +400,6 @@ function BrainTab({
       </Card>
 
       {brainError && <p className="text-sm text-destructive">{brainError}</p>}
-
-      <Dialog open={showModelPicker} onOpenChange={setShowModelPicker}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Model</DialogTitle>
-            <DialogDescription>Select a new LLM model for your bot.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {AVAILABLE_MODELS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={`w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/50 ${
-                  settings.brain.model === m.label ? "border-primary bg-primary/5" : ""
-                }`}
-                onClick={() => handleChangeModel(m.id, m.provider, m.label)}
-                disabled={changingModel}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{m.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {m.provider} -- {m.cost}
-                    </p>
-                  </div>
-                  {settings.brain.model === m.label && <Badge variant="default">Current</Badge>}
-                </div>
-              </button>
-            ))}
-          </div>
-          {changingModel && <p className="text-sm text-muted-foreground">Switching model...</p>}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

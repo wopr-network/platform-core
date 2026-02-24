@@ -255,17 +255,3 @@ export async function installPlugin(botId: string, pluginId: string): Promise<vo
     body: JSON.stringify({}),
   });
 }
-
-/** Available LLM models for the model picker */
-export const AVAILABLE_MODELS = [
-  { id: "claude-sonnet-4", label: "Claude Sonnet 4", provider: "Anthropic", cost: "~$0.003/msg" },
-  { id: "claude-haiku-4", label: "Claude Haiku 4", provider: "Anthropic", cost: "~$0.001/msg" },
-  { id: "gpt-4o", label: "GPT-4o", provider: "OpenAI", cost: "~$0.005/msg" },
-  { id: "gpt-4o-mini", label: "GPT-4o Mini", provider: "OpenAI", cost: "~$0.001/msg" },
-  {
-    id: "llama-3.3-70b",
-    label: "Llama 3.3 70B",
-    provider: "Meta (via OpenRouter)",
-    cost: "~$0.001/msg",
-  },
-] as const;
