@@ -138,6 +138,14 @@ const MOCK_BILLING_INFO: BillingInfo = {
       expiryYear: 2027,
       isDefault: true,
     },
+    {
+      id: "pm-2",
+      brand: "Mastercard",
+      last4: "5555",
+      expiryMonth: 6,
+      expiryYear: 2028,
+      isDefault: false,
+    },
   ],
   invoices: [
     {
@@ -175,6 +183,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     getBillingInfo: vi.fn().mockResolvedValue(MOCK_BILLING_INFO),
     updateBillingEmail: vi.fn().mockResolvedValue(undefined),
     removePaymentMethod: vi.fn().mockResolvedValue(undefined),
+    setDefaultPaymentMethod: vi.fn().mockResolvedValue(undefined),
     getInferenceMode: vi.fn().mockResolvedValue("byok"),
     getHostedUsageSummary: vi.fn().mockResolvedValue(MOCK_HOSTED_USAGE),
     getHostedUsageEvents: vi.fn().mockResolvedValue(MOCK_HOSTED_EVENTS),
@@ -356,7 +365,28 @@ describe("Payment page", () => {
     const { default: PaymentPage } = await import("../app/(dashboard)/billing/payment/page");
     render(<PaymentPage />);
 
-    expect(await screen.findByRole("button", { name: "Remove" })).toBeInTheDocument();
+    const removeButtons = await screen.findAllByRole("button", { name: "Remove" });
+    expect(removeButtons.length).toBe(2);
+  });
+
+  it("shows 'Set as default' button only for non-default payment methods", async () => {
+    const { default: PaymentPage } = await import("../app/(dashboard)/billing/payment/page");
+    render(<PaymentPage />);
+
+    const setDefaultButtons = await screen.findAllByRole("button", { name: "Set as default" });
+    expect(setDefaultButtons).toHaveLength(1);
+  });
+
+  it("calls setDefaultPaymentMethod and updates UI on click", async () => {
+    const user = userEvent.setup();
+    const api = await import("@/lib/api");
+    const { default: PaymentPage } = await import("../app/(dashboard)/billing/payment/page");
+    render(<PaymentPage />);
+
+    const setDefaultBtn = await screen.findByRole("button", { name: "Set as default" });
+    await user.click(setDefaultBtn);
+
+    expect(api.setDefaultPaymentMethod).toHaveBeenCalledWith("pm-2");
   });
 });
 

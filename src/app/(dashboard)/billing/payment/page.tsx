@@ -21,7 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { BillingInfo, Invoice } from "@/lib/api";
-import { getBillingInfo, removePaymentMethod, updateBillingEmail } from "@/lib/api";
+import {
+  getBillingInfo,
+  removePaymentMethod,
+  setDefaultPaymentMethod,
+  updateBillingEmail,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, string> = {
@@ -100,6 +105,19 @@ export default function PaymentPage() {
       }
     } catch {
       setRemoveError("Failed to remove payment method.");
+    }
+  }
+
+  async function handleSetDefault(id: string) {
+    await setDefaultPaymentMethod(id);
+    if (info) {
+      setInfo({
+        ...info,
+        paymentMethods: info.paymentMethods.map((pm) => ({
+          ...pm,
+          isDefault: pm.id === id,
+        })),
+      });
     }
   }
 
@@ -204,14 +222,21 @@ export default function PaymentPage() {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleRemovePayment(pm.id)}
-                    >
-                      Remove
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {!pm.isDefault && (
+                        <Button variant="ghost" size="sm" onClick={() => handleSetDefault(pm.id)}>
+                          Set as default
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleRemovePayment(pm.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

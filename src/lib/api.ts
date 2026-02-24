@@ -892,6 +892,7 @@ interface BillingProcedures {
   billingInfo: { query(input?: Record<never, never>): Promise<BillingInfo> };
   updateBillingEmail: { mutate(input: { email: string }): Promise<{ email: string }> };
   removePaymentMethod: { mutate(input: { id: string }): Promise<{ removed: boolean }> };
+  setDefaultPaymentMethod: { mutate(input: { id: string }): Promise<{ ok: boolean }> };
   portalSession: {
     mutate(input: { tenant?: string; returnUrl: string }): Promise<{ url: string }>;
   };
@@ -1022,6 +1023,10 @@ export async function updateBillingEmail(email: string): Promise<void> {
 
 export async function removePaymentMethod(id: string): Promise<void> {
   await billingClient.removePaymentMethod.mutate({ id });
+}
+
+export async function setDefaultPaymentMethod(id: string): Promise<void> {
+  await billingClient.setDefaultPaymentMethod.mutate({ id });
 }
 
 export async function createSetupIntent(): Promise<{ clientSecret: string }> {
