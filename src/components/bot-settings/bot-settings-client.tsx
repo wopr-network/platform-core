@@ -33,6 +33,8 @@ import {
   updateBotIdentity,
 } from "@/lib/bot-settings-data";
 import { DEFAULT_STATUS_STYLE, PLUGIN_STATUS_STYLES } from "@/lib/status-colors";
+import { VpsInfoPanel } from "./vps-info-panel";
+import { VpsUpgradeCard } from "./vps-upgrade-card";
 
 export function BotSettingsClient({ botId }: { botId: string }) {
   const [settings, setSettings] = useState<BotSettings | null>(null);
@@ -97,6 +99,7 @@ export function BotSettingsClient({ botId }: { botId: string }) {
           <TabsTrigger value="superpowers">Superpowers</TabsTrigger>
           <TabsTrigger value="plugins">Plugins</TabsTrigger>
           <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="vps">VPS</TabsTrigger>
           <TabsTrigger value="danger">Danger Zone</TabsTrigger>
         </TabsList>
 
@@ -122,6 +125,13 @@ export function BotSettingsClient({ botId }: { botId: string }) {
 
         <TabsContent value="usage" className="mt-4">
           <UsageTab settings={settings} />
+        </TabsContent>
+
+        <TabsContent value="vps" className="mt-4">
+          <div className="flex flex-col gap-4">
+            <VpsInfoPanel botId={botId} />
+            <VpsUpgradeCard botId={botId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="danger" className="mt-4">

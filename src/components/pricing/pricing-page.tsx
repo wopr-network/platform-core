@@ -134,6 +134,53 @@ export async function PricingPage() {
         </div>
       </section>
 
+      {/* --- VPS Tier --- */}
+      <section className="mx-auto max-w-4xl px-6 pb-24">
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          Need a dedicated machine?
+        </h2>
+        <p className="mb-8 text-center text-muted-foreground">
+          The VPS tier gives your bot a persistent container with fixed monthly pricing — no
+          per-credit billing for compute.
+        </p>
+        <div className="mx-auto max-w-sm">
+          <Card className="border-terminal/50">
+            <CardHeader className="items-center text-center">
+              <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">
+                VPS tier
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-4">
+              <p className="text-5xl font-bold text-terminal sm:text-6xl">
+                $15
+                <span className="text-xl font-normal text-muted-foreground">/mo</span>
+              </p>
+              <ul className="w-full space-y-1 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="text-terminal">✓</span> 2 GB RAM / 2 vCPU / 20 GB SSD
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-terminal">✓</span> Persistent container — data survives
+                  restarts
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-terminal">✓</span> Dedicated hostname
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-terminal">✓</span> SSH access via Cloudflare Tunnel
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-terminal">✓</span> Flat monthly price — no metered compute
+                </li>
+              </ul>
+              <Button variant="terminal" className="w-full" asChild>
+                <Link href="/signup">Get started</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* --- Credits Explainer --- */}
       <section className="flex flex-col items-center justify-center gap-6 px-6 pb-24 text-center">
         <p className="max-w-lg text-lg text-muted-foreground">

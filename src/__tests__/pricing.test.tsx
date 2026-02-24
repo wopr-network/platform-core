@@ -59,9 +59,9 @@ describe("PricingPage", () => {
   it("has a CTA link to /signup", async () => {
     const { PricingPage } = await import("../components/pricing/pricing-page");
     await renderAsync(PricingPage());
-    const cta = screen.getByRole("link", { name: /get started/i });
-    expect(cta).toBeInTheDocument();
-    expect(cta).toHaveAttribute("href", "/signup");
+    const ctas = screen.getAllByRole("link", { name: /get started/i });
+    expect(ctas.length).toBeGreaterThanOrEqual(1);
+    expect(ctas[0]).toHaveAttribute("href", "/signup");
   });
 
   it("shows the signup credit amount", async () => {
