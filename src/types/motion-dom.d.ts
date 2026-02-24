@@ -47,15 +47,13 @@ declare module "motion-dom" {
   }
 
   /** Target values for an animation — CSS properties plus transforms. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  export type TargetAndTransition = Record<string, any>;
+  export type TargetAndTransition = Record<string, unknown>;
 
   /** A named set of animation states. */
   export type VariantLabels = string | string[];
 
   /** Transition configuration. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  export type Transition = Record<string, any>;
+  export type Transition = Record<string, unknown>;
 
   /** Drag constraints. */
   export interface DragElastic {
@@ -70,13 +68,12 @@ declare module "motion-dom" {
     /** Initial visual state — can be a variant name, object, or false. */
     initial?: boolean | TargetAndTransition | VariantLabels;
     /** Animation target — can be a variant name, object, or controls. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    animate?: TargetAndTransition | VariantLabels | any;
+    animate?: TargetAndTransition | VariantLabels;
     /** State to animate to when removed from the React tree (requires AnimatePresence). */
     exit?: TargetAndTransition | VariantLabels;
     /** Named animation variants. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    variants?: Record<string, any>;
+    // biome-ignore lint/suspicious/noExplicitAny: variant functions accept arbitrary custom args (e.g. stagger index)
+    variants?: Record<string, TargetAndTransition | ((arg: any) => TargetAndTransition)>;
     /** Transition defaults for this element. */
     transition?: Transition;
     /** Animate when hovered. */
