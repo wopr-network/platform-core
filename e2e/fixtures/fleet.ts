@@ -42,14 +42,16 @@ export async function mockFleetAPI(page: Page, state: FleetMockState) {
 			await route.continue();
 			return;
 		}
-		const newBot = { id: "e2e-bot-1", name: "e2e-test-bot", state: "running" };
+		const body = route.request().postDataJSON() as Array<{ json: { name?: string } }> | null;
+		const botName = body?.[0]?.json?.name ?? "e2e-test-bot";
+		const newBot = { id: "e2e-bot-1", name: botName, state: "running" };
 		state.bots.push(newBot);
 		state.installedPlugins.set("e2e-bot-1", []);
 		await route.fulfill({
 			status: 200,
 			contentType: "application/json",
 			body: JSON.stringify({
-				result: { data: { id: "e2e-bot-1", name: "e2e-test-bot" } },
+				result: { data: { id: "e2e-bot-1", name: botName } },
 			}),
 		});
 	});
