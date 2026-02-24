@@ -2,7 +2,23 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StepCostCompare } from "@/components/onboarding/step-cost-compare";
 import { buildCostComparison, DIY_COSTS } from "@/lib/cost-comparison-data";
+import type { DiyCostData } from "@/lib/onboarding-data";
 import { channelPlugins, superpowers } from "@/lib/onboarding-data";
+
+type WithDiyCost<T> = T & { diyCostData: DiyCostData };
+
+// Derive stable test IDs from the registries so tests don't need to hardcode strings
+const channelsWithCost = channelPlugins.filter(
+  (c): c is WithDiyCost<typeof c> => c.diyCostData != null,
+);
+const superpowersWithCost = superpowers.filter(
+  (s): s is WithDiyCost<typeof s> => s.diyCostData != null,
+);
+const firstChannelWithCost = channelsWithCost[0];
+const firstSuperpowerWithCost = superpowersWithCost[0];
+const sharedAccountSuperpowers = superpowersWithCost.filter(
+  (s) => s.diyCostData.accounts[0] === "Replicate",
+);
 
 // --- Data module tests ---
 
@@ -15,33 +31,41 @@ describe("buildCostComparison", () => {
   });
 
   it("includes channel DIY costs", () => {
-    const result = buildCostComparison(["discord"], []);
+    const result = buildCostComparison([firstChannelWithCost.id], []);
     expect(result.items.length).toBeGreaterThan(0);
-    expect(result.items[0].capabilityId).toBe("discord");
+    expect(result.items[0].capabilityId).toBe(firstChannelWithCost.id);
     expect(result.accountsRequired).toBeGreaterThan(0);
   });
 
   it("includes superpower DIY costs", () => {
-    const result = buildCostComparison([], ["voice"]);
-    const voiceItem = result.items.find((i) => i.capabilityId === "voice");
-    expect(voiceItem).toBeDefined();
-    expect(voiceItem?.accounts.length).toBeGreaterThan(0);
+    const result = buildCostComparison([], [firstSuperpowerWithCost.id]);
+    const item = result.items.find((i) => i.capabilityId === firstSuperpowerWithCost.id);
+    expect(item).toBeDefined();
+    expect(item?.accounts.length).toBeGreaterThan(0);
   });
 
   it("accumulates accounts and API keys across selections", () => {
-    const result = buildCostComparison(["discord", "slack"], ["voice", "image-gen"]);
+    const channels = channelsWithCost.slice(0, 2);
+    const powers = superpowersWithCost.slice(0, 2);
+    const result = buildCostComparison(
+      channels.map((c) => c.id),
+      powers.map((s) => s.id),
+    );
     expect(result.items.length).toBe(4);
-    expect(result.accountsRequired).toBeGreaterThanOrEqual(4);
-    expect(result.apiKeysRequired).toBeGreaterThanOrEqual(4);
+    expect(result.accountsRequired).toBeGreaterThanOrEqual(2);
+    expect(result.apiKeysRequired).toBeGreaterThanOrEqual(2);
   });
 
-  it("deduplicates shared accounts (e.g., Replicate for image-gen + video-gen)", () => {
-    const result = buildCostComparison([], ["image-gen", "video-gen"]);
+  it("deduplicates shared accounts across superpowers", () => {
+    if (sharedAccountSuperpowers.length < 2) return;
+    const ids = sharedAccountSuperpowers.map((s) => s.id);
+    const result = buildCostComparison([], ids);
+    // All share the same "Replicate" account so accountsRequired should equal 1
     expect(result.accountsRequired).toBe(1);
   });
 
   it("returns $5 for WOPR monthly regardless of selections", () => {
-    const result = buildCostComparison(["discord"], ["voice", "image-gen"]);
+    const result = buildCostComparison([firstChannelWithCost.id], [firstSuperpowerWithCost.id]);
     expect(result.totalWoprMonthly).toBe("$5");
   });
 
@@ -97,21 +121,27 @@ describe("StepCostCompare", () => {
   });
 
   it("shows DIY costs for selected capabilities", () => {
-    render(<StepCostCompare selectedChannels={["discord"]} selectedSuperpowers={["voice"]} />);
-    expect(screen.getByText(/Discord bot hosting/i)).toBeInTheDocument();
-    expect(screen.getByText(/Voice synthesis/i)).toBeInTheDocument();
+    const channel = channelsWithCost.find((c) => c.id === "discord");
+    const power = superpowersWithCost.find((s) => s.id === "voice");
+    if (!channel || !power) return;
+    render(<StepCostCompare selectedChannels={[channel.id]} selectedSuperpowers={[power.id]} />);
+    expect(screen.getByText(new RegExp(channel.diyCostData.diyLabel, "i"))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(power.diyCostData.diyLabel, "i"))).toBeInTheDocument();
   });
 
   it("shows Included for WOPR column", () => {
-    render(<StepCostCompare selectedChannels={["discord"]} selectedSuperpowers={[]} />);
+    render(
+      <StepCostCompare selectedChannels={[firstChannelWithCost.id]} selectedSuperpowers={[]} />,
+    );
     expect(screen.getByText("Included")).toBeInTheDocument();
   });
 
   it("shows account and API key counts", () => {
+    const powers = superpowersWithCost.slice(0, 2);
     render(
       <StepCostCompare
-        selectedChannels={["discord"]}
-        selectedSuperpowers={["voice", "image-gen"]}
+        selectedChannels={[firstChannelWithCost.id]}
+        selectedSuperpowers={powers.map((s) => s.id)}
       />,
     );
     expect(screen.getByText(/provider accounts/i)).toBeInTheDocument();

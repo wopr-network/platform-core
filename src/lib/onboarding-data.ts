@@ -44,6 +44,15 @@ export const AI_KEY_SUPERPOWER_IDS = ["memory", "search", "text-gen"] as const;
 
 // --- Superpowers ---
 
+export interface DiyCostData {
+  diyLabel: string;
+  diyCostPerMonth: string;
+  diyCostNumeric: number; // cents, for summing
+  accounts: string[];
+  apiKeys: string[];
+  hardware: string | null;
+}
+
 export interface Superpower {
   id: string;
   name: string;
@@ -56,6 +65,8 @@ export interface Superpower {
   configFields: OnboardingConfigField[];
   /** If true, this superpower uses the shared OpenAI/OpenRouter key */
   usesAiKey?: boolean;
+  /** DIY cost metadata for the cost comparison step */
+  diyCostData?: DiyCostData;
 }
 
 export const superpowers: Superpower[] = [
@@ -78,6 +89,14 @@ export const superpowers: Superpower[] = [
         validation: { pattern: "^r8_", message: "Must start with r8_" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Image generation API",
+      diyCostPerMonth: "$10-50/mo",
+      diyCostNumeric: 3000,
+      accounts: ["Replicate"],
+      apiKeys: ["Replicate API Token"],
+      hardware: null,
+    },
   },
   {
     id: "video-gen",
@@ -98,6 +117,14 @@ export const superpowers: Superpower[] = [
         validation: { pattern: "^r8_", message: "Must start with r8_" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Video generation API",
+      diyCostPerMonth: "$20-100/mo",
+      diyCostNumeric: 6000,
+      accounts: ["Replicate"],
+      apiKeys: ["Replicate API Token"],
+      hardware: null,
+    },
   },
   {
     id: "voice",
@@ -117,6 +144,14 @@ export const superpowers: Superpower[] = [
         helpText: "Used for text-to-speech synthesis.",
       },
     ],
+    diyCostData: {
+      diyLabel: "Voice synthesis API",
+      diyCostPerMonth: "$5-30/mo",
+      diyCostNumeric: 1500,
+      accounts: ["ElevenLabs"],
+      apiKeys: ["ElevenLabs API Key"],
+      hardware: null,
+    },
   },
   {
     id: "memory",
@@ -128,6 +163,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "Vector DB + embeddings",
+      diyCostPerMonth: "$10-40/mo",
+      diyCostNumeric: 2500,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: "Vector database (Pinecone, Qdrant, etc.)",
+    },
   },
   {
     id: "search",
@@ -139,6 +182,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "Web search API",
+      diyCostPerMonth: "$5-20/mo",
+      diyCostNumeric: 1200,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: null,
+    },
   },
   {
     id: "text-gen",
@@ -150,6 +201,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "LLM inference API",
+      diyCostPerMonth: "$20-200/mo",
+      diyCostNumeric: 10000,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: null,
+    },
   },
 ];
 
@@ -162,6 +221,8 @@ export interface PluginOption {
   capabilities: string[];
   requires?: string[];
   configFields: OnboardingConfigField[];
+  /** DIY cost metadata for the cost comparison step */
+  diyCostData?: DiyCostData;
 }
 
 export interface OnboardingConfigField {
@@ -263,6 +324,14 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         validation: { pattern: "^\\+\\d{7,15}$", message: "Must be E.164 format" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Signal bot hosting",
+      diyCostPerMonth: "$10-30/mo",
+      diyCostNumeric: 2000,
+      accounts: ["Signal account"],
+      apiKeys: ["Signal phone number"],
+      hardware: "Dedicated server (always-on)",
+    },
   },
   {
     id: "whatsapp",
@@ -281,6 +350,14 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         helpText: "Set up a WhatsApp Business account in Meta Developer Portal.",
       },
     ],
+    diyCostData: {
+      diyLabel: "WhatsApp Business API",
+      diyCostPerMonth: "$15-50/mo",
+      diyCostNumeric: 3000,
+      accounts: ["Meta Developer Portal", "WhatsApp Business"],
+      apiKeys: ["WhatsApp API Token"],
+      hardware: null,
+    },
   },
   {
     id: "msteams",
@@ -305,8 +382,43 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         placeholder: "Paste your app password",
       },
     ],
+    diyCostData: {
+      diyLabel: "MS Teams bot hosting",
+      diyCostPerMonth: "$10-30/mo",
+      diyCostNumeric: 2000,
+      accounts: ["Microsoft Azure", "Teams Developer Portal"],
+      apiKeys: ["Teams App ID", "Teams App Password"],
+      hardware: null,
+    },
   },
 ];
+
+const CHANNEL_DIY_COST_OVERLAY: Record<string, DiyCostData> = {
+  discord: {
+    diyLabel: "Discord bot hosting",
+    diyCostPerMonth: "$5-20/mo",
+    diyCostNumeric: 1200,
+    accounts: ["Discord Developer Portal"],
+    apiKeys: ["Discord Bot Token"],
+    hardware: "VPS or cloud server",
+  },
+  slack: {
+    diyLabel: "Slack app hosting",
+    diyCostPerMonth: "$5-20/mo",
+    diyCostNumeric: 1200,
+    accounts: ["Slack API Portal"],
+    apiKeys: ["Slack Bot Token", "Slack Signing Secret"],
+    hardware: "VPS or cloud server",
+  },
+  telegram: {
+    diyLabel: "Telegram bot hosting",
+    diyCostPerMonth: "$5-20/mo",
+    diyCostNumeric: 1200,
+    accounts: ["Telegram BotFather"],
+    apiKeys: ["Telegram Bot Token"],
+    hardware: "VPS or cloud server",
+  },
+};
 
 // Derive marketplace channel plugins: identity from canonical data, config fields from overlay
 const marketplaceChannels: PluginOption[] = MOCK_MANIFESTS.filter(
@@ -319,6 +431,7 @@ const marketplaceChannels: PluginOption[] = MOCK_MANIFESTS.filter(
   color: m.color,
   capabilities: m.capabilities,
   configFields: CHANNEL_CONFIG_OVERLAY[m.id] ?? [],
+  diyCostData: CHANNEL_DIY_COST_OVERLAY[m.id],
 }));
 
 export const channelPlugins: PluginOption[] = [...marketplaceChannels, ...ONBOARDING_ONLY_CHANNELS];
