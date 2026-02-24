@@ -35,6 +35,8 @@ const DISCORD_MANIFEST = {
 	changelog: [],
 };
 
+let _botCounter = 0;
+
 export async function mockFleetAPI(page: Page, state: FleetMockState) {
 	// tRPC fleet.createInstance (POST) — must be registered before batch routes
 	await page.route(`${PLATFORM_BASE_URL}/trpc/fleet.createInstance**`, async (route) => {
@@ -42,16 +44,19 @@ export async function mockFleetAPI(page: Page, state: FleetMockState) {
 			await route.continue();
 			return;
 		}
+		// tRPC sends batch requests as an array; each item has a `json` field containing
+		// the procedure input. Index 0 is the first (and usually only) call in the batch.
 		const body = route.request().postDataJSON() as Array<{ json: { name?: string } }> | null;
 		const botName = body?.[0]?.json?.name ?? "e2e-test-bot";
-		const newBot = { id: "e2e-bot-1", name: botName, state: "running" };
+		const botId = `e2e-bot-${++_botCounter}`;
+		const newBot = { id: botId, name: botName, state: "running" };
 		state.bots.push(newBot);
-		state.installedPlugins.set("e2e-bot-1", []);
+		state.installedPlugins.set(botId, []);
 		await route.fulfill({
 			status: 200,
 			contentType: "application/json",
 			body: JSON.stringify({
-				result: { data: { id: "e2e-bot-1", name: botName } },
+				result: { data: { id: botId, name: botName } },
 			}),
 		});
 	});
