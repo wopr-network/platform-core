@@ -281,8 +281,8 @@ describe("Brain tab", () => {
 
     await user.click(screen.getByRole("tab", { name: "Brain" }));
 
-    expect(screen.getByText("Current Model")).toBeInTheDocument();
-    expect(screen.getByText(/Claude Sonnet 4/)).toBeInTheDocument();
+    expect(screen.getByText("Model")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Claude Sonnet 4")).toBeInTheDocument();
     expect(screen.getByText("Provider Mode")).toBeInTheDocument();
   });
 
