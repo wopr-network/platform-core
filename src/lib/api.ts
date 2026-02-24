@@ -400,6 +400,26 @@ export async function updateInstanceConfig(id: string, env: Record<string, strin
   });
 }
 
+// --- Image update API ---
+
+export interface ImageStatusResponse {
+  currentDigest: string;
+  latestDigest: string;
+  updateAvailable: boolean;
+}
+
+export async function getImageStatus(id: string): Promise<ImageStatusResponse | null> {
+  try {
+    return await fleetFetch<ImageStatusResponse>(`/bots/${id}/image-status`);
+  } catch {
+    return null;
+  }
+}
+
+export async function pullImageUpdate(id: string): Promise<void> {
+  await fleetFetch<unknown>(`/bots/${id}/update`, { method: "POST" });
+}
+
 // --- Observability types ---
 
 export type HealthStatus = "healthy" | "degraded" | "unhealthy";

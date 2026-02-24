@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { ArrowDownToLine, Loader2, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useImageStatus } from "@/hooks/use-image-status";
 import type { Instance, InstanceStatus } from "@/lib/api";
-import { controlInstance, listInstances } from "@/lib/api";
+import { controlInstance, listInstances, pullImageUpdate } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function InstanceListClient() {
@@ -239,42 +240,11 @@ export function InstanceListClient() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{inst.plugins.length}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-xs">
-                          <span className="sr-only">Actions</span>
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <a href={`/instances/${inst.id}`}>View details</a>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {inst.status === "stopped" && (
-                          <DropdownMenuItem onClick={() => handleAction(inst.id, "start")}>
-                            Start
-                          </DropdownMenuItem>
-                        )}
-                        {(inst.status === "running" || inst.status === "degraded") && (
-                          <>
-                            <DropdownMenuItem onClick={() => handleAction(inst.id, "stop")}>
-                              Stop
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAction(inst.id, "restart")}>
-                              Restart
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                          onClick={() => setDestroyTarget(inst)}
-                        >
-                          Destroy
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <InstanceRowActions
+                      inst={inst}
+                      onAction={handleAction}
+                      onDestroy={setDestroyTarget}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -349,5 +319,77 @@ export function InstanceListClient() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function InstanceRowActions({
+  inst,
+  onAction,
+  onDestroy,
+}: {
+  inst: Instance;
+  onAction: (id: string, action: "start" | "stop" | "restart") => void;
+  onDestroy: (inst: Instance) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { updateAvailable } = useImageStatus(open ? inst.id : null);
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePull() {
+    if (!window.confirm("This will pull the latest image and restart the bot. Continue?")) return;
+    setPulling(true);
+    try {
+      await pullImageUpdate(inst.id);
+    } catch {
+      // Error swallowed — user sees the bot restarting
+    } finally {
+      setPulling(false);
+      setOpen(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-xs">
+          <span className="sr-only">Actions</span>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={`/instances/${inst.id}`}>View details</a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {updateAvailable && (
+          <DropdownMenuItem className="text-amber-500" onClick={handlePull} disabled={pulling}>
+            {pulling ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <ArrowDownToLine className="mr-2 size-4" />
+            )}
+            {pulling ? "Pulling..." : "Pull Update"}
+          </DropdownMenuItem>
+        )}
+        {inst.status === "stopped" && (
+          <DropdownMenuItem onClick={() => onAction(inst.id, "start")}>Start</DropdownMenuItem>
+        )}
+        {(inst.status === "running" || inst.status === "degraded") && (
+          <>
+            <DropdownMenuItem onClick={() => onAction(inst.id, "stop")}>Stop</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction(inst.id, "restart")}>
+              Restart
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+          onClick={() => onDestroy(inst)}
+        >
+          Destroy
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

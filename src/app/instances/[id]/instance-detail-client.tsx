@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HealthOverview } from "@/components/observability/health-overview";
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useImageStatus } from "@/hooks/use-image-status";
 import type { InstanceDetail, InstanceStatus, Snapshot } from "@/lib/api";
 import {
   controlInstance,
@@ -39,6 +40,7 @@ import {
   deleteSnapshot,
   getInstance,
   listSnapshots,
+  pullImageUpdate,
   restoreSnapshot,
   updateInstanceConfig,
 } from "@/lib/api";
@@ -69,6 +71,21 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [destroyOpen, setDestroyOpen] = useState(false);
   const [destroyConfirmText, setDestroyConfirmText] = useState("");
   const [destroying, setDestroying] = useState(false);
+  const { updateAvailable } = useImageStatus(instanceId);
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullUpdate() {
+    if (!window.confirm("This will pull the latest image and restart the bot. Continue?")) return;
+    setPulling(true);
+    try {
+      await pullImageUpdate(instanceId);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to pull update");
+    } finally {
+      setPulling(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,11 +244,43 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
           </h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <StatusBadge status={instance.status} />
+            {updateAvailable && (
+              <Badge
+                variant="outline"
+                className="gap-1.5 bg-amber-500/15 text-amber-500 border-amber-500/25"
+              >
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full bg-amber-500",
+                    pulling && "animate-[pulse-dot_0.8s_ease-in-out_infinite]",
+                  )}
+                />
+                <span className="text-[11px] font-mono uppercase tracking-wider">
+                  {pulling ? "Pulling..." : "Update available"}
+                </span>
+              </Badge>
+            )}
             <span>{instance.template}</span>
             <span>{instance.provider}</span>
           </div>
         </div>
         <div className="flex gap-2">
+          {updateAvailable && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/50 focus-visible:ring-amber-500/30 transition-colors duration-150"
+              onClick={handlePullUpdate}
+              disabled={pulling}
+            >
+              {pulling ? (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              ) : (
+                <ArrowDownToLine className="mr-1.5 size-4" />
+              )}
+              {pulling ? "Pulling..." : "Pull Update"}
+            </Button>
+          )}
           {instance.status === "stopped" && (
             <Button size="sm" variant="terminal" onClick={() => handleAction("start")}>
               Start

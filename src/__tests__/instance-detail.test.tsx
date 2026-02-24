@@ -37,6 +37,12 @@ vi.mock("@/lib/api", () => ({
   }),
   controlInstance: vi.fn().mockResolvedValue(undefined),
   updateInstanceConfig: vi.fn().mockResolvedValue(undefined),
+  getImageStatus: vi.fn().mockResolvedValue({
+    currentDigest: "sha256:aaa",
+    latestDigest: "sha256:bbb",
+    updateAvailable: true,
+  }),
+  pullImageUpdate: vi.fn().mockResolvedValue(undefined),
   getInstanceLogs: vi
     .fn()
     .mockResolvedValue([
@@ -296,5 +302,53 @@ describe("InstanceDetailClient", () => {
     await waitFor(() => {
       expect(screen.getByText(/permanently delete/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows update available badge when image update exists", async () => {
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Update available")).toBeInTheDocument();
+    });
+  });
+
+  it("shows Pull Update button when update is available", async () => {
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pull Update")).toBeInTheDocument();
+    });
+  });
+
+  it("calls pullImageUpdate when Pull Update button is clicked and confirmed", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { pullImageUpdate } = await import("@/lib/api");
+
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pull Update")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Pull Update"));
+    expect(window.confirm).toHaveBeenCalled();
+    expect(pullImageUpdate).toHaveBeenCalledWith("inst-001");
+  });
+
+  it("does not call pullImageUpdate when user cancels confirm", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { pullImageUpdate } = await import("@/lib/api");
+    vi.mocked(pullImageUpdate).mockClear();
+
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pull Update")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Pull Update"));
+    expect(pullImageUpdate).not.toHaveBeenCalled();
   });
 });

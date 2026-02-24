@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useImageStatus } from "@/hooks/use-image-status";
 import type { FleetInstance, HealthStatus } from "@/lib/api";
 import { getFleetHealth } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -300,56 +301,57 @@ export function FleetHealth() {
           animate="show"
           key={`${statusFilter}-${sortBy}`}
         >
-          {filtered.map((inst) => {
-            const cfg = healthConfig[inst.health];
-            return (
-              <motion.div key={inst.id} variants={cardItem}>
-                <Link href={`/instances/${inst.id}`} className="block">
-                  <Card className={cn("transition-all", cfg.border, cfg.hoverShadow)}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <p className="font-medium">{inst.name}</p>
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {inst.provider}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={cn("size-2 rounded-full", cfg.dotColor, cfg.dotAnimation)}
-                          />
-                          <span className="text-xs font-mono text-muted-foreground">
-                            {cfg.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                        <div>
-                          <p className="text-muted-foreground">Uptime</p>
-                          <p className="font-mono text-terminal tabular-nums">
-                            {formatUptime(inst.uptime)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Plugins</p>
-                          <p className="font-mono text-terminal tabular-nums">{inst.pluginCount}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Sessions</p>
-                          <p className="font-mono text-terminal tabular-nums">
-                            {inst.sessionCount}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            );
-          })}
+          {filtered.map((inst) => (
+            <motion.div key={inst.id} variants={cardItem}>
+              <FleetHealthCard inst={inst} />
+            </motion.div>
+          ))}
         </motion.div>
       )}
     </div>
+  );
+}
+
+function FleetHealthCard({ inst }: { inst: FleetInstance }) {
+  const cfg = healthConfig[inst.health];
+  const { updateAvailable } = useImageStatus(inst.id);
+
+  return (
+    <Link href={`/instances/${inst.id}`} className="block">
+      <Card className={cn("transition-all", cfg.border, cfg.hoverShadow)}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="font-medium">{inst.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">{inst.provider}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {updateAvailable && (
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-sm">
+                  UPD
+                </span>
+              )}
+              <span className={cn("size-2 rounded-full", cfg.dotColor, cfg.dotAnimation)} />
+              <span className="text-xs font-mono text-muted-foreground">{cfg.label}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <p className="text-muted-foreground">Uptime</p>
+              <p className="font-mono text-terminal tabular-nums">{formatUptime(inst.uptime)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Plugins</p>
+              <p className="font-mono text-terminal tabular-nums">{inst.pluginCount}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Sessions</p>
+              <p className="font-mono text-terminal tabular-nums">{inst.sessionCount}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

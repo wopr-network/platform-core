@@ -29,6 +29,12 @@ vi.mock("@/lib/api", () => ({
     },
   ]),
   controlInstance: vi.fn().mockResolvedValue(undefined),
+  getImageStatus: vi.fn().mockResolvedValue({
+    currentDigest: "sha256:aaa",
+    latestDigest: "sha256:bbb",
+    updateAvailable: true,
+  }),
+  pullImageUpdate: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("InstanceListClient", () => {
@@ -102,5 +108,22 @@ describe("InstanceListClient", () => {
 
     // Empty state should appear
     expect(screen.getByText("No instances match your filters.")).toBeInTheDocument();
+  });
+
+  it("shows Pull Update in actions dropdown when update is available", async () => {
+    const user = userEvent.setup();
+    render(<InstanceListClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    // Open the first row's dropdown
+    const actionButtons = screen.getAllByRole("button", { name: "Actions" });
+    await user.click(actionButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pull Update")).toBeInTheDocument();
+    });
   });
 });
