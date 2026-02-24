@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangleIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,10 +38,12 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getInstanceLogs(instanceId);
       setLogs(data);
@@ -49,6 +52,8 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
       });
+    } catch {
+      setError("Failed to load logs — please try again.");
     } finally {
       setLoading(false);
     }
@@ -115,6 +120,18 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
           {autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
         </Button>
       </div>
+
+      {/* Error Banner */}
+      {error && logs.length === 0 && (
+        <div className="flex items-center gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangleIcon className="size-5 shrink-0 text-destructive" />
+          <p className="flex-1 text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={load}>
+            <RefreshCw className="size-4" />
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Log Stream */}
       <Card>

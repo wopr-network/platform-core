@@ -232,6 +232,44 @@ describe("LogsViewer", () => {
     await user.click(screen.getByText("Auto-scroll ON"));
     expect(screen.getByText("Auto-scroll OFF")).toBeInTheDocument();
   });
+
+  it("shows error state when API fails", async () => {
+    const { getInstanceLogs } = await import("@/lib/api");
+    vi.mocked(getInstanceLogs).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<LogsViewer instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load logs/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("recovers from error on retry", async () => {
+    const user = userEvent.setup();
+    const { getInstanceLogs } = await import("@/lib/api");
+    vi.mocked(getInstanceLogs)
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce([
+        {
+          id: "log-1",
+          timestamp: "2026-02-12T09:00:00Z",
+          level: "info" as const,
+          source: "daemon",
+          message: "Request processed successfully",
+        },
+      ]);
+
+    render(<LogsViewer instanceId="inst-001" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load logs/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Request processed successfully")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("MetricsDashboard", () => {
