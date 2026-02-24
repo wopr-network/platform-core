@@ -44,6 +44,15 @@ export const AI_KEY_SUPERPOWER_IDS = ["memory", "search", "text-gen"] as const;
 
 // --- Superpowers ---
 
+export interface DiyCostData {
+  diyLabel: string;
+  diyCostPerMonth: string;
+  diyCostNumeric: number; // cents, for summing
+  accounts: string[];
+  apiKeys: string[];
+  hardware: string | null;
+}
+
 export interface Superpower {
   id: string;
   name: string;
@@ -56,6 +65,8 @@ export interface Superpower {
   configFields: OnboardingConfigField[];
   /** If true, this superpower uses the shared OpenAI/OpenRouter key */
   usesAiKey?: boolean;
+  /** DIY cost metadata for the cost comparison step */
+  diyCostData?: DiyCostData;
 }
 
 export const superpowers: Superpower[] = [
@@ -78,6 +89,14 @@ export const superpowers: Superpower[] = [
         validation: { pattern: "^r8_", message: "Must start with r8_" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Image generation API",
+      diyCostPerMonth: "$10-50/mo",
+      diyCostNumeric: 3000,
+      accounts: ["Replicate"],
+      apiKeys: ["Replicate API Token"],
+      hardware: null,
+    },
   },
   {
     id: "video-gen",
@@ -98,6 +117,14 @@ export const superpowers: Superpower[] = [
         validation: { pattern: "^r8_", message: "Must start with r8_" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Video generation API",
+      diyCostPerMonth: "$20-100/mo",
+      diyCostNumeric: 6000,
+      accounts: ["Replicate"],
+      apiKeys: ["Replicate API Token"],
+      hardware: null,
+    },
   },
   {
     id: "voice",
@@ -117,6 +144,14 @@ export const superpowers: Superpower[] = [
         helpText: "Used for text-to-speech synthesis.",
       },
     ],
+    diyCostData: {
+      diyLabel: "Voice synthesis API",
+      diyCostPerMonth: "$5-30/mo",
+      diyCostNumeric: 1500,
+      accounts: ["ElevenLabs"],
+      apiKeys: ["ElevenLabs API Key"],
+      hardware: null,
+    },
   },
   {
     id: "memory",
@@ -128,6 +163,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "Vector DB + embeddings",
+      diyCostPerMonth: "$10-40/mo",
+      diyCostNumeric: 2500,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: "Vector database (Pinecone, Qdrant, etc.)",
+    },
   },
   {
     id: "search",
@@ -139,6 +182,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "Web search API",
+      diyCostPerMonth: "$5-20/mo",
+      diyCostNumeric: 1200,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: null,
+    },
   },
   {
     id: "text-gen",
@@ -150,6 +201,14 @@ export const superpowers: Superpower[] = [
     requiresKey: true,
     usesAiKey: true,
     configFields: [openaiKeyField],
+    diyCostData: {
+      diyLabel: "LLM inference API",
+      diyCostPerMonth: "$20-200/mo",
+      diyCostNumeric: 10000,
+      accounts: ["OpenAI or OpenRouter"],
+      apiKeys: ["OpenAI/OpenRouter API Key"],
+      hardware: null,
+    },
   },
 ];
 
@@ -162,6 +221,8 @@ export interface PluginOption {
   capabilities: string[];
   requires?: string[];
   configFields: OnboardingConfigField[];
+  /** DIY cost metadata for the cost comparison step */
+  diyCostData?: DiyCostData;
 }
 
 export interface OnboardingConfigField {
@@ -189,59 +250,93 @@ export interface Preset {
 
 // --- Channels ---
 
-// Onboarding-specific config fields per channel plugin.
-// These use OnboardingConfigField (with helpUrl, helpText) which differs from
+// Onboarding-specific overlay per marketplace channel plugin.
+// configFields use OnboardingConfigField (with helpUrl, helpText) which differs from
 // marketplace configSchema fields. Kept separate intentionally — they serve
 // the onboarding BYOK flow, not the marketplace install wizard.
-const CHANNEL_CONFIG_OVERLAY: Record<string, OnboardingConfigField[]> = {
-  discord: [
-    {
-      key: "discord_bot_token",
-      label: "Discord Bot Token",
-      secret: true,
-      placeholder: "Paste your Discord bot token",
-      helpUrl: "https://discord.com/developers/applications",
-      helpText: "Create an app in the Discord Developer Portal, then copy the bot token.",
-      validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
+// diyCostData is co-located here so adding a new channel only requires one entry.
+const CHANNEL_OVERLAY: Record<
+  string,
+  { configFields: OnboardingConfigField[]; diyCostData?: DiyCostData }
+> = {
+  discord: {
+    configFields: [
+      {
+        key: "discord_bot_token",
+        label: "Discord Bot Token",
+        secret: true,
+        placeholder: "Paste your Discord bot token",
+        helpUrl: "https://discord.com/developers/applications",
+        helpText: "Create an app in the Discord Developer Portal, then copy the bot token.",
+        validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
+      },
+      {
+        key: "discord_guild_id",
+        label: "Discord Server ID",
+        secret: false,
+        placeholder: "e.g. 123456789012345678",
+        helpText: "Right-click your server name and select Copy Server ID.",
+        validation: { pattern: "^\\d{17,20}$", message: "Must be a numeric server ID" },
+      },
+    ],
+    diyCostData: {
+      diyLabel: "Discord bot hosting",
+      diyCostPerMonth: "$5-20/mo",
+      diyCostNumeric: 1200,
+      accounts: ["Discord Developer Portal"],
+      apiKeys: ["Discord Bot Token"],
+      hardware: "VPS or cloud server",
     },
-    {
-      key: "discord_guild_id",
-      label: "Discord Server ID",
-      secret: false,
-      placeholder: "e.g. 123456789012345678",
-      helpText: "Right-click your server name and select Copy Server ID.",
-      validation: { pattern: "^\\d{17,20}$", message: "Must be a numeric server ID" },
+  },
+  slack: {
+    configFields: [
+      {
+        key: "slack_bot_token",
+        label: "Slack Bot Token",
+        secret: true,
+        placeholder: "xoxb-...",
+        helpUrl: "https://api.slack.com/apps",
+        helpText: "Create a Slack app, add Bot Token Scopes, then install to workspace.",
+        validation: { pattern: "^xoxb-", message: "Must start with xoxb-" },
+      },
+      {
+        key: "slack_signing_secret",
+        label: "Slack Signing Secret",
+        secret: true,
+        placeholder: "Paste your signing secret",
+        helpText: "Found under Basic Information > App Credentials.",
+      },
+    ],
+    diyCostData: {
+      diyLabel: "Slack app hosting",
+      diyCostPerMonth: "$5-20/mo",
+      diyCostNumeric: 1200,
+      accounts: ["Slack API Portal"],
+      apiKeys: ["Slack Bot Token", "Slack Signing Secret"],
+      hardware: "VPS or cloud server",
     },
-  ],
-  slack: [
-    {
-      key: "slack_bot_token",
-      label: "Slack Bot Token",
-      secret: true,
-      placeholder: "xoxb-...",
-      helpUrl: "https://api.slack.com/apps",
-      helpText: "Create a Slack app, add Bot Token Scopes, then install to workspace.",
-      validation: { pattern: "^xoxb-", message: "Must start with xoxb-" },
+  },
+  telegram: {
+    configFields: [
+      {
+        key: "telegram_bot_token",
+        label: "Telegram Bot Token",
+        secret: true,
+        placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        helpUrl: "https://t.me/BotFather",
+        helpText: "Message @BotFather on Telegram with /newbot to get a token.",
+        validation: { pattern: "^[0-9]+:[A-Za-z0-9_-]+$", message: "Invalid Telegram token" },
+      },
+    ],
+    diyCostData: {
+      diyLabel: "Telegram bot hosting",
+      diyCostPerMonth: "$5-20/mo",
+      diyCostNumeric: 1200,
+      accounts: ["Telegram BotFather"],
+      apiKeys: ["Telegram Bot Token"],
+      hardware: "VPS or cloud server",
     },
-    {
-      key: "slack_signing_secret",
-      label: "Slack Signing Secret",
-      secret: true,
-      placeholder: "Paste your signing secret",
-      helpText: "Found under Basic Information > App Credentials.",
-    },
-  ],
-  telegram: [
-    {
-      key: "telegram_bot_token",
-      label: "Telegram Bot Token",
-      secret: true,
-      placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-      helpUrl: "https://t.me/BotFather",
-      helpText: "Message @BotFather on Telegram with /newbot to get a token.",
-      validation: { pattern: "^[0-9]+:[A-Za-z0-9_-]+$", message: "Invalid Telegram token" },
-    },
-  ],
+  },
 };
 
 // Channels present in onboarding but not yet in the marketplace
@@ -263,6 +358,14 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         validation: { pattern: "^\\+\\d{7,15}$", message: "Must be E.164 format" },
       },
     ],
+    diyCostData: {
+      diyLabel: "Signal bot hosting",
+      diyCostPerMonth: "$10-30/mo",
+      diyCostNumeric: 2000,
+      accounts: ["Signal account"],
+      apiKeys: ["Signal phone number"],
+      hardware: "Dedicated server (always-on)",
+    },
   },
   {
     id: "whatsapp",
@@ -281,6 +384,14 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         helpText: "Set up a WhatsApp Business account in Meta Developer Portal.",
       },
     ],
+    diyCostData: {
+      diyLabel: "WhatsApp Business API",
+      diyCostPerMonth: "$15-50/mo",
+      diyCostNumeric: 3000,
+      accounts: ["Meta Developer Portal", "WhatsApp Business"],
+      apiKeys: ["WhatsApp API Token"],
+      hardware: null,
+    },
   },
   {
     id: "msteams",
@@ -305,10 +416,18 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
         placeholder: "Paste your app password",
       },
     ],
+    diyCostData: {
+      diyLabel: "MS Teams bot hosting",
+      diyCostPerMonth: "$10-30/mo",
+      diyCostNumeric: 2000,
+      accounts: ["Microsoft Azure", "Teams Developer Portal"],
+      apiKeys: ["Teams App ID", "Teams App Password"],
+      hardware: null,
+    },
   },
 ];
 
-// Derive marketplace channel plugins: identity from canonical data, config fields from overlay
+// Derive marketplace channel plugins: identity from canonical data, overlay fields from CHANNEL_OVERLAY
 const marketplaceChannels: PluginOption[] = MOCK_MANIFESTS.filter(
   (m) => m.category === "channel",
 ).map((m) => ({
@@ -318,7 +437,8 @@ const marketplaceChannels: PluginOption[] = MOCK_MANIFESTS.filter(
   icon: m.icon,
   color: m.color,
   capabilities: m.capabilities,
-  configFields: CHANNEL_CONFIG_OVERLAY[m.id] ?? [],
+  configFields: CHANNEL_OVERLAY[m.id]?.configFields ?? [],
+  diyCostData: CHANNEL_OVERLAY[m.id]?.diyCostData,
 }));
 
 export const channelPlugins: PluginOption[] = [...marketplaceChannels, ...ONBOARDING_ONLY_CHANNELS];

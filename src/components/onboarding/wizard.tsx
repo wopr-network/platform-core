@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { StepBilling } from "./step-billing";
 import { StepChannels } from "./step-channels";
 import { StepConnect } from "./step-connect";
+import { StepCostCompare } from "./step-cost-compare";
 import { StepLaunch } from "./step-launch";
 import { StepName } from "./step-name";
 import { StepPowerSource } from "./step-power-source";
@@ -18,6 +19,7 @@ const STEP_LABELS: Record<string, string> = {
   channels: "Channels",
   connect: "Connect",
   superpowers: "Superpowers",
+  "cost-compare": "Compare",
   "power-source": "Power Source",
   billing: "Billing",
   launch: "Launch",
@@ -28,9 +30,10 @@ const STEP_META: Record<string, { number: string; code: string }> = {
   channels: { number: "02", code: "CHANNELS" },
   connect: { number: "03", code: "CONNECT" },
   superpowers: { number: "04", code: "SUPERPOWERS" },
-  "power-source": { number: "05", code: "POWER SOURCE" },
-  billing: { number: "06", code: "BILLING" },
-  launch: { number: "07", code: "LAUNCH" },
+  "cost-compare": { number: "05", code: "COST COMPARE" },
+  "power-source": { number: "06", code: "POWER SOURCE" },
+  billing: { number: "07", code: "BILLING" },
+  launch: { number: "08", code: "LAUNCH" },
 };
 
 const stepTransition = {
@@ -160,6 +163,17 @@ export function OnboardingWizard({ mode = "onboarding" }: OnboardingWizardProps)
               onToggle={actions.toggleSuperpower}
               mode={state.mode}
               existingBots={state.existingBots}
+              stepNumber={currentMeta.number}
+              stepCode={currentMeta.code}
+            />
+          </motion.div>
+        )}
+
+        {state.step === "cost-compare" && (
+          <motion.div key="cost-compare" {...stepTransition}>
+            <StepCostCompare
+              selectedChannels={state.selectedChannels}
+              selectedSuperpowers={state.selectedSuperpowers}
               stepNumber={currentMeta.number}
               stepCode={currentMeta.code}
             />

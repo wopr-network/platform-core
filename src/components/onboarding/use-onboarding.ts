@@ -17,6 +17,7 @@ export type OnboardingStep =
   | "channels"
   | "connect"
   | "superpowers"
+  | "cost-compare"
   | "power-source"
   | "billing"
   | "launch";
@@ -26,6 +27,7 @@ const STEP_ORDER: OnboardingStep[] = [
   "channels",
   "connect",
   "superpowers",
+  "cost-compare",
   "power-source",
   "billing",
   "launch",
@@ -493,6 +495,8 @@ export function useOnboarding(
         );
       case "superpowers":
         return true; // superpowers are optional
+      case "cost-compare":
+        return true; // informational, always skippable
       case "power-source":
         if (providerMode === "hosted") return true;
         // BYOK: all key fields must be valid
