@@ -600,17 +600,25 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               disabled={saving}
               onClick={async () => {
                 setConfigError(null);
-                let parsed: Record<string, unknown>;
+                let parsed: unknown;
                 try {
                   parsed = JSON.parse(configText);
                 } catch {
                   setConfigStatus("invalid");
                   return;
                 }
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+                  setConfigStatus("invalid");
+                  return;
+                }
+                setConfigStatus("idle");
                 setSaving(true);
                 try {
                   const env: Record<string, string> = {};
-                  for (const [k, v] of Object.entries(parsed)) {
+                  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+                    if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
+                      throw new Error(`Value for key "${k}" must be a string, number, or boolean`);
+                    }
                     env[k] = String(v);
                   }
                   await updateInstanceConfig(instanceId, env);
