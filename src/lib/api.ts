@@ -1392,11 +1392,13 @@ export async function validateDeepgramKey(key: string): Promise<KeyValidationRes
 }
 
 export async function validateElevenLabsKey(key: string): Promise<KeyValidationResult> {
-  const { testProviderKey, saveProviderKey } = await import("./settings-api");
+  const { testProviderKey, saveProviderKey: saveProviderKeyViaTrpc } = await import(
+    "./settings-api"
+  );
   try {
     const result = await testProviderKey("elevenlabs", key);
     if (result.valid) {
-      await saveProviderKey("elevenlabs", key);
+      await saveProviderKeyViaTrpc("elevenlabs", key);
       return { valid: true };
     }
     return {
