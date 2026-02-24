@@ -5,6 +5,7 @@ import { InstanceDetailClient } from "../app/instances/[id]/instance-detail-clie
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: vi.fn().mockReturnValue({ push: vi.fn() }),
 }));
 
 vi.mock("@/lib/api", () => ({
