@@ -1487,3 +1487,65 @@ export async function fetchPlatformHealth(): Promise<PlatformHealthResponse | nu
     return null;
   }
 }
+
+// --- Snapshot types ---
+
+export type SnapshotType = "nightly" | "on-demand" | "pre-restore";
+export type SnapshotTrigger = "manual" | "scheduled" | "pre_update";
+
+export interface Snapshot {
+  id: string;
+  instanceId: string;
+  name: string | null;
+  type: SnapshotType;
+  trigger: SnapshotTrigger;
+  sizeMb: number;
+  createdAt: string;
+  expiresAt: number | null;
+}
+
+/** List all snapshots for a bot instance. */
+export async function listSnapshots(instanceId: string): Promise<Snapshot[]> {
+  const data = await apiFetch<{ snapshots: Snapshot[] }>(`/bots/${instanceId}/snapshots`, {
+    method: "GET",
+  });
+  return data.snapshots;
+}
+
+/** Create an on-demand snapshot. */
+export async function createSnapshot(
+  instanceId: string,
+  name?: string,
+): Promise<{ snapshot: Snapshot; estimatedMonthlyCost: string }> {
+  return apiFetch<{ snapshot: Snapshot; estimatedMonthlyCost: string }>(
+    `/bots/${instanceId}/snapshots`,
+    {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
+    },
+  );
+}
+
+/** Restore an instance from a snapshot. Uses the /instances/ route. */
+export async function restoreSnapshot(instanceId: string, snapshotId: string): Promise<void> {
+  await apiFetch<{ ok: boolean; restored: string }>(
+    `/instances/${instanceId}/snapshots/${snapshotId}/restore`,
+    { method: "POST" },
+  );
+}
+
+/** Delete a snapshot. Backend returns 204 no content. */
+export async function deleteSnapshot(instanceId: string, snapshotId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/bots/${instanceId}/snapshots/${snapshotId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  if (!res.ok && res.status !== 204) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `API error: ${res.status}`);
+  }
+}
