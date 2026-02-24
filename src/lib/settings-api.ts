@@ -23,6 +23,9 @@ interface CapabilitiesProcedures {
       label?: string;
     }): Promise<{ ok: true; id: string; provider: string }>;
   };
+  testKey: {
+    mutate(input: { provider: string; key: string }): Promise<{ valid: boolean; error?: string }>;
+  };
 }
 
 // NOTE(WOP-812): Cast via unknown to avoid @typescript/no-explicit-any while bridging the
@@ -50,4 +53,11 @@ export async function saveProviderKey(
   key: string,
 ): Promise<{ ok: true; id: string; provider: string }> {
   return capabilitiesClient.storeKey.mutate({ provider, apiKey: key });
+}
+
+export async function testProviderKey(
+  provider: string,
+  key: string,
+): Promise<{ valid: boolean; error?: string }> {
+  return capabilitiesClient.testKey.mutate({ provider, key });
 }

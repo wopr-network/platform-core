@@ -1392,15 +1392,21 @@ export async function validateDeepgramKey(key: string): Promise<KeyValidationRes
 }
 
 export async function validateElevenLabsKey(key: string): Promise<KeyValidationResult> {
+  const { testProviderKey, saveProviderKey: saveProviderKeyViaTrpc } = await import(
+    "./settings-api"
+  );
   try {
-    await storeTenantKey("elevenlabs", key);
-    return { valid: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("401") || message.includes("403")) {
-      return { valid: false, message: "Invalid API key. Please check and try again." };
+    const result = await testProviderKey("elevenlabs", key);
+    if (result.valid) {
+      await saveProviderKeyViaTrpc("elevenlabs", key);
+      return { valid: true };
     }
-    return { valid: false, message: "Could not reach ElevenLabs. Please try again later." };
+    return {
+      valid: false,
+      message: result.error ?? "Invalid API key. Please check and try again.",
+    };
+  } catch {
+    return { valid: false, message: "Could not validate key. Please try again." };
   }
 }
 

@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const mockTestProviderKey = vi.fn();
+const mockSaveProviderKey = vi.fn();
+
+vi.mock("@/lib/settings-api", () => ({
+  testProviderKey: (...args: unknown[]) => mockTestProviderKey(...args),
+  saveProviderKey: (...args: unknown[]) => mockSaveProviderKey(...args),
+}));
+
+// Still need these mocks because api.ts imports them at module level
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -28,64 +37,59 @@ import { validateElevenLabsKey } from "@/lib/api";
 
 describe("validateElevenLabsKey", () => {
   beforeEach(() => {
+    mockTestProviderKey.mockReset();
+    mockSaveProviderKey.mockReset();
     mockFetch.mockReset();
   });
 
   it("does NOT call elevenlabs.io directly", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({
-          provider: "elevenlabs",
-          hasKey: true,
-          maskedKey: null,
-          createdAt: null,
-          updatedAt: null,
-        }),
-    });
+    mockTestProviderKey.mockResolvedValue({ valid: true });
+    mockSaveProviderKey.mockResolvedValue({ ok: true, id: "1", provider: "elevenlabs" });
 
     await validateElevenLabsKey("test-key");
 
+    // fetch should NOT have been called with any elevenlabs.io URL
     for (const call of mockFetch.mock.calls) {
       const url = typeof call[0] === "string" ? call[0] : (call[0]?.toString?.() ?? "");
       expect(url).not.toContain("elevenlabs.io");
     }
   });
 
-  it("routes validation through the platform backend", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({
-          provider: "elevenlabs",
-          hasKey: true,
-          maskedKey: null,
-          createdAt: null,
-          updatedAt: null,
-        }),
-    });
+  it("calls testProviderKey with provider=elevenlabs", async () => {
+    mockTestProviderKey.mockResolvedValue({ valid: true });
+    mockSaveProviderKey.mockResolvedValue({ ok: true, id: "1", provider: "elevenlabs" });
 
     const result = await validateElevenLabsKey("test-key");
-    expect(result.valid).toBe(true);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("localhost:3001/api/"),
-      expect.anything(),
-    );
+    expect(mockTestProviderKey).toHaveBeenCalledWith("elevenlabs", "test-key");
+    expect(result.valid).toBe(true);
   });
 
-  it("returns invalid when backend call fails", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      statusText: "Bad Request",
-      json: () => Promise.resolve({}),
-    });
+  it("stores key after successful validation", async () => {
+    mockTestProviderKey.mockResolvedValue({ valid: true });
+    mockSaveProviderKey.mockResolvedValue({ ok: true, id: "1", provider: "elevenlabs" });
+
+    await validateElevenLabsKey("test-key");
+
+    expect(mockSaveProviderKey).toHaveBeenCalledWith("elevenlabs", "test-key");
+  });
+
+  it("does NOT store key when validation fails", async () => {
+    mockTestProviderKey.mockResolvedValue({ valid: false, error: "Invalid API key" });
 
     const result = await validateElevenLabsKey("bad-key");
+
     expect(result.valid).toBe(false);
-    expect(result.message).toBeTruthy();
+    expect(result.message).toBe("Invalid API key");
+    expect(mockSaveProviderKey).not.toHaveBeenCalled();
+  });
+
+  it("returns error when testProviderKey throws", async () => {
+    mockTestProviderKey.mockRejectedValue(new Error("Network error"));
+
+    const result = await validateElevenLabsKey("any-key");
+
+    expect(result.valid).toBe(false);
+    expect(result.message).toBe("Could not validate key. Please try again.");
   });
 });
