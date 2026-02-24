@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HealthOverview } from "@/components/observability/health-overview";
 import { LogsViewer } from "@/components/observability/logs-viewer";
 import { MetricsDashboard } from "@/components/observability/metrics-dashboard";
@@ -100,6 +100,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
     load();
   }, [load]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshotsLoaded is a ref (stable object), not a reactive value
   useEffect(() => {
     if (activeTab === "snapshots" && !snapshotsLoaded.current) {
       snapshotsLoaded.current = true;
