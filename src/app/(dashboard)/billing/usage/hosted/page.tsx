@@ -50,12 +50,19 @@ export default function HostedUsageDetailPage() {
   const [capabilityFilter, setCapabilityFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await getHostedUsageEvents().catch(() => []);
-    setEvents(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await getHostedUsageEvents();
+      setEvents(data);
+    } catch {
+      setError("Failed to load usage events.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -151,6 +158,17 @@ export default function HostedUsageDetailPage() {
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">{error}</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
       </div>
     );
   }

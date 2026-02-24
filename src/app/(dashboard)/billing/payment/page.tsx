@@ -53,13 +53,21 @@ export default function PaymentPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await getBillingInfo();
-    setInfo(data);
-    setBillingEmail(data.email);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await getBillingInfo();
+      setInfo(data);
+      setBillingEmail(data.email);
+    } catch {
+      setError("Failed to load billing information.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -81,12 +89,17 @@ export default function PaymentPage() {
   }
 
   async function handleRemovePayment(id: string) {
-    await removePaymentMethod(id);
-    if (info) {
-      setInfo({
-        ...info,
-        paymentMethods: info.paymentMethods.filter((pm) => pm.id !== id),
-      });
+    setRemoveError(null);
+    try {
+      await removePaymentMethod(id);
+      if (info) {
+        setInfo({
+          ...info,
+          paymentMethods: info.paymentMethods.filter((pm) => pm.id !== id),
+        });
+      }
+    } catch {
+      setRemoveError("Failed to remove payment method.");
     }
   }
 
@@ -94,7 +107,7 @@ export default function PaymentPage() {
     setExpandedInvoice(expandedInvoice === invoiceId ? null : invoiceId);
   }
 
-  if (loading || !info) {
+  if (loading) {
     return (
       <div className="max-w-3xl space-y-6">
         <div className="space-y-2">
@@ -121,6 +134,17 @@ export default function PaymentPage() {
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-24" />
         </div>
+      </div>
+    );
+  }
+
+  if (error || !info) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">{error ?? "Unable to load billing information."}</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
       </div>
     );
   }
@@ -193,6 +217,18 @@ export default function PaymentPage() {
               })}
             </div>
           )}
+          <AnimatePresence>
+            {removeError && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                {removeError}
+              </motion.div>
+            )}
+          </AnimatePresence>
           <Button variant="outline" onClick={() => setShowAddPayment(true)}>
             Add payment method
           </Button>

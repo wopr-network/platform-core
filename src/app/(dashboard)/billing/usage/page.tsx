@@ -61,31 +61,37 @@ export default function UsagePage() {
   const [showSpendingControls, setShowSpendingControls] = useState(false);
   const [savingLimits, setSavingLimits] = useState(false);
   const [limitsMsg, setLimitsMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const mode = await getInferenceMode().catch(() => "byok" as const);
-    setInferenceMode(mode);
+    setError(null);
+    try {
+      const mode = await getInferenceMode().catch(() => "byok" as const);
+      setInferenceMode(mode);
 
-    const [usageData, costsData, historyData] = await Promise.all([
-      getBillingUsage(),
-      getProviderCosts(),
-      getUsageHistory(30),
-    ]);
-    setUsage(usageData);
-    setProviderCosts(costsData);
-    setHistory(historyData);
-
-    if (mode === "hosted") {
-      const [hosted, limits] = await Promise.all([
-        getHostedUsageSummary().catch(() => null),
-        getSpendingLimits().catch(() => null),
+      const [usageData, costsData, historyData] = await Promise.all([
+        getBillingUsage(),
+        getProviderCosts(),
+        getUsageHistory(30),
       ]);
-      setHostedUsage(hosted);
-      setSpendingLimits(limits);
-    }
+      setUsage(usageData);
+      setProviderCosts(costsData);
+      setHistory(historyData);
 
-    setLoading(false);
+      if (mode === "hosted") {
+        const [hosted, limits] = await Promise.all([
+          getHostedUsageSummary().catch(() => null),
+          getSpendingLimits().catch(() => null),
+        ]);
+        setHostedUsage(hosted);
+        setSpendingLimits(limits);
+      }
+    } catch {
+      setError("Failed to load usage data.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -106,7 +112,7 @@ export default function UsagePage() {
     }
   }
 
-  if (loading || !usage) {
+  if (loading) {
     return (
       <div className="max-w-3xl space-y-6">
         <div className="space-y-2">
@@ -129,6 +135,17 @@ export default function UsagePage() {
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-32 w-full" />
         </div>
+      </div>
+    );
+  }
+
+  if (error || !usage) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
+        <p className="text-sm text-destructive">{error ?? "Unable to load usage data."}</p>
+        <Button variant="outline" size="sm" onClick={load}>
+          Retry
+        </Button>
       </div>
     );
   }
