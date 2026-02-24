@@ -1,8 +1,11 @@
 "use client";
 
+import { Clock } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AutoTopupCard } from "@/components/billing/auto-topup-card";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
+import { BuyCryptoCreditPanel } from "@/components/billing/buy-crypto-credits-panel";
 import { CreditBalance } from "@/components/billing/credit-balance";
 import { DividendBanner } from "@/components/billing/dividend-banner";
 import { DividendEligibility } from "@/components/billing/dividend-eligibility";
@@ -16,11 +19,22 @@ import type { CreditBalance as CreditBalanceData, DividendWalletStats } from "@/
 import { getCreditBalance, getDividendStats } from "@/lib/api";
 
 export default function CreditsPage() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const cryptoPending = searchParams.get("crypto") === "pending";
+
   const [balance, setBalance] = useState<CreditBalanceData | null>(null);
   const [dividendStats, setDividendStats] = useState<DividendWalletStats | null>(null);
   const [todayDividendCents, setTodayDividendCents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cryptoPending) {
+      router.replace(pathname);
+    }
+  }, [cryptoPending, pathname, router]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +112,15 @@ export default function CreditsPage() {
         <DividendBanner todayAmountCents={todayDividendCents} stats={dividendStats} />
       )}
 
+      {cryptoPending && (
+        <div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-4">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Clock className="h-4 w-4 text-amber-500" />
+            Crypto payment pending — credits will appear once confirmed on-chain.
+          </p>
+        </div>
+      )}
+
       <CreditBalance data={balance} />
 
       {dividendStats && (
@@ -116,6 +139,7 @@ export default function CreditsPage() {
       )}
 
       <BuyCreditsPanel />
+      <BuyCryptoCreditPanel />
       <AutoTopupCard />
       <TransactionHistory />
 

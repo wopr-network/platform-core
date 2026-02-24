@@ -964,6 +964,9 @@ interface BillingProcedures {
       total: number;
     }>;
   };
+  cryptoCheckout: {
+    mutate(input: { amountUsd: number }): Promise<{ url: string; referenceId: string }>;
+  };
   autoTopupSettings: {
     query(input?: Record<never, never>): Promise<AutoTopupSettings>;
   };
@@ -1168,6 +1171,12 @@ export async function createCreditCheckout(priceId: string): Promise<CheckoutRes
   const url = res.url;
   if (!url) throw new Error("Portal URL unavailable");
   return { checkoutUrl: url };
+}
+
+export async function createCryptoCheckout(
+  amountUsd: number,
+): Promise<{ url: string; referenceId: string }> {
+  return billingClient.cryptoCheckout.mutate({ amountUsd });
 }
 
 // --- Dividend types ---
