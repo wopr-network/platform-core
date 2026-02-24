@@ -5,6 +5,6 @@ import { LandingPage } from "../components/landing/landing-page";
 describe("Smoke test", () => {
   it("renders the landing page with the tagline", () => {
     render(<LandingPage />);
-    expect(screen.getByText("What would you do with your own WOPR Bot?")).toBeInTheDocument();
+    expect(screen.getByText("Shall we play a game?")).toBeInTheDocument();
   });
 });
