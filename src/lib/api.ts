@@ -1458,3 +1458,30 @@ export async function updateNotificationPreferences(
 ): Promise<NotificationPreferences> {
   return trpcMutate<NotificationPreferences>("settings.updateNotificationPreferences", prefs);
 }
+
+// --- Public platform health (no auth required) ---
+
+export interface PlatformServiceHealth {
+  name: string;
+  status: HealthStatus;
+  latencyMs: number | null;
+}
+
+export interface PlatformHealthResponse {
+  status: HealthStatus;
+  services: PlatformServiceHealth[];
+  version: string;
+  uptime: number;
+}
+
+export async function fetchPlatformHealth(): Promise<PlatformHealthResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/health`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as PlatformHealthResponse;
+  } catch {
+    return null;
+  }
+}
