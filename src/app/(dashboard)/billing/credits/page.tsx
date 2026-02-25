@@ -12,17 +12,44 @@ import { DividendEligibility } from "@/components/billing/dividend-eligibility";
 import { DividendPoolStats } from "@/components/billing/dividend-pool-stats";
 import { FirstDividendDialog } from "@/components/billing/first-dividend-dialog";
 import { LowBalanceBanner } from "@/components/billing/low-balance-banner";
+import { OrgBillingPage } from "@/components/billing/org-billing-page";
 import { TransactionHistory } from "@/components/billing/transaction-history";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditBalance as CreditBalanceData, DividendWalletStats } from "@/lib/api";
 import { getCreditBalance, getDividendStats } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
+import { getOrganization } from "@/lib/org-api";
 
 function CreditsContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
   const cryptoPending = searchParams.get("crypto") === "pending";
+  const { data: session } = useSession();
+
+  const [orgContext, setOrgContext] = useState<{
+    orgId: string;
+    orgName: string;
+    isAdmin: boolean;
+  } | null>(null);
+  const [orgChecked, setOrgChecked] = useState(false);
+
+  useEffect(() => {
+    getOrganization()
+      .then((org) => {
+        const currentMember = org.members.find((m) => m.email === session?.user?.email);
+        setOrgContext({
+          orgId: org.id,
+          orgName: org.name,
+          isAdmin: currentMember?.role === "owner" || currentMember?.role === "admin",
+        });
+      })
+      .catch(() => {
+        // No org — show personal billing
+      })
+      .finally(() => setOrgChecked(true));
+  }, [session?.user?.email]);
 
   const [showCryptoPending, setShowCryptoPending] = useState(cryptoPending);
   const [balance, setBalance] = useState<CreditBalanceData | null>(null);
@@ -63,6 +90,25 @@ function CreditsContent() {
   useEffect(() => {
     load();
   }, [load]);
+
+  if (!orgChecked) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <Skeleton className="h-7 w-24" />
+        <Skeleton className="h-20 w-full rounded-md" />
+      </div>
+    );
+  }
+
+  if (orgContext) {
+    return (
+      <OrgBillingPage
+        orgId={orgContext.orgId}
+        orgName={orgContext.orgName}
+        isAdmin={orgContext.isAdmin}
+      />
+    );
+  }
 
   if (loading) {
     return (

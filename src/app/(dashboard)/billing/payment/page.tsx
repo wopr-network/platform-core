@@ -27,6 +27,9 @@ import {
   setDefaultPaymentMethod,
   updateBillingEmail,
 } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
+import { getOrganization } from "@/lib/org-api";
+import { getOrgBillingInfo } from "@/lib/org-billing-api";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, string> = {
@@ -51,6 +54,7 @@ const staggerItem = {
 };
 
 export default function PaymentPage() {
+  const { data: session } = useSession();
   const [info, setInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [billingEmail, setBillingEmail] = useState("");
@@ -60,6 +64,51 @@ export default function PaymentPage() {
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  // Org context detection
+  const [orgContext, setOrgContext] = useState<{
+    orgId: string;
+    orgName: string;
+    isAdmin: boolean;
+  } | null>(null);
+  const [orgPaymentMethods, setOrgPaymentMethods] = useState<
+    Array<{
+      id: string;
+      brand: string;
+      last4: string;
+      expiryMonth: number;
+      expiryYear: number;
+      isDefault: boolean;
+    }>
+  >([]);
+  const [_orgInvoices, setOrgInvoices] = useState<
+    Array<{ id: string; date: string; amount: number; status: string; downloadUrl: string }>
+  >([]);
+  const [orgChecked, setOrgChecked] = useState(false);
+  const [orgLoading, setOrgLoading] = useState(false);
+
+  useEffect(() => {
+    getOrganization()
+      .then((org) => {
+        const currentMember = org.members.find((m) => m.email === session?.user?.email);
+        const ctx = {
+          orgId: org.id,
+          orgName: org.name,
+          isAdmin: currentMember?.role === "owner" || currentMember?.role === "admin",
+        };
+        setOrgContext(ctx);
+        setOrgLoading(true);
+        getOrgBillingInfo(org.id)
+          .then((data) => {
+            setOrgPaymentMethods(data.paymentMethods);
+            setOrgInvoices(data.invoices);
+          })
+          .catch(() => {})
+          .finally(() => setOrgLoading(false));
+      })
+      .catch(() => {})
+      .finally(() => setOrgChecked(true));
+  }, [session?.user?.email]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -304,6 +353,57 @@ export default function PaymentPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Org Payment Methods (when in org context) */}
+      {orgChecked && orgContext && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Org Payment Methods</CardTitle>
+            <CardDescription>
+              Cards on file for org-level charges ({orgContext.orgName})
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {orgLoading ? (
+              <div className="space-y-3">
+                {["sk-org-a", "sk-org-b"].map((skId) => (
+                  <div
+                    key={skId}
+                    className="flex items-center justify-between rounded-md border p-3"
+                  >
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : orgPaymentMethods.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No org payment methods on file.</p>
+            ) : (
+              <div className="space-y-3">
+                {orgPaymentMethods.map((pm) => (
+                  <div
+                    key={pm.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                  >
+                    <p className="text-sm font-medium font-mono">
+                      **** {pm.last4}
+                      {pm.isDefault && (
+                        <Badge
+                          variant="outline"
+                          className="ml-2 border-primary/25 text-primary text-xs"
+                        >
+                          Default
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {orgContext.isAdmin && <Button variant="outline">Add org payment method</Button>}
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
