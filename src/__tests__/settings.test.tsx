@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   BillingInfo,
   BillingUsage,
@@ -246,6 +246,9 @@ vi.mock("@/lib/org-api", () => ({
   inviteMember: vi.fn().mockResolvedValue(MOCK_ORG.members[2]),
   removeMember: vi.fn().mockResolvedValue(undefined),
   transferOwnership: vi.fn().mockResolvedValue(undefined),
+  createOrganization: vi
+    .fn()
+    .mockResolvedValue({ id: "org-new", name: "Test Org", slug: "test-org" }),
 }));
 
 // Mock @/lib/auth-client for OAuth account linking
@@ -698,6 +701,88 @@ describe("Organization page - no org redirect", () => {
     });
 
     vi.spyOn(nav, "useRouter").mockRestore();
+  });
+});
+
+describe("Account page — Teams & Organizations section", () => {
+  it("renders Teams & Organizations heading", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+    expect(await screen.findByText("Teams & Organizations")).toBeInTheDocument();
+  });
+
+  it("renders Create organization button", async () => {
+    const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
+    render(<AccountPage />);
+    expect(await screen.findByRole("button", { name: /create organization/i })).toBeInTheDocument();
+  });
+});
+
+describe("CreateOrgWizard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("opens dialog and shows name input on click", async () => {
+    const { default: CreateOrgWizard } = await import("../components/settings/create-org-wizard");
+    const user = userEvent.setup();
+    render(<CreateOrgWizard />);
+    await user.click(screen.getByRole("button", { name: /create organization/i }));
+    expect(screen.getByLabelText(/organization name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/slug/i)).toBeInTheDocument();
+  });
+
+  it("auto-generates slug from name", async () => {
+    const { default: CreateOrgWizard } = await import("../components/settings/create-org-wizard");
+    const user = userEvent.setup();
+    render(<CreateOrgWizard />);
+    await user.click(screen.getByRole("button", { name: /create organization/i }));
+    await user.type(screen.getByLabelText(/organization name/i), "My Cool Team");
+    expect(screen.getByLabelText(/slug/i)).toHaveValue("my-cool-team");
+  });
+
+  it("proceeds to confirm step and shows summary", async () => {
+    const { default: CreateOrgWizard } = await import("../components/settings/create-org-wizard");
+    const user = userEvent.setup();
+    render(<CreateOrgWizard />);
+    await user.click(screen.getByRole("button", { name: /create organization/i }));
+    await user.type(screen.getByLabelText(/organization name/i), "Acme Corp");
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    expect(await screen.findByText(/you.?ll be the admin/i)).toBeInTheDocument();
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+  });
+
+  it("calls createOrganization on confirm and shows success", async () => {
+    const { createOrganization } = await import("@/lib/org-api");
+    vi.mocked(createOrganization).mockResolvedValueOnce({
+      id: "org-1",
+      name: "Acme Corp",
+      slug: "acme-corp",
+    });
+    const { default: CreateOrgWizard } = await import("../components/settings/create-org-wizard");
+    const user = userEvent.setup();
+    render(<CreateOrgWizard />);
+    await user.click(screen.getByRole("button", { name: /create organization/i }));
+    await user.type(screen.getByLabelText(/organization name/i), "Acme Corp");
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    const createBtn = await screen.findByRole("button", { name: /^create$/i });
+    await user.click(createBtn);
+    expect(await screen.findByText(/organization created/i)).toBeInTheDocument();
+    expect(createOrganization).toHaveBeenCalledWith({ name: "Acme Corp", slug: "acme-corp" });
+  });
+
+  it("shows inline error on API failure", async () => {
+    const { createOrganization } = await import("@/lib/org-api");
+    vi.mocked(createOrganization).mockRejectedValueOnce(new Error("API error: 409 Conflict"));
+    const { default: CreateOrgWizard } = await import("../components/settings/create-org-wizard");
+    const user = userEvent.setup();
+    render(<CreateOrgWizard />);
+    await user.click(screen.getByRole("button", { name: /create organization/i }));
+    await user.type(screen.getByLabelText(/organization name/i), "Acme Corp");
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    const createBtn = await screen.findByRole("button", { name: /^create$/i });
+    await user.click(createBtn);
+    expect(await screen.findByText(/already taken/i)).toBeInTheDocument();
   });
 });
 
