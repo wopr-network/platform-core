@@ -5,6 +5,7 @@ import {
   BellIcon,
   BrainIcon,
   BuildingIcon,
+  HistoryIcon,
   KeyIcon,
   KeyRoundIcon,
   MenuIcon,
@@ -27,6 +28,7 @@ const settingsNav = [
   { label: "API Keys", href: "/settings/api-keys", icon: KeyIcon },
   { label: "Organization", href: "/settings/org", icon: BuildingIcon },
   { label: "Notifications", href: "/settings/notifications", icon: BellIcon },
+  { label: "Activity", href: "/settings/activity", icon: HistoryIcon },
 ];
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {

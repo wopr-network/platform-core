@@ -1589,3 +1589,38 @@ export async function deleteSnapshot(instanceId: string, snapshotId: string): Pr
     throw new Error((body as { error?: string }).error ?? `API error: ${res.status}`);
   }
 }
+
+// --- Audit Log API ---
+
+export interface AuditEvent {
+  id: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  resourceName: string | null;
+  details: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  events: AuditEvent[];
+  total: number;
+  hasMore: boolean;
+}
+
+export async function fetchAuditLog(params: {
+  limit?: number;
+  offset?: number;
+  since?: string;
+  until?: string;
+  action?: string;
+}): Promise<AuditLogResponse> {
+  const query = new URLSearchParams();
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.offset) query.set("offset", String(params.offset));
+  if (params.since) query.set("since", params.since);
+  if (params.until) query.set("until", params.until);
+  if (params.action) query.set("action", params.action);
+  const qs = query.toString();
+  return apiFetch<AuditLogResponse>(`/audit${qs ? `?${qs}` : ""}`);
+}
