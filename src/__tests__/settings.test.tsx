@@ -256,6 +256,8 @@ vi.mock("@/lib/org-api", () => ({
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),
   }),
+  changeRole: vi.fn().mockResolvedValue(undefined),
+  revokeInvite: vi.fn().mockResolvedValue(undefined),
   removeMember: vi.fn().mockResolvedValue(undefined),
   transferOwnership: vi.fn().mockResolvedValue(undefined),
   createOrganization: vi

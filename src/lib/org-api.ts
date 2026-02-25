@@ -18,9 +18,16 @@ interface OrgInviteRow {
 }
 
 interface OrgProcedures {
-  getOrganization: { query(input?: Record<never, never>): Promise<Organization> };
+  getOrganization: {
+    query(input?: Record<never, never>): Promise<Organization>;
+  };
   updateOrganization: {
-    mutate(input: { orgId: string; name?: string; slug?: string }): Promise<Organization>;
+    mutate(input: {
+      orgId: string;
+      name?: string;
+      slug?: string;
+      billingEmail?: string;
+    }): Promise<Organization>;
   };
   inviteMember: {
     mutate(input: {
@@ -39,11 +46,15 @@ interface OrgProcedures {
       role: "admin" | "member";
     }): Promise<{ updated: boolean }>;
   };
-  removeMember: { mutate(input: { orgId: string; userId: string }): Promise<{ removed: boolean }> };
+  removeMember: {
+    mutate(input: { orgId: string; userId: string }): Promise<{ removed: boolean }>;
+  };
   transferOwnership: {
     mutate(input: { orgId: string; userId: string }): Promise<{ transferred: boolean }>;
   };
-  deleteOrganization: { mutate(input: { orgId: string }): Promise<{ deleted: boolean }> };
+  deleteOrganization: {
+    mutate(input: { orgId: string }): Promise<{ deleted: boolean }>;
+  };
   createOrganization: {
     mutate(input: {
       name: string;
@@ -64,7 +75,7 @@ export async function getOrganization(): Promise<Organization> {
 
 export async function updateOrganization(
   orgId: string,
-  data: { name?: string; slug?: string },
+  data: { name?: string; slug?: string; billingEmail?: string },
 ): Promise<Organization> {
   return orgClient.updateOrganization.mutate({ orgId, ...data });
 }

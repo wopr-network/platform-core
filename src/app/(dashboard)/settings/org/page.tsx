@@ -105,6 +105,7 @@ export default function OrgPage() {
       const updated = await updateOrganization(org.id, {
         name: orgName,
         slug: orgSlug || undefined,
+        billingEmail: billingEmail || undefined,
       });
       setOrg(updated);
       setSaveMsg("Organization updated.");
