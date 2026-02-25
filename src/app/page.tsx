@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PrelaunchPage } from "@/components/landing/prelaunch-page";
+import { LandingPage } from "@/components/landing/landing-page";
 
 export const metadata: Metadata = {
   title: "WOPR Bot — Shall we play a game?",
@@ -31,5 +31,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <PrelaunchPage />;
+  return <LandingPage />;
 }

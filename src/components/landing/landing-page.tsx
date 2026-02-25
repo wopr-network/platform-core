@@ -2,141 +2,63 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Hero } from "./hero";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { StorySections } from "./story-sections";
+import { TerminalSequence } from "./terminal-sequence";
 
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
+function CtaBlock({ className }: { className?: string }) {
+  return (
+    <div className={`flex flex-col items-center ${className ?? ""}`}>
+      <Button variant="terminal" size="lg" asChild>
+        <Link href="/signup">Start for $5/month</Link>
+      </Button>
+      <span className="mt-4 font-mono text-xs text-terminal/40">Your WOPR Bot is waiting.</span>
+    </div>
+  );
+}
 
 export function LandingPage() {
+  const [animationDone, setAnimationDone] = useState(false);
+
   return (
-    <div className="bg-background text-foreground">
-      {/* --- Hero --- */}
-      <Hero />
+    <div className="bg-black font-mono">
+      {/* Hero — Terminal Animation */}
+      <TerminalSequence onComplete={() => setAnimationDone(true)} />
 
-      {/* --- The Proof --- */}
-      <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-3xl">
-          <motion.blockquote
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="border-l-2 border-terminal/40 pl-6 text-lg leading-relaxed text-muted-foreground md:text-xl"
-          >
-            Every commit to this codebase was planned, written, reviewed, and shipped by WOPR
-            agents. Every sprint. Every Linear issue. Every architecture decision. We are the proof
-            of concept.
-          </motion.blockquote>
-        </div>
-      </section>
+      {/* Top CTA — fades in after animation */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={animationDone ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
+        className="bg-black"
+      >
+        <CtaBlock className="py-16" />
+      </motion.div>
 
-      {/* --- The One Story --- */}
-      <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-3xl text-center">
-          <motion.p
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="text-2xl font-bold leading-tight tracking-tight text-terminal sm:text-3xl md:text-4xl"
-          >
-            &ldquo;It called me on my drive home to talk about a revenue stream it created.&rdquo;
-          </motion.p>
-        </div>
-      </section>
+      {/* Story Sections */}
+      <div className="bg-black">
+        <StorySections />
+      </div>
 
-      {/* --- Three Audiences --- */}
-      <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-3xl space-y-12">
-          {[
-            {
-              label: "For operators",
-              text: "You don\u2019t need a team. You need a WOPR.",
-            },
-            {
-              label: "For thinkers",
-              text: "This is what AI autonomy looks like in production today. Not hypothetical. Running.",
-            },
-            {
-              label: "For creators",
-              text: "You do the work you love. WOPR does everything else.",
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={item.label}
-              variants={fadeInUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{
-                duration: 0.3,
-                delay: i * 0.1,
-                ease: "easeOut",
-              }}
-            >
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-terminal/60">
-                {item.label}
-              </p>
-              <p className="mt-2 text-lg text-foreground md:text-xl">{item.text}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      {/* Bottom CTA — always visible (scrolled to) */}
+      <div className="bg-black">
+        <CtaBlock className="py-24" />
+      </div>
 
-      {/* --- Pricing --- */}
-      <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-3xl text-center">
-          <motion.div
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          >
-            <p className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
-              Starting at $5/month.
-            </p>
-            <p className="mt-4 text-lg text-muted-foreground md:text-xl">
-              Less than Netflix. For something that runs your business.
-            </p>
-            <p className="mt-6 text-sm text-muted-foreground">
-              Credits for hosted capabilities (voice, image generation, compute). Plugins are free.
-              Always.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* --- Contact --- */}
-      <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm text-muted-foreground">Get in touch</p>
-          <a
-            href="mailto:hello@wopr.network"
-            className="mt-2 inline-block text-lg text-terminal underline underline-offset-4 hover:text-terminal-dim"
-          >
-            hello@wopr.network
-          </a>
-        </div>
-      </section>
-
-      {/* --- Footer --- */}
-      <footer className="border-t border-border px-6 py-12">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center">
-          <span className="text-lg font-semibold tracking-tight text-foreground">WOPR Bot</span>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+      {/* Footer */}
+      <footer className="border-t border-terminal/10 bg-black px-4 py-12">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-4">
+          <span className="font-mono text-sm font-semibold text-terminal/60">WOPR Bot</span>
+          <div className="flex gap-6 font-mono text-xs text-terminal/30">
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-terminal/60">
               Privacy
             </Link>
-            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
+            <Link href="/terms" className="underline underline-offset-4 hover:text-terminal/60">
               Terms
             </Link>
           </div>
-          <span className="text-xs text-muted-foreground opacity-40">wopr.bot</span>
+          <span className="font-mono text-xs text-terminal/20">wopr.bot</span>
         </div>
       </footer>
     </div>
