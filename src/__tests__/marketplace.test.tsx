@@ -278,7 +278,7 @@ describe("PluginDetailPage", () => {
     // Wait for loading
     expect(await screen.findByText("Discord")).toBeInTheDocument();
     expect(screen.getByText("v3.2.0")).toBeInTheDocument();
-    expect(screen.getByText("Install")).toBeInTheDocument();
+    expect(screen.getByText("Give my bot this superpower")).toBeInTheDocument();
     expect(screen.getByText(/12\.4k installs/)).toBeInTheDocument();
   });
 
@@ -325,7 +325,7 @@ describe("PluginDetailPage", () => {
     render(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
-    const installButton = screen.getByText("Install");
+    const installButton = screen.getByText("Give my bot this superpower");
     await user.click(installButton);
 
     // Should now show install wizard
