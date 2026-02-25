@@ -1,22 +1,29 @@
 "use client";
 
+import { AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CategoryFilter } from "@/components/marketplace/category-filter";
 import { MarketplaceEmptyState } from "@/components/marketplace/empty-state";
+import { FeaturedHeroes } from "@/components/marketplace/featured-heroes";
+import { FirstVisitHero } from "@/components/marketplace/first-visit-hero";
+import { MarketplaceTabs } from "@/components/marketplace/marketplace-tabs";
 import { PluginCard } from "@/components/marketplace/plugin-card";
+import { SuperpowerCard } from "@/components/marketplace/superpower-card";
 import { TerminalSearch } from "@/components/marketplace/terminal-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   listMarketplacePlugins,
-  type PluginCategory,
+  type MarketplaceTab,
   type PluginManifest,
 } from "@/lib/marketplace-data";
+
+const FIRST_VISIT_KEY = "wopr-marketplace-visited";
 
 export default function MarketplacePage() {
   const [plugins, setPlugins] = useState<PluginManifest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<PluginCategory | null>(null);
+  const [activeTab, setActiveTab] = useState<MarketplaceTab>("superpower");
+  const [showFirstVisit, setShowFirstVisit] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,53 +36,81 @@ export default function MarketplacePage() {
     load();
   }, [load]);
 
-  const categoryCounts = useMemo(() => {
+  // Detect first visit
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const visited = localStorage.getItem(FIRST_VISIT_KEY);
+    if (!visited) {
+      setShowFirstVisit(true);
+    }
+  }, []);
+
+  function handleDismissFirstVisit() {
+    setShowFirstVisit(false);
+    localStorage.setItem(FIRST_VISIT_KEY, "1");
+  }
+
+  // Superpower plugins
+  const superpowers = useMemo(
+    () => plugins.filter((p) => p.marketplaceTab === "superpower"),
+    [plugins],
+  );
+
+  // Tab counts
+  const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of plugins) {
-      counts[p.category] = (counts[p.category] ?? 0) + 1;
+      const tab = p.marketplaceTab ?? "utility";
+      counts[tab] = (counts[tab] ?? 0) + 1;
     }
     return counts;
   }, [plugins]);
 
+  // Filtered plugins by tab + search
   const filtered = useMemo(() => {
-    let result = plugins;
-    if (category) {
-      result = result.filter((p) => p.category === category);
-    }
+    let result = plugins.filter((p) => (p.marketplaceTab ?? "utility") === activeTab);
     if (search.trim()) {
       const term = search.toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(term) ||
           p.description.toLowerCase().includes(term) ||
+          (p.superpowerHeadline?.toLowerCase().includes(term) ?? false) ||
+          (p.superpowerTagline?.toLowerCase().includes(term) ?? false) ||
           p.tags.some((t) => t.toLowerCase().includes(term)),
       );
     }
     return result;
-  }, [plugins, category, search]);
+  }, [plugins, activeTab, search]);
 
+  // Loading skeleton
   if (loading) {
     return (
       <div className="p-6 space-y-6">
         <div className="space-y-2">
-          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-7 w-56" />
           <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-7 w-52" />
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, n) => `fh-sk-${n}`).map((skId) => (
+              <div key={skId} className="rounded-xl border border-border/50 p-6 space-y-3">
+                <Skeleton className="h-14 w-14 rounded-xl" />
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))}
+          </div>
         </div>
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, n) => `sk-${n}`).map((skId) => (
-            <div key={skId} className="rounded-sm border p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <Skeleton className="h-10 w-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-5 w-28" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              </div>
-              <div className="flex gap-1.5">
-                <Skeleton className="h-5 w-16" />
-                <Skeleton className="h-5 w-20" />
-              </div>
+            <div key={skId} className="rounded-xl border border-border/50 p-6 space-y-4">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-8 w-48" />
             </div>
           ))}
         </div>
@@ -84,29 +119,48 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Plugin Marketplace</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse, install, and configure plugins for your WOPR instances.
-        </p>
-      </div>
+    <>
+      {/* First-visit cinematic overlay */}
+      <AnimatePresence>
+        {showFirstVisit && (
+          <FirstVisitHero superpowers={superpowers} onDismiss={handleDismissFirstVisit} />
+        )}
+      </AnimatePresence>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <TerminalSearch value={search} onChange={setSearch} placeholder="Search plugins..." />
-      </div>
-
-      <CategoryFilter selected={category} onSelect={setCategory} counts={categoryCounts} />
-
-      {filtered.length === 0 ? (
-        <MarketplaceEmptyState hasSearch={search.trim().length > 0} searchTerm={search} />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((plugin, i) => (
-            <PluginCard key={plugin.id} plugin={plugin} index={i} />
-          ))}
+      <div className="p-6 space-y-6">
+        {/* Page header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Browse Superpowers</h1>
+          <p className="text-sm text-muted-foreground">
+            Give your WOPR Bot abilities it was born to have.
+          </p>
         </div>
-      )}
-    </div>
+
+        {/* Featured hero section */}
+        <FeaturedHeroes superpowers={superpowers} />
+
+        {/* Search + tabs */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <TerminalSearch value={search} onChange={setSearch} placeholder="Search superpowers..." />
+        </div>
+
+        <MarketplaceTabs selected={activeTab} onSelect={setActiveTab} counts={tabCounts} />
+
+        {/* Plugin grid */}
+        {filtered.length === 0 ? (
+          <MarketplaceEmptyState hasSearch={search.trim().length > 0} searchTerm={search} />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((plugin, i) =>
+              activeTab === "superpower" ? (
+                <SuperpowerCard key={plugin.id} plugin={plugin} index={i} />
+              ) : (
+                <PluginCard key={plugin.id} plugin={plugin} index={i} />
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

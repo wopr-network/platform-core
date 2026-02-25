@@ -38,6 +38,15 @@ export interface SetupStep {
   externalUrl?: string;
 }
 
+export type MarketplaceTab = "superpower" | "channel" | "capability" | "utility";
+
+export const MARKETPLACE_TABS: { id: MarketplaceTab; label: string }[] = [
+  { id: "superpower", label: "Superpowers" },
+  { id: "channel", label: "Channels" },
+  { id: "capability", label: "Capabilities" },
+  { id: "utility", label: "Utilities" },
+];
+
 export interface PluginManifest {
   id: string;
   name: string;
@@ -59,6 +68,16 @@ export interface PluginManifest {
     label: string;
     endpoint: string;
   };
+  /** Outcome-first headline for the superpower surface */
+  superpowerHeadline?: string;
+  /** One punchy tagline sentence */
+  superpowerTagline?: string;
+  /** Long-form markdown content (from SUPERPOWER.md) */
+  superpowerMarkdown?: string;
+  /** User-facing outcome bullets */
+  superpowerOutcomes?: string[];
+  /** Marketplace category for the 4-tab nav */
+  marketplaceTab?: MarketplaceTab;
 }
 
 // --- Hosted Adapter Registry ---
@@ -251,6 +270,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
       { version: "3.1.0", date: "2026-01-15", notes: "DM support and message reactions." },
       { version: "3.0.0", date: "2025-12-01", notes: "Major rewrite with voice channel support." },
     ],
+    marketplaceTab: "channel",
   },
   {
     id: "slack",
@@ -363,6 +383,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
       { version: "2.1.0", date: "2026-02-01", notes: "Thread reply support." },
       { version: "2.0.0", date: "2026-01-01", notes: "App mention and event subscription." },
     ],
+    marketplaceTab: "channel",
   },
   {
     id: "telegram",
@@ -437,6 +458,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     },
     installCount: 1800,
     changelog: [{ version: "1.0.0", date: "2026-02-15", notes: "Initial release." }],
+    marketplaceTab: "channel",
   },
   {
     id: "semantic-memory",
@@ -510,6 +532,14 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     changelog: [
       { version: "1.4.0", date: "2026-02-05", notes: "Improved retrieval accuracy by 40%." },
       { version: "1.3.0", date: "2026-01-10", notes: "Added support for memory namespaces." },
+    ],
+    marketplaceTab: "superpower",
+    superpowerHeadline: "A Bot That Never Forgets",
+    superpowerTagline: "Your bot remembers every conversation, every detail, forever.",
+    superpowerOutcomes: [
+      "Recalls context from months ago",
+      "Semantic search across all conversations",
+      "Builds understanding over time",
     ],
   },
   {
@@ -595,6 +625,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
       { version: "2.0.1", date: "2026-02-08", notes: "Fixed audio buffer handling." },
       { version: "2.0.0", date: "2026-01-20", notes: "Streaming support for real-time TTS." },
     ],
+    marketplaceTab: "capability",
   },
   {
     id: "deepgram-stt",
@@ -662,6 +693,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
       { version: "1.2.0", date: "2026-02-01", notes: "Added multilingual support." },
       { version: "1.1.0", date: "2026-01-05", notes: "Real-time streaming transcription." },
     ],
+    marketplaceTab: "capability",
   },
   {
     id: "webhooks",
@@ -724,6 +756,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     changelog: [
       { version: "1.1.0", date: "2026-01-25", notes: "Added retry queue and dead letter." },
     ],
+    marketplaceTab: "utility",
   },
   {
     id: "github-integration",
@@ -788,6 +821,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
       { version: "1.3.0", date: "2026-02-03", notes: "PR review comment support." },
       { version: "1.2.0", date: "2026-01-12", notes: "Issue creation from chat." },
     ],
+    marketplaceTab: "utility",
   },
   {
     id: "meeting-transcriber",
@@ -858,6 +892,14 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     ],
     installCount: 2100,
     changelog: [{ version: "1.0.0", date: "2026-02-10", notes: "Initial release." }],
+    marketplaceTab: "superpower",
+    superpowerHeadline: "Fire Your Secretary",
+    superpowerTagline: "Every meeting transcribed, summarized, and action-itemed. Automatically.",
+    superpowerOutcomes: [
+      "Never miss a meeting again",
+      "Action items extracted automatically",
+      "Searchable meeting archive",
+    ],
   },
   {
     id: "ai-art-bot",
@@ -925,6 +967,14 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     changelog: [
       { version: "1.1.0", date: "2026-02-07", notes: "Added portrait and landscape sizes." },
       { version: "1.0.0", date: "2026-01-15", notes: "Initial release." },
+    ],
+    marketplaceTab: "superpower",
+    superpowerHeadline: "Imagine Anything",
+    superpowerTagline: "Type a dream. Get a picture. Share it instantly.",
+    superpowerOutcomes: [
+      "Generate images from text in any channel",
+      "Multiple styles and aspect ratios",
+      "Instant sharing to your community",
     ],
   },
   {
@@ -999,6 +1049,7 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     changelog: [
       { version: "1.0.0", date: "2026-01-20", notes: "Initial release with embed support." },
     ],
+    marketplaceTab: "channel",
   },
   {
     id: "content-moderation",
@@ -1066,6 +1117,14 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     changelog: [
       { version: "1.5.0", date: "2026-02-06", notes: "Added spam detection and auto-mute." },
     ],
+    marketplaceTab: "superpower",
+    superpowerHeadline: "Sleep While She Moderates",
+    superpowerTagline: "Automatic content moderation that actually works.",
+    superpowerOutcomes: [
+      "Filters spam and harmful content 24/7",
+      "Enforces community guidelines automatically",
+      "You set the rules, she enforces them",
+    ],
   },
   {
     id: "analytics-dashboard",
@@ -1116,6 +1175,14 @@ export const MOCK_MANIFESTS: PluginManifest[] = [
     ],
     installCount: 2800,
     changelog: [{ version: "1.0.0", date: "2026-02-01", notes: "Initial release." }],
+    marketplaceTab: "superpower",
+    superpowerHeadline: "Know Everything",
+    superpowerTagline: "See what your community is doing, thinking, and feeling.",
+    superpowerOutcomes: [
+      "Track engagement across all channels",
+      "Conversation analytics and trends",
+      "User activity dashboards",
+    ],
   },
 ];
 

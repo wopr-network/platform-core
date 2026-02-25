@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Download, Terminal } from "lucide-react";
+import { ArrowLeft, Check, Download, Terminal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InstallWizard } from "@/components/marketplace/install-wizard";
@@ -153,23 +153,11 @@ export default function PluginDetailPage() {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-8 w-36" />
-        <div className="flex items-start gap-4">
-          <Skeleton className="h-14 w-14 rounded-xl" />
-          <div className="flex-1 space-y-3">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-4 w-full max-w-md" />
-            <div className="flex gap-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          </div>
-          <Skeleton className="h-9 w-20" />
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-96" />
+          <Skeleton className="h-5 w-full max-w-lg" />
         </div>
-        <div className="flex gap-2">
-          {Array.from({ length: 3 }, (_, n) => `sk-${n}`).map((skId) => (
-            <Skeleton key={skId} className="h-5 w-20" />
-          ))}
-        </div>
+        <Skeleton className="h-12 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -200,6 +188,7 @@ export default function PluginDetailPage() {
 
   const hostedAvailable = hasHostedOption(plugin.capabilities);
   const hostedAdapters = getHostedAdaptersForCapabilities(plugin.capabilities);
+  const hasSuperpowerData = plugin.superpowerHeadline || plugin.superpowerTagline;
 
   return (
     <motion.div
@@ -210,15 +199,15 @@ export default function PluginDetailPage() {
     >
       <Button variant="ghost" onClick={() => router.push("/marketplace")} className="mb-2 gap-2">
         <ArrowLeft className="h-4 w-4" />
-        Back to Marketplace
+        Back to Superpowers
       </Button>
 
-      {/* Hero Section */}
+      {/* Outcome-first Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="flex flex-col gap-6 sm:flex-row sm:items-start"
+        className="space-y-4"
       >
         {/* Large plugin icon with breathing glow */}
         <motion.div
@@ -236,31 +225,26 @@ export default function PluginDetailPage() {
           {plugin.name[0]}
         </motion.div>
 
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">{plugin.name}</h1>
-            <Badge variant="secondary">v{plugin.version}</Badge>
-          </div>
-          <p className="mt-2 text-muted-foreground max-w-lg">{plugin.description}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{formatInstallCount(plugin.installCount)} installs</span>
-            <span className="text-border">|</span>
-            <span>by {plugin.author}</span>
-            <span className="text-border">|</span>
-            <Badge variant="outline">{plugin.category}</Badge>
-          </div>
-        </div>
+        {/* H1 -- the outcome headline */}
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          {hasSuperpowerData ? plugin.superpowerHeadline : plugin.name}
+        </h1>
 
-        {/* Animated Install Button */}
+        {/* Tagline */}
+        <p className="max-w-lg text-lg text-muted-foreground">
+          {hasSuperpowerData ? plugin.superpowerTagline : plugin.description}
+        </p>
+
+        {/* CTA -- above the fold */}
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button size="lg" onClick={() => setInstalling(true)} className="gap-2 min-w-[120px]">
+          <Button size="lg" onClick={() => setInstalling(true)} className="gap-2 min-w-[280px]">
             <Download className="h-4 w-4" />
-            Install
+            Give my bot this superpower
           </Button>
         </motion.div>
       </motion.div>
 
-      {/* Terminal log animation (shows after install wizard completes) */}
+      {/* Terminal log animation */}
       <AnimatePresence>
         {showTerminalLog && <TerminalLog plugin={plugin} onDone={handleTerminalDone} />}
       </AnimatePresence>
@@ -270,11 +254,31 @@ export default function PluginDetailPage() {
         </p>
       )}
 
-      {/* Capability badges with colors */}
+      {/* Outcome bullets */}
+      {plugin.superpowerOutcomes && plugin.superpowerOutcomes.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2"
+        >
+          <h2 className="text-base font-bold">What she can do</h2>
+          <ul className="space-y-2">
+            {plugin.superpowerOutcomes.map((outcome) => (
+              <li key={outcome} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>{outcome}</span>
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      )}
+
+      {/* Capability badges */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         className="flex flex-wrap gap-2"
       >
         {plugin.capabilities.map((cap) => {
@@ -296,10 +300,10 @@ export default function PluginDetailPage() {
         )}
       </motion.div>
 
-      {/* Tabs section */}
+      {/* What gets installed -- Tabs section (collapsed feel) */}
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="overview">What gets installed</TabsTrigger>
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
         </TabsList>
@@ -379,6 +383,15 @@ export default function PluginDetailPage() {
               </ol>
             </CardContent>
           </Card>
+
+          {/* Technical details -- version, author, installs */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>v{plugin.version}</span>
+            <span className="text-border">|</span>
+            <span>{formatInstallCount(plugin.installCount)} installs</span>
+            <span className="text-border">|</span>
+            <span>by {plugin.author}</span>
+          </div>
         </TabsContent>
 
         <TabsContent value="config" className="space-y-4 pt-4">
