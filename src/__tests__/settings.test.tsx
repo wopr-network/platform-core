@@ -104,10 +104,12 @@ const MOCK_API_KEYS: PlatformApiKey[] = [
 const MOCK_ORG: Organization = {
   id: "org-001",
   name: "Acme Corp",
+  slug: "acme-corp",
   billingEmail: "billing@acme.com",
   members: [
     {
       id: "user-001",
+      userId: "user-001",
       name: "Alice Johnson",
       email: "alice@example.com",
       role: "owner",
@@ -115,6 +117,7 @@ const MOCK_ORG: Organization = {
     },
     {
       id: "user-002",
+      userId: "user-002",
       name: "Bob Smith",
       email: "bob@example.com",
       role: "admin",
@@ -122,12 +125,14 @@ const MOCK_ORG: Organization = {
     },
     {
       id: "user-003",
+      userId: "user-003",
       name: "Carol Davis",
       email: "carol@example.com",
-      role: "viewer",
+      role: "member",
       joinedAt: "2026-02-01T00:00:00Z",
     },
   ],
+  invites: [],
 };
 
 const MOCK_CAPABILITIES: CapabilitySetting[] = [
@@ -243,7 +248,14 @@ vi.mock("@/hooks/use-has-org", () => ({
 vi.mock("@/lib/org-api", () => ({
   getOrganization: vi.fn().mockResolvedValue(MOCK_ORG),
   updateOrganization: vi.fn().mockResolvedValue(MOCK_ORG),
-  inviteMember: vi.fn().mockResolvedValue(MOCK_ORG.members[2]),
+  inviteMember: vi.fn().mockResolvedValue({
+    id: "inv-001",
+    email: "carol@example.com",
+    role: "member",
+    invitedBy: "user-001",
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+  }),
   removeMember: vi.fn().mockResolvedValue(undefined),
   transferOwnership: vi.fn().mockResolvedValue(undefined),
   createOrganization: vi
@@ -557,7 +569,7 @@ describe("Organization page", () => {
 
     expect(await screen.findByText("owner")).toBeInTheDocument();
     expect(screen.getByText("admin")).toBeInTheDocument();
-    expect(screen.getByText("viewer")).toBeInTheDocument();
+    expect(screen.getByText("member")).toBeInTheDocument();
   });
 
   it("renders invite member button", async () => {

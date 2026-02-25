@@ -675,17 +675,29 @@ export interface PlatformApiKey {
 
 export interface OrgMember {
   id: string;
+  userId: string;
   name: string;
   email: string;
-  role: "owner" | "admin" | "viewer";
+  role: "owner" | "admin" | "member";
   joinedAt: string;
+}
+
+export interface OrgInvite {
+  id: string;
+  email: string;
+  role: "admin" | "member";
+  invitedBy: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface Organization {
   id: string;
   name: string;
+  slug: string;
   billingEmail: string;
   members: OrgMember[];
+  invites: OrgInvite[];
 }
 
 // --- Settings API ---

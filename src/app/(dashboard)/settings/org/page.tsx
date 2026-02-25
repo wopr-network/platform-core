@@ -38,9 +38,11 @@ import {
 } from "@/components/ui/table";
 import type { Organization, OrgMember } from "@/lib/api";
 import {
+  changeRole,
   getOrganization,
   inviteMember,
   removeMember,
+  revokeInvite,
   transferOwnership,
   updateOrganization,
 } from "@/lib/org-api";
@@ -60,6 +62,7 @@ export default function OrgPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [orgName, setOrgName] = useState("");
+  const [orgSlug, setOrgSlug] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export default function OrgPage() {
       const data = await getOrganization();
       setOrg(data);
       setOrgName(data.name);
+      setOrgSlug(data.slug ?? "");
       setBillingEmail(data.billingEmail);
     } catch {
       routerRef.current.push("/settings/profile");
@@ -93,11 +97,15 @@ export default function OrgPage() {
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
+    if (!org) return;
     setSaving(true);
     setSaveMsg(null);
     setSaveError(null);
     try {
-      const updated = await updateOrganization({ name: orgName, billingEmail });
+      const updated = await updateOrganization(org.id, {
+        name: orgName,
+        slug: orgSlug || undefined,
+      });
       setOrg(updated);
       setSaveMsg("Organization updated.");
       setSaveSuccess(true);
@@ -109,25 +117,49 @@ export default function OrgPage() {
     }
   }
 
-  async function handleRemove(memberId: string) {
+  async function handleRemove(userId: string) {
     if (!org) return;
     const previousMembers = org.members;
-    setOrg({ ...org, members: org.members.filter((m) => m.id !== memberId) });
+    setOrg({ ...org, members: org.members.filter((m) => m.userId !== userId) });
     try {
-      await removeMember(memberId);
+      await removeMember(org.id, userId);
     } catch {
       setOrg({ ...org, members: previousMembers });
       setSaveError("Failed to remove member. Please try again.");
     }
   }
 
-  async function handleTransfer(memberId: string) {
+  async function handleTransfer(userId: string) {
+    if (!org) return;
     setSaveError(null);
     try {
-      await transferOwnership(memberId);
+      await transferOwnership(org.id, userId);
       await load();
     } catch {
       setSaveError("Failed to transfer ownership. Please try again.");
+    }
+  }
+
+  async function handleChangeRole(userId: string, role: "admin" | "member") {
+    if (!org) return;
+    setSaveError(null);
+    try {
+      await changeRole(org.id, userId, role);
+      await load();
+    } catch {
+      setSaveError("Failed to change role. Please try again.");
+    }
+  }
+
+  async function handleRevokeInvite(inviteId: string) {
+    if (!org) return;
+    const previousInvites = org.invites;
+    setOrg({ ...org, invites: org.invites.filter((i) => i.id !== inviteId) });
+    try {
+      await revokeInvite(org.id, inviteId);
+    } catch {
+      setOrg({ ...org, invites: previousInvites });
+      setSaveError("Failed to revoke invite. Please try again.");
     }
   }
 
@@ -200,6 +232,15 @@ export default function OrgPage() {
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="org-slug">Slug</Label>
+              <Input
+                id="org-slug"
+                value={orgSlug}
+                onChange={(e) => setOrgSlug(e.target.value)}
+                placeholder="my-org"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -284,7 +325,7 @@ export default function OrgPage() {
             {org.members.length} member{org.members.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <InviteDialog onInvited={load} />
+        <InviteDialog orgId={org.id} onInvited={load} />
       </div>
 
       <div className="rounded-md border overflow-x-auto">
@@ -295,7 +336,7 @@ export default function OrgPage() {
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Joined</TableHead>
-              <TableHead className="w-[120px]" />
+              <TableHead className="w-[160px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -316,13 +357,17 @@ export default function OrgPage() {
                 <TableCell>
                   {member.role !== "owner" && (
                     <div className="flex gap-1">
+                      <ChangeRoleSelect
+                        currentRole={member.role}
+                        onChangeRole={(role) => handleChangeRole(member.userId, role)}
+                      />
                       <TransferDialog
                         memberName={member.name}
-                        onTransfer={() => handleTransfer(member.id)}
+                        onTransfer={() => handleTransfer(member.userId)}
                       />
                       <RemoveMemberDialog
                         memberName={member.name}
-                        onRemove={() => handleRemove(member.id)}
+                        onRemove={() => handleRemove(member.userId)}
                       />
                     </div>
                   )}
@@ -332,23 +377,96 @@ export default function OrgPage() {
           </TableBody>
         </Table>
       </div>
+
+      {org.invites.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h2 className="text-lg font-semibold">Pending Invites</h2>
+            <p className="text-sm text-muted-foreground">
+              {org.invites.length} pending invite{org.invites.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead className="w-[80px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {org.invites.map((invite) => (
+                  <TableRow key={invite.id}>
+                    <TableCell className="font-medium">{invite.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={invite.role === "admin" ? "default" : "outline"}>
+                        {invite.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(invite.expiresAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleRevokeInvite(invite.id)}
+                      >
+                        Revoke
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function InviteDialog({ onInvited }: { onInvited: () => void }) {
+function ChangeRoleSelect({
+  currentRole,
+  onChangeRole,
+}: {
+  currentRole: "admin" | "member";
+  onChangeRole: (role: "admin" | "member") => void;
+}) {
+  return (
+    <Select value={currentRole} onValueChange={(v) => onChangeRole(v as "admin" | "member")}>
+      <SelectTrigger className="h-7 w-24 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="admin">Admin</SelectItem>
+        <SelectItem value="member">Member</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function InviteDialog({ orgId, onInvited }: { orgId: string; onInvited: () => void }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("viewer");
+  const [role, setRole] = useState<"admin" | "member">("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setInviteError(null);
     try {
-      await inviteMember(email, role);
+      await inviteMember(orgId, email, role);
       setEmail("");
-      setRole("viewer");
+      setRole("member");
       setOpen(false);
       onInvited();
     } catch {
@@ -386,13 +504,13 @@ function InviteDialog({ onInvited }: { onInvited: () => void }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="invite-role">Role</Label>
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "member")}>
               <SelectTrigger id="invite-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
               </SelectContent>
             </Select>
           </div>

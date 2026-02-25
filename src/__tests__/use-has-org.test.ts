@@ -13,8 +13,10 @@ describe("useHasOrg", () => {
     vi.mocked(getOrganization).mockResolvedValue({
       id: "org-1",
       name: "Test Org",
+      slug: "test-org",
       billingEmail: "test@example.com",
       members: [],
+      invites: [],
     });
 
     const { result } = renderHook(() => useHasOrg());
