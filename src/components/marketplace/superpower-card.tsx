@@ -40,6 +40,7 @@ export function SuperpowerCard({ plugin, index = 0 }: SuperpowerCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
+      style={{ perspective: 800 }}
     >
       <Link href={`/marketplace/${plugin.id}`}>
         <motion.div
@@ -47,7 +48,6 @@ export function SuperpowerCard({ plugin, index = 0 }: SuperpowerCardProps) {
           style={{
             rotateX: springRotateX,
             rotateY: springRotateY,
-            perspective: 800,
           }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}

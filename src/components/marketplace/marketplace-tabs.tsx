@@ -13,7 +13,7 @@ interface MarketplaceTabsProps {
 
 export function MarketplaceTabs({ selected, onSelect, counts }: MarketplaceTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by category">
+    <div className="flex flex-wrap gap-2">
       {MARKETPLACE_TABS.map((tab) => {
         const isSelected = selected === tab.id;
         const count = counts[tab.id] ?? 0;
@@ -22,8 +22,7 @@ export function MarketplaceTabs({ selected, onSelect, counts }: MarketplaceTabsP
           <button
             key={tab.id}
             type="button"
-            role="tab"
-            aria-selected={isSelected}
+            aria-pressed={isSelected}
             onClick={() => onSelect(tab.id)}
             className="relative"
           >
