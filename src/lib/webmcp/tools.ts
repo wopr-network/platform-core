@@ -238,3 +238,84 @@ export function getWebMCPTools(confirm: ConfirmCallback): ModelContextTool[] {
     },
   ];
 }
+
+/**
+ * WebMCP tools for chat control. The bot can expand, collapse, fullscreen,
+ * send messages, show typing, and notify via the chat panel.
+ *
+ * These dispatch CustomEvents that the ChatProvider listens to.
+ */
+export function getChatWebMCPTools(): ModelContextTool[] {
+  function dispatch(tool: string, args: Record<string, unknown> = {}) {
+    window.dispatchEvent(new CustomEvent("wopr-chat-tool-call", { detail: { tool, args } }));
+  }
+
+  return [
+    {
+      name: "chat_expand",
+      description: "Open the WOPR chat panel.",
+      inputSchema: { type: "object", properties: {} },
+      handler: async () => {
+        dispatch("chat.expand");
+        return { ok: true };
+      },
+    },
+    {
+      name: "chat_collapse",
+      description: "Minimize the WOPR chat to the ambient dot.",
+      inputSchema: { type: "object", properties: {} },
+      handler: async () => {
+        dispatch("chat.collapse");
+        return { ok: true };
+      },
+    },
+    {
+      name: "chat_fullscreen",
+      description: "Expand the WOPR chat to full screen mode for setup sequences.",
+      inputSchema: { type: "object", properties: {} },
+      handler: async () => {
+        dispatch("chat.fullscreen");
+        return { ok: true };
+      },
+    },
+    {
+      name: "chat_send_message",
+      description: "Inject a message into the chat as if the user typed it.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "The message text to send" },
+        },
+        required: ["text"],
+      },
+      handler: async (params) => {
+        dispatch("chat.sendMessage", { text: params.text });
+        return { ok: true };
+      },
+    },
+    {
+      name: "chat_show_typing",
+      description: "Show the typing indicator in the chat panel.",
+      inputSchema: { type: "object", properties: {} },
+      handler: async () => {
+        dispatch("chat.showTyping");
+        return { ok: true };
+      },
+    },
+    {
+      name: "chat_notify",
+      description: "Show a notification from the bot, expanding the chat if collapsed.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Notification text" },
+        },
+        required: ["text"],
+      },
+      handler: async (params) => {
+        dispatch("chat.notify", { text: params.text });
+        return { ok: true };
+      },
+    },
+  ];
+}
