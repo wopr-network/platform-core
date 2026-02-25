@@ -1616,8 +1616,8 @@ export async function fetchAuditLog(params: {
   action?: string;
 }): Promise<AuditLogResponse> {
   const query = new URLSearchParams();
-  if (params.limit) query.set("limit", String(params.limit));
-  if (params.offset) query.set("offset", String(params.offset));
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
   if (params.since) query.set("since", params.since);
   if (params.until) query.set("until", params.until);
   if (params.action) query.set("action", params.action);
