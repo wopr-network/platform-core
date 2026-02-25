@@ -3,7 +3,7 @@ import {
   getMarketplaceOnboardingTools,
   type MarketplaceOnboardingToolDeps,
 } from "./marketplace-onboarding-tools";
-import { type ConfirmCallback, getWebMCPTools } from "./tools";
+import { type ConfirmCallback, getChatWebMCPTools, getWebMCPTools } from "./tools";
 
 /**
  * Register all WOPR WebMCP tools with the browser.
@@ -30,7 +30,11 @@ export function registerWebMCPTools(
     return false;
   }
 
-  const tools = [...getWebMCPTools(confirm), ...getMarketplaceOnboardingTools(marketplaceDeps)];
+  const tools = [
+    ...getWebMCPTools(confirm),
+    ...getMarketplaceOnboardingTools(marketplaceDeps),
+    ...getChatWebMCPTools(),
+  ];
 
   for (const tool of tools) {
     navigator.modelContext?.registerTool(tool);

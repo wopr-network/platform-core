@@ -7,6 +7,7 @@ vi.mock("../lib/webmcp/feature-detect", () => ({
 
 vi.mock("../lib/webmcp/tools", () => ({
   getWebMCPTools: vi.fn(),
+  getChatWebMCPTools: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("../lib/webmcp/marketplace-onboarding-tools", () => ({
