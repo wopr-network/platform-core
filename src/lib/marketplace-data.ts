@@ -1172,6 +1172,20 @@ export async function listMarketplacePlugins(): Promise<PluginManifest[]> {
   }
 }
 
+export interface PluginContentResponse {
+  markdown: string;
+  source: "superpower_md" | "manifest_description";
+  version: string;
+}
+
+export async function getPluginContent(pluginId: string): Promise<PluginContentResponse | null> {
+  try {
+    return await apiFetch<PluginContentResponse>(`/marketplace/plugins/${pluginId}/content`);
+  } catch {
+    return null;
+  }
+}
+
 export async function getMarketplacePlugin(id: string): Promise<PluginManifest | null> {
   try {
     return await apiFetch<PluginManifest>(`/marketplace/plugins/${id}`);

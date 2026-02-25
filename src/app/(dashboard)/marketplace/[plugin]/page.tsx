@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Terminal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InstallWizard } from "@/components/marketplace/install-wizard";
+import { SuperpowerContent } from "@/components/marketplace/superpower-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +16,10 @@ import {
   getCapabilityColor,
   getHostedAdaptersForCapabilities,
   getMarketplacePlugin,
+  getPluginContent,
   hasHostedOption,
   installPlugin,
+  type PluginContentResponse,
   type PluginManifest,
 } from "@/lib/marketplace-data";
 
@@ -112,6 +115,7 @@ export default function PluginDetailPage() {
   const pluginId = params.plugin as string;
 
   const [plugin, setPlugin] = useState<PluginManifest | null>(null);
+  const [content, setContent] = useState<PluginContentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState(false);
   const [showTerminalLog, setShowTerminalLog] = useState(false);
@@ -120,6 +124,8 @@ export default function PluginDetailPage() {
     setLoading(true);
     const data = await getMarketplacePlugin(pluginId);
     setPlugin(data);
+    const contentData = await getPluginContent(pluginId);
+    setContent(contentData);
     setLoading(false);
   }, [pluginId]);
 
@@ -305,6 +311,14 @@ export default function PluginDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
+          {content && (
+            <Card>
+              <CardContent className="pt-6">
+                <SuperpowerContent markdown={content.markdown} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Requirements</CardTitle>
