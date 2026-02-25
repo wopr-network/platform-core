@@ -2,16 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { getDiscoveryQueue } from "@/lib/admin-marketplace-api";
 import { cn } from "@/lib/utils";
 
 const adminNavItems = [
   { label: "Users", href: "/admin/tenants" },
   { label: "Accounting", href: "/admin/accounting" },
   { label: "Audit Log", href: "/admin/audit" },
+  { label: "Marketplace", href: "/admin/marketplace" },
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
+  const [queueCount, setQueueCount] = useState(0);
+
+  const loadQueueCount = useCallback(async () => {
+    try {
+      const queue = await getDiscoveryQueue();
+      setQueueCount(queue.length);
+    } catch {
+      // keep previous count
+    }
+  }, []);
+
+  useEffect(() => {
+    loadQueueCount();
+  }, [loadQueueCount]);
 
   return (
     <nav className="flex gap-1 border-b border-border px-6 py-2">
@@ -20,13 +38,21 @@ export function AdminNav() {
           key={item.href}
           href={item.href}
           className={cn(
-            "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent",
+            "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent inline-flex items-center gap-1.5",
             pathname.startsWith(item.href)
               ? "bg-terminal/10 text-terminal"
               : "text-muted-foreground",
           )}
         >
           {item.label}
+          {item.label === "Marketplace" && queueCount > 0 && (
+            <Badge
+              variant="secondary"
+              className="bg-amber-500/15 text-amber-400 border border-amber-500/20 text-xs px-1.5 py-0"
+            >
+              {queueCount}
+            </Badge>
+          )}
         </Link>
       ))}
     </nav>
