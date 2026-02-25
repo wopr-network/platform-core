@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MarketplaceEmptyState } from "@/components/marketplace/empty-state";
 import { FeaturedHeroes } from "@/components/marketplace/featured-heroes";
@@ -25,6 +26,8 @@ export default function MarketplacePage() {
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("superpower");
   const [showFirstVisit, setShowFirstVisit] = useState(false);
 
+  const searchParams = useSearchParams();
+
   const load = useCallback(async () => {
     setLoading(true);
     const data = await listMarketplacePlugins();
@@ -35,6 +38,26 @@ export default function MarketplacePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearch(q);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    function handleMarketplaceEvent(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type === "filter") {
+        setSearch(detail.query ?? "");
+      } else if (detail?.type === "clearFilter") {
+        setSearch("");
+      }
+    }
+    window.addEventListener("wopr:marketplace", handleMarketplaceEvent);
+    return () => window.removeEventListener("wopr:marketplace", handleMarketplaceEvent);
+  }, []);
 
   // Detect first visit
   useEffect(() => {

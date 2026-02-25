@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => "/marketplace",
   useParams: () => mockParams,
+  useSearchParams: () => ({ get: () => null }),
 }));
 
 // --- Mock next/link ---

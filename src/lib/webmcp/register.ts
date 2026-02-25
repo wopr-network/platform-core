@@ -1,4 +1,8 @@
 import { isWebMCPAvailable } from "./feature-detect";
+import {
+  getMarketplaceOnboardingTools,
+  type MarketplaceOnboardingToolDeps,
+} from "./marketplace-onboarding-tools";
 import { type ConfirmCallback, getWebMCPTools } from "./tools";
 
 /**
@@ -10,9 +14,14 @@ import { type ConfirmCallback, getWebMCPTools } from "./tools";
  *
  * @param isAuthenticated - Whether the user has a valid session
  * @param confirm - Callback for destructive action confirmation (e.g. window.confirm or a modal)
+ * @param marketplaceDeps - Dependencies for marketplace/onboarding tools
  * @returns true if tools were registered, false if skipped
  */
-export function registerWebMCPTools(isAuthenticated: boolean, confirm: ConfirmCallback): boolean {
+export function registerWebMCPTools(
+  isAuthenticated: boolean,
+  confirm: ConfirmCallback,
+  marketplaceDeps: MarketplaceOnboardingToolDeps,
+): boolean {
   if (!isWebMCPAvailable()) {
     return false;
   }
@@ -21,7 +30,7 @@ export function registerWebMCPTools(isAuthenticated: boolean, confirm: ConfirmCa
     return false;
   }
 
-  const tools = getWebMCPTools(confirm);
+  const tools = [...getWebMCPTools(confirm), ...getMarketplaceOnboardingTools(marketplaceDeps)];
 
   for (const tool of tools) {
     navigator.modelContext?.registerTool(tool);

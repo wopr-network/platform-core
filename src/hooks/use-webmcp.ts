@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { registerWebMCPTools } from "@/lib/webmcp/register";
@@ -14,6 +15,7 @@ import { registerWebMCPTools } from "@/lib/webmcp/register";
 export function useWebMCP(): void {
   const { data: session } = useSession();
   const registeredRef = useRef(false);
+  const router = useRouter();
 
   const confirm = useCallback(
     (message: string): Promise<boolean> => Promise.resolve(window.confirm(message)),
@@ -29,10 +31,10 @@ export function useWebMCP(): void {
 
     if (registeredRef.current) return;
 
-    const registered = registerWebMCPTools(isAuthenticated, confirm);
+    const registered = registerWebMCPTools(isAuthenticated, confirm, { router });
 
     if (registered) {
       registeredRef.current = true;
     }
-  }, [session, confirm]);
+  }, [session, confirm, router]);
 }

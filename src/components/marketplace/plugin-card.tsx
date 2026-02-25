@@ -44,6 +44,7 @@ export function PluginCard({ plugin, index = 0 }: PluginCardProps) {
 
   return (
     <motion.div
+      data-plugin-card-id={plugin.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
