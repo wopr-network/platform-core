@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import CreateOrgWizard from "@/components/settings/create-org-wizard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -249,6 +250,19 @@ export default function AccountPage() {
               </AnimatePresence>
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Teams & Organizations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Teams & Organizations</CardTitle>
+          <CardDescription>Share bots, billing, and keys across a team.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CreateOrgWizard />
         </CardContent>
       </Card>
     </div>

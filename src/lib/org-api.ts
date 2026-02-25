@@ -14,6 +14,12 @@ interface OrgProcedures {
   inviteMember: { mutate(input: { email: string; role: string }): Promise<OrgMember> };
   removeMember: { mutate(input: { memberId: string }): Promise<void> };
   transferOwnership: { mutate(input: { memberId: string }): Promise<void> };
+  createOrganization: {
+    mutate(input: {
+      name: string;
+      slug?: string;
+    }): Promise<{ id: string; name: string; slug: string }>;
+  };
 }
 
 // Cast via unknown to avoid @typescript/no-explicit-any while bridging the
@@ -42,4 +48,11 @@ export async function removeMember(memberId: string): Promise<void> {
 
 export async function transferOwnership(memberId: string): Promise<void> {
   await orgClient.transferOwnership.mutate({ memberId });
+}
+
+export async function createOrganization(data: {
+  name: string;
+  slug?: string;
+}): Promise<{ id: string; name: string; slug: string }> {
+  return orgClient.createOrganization.mutate(data);
 }
