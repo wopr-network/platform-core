@@ -14,6 +14,10 @@ vi.mock("@/lib/auth-client", () => ({
   useSession: () => mockUseSession(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 function TestComponent() {
   useWebMCP();
   return null;
@@ -30,7 +34,11 @@ describe("useWebMCP", () => {
 
     render(<TestComponent />);
 
-    expect(mockRegisterWebMCPTools).toHaveBeenCalledWith(false, expect.any(Function));
+    expect(mockRegisterWebMCPTools).toHaveBeenCalledWith(
+      false,
+      expect.any(Function),
+      expect.objectContaining({ router: expect.any(Object) }),
+    );
   });
 
   it("registers tools when session has a user", () => {
@@ -41,7 +49,11 @@ describe("useWebMCP", () => {
 
     render(<TestComponent />);
 
-    expect(mockRegisterWebMCPTools).toHaveBeenCalledWith(true, expect.any(Function));
+    expect(mockRegisterWebMCPTools).toHaveBeenCalledWith(
+      true,
+      expect.any(Function),
+      expect.objectContaining({ router: expect.any(Object) }),
+    );
   });
 
   it("only registers once even if re-rendered", () => {

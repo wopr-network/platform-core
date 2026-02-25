@@ -9,6 +9,10 @@ vi.mock("../lib/webmcp/tools", () => ({
   getWebMCPTools: vi.fn(),
 }));
 
+vi.mock("../lib/webmcp/marketplace-onboarding-tools", () => ({
+  getMarketplaceOnboardingTools: vi.fn().mockReturnValue([]),
+}));
+
 import { isWebMCPAvailable } from "../lib/webmcp/feature-detect";
 import { getWebMCPTools } from "../lib/webmcp/tools";
 
@@ -62,7 +66,7 @@ describe("registerWebMCPTools", () => {
   it("returns false when WebMCP is not available", () => {
     mockIsWebMCPAvailable.mockReturnValue(false);
 
-    const result = registerWebMCPTools(true, mockConfirm);
+    const result = registerWebMCPTools(true, mockConfirm, { router: { push: vi.fn() } });
 
     expect(result).toBe(false);
     expect(mockRegisterTool).not.toHaveBeenCalled();
@@ -71,7 +75,7 @@ describe("registerWebMCPTools", () => {
   it("returns false when user is not authenticated", () => {
     mockIsWebMCPAvailable.mockReturnValue(true);
 
-    const result = registerWebMCPTools(false, mockConfirm);
+    const result = registerWebMCPTools(false, mockConfirm, { router: { push: vi.fn() } });
 
     expect(result).toBe(false);
     expect(mockRegisterTool).not.toHaveBeenCalled();
@@ -80,7 +84,7 @@ describe("registerWebMCPTools", () => {
   it("registers all tools when authenticated and WebMCP is available", () => {
     mockIsWebMCPAvailable.mockReturnValue(true);
 
-    const result = registerWebMCPTools(true, mockConfirm);
+    const result = registerWebMCPTools(true, mockConfirm, { router: { push: vi.fn() } });
 
     expect(result).toBe(true);
     expect(mockRegisterTool).toHaveBeenCalledTimes(MOCK_TOOLS.length);
@@ -89,7 +93,7 @@ describe("registerWebMCPTools", () => {
   it("calls navigator.modelContext.registerTool for each tool", () => {
     mockIsWebMCPAvailable.mockReturnValue(true);
 
-    registerWebMCPTools(true, mockConfirm);
+    registerWebMCPTools(true, mockConfirm, { router: { push: vi.fn() } });
 
     for (const tool of MOCK_TOOLS) {
       expect(mockRegisterTool).toHaveBeenCalledWith(tool);
