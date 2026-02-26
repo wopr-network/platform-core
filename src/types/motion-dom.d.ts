@@ -106,13 +106,13 @@ declare module "motion-dom" {
     /** Called when animation completes. */
     onAnimationComplete?: (definition: string) => void;
     /** Called when drag starts. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
     onDragStart?: (event: any, info: any) => void;
     /** Called while dragging. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
     onDrag?: (event: any, info: any) => void;
     /** Called when drag ends. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
     onDragEnd?: (event: any, info: any) => void;
     /** Called when element enters viewport. */
     onViewportEnter?: (entry: IntersectionObserverEntry | null) => void;
