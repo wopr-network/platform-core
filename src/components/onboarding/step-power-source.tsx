@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -401,11 +401,11 @@ function ByokField({
     setShakeKey((k) => k + 1);
   }, []);
 
-  const prevStatusRef = useState<string>("idle");
-  if (validationStatus === "invalid" && prevStatusRef[0] !== "invalid") {
+  const prevStatusRef = useRef<string>("idle");
+  if (validationStatus === "invalid" && prevStatusRef.current !== "invalid") {
     handleShake();
   }
-  prevStatusRef[0] = validationStatus;
+  prevStatusRef.current = validationStatus;
 
   const hasValue = value.trim().length > 0;
   const isFormatOk = hasValue && error === null;
