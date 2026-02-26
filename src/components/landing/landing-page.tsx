@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LandingNav } from "./landing-nav";
 import { StorySections } from "./story-sections";
 import { TerminalSequence } from "./terminal-sequence";
 
@@ -23,6 +24,7 @@ export function LandingPage() {
 
   return (
     <div className="bg-black font-mono">
+      <LandingNav />
       {/* Hero — Terminal Animation */}
       <TerminalSequence onComplete={() => setAnimationDone(true)} />
 

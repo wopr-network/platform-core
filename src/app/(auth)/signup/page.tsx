@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { AuthError } from "@/components/auth/auth-error";
+import { AuthRedirect } from "@/components/auth/auth-redirect";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { OAuthButtons } from "@/components/oauth-buttons";
@@ -303,6 +304,7 @@ function SignupForm() {
 export default function SignupPage() {
   return (
     <Suspense>
+      <AuthRedirect />
       <SignupForm />
     </Suspense>
   );

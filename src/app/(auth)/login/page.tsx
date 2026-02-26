@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { AuthError } from "@/components/auth/auth-error";
+import { AuthRedirect } from "@/components/auth/auth-redirect";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { OAuthButtons } from "@/components/oauth-buttons";
@@ -187,6 +188,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense>
+      <AuthRedirect />
       <LoginForm />
     </Suspense>
   );
