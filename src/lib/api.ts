@@ -408,6 +408,18 @@ export async function updateInstanceConfig(id: string, env: Record<string, strin
   });
 }
 
+/** Toggle a plugin's enabled/disabled state on a bot instance. */
+export async function toggleInstancePlugin(
+  botId: string,
+  pluginId: string,
+  enabled: boolean,
+): Promise<void> {
+  await fleetFetch(`/bots/${botId}/plugins/${pluginId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 // --- Image update API ---
 
 export interface ImageStatusResponse {

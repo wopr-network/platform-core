@@ -42,6 +42,7 @@ import {
   listSnapshots,
   pullImageUpdate,
   restoreSnapshot,
+  toggleInstancePlugin,
   updateInstanceConfig,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,27 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [destroying, setDestroying] = useState(false);
   const { updateAvailable } = useImageStatus(instanceId);
   const [pulling, setPulling] = useState(false);
+  const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
+
+  async function handleTogglePlugin(pluginId: string, enabled: boolean) {
+    if (!instance) return;
+    setTogglingPlugin(pluginId);
+
+    const previousPlugins = instance.plugins;
+    setInstance({
+      ...instance,
+      plugins: instance.plugins.map((p) => (p.id === pluginId ? { ...p, enabled } : p)),
+    });
+
+    try {
+      await toggleInstancePlugin(instanceId, pluginId, enabled);
+    } catch (err) {
+      setInstance((prev) => (prev ? { ...prev, plugins: previousPlugins } : prev));
+      setActionError(err instanceof Error ? err.message : "Failed to toggle plugin");
+    } finally {
+      setTogglingPlugin(null);
+    }
+  }
 
   async function handlePullUpdate() {
     if (!window.confirm("This will pull the latest image and restart the bot. Continue?")) return;
@@ -394,11 +416,21 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
                       <TableCell className="font-medium">{plugin.name}</TableCell>
                       <TableCell className="text-muted-foreground">{plugin.version}</TableCell>
                       <TableCell>
-                        <Switch
-                          checked={plugin.enabled}
-                          disabled
-                          aria-label={`Toggle ${plugin.name}`}
-                        />
+                        <span
+                          className={
+                            togglingPlugin === plugin.id
+                              ? "opacity-70 cursor-wait transition-opacity duration-150"
+                              : "transition-opacity duration-150"
+                          }
+                        >
+                          <Switch
+                            checked={plugin.enabled}
+                            disabled={togglingPlugin !== null}
+                            onCheckedChange={(checked) => handleTogglePlugin(plugin.id, checked)}
+                            className="data-[state=checked]:bg-emerald-500 dark:data-[state=checked]:bg-emerald-500"
+                            aria-label={`Toggle ${plugin.name}`}
+                          />
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}
