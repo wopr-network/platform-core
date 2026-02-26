@@ -3,6 +3,7 @@
 import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FriendsTab } from "@/components/instances/friends-tab";
 import { HealthOverview } from "@/components/observability/health-overview";
 import { LogsViewer } from "@/components/observability/logs-viewer";
 import { MetricsDashboard } from "@/components/observability/metrics-dashboard";
@@ -343,6 +344,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             "logs",
             "plugins",
             "channels",
+            "friends",
             "sessions",
             "snapshots",
             "config",
@@ -472,6 +474,11 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* Friends Tab */}
+        <TabsContent value="friends" className="mt-4">
+          <FriendsTab instanceId={instanceId} />
         </TabsContent>
 
         {/* Sessions Tab */}

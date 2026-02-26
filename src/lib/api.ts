@@ -1647,6 +1647,123 @@ export async function deleteSnapshot(instanceId: string, snapshotId: string): Pr
   }
 }
 
+// --- P2P Friends API types ---
+
+export interface Friend {
+  id: string;
+  name: string;
+  status: "online" | "offline" | "unknown";
+  sharedCapabilities: string[];
+  connectedAt: string;
+}
+
+export interface DiscoveredBot {
+  id: string;
+  name: string;
+  capabilities: string[];
+  discoveredAt: string;
+}
+
+export interface FriendRequest {
+  id: string;
+  fromId: string;
+  fromName: string;
+  toId: string;
+  toName: string;
+  direction: "inbound" | "outbound";
+  status: "pending";
+  createdAt: string;
+}
+
+export interface AutoAcceptConfig {
+  enabled: boolean;
+  rules: {
+    requireCapabilities?: string[];
+    maxFriends?: number;
+  };
+}
+
+export interface CapabilityShareUpdate {
+  capabilities: string[];
+}
+
+// --- P2P Friends API ---
+
+export async function listFriends(instanceId: string): Promise<Friend[]> {
+  const data = await apiFetch<{ friends: Friend[] }>(`/instances/${instanceId}/friends`, {
+    method: "GET",
+  });
+  return data.friends;
+}
+
+export async function listDiscoveredBots(instanceId: string): Promise<DiscoveredBot[]> {
+  const data = await apiFetch<{ discovered: DiscoveredBot[] }>(
+    `/instances/${instanceId}/friends/discovered`,
+    { method: "GET" },
+  );
+  return data.discovered;
+}
+
+export async function sendFriendRequest(instanceId: string, targetBotId: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/requests`, {
+    method: "POST",
+    body: JSON.stringify({ targetBotId }),
+  });
+}
+
+export async function listFriendRequests(instanceId: string): Promise<FriendRequest[]> {
+  const data = await apiFetch<{ requests: FriendRequest[] }>(
+    `/instances/${instanceId}/friends/requests`,
+    { method: "GET" },
+  );
+  return data.requests;
+}
+
+export async function acceptFriendRequest(instanceId: string, requestId: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/requests/${requestId}/accept`, {
+    method: "POST",
+  });
+}
+
+export async function rejectFriendRequest(instanceId: string, requestId: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/requests/${requestId}/reject`, {
+    method: "POST",
+  });
+}
+
+export async function removeFriend(instanceId: string, friendId: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/${friendId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateFriendCapabilities(
+  instanceId: string,
+  friendId: string,
+  capabilities: string[],
+): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/${friendId}/capabilities`, {
+    method: "PATCH",
+    body: JSON.stringify({ capabilities }),
+  });
+}
+
+export async function getAutoAcceptConfig(instanceId: string): Promise<AutoAcceptConfig> {
+  return apiFetch<AutoAcceptConfig>(`/instances/${instanceId}/friends/auto-accept`, {
+    method: "GET",
+  });
+}
+
+export async function updateAutoAcceptConfig(
+  instanceId: string,
+  config: AutoAcceptConfig,
+): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/instances/${instanceId}/friends/auto-accept`, {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
 // --- Audit Log API ---
 
 export interface AuditEvent {
