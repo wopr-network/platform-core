@@ -413,8 +413,13 @@ export async function getInstanceSecretKeys(id: string): Promise<string[]> {
   try {
     const data = await fleetFetch<{ keys: string[] }>(`/bots/${id}/secrets`);
     return data.keys;
-  } catch {
-    return [];
+  } catch (err) {
+    // 404 means the endpoint doesn't exist yet on this bot — treat as empty.
+    // All other errors (network failure, 500, etc.) propagate so callers can show an error.
+    if (err instanceof Error && err.message.includes("404")) {
+      return [];
+    }
+    throw err;
   }
 }
 

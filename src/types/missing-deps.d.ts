@@ -131,6 +131,32 @@ declare module "node:os" {
 }
 
 // ---------------------------------------------------------------------------
+// react-markdown – markdown renderer for React
+// The package ships index.d.ts but does not expose it via its exports map,
+// so moduleResolution:bundler cannot find it. Stub the default export here.
+// ---------------------------------------------------------------------------
+declare module "react-markdown" {
+  import type { ReactNode, ComponentType } from "react";
+  interface ReactMarkdownProps {
+    children?: string;
+    remarkPlugins?: unknown[];
+    // biome-ignore lint/suspicious/noExplicitAny: stub for missing package types
+    components?: Record<string, ComponentType<any>>;
+  }
+  export default function ReactMarkdown(props: ReactMarkdownProps): ReactNode;
+}
+
+// ---------------------------------------------------------------------------
+// remark-gfm – GitHub-Flavored Markdown plugin for remark/react-markdown
+// Same exports-map issue as react-markdown above.
+// ---------------------------------------------------------------------------
+declare module "remark-gfm" {
+  // biome-ignore lint/suspicious/noExplicitAny: stub for missing package types
+  const remarkGfm: (...args: any[]) => any;
+  export default remarkGfm;
+}
+
+// ---------------------------------------------------------------------------
 // node:child_process – child process utilities
 // ---------------------------------------------------------------------------
 declare module "node:child_process" {

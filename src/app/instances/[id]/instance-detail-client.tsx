@@ -154,7 +154,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
     load();
   }, [load]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshotsLoaded is a ref (stable object), not a reactive value
   useEffect(() => {
     if (activeTab === "snapshots" && !snapshotsLoaded.current) {
       snapshotsLoaded.current = true;
@@ -164,20 +163,22 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
 
   const loadSecrets = useCallback(async () => {
     setSecretsLoading(true);
+    setSecretsError(null);
     try {
       const keys = await getInstanceSecretKeys(instanceId);
       setSecretKeys(keys);
       setSecretValues({});
       setNewSecretRows([]);
       setSecretsStatus("idle");
-    } catch {
+    } catch (err) {
       setSecretKeys([]);
+      setSecretsStatus("error");
+      setSecretsError(err instanceof Error ? err.message : "Failed to load secrets");
     } finally {
       setSecretsLoading(false);
     }
   }, [instanceId]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: secretsLoaded is a ref (stable object), not a reactive value
   useEffect(() => {
     if (activeTab === "config" && !secretsLoaded.current) {
       secretsLoaded.current = true;
@@ -191,9 +192,20 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
     const payload: Record<string, string> = {};
     for (const key of secretKeys) {
       const val = secretValues[key];
-      if (val && val.trim()) {
+      if (val?.trim()) {
         payload[key] = val.trim();
       }
+    }
+    // Check for new rows whose key duplicates an existing secret key.
+    const duplicates = newSecretRows
+      .map((row) => row.key.trim())
+      .filter((k) => k && secretKeys.includes(k));
+    if (duplicates.length > 0) {
+      setSecretsStatus("error");
+      setSecretsError(
+        `Duplicate secret key${duplicates.length > 1 ? "s" : ""}: ${duplicates.join(", ")}. Use the existing field above to update it.`,
+      );
+      return;
     }
     for (const row of newSecretRows) {
       if (row.key.trim() && row.value.trim()) {
