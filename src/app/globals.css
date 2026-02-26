@@ -244,5 +244,5 @@
 
 .webmcp-pulse {
   animation: webmcp-pulse-glow 0.6s ease-in-out 3;
-  border-color: hsl(var(--primary) / 0.6) !important;
+  border-color: hsl(var(--primary) / 0.6);
 }

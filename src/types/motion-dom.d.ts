@@ -55,12 +55,20 @@ declare module "motion-dom" {
   /** Transition configuration. */
   export type Transition = Record<string, unknown>;
 
-  /** Drag constraints. */
-  export interface DragElastic {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
+  /** Bounding box used for drag constraints. */
+  export interface BoundingBox {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  }
+
+  /** Information about a pan/drag gesture. */
+  export interface PanInfo {
+    point: { x: number; y: number };
+    delta: { x: number; y: number };
+    offset: { x: number; y: number };
+    velocity: { x: number; y: number };
   }
 
   /** The core animation props exposed by every motion element. */
@@ -89,10 +97,9 @@ declare module "motion-dom" {
     /** Enable dragging. */
     drag?: boolean | "x" | "y";
     /** Drag constraints (ref or pixel values). */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dragConstraints?: any;
+    dragConstraints?: false | Partial<BoundingBox> | { current: Element | null };
     /** Drag elasticity (0 = rigid, 1 = full). */
-    dragElastic?: number | DragElastic;
+    dragElastic?: boolean | number | Partial<BoundingBox>;
     /** Drag momentum. */
     dragMomentum?: boolean;
     /** Enable layout animations. */
@@ -106,14 +113,11 @@ declare module "motion-dom" {
     /** Called when animation completes. */
     onAnimationComplete?: (definition: string) => void;
     /** Called when drag starts. */
-    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
-    onDragStart?: (event: any, info: any) => void;
+    onDragStart?: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
     /** Called while dragging. */
-    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
-    onDrag?: (event: any, info: any) => void;
+    onDrag?: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
     /** Called when drag ends. */
-    // biome-ignore lint/suspicious/noExplicitAny: framer-motion drag event types are untyped in this stub
-    onDragEnd?: (event: any, info: any) => void;
+    onDragEnd?: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
     /** Called when element enters viewport. */
     onViewportEnter?: (entry: IntersectionObserverEntry | null) => void;
     /** Called when element leaves viewport. */

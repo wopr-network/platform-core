@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { AuditEvent, AuditLogResponse } from "@/lib/api";
+import type { AuditLogResponse } from "@/lib/api";
 import { fetchAuditLog } from "@/lib/api";
 
 const PAGE_SIZE = 50;
