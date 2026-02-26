@@ -279,7 +279,7 @@ function SignupForm() {
           <div className="relative my-4 flex items-center">
             <Separator className="flex-1" />
             <span className="mx-3 text-xs uppercase tracking-wider text-muted-foreground">
-              {/* alternative access */}
+              or continue with
             </span>
             <Separator className="flex-1" />
           </div>
