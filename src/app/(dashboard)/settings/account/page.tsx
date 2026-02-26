@@ -1,40 +1,20 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CreateOrgWizard from "@/components/settings/create-org-wizard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BillingUsage } from "@/lib/api";
-import { changePassword, createBillingPortalSession, getBillingUsage } from "@/lib/api";
+import { createBillingPortalSession, getBillingUsage } from "@/lib/api";
 
 export default function AccountPage() {
   const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [pwMsg, setPwMsg] = useState<string | null>(null);
-  const [pwError, setPwError] = useState(false);
-  const [changingPw, setChangingPw] = useState(false);
-  const [pwSuccess, setPwSuccess] = useState(false);
-
   const [portalLoading, setPortalLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const pwSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (pwSuccessTimer.current) clearTimeout(pwSuccessTimer.current);
-    };
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,35 +32,6 @@ export default function AccountPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function handleChangePassword(e: FormEvent) {
-    e.preventDefault();
-    setPwMsg(null);
-    setPwError(false);
-
-    if (newPassword !== confirmPassword) {
-      setPwMsg("Passwords do not match.");
-      setPwError(true);
-      return;
-    }
-
-    setChangingPw(true);
-    try {
-      await changePassword({ currentPassword, newPassword });
-      setPwMsg("Password changed successfully.");
-      setPwError(false);
-      setPwSuccess(true);
-      pwSuccessTimer.current = setTimeout(() => setPwSuccess(false), 2000);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch {
-      setPwMsg("Failed to change password. Please check your current password.");
-      setPwError(true);
-    } finally {
-      setChangingPw(false);
-    }
-  }
 
   async function handleManageBilling() {
     setPortalLoading(true);
@@ -110,16 +61,6 @@ export default function AccountPage() {
             <Skeleton className="h-9 w-28" />
           </div>
         </div>
-        <div className="rounded-sm border p-6 space-y-4">
-          <Skeleton className="h-5 w-36" />
-          {Array.from({ length: 3 }, (_, n) => `sk-${n}`).map((skId) => (
-            <div key={skId} className="space-y-2">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ))}
-          <Skeleton className="h-9 w-36" />
-        </div>
       </div>
     );
   }
@@ -139,7 +80,7 @@ export default function AccountPage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Account</h1>
-        <p className="text-sm text-muted-foreground">Manage your password and billing settings</p>
+        <p className="text-sm text-muted-foreground">Manage your billing settings and team</p>
       </div>
 
       {/* Current Plan */}
@@ -169,91 +110,6 @@ export default function AccountPage() {
           </CardContent>
         </Card>
       )}
-
-      <Separator />
-
-      {/* Password Change */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>Update your account password</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="current-password">Current password</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="new-password">New password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="confirm-new-password">Confirm new password</Label>
-              <Input
-                id="confirm-new-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            <AnimatePresence>
-              {pwMsg && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className={`text-sm ${pwError ? "text-destructive" : "text-terminal"}`}
-                >
-                  {pwMsg}
-                </motion.p>
-              )}
-            </AnimatePresence>
-            <Button type="submit" variant="terminal" className="w-fit" disabled={changingPw}>
-              <AnimatePresence mode="wait">
-                {pwSuccess ? (
-                  <motion.span
-                    key="success"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-1"
-                  >
-                    <CheckIcon className="size-4" />
-                    Changed
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="default"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {changingPw ? "Changing..." : "Change password"}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Separator />
 
       {/* Teams & Organizations */}
       <Card>

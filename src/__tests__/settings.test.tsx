@@ -613,7 +613,7 @@ describe("Account page", () => {
     // Initially shows skeleton loading state
     expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
     expect(await screen.findByText("Account")).toBeInTheDocument();
-    expect(screen.getByText("Manage your password and billing settings")).toBeInTheDocument();
+    expect(screen.getByText("Manage your billing settings and team")).toBeInTheDocument();
   });
 
   it("renders current plan tier", async () => {
@@ -632,15 +632,13 @@ describe("Account page", () => {
     expect(await screen.findByRole("button", { name: "Manage Billing" })).toBeInTheDocument();
   });
 
-  it("renders password change form", async () => {
+  it("does not render password change form (consolidated to profile)", async () => {
     const { default: AccountPage } = await import("../app/(dashboard)/settings/account/page");
     render(<AccountPage />);
 
-    expect(await screen.findByText("Change Password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Current password")).toBeInTheDocument();
-    expect(screen.getByLabelText("New password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Confirm new password")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Change password" })).toBeInTheDocument();
+    await screen.findByText("Account");
+    expect(screen.queryByText("Change Password")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
   });
 });
 
