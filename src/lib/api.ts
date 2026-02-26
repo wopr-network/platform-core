@@ -676,6 +676,7 @@ export interface PlatformApiKey {
   name: string;
   prefix: string;
   scope: "read-only" | "full" | "instances";
+  instanceIds?: string[];
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -782,6 +783,7 @@ export async function createApiKey(data: {
   name: string;
   scope: string;
   expiration: string;
+  instanceIds?: string[];
 }): Promise<{ key: PlatformApiKey; secret: string }> {
   // NOTE: add tRPC procedure
   return apiFetch<{ key: PlatformApiKey; secret: string }>("/settings/api-keys", {

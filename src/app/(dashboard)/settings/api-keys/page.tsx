@@ -6,6 +6,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -35,8 +36,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { PlatformApiKey } from "@/lib/api";
-import { createApiKey, listApiKeys, revokeApiKey } from "@/lib/api";
+import {
+  createApiKey,
+  type Instance,
+  listApiKeys,
+  listInstances,
+  type PlatformApiKey,
+  revokeApiKey,
+} from "@/lib/api";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "Never";
@@ -287,15 +294,46 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
   const [scope, setScope] = useState("full");
   const [expiration, setExpiration] = useState("90");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedInstanceIds, setSelectedInstanceIds] = useState<string[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [instancesLoading, setInstancesLoading] = useState(false);
+  const [instancesError, setInstancesError] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setInstancesLoading(true);
+    setInstancesError(false);
+    listInstances()
+      .then((data) => {
+        if (!cancelled) setInstances(data);
+      })
+      .catch(() => {
+        if (!cancelled) setInstancesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setInstancesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (scope === "instances" && selectedInstanceIds.length === 0) return;
     setSubmitError(null);
     try {
-      const { secret } = await createApiKey({ name, scope, expiration });
+      const { secret } = await createApiKey({
+        name,
+        scope,
+        expiration,
+        ...(scope === "instances" ? { instanceIds: selectedInstanceIds } : {}),
+      });
       setName("");
       setScope("full");
       setExpiration("90");
+      setSelectedInstanceIds([]);
       setOpen(false);
       onCreated(secret);
     } catch {
@@ -345,6 +383,68 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
               </SelectContent>
             </Select>
           </div>
+          <AnimatePresence>
+            {scope === "instances" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="flex flex-col gap-2 overflow-hidden"
+              >
+                <Label>Select instances</Label>
+                {instancesLoading ? (
+                  <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-5 w-full" />
+                  </div>
+                ) : instancesError ? (
+                  <p className="text-sm text-destructive">Failed to load instances.</p>
+                ) : instances.length === 0 ? (
+                  <div className="rounded-md border bg-muted/30 p-3 py-6 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No bot instances found. Deploy a bot first.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="max-h-[160px] space-y-1 overflow-y-auto rounded-md border bg-muted/30 p-3">
+                      {instances.map((inst) => (
+                        <label
+                          key={inst.id}
+                          htmlFor={`inst-${inst.id}`}
+                          className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-1.5 transition-colors duration-100 hover:bg-muted/50"
+                        >
+                          <Checkbox
+                            id={`inst-${inst.id}`}
+                            checked={selectedInstanceIds.includes(inst.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedInstanceIds((prev) =>
+                                checked ? [...prev, inst.id] : prev.filter((id) => id !== inst.id),
+                              );
+                            }}
+                            className="data-[state=checked]:border-terminal data-[state=checked]:bg-terminal"
+                          />
+                          <span className="text-sm">{inst.name}</span>
+                          <Badge variant="secondary" className="ml-auto font-mono text-xs">
+                            {inst.status}
+                          </Badge>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedInstanceIds.length > 0 && (
+                      <p className="text-right text-xs text-terminal">
+                        {selectedInstanceIds.length} of {instances.length} selected
+                      </p>
+                    )}
+                    {selectedInstanceIds.length === 0 && (
+                      <p className="text-sm text-destructive">Select at least one instance.</p>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="flex flex-col gap-2">
             <Label htmlFor="key-expiration">Expiration</Label>
             <Select value={expiration} onValueChange={setExpiration}>
@@ -366,7 +466,15 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit">Generate key</Button>
+            <Button
+              type="submit"
+              disabled={
+                (scope === "instances" && selectedInstanceIds.length === 0) ||
+                (scope === "instances" && instances.length === 0)
+              }
+            >
+              Generate key
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
