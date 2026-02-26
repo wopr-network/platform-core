@@ -347,6 +347,7 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
       onOpenChange={(v) => {
         setOpen(v);
         if (v) setSubmitError(null);
+        if (!v) setSelectedInstanceIds([]);
       }}
     >
       <DialogTrigger asChild>
@@ -470,7 +471,8 @@ function CreateKeyDialog({ onCreated }: { onCreated: (secret: string) => void })
               type="submit"
               disabled={
                 (scope === "instances" && selectedInstanceIds.length === 0) ||
-                (scope === "instances" && instances.length === 0)
+                (scope === "instances" && instances.length === 0) ||
+                (scope === "instances" && instancesError)
               }
             >
               Generate key
