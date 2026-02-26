@@ -39,13 +39,30 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getInstanceLogs(instanceId);
+      const params: { level?: LogLevel; source?: string; search?: string } = {};
+      if (levelFilter !== "all") params.level = levelFilter;
+      if (sourceFilter !== "all") params.source = sourceFilter;
+      if (debouncedSearch) params.search = debouncedSearch;
+
+      const data = await getInstanceLogs(instanceId, params);
       setLogs(data);
       requestAnimationFrame(() => {
         if (autoScroll && scrollRef.current) {
@@ -57,7 +74,7 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [instanceId, autoScroll]);
+  }, [instanceId, autoScroll, levelFilter, sourceFilter, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -67,12 +84,7 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
 
   const sources = [...new Set(logs.map((l) => l.source))];
 
-  const filtered = logs.filter((log) => {
-    if (levelFilter !== "all" && log.level !== levelFilter) return false;
-    if (sourceFilter !== "all" && log.source !== sourceFilter) return false;
-    if (search && !log.message.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = logs;
 
   return (
     <div className="space-y-4">
@@ -105,12 +117,17 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
           </SelectContent>
         </Select>
 
-        <Input
-          placeholder="Search logs..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-[250px]"
-        />
+        <div className="relative max-w-[250px] sm:max-w-full">
+          <Input
+            placeholder="Search logs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full"
+          />
+          {search !== debouncedSearch && (
+            <span className="absolute right-3 top-1/2 size-2 -translate-y-1/2 rounded-full bg-emerald-500/60 animate-pulse" />
+          )}
+        </div>
 
         <Button
           variant={autoScroll ? "terminal" : "outline"}
@@ -155,10 +172,18 @@ export function LogsViewer({ instanceId }: { instanceId: string }) {
           ) : (
             <div
               ref={scrollRef}
-              className="h-[400px] overflow-auto rounded-md bg-zinc-950 p-4 font-mono text-xs"
+              className={cn(
+                "h-[400px] overflow-auto rounded-md bg-zinc-950 p-4 font-mono text-xs",
+                loading && logs.length > 0 && "opacity-50 transition-opacity duration-150",
+              )}
             >
               {filtered.length === 0 ? (
-                <p className="text-zinc-500">No log entries match your filters.</p>
+                <div className="flex h-full flex-col items-center justify-center">
+                  <p className="text-zinc-500">No logs match the current filters.</p>
+                  <p className="mt-1 text-zinc-600">
+                    Try broadening your search or changing the level filter.
+                  </p>
+                </div>
               ) : (
                 filtered.map((log) => (
                   <div
