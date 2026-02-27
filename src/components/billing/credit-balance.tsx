@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CreditBalance as CreditBalanceData } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 function useCountUp(target: number, duration = 1200) {
@@ -55,14 +56,16 @@ export function CreditBalance({ data }: { data: CreditBalanceData }) {
           <div
             className={cn("text-4xl font-bold font-mono", balanceColor(data.balance, data.runway))}
           >
-            ${animatedBalance.toFixed(2)}
+            {formatCreditStandard(animatedBalance)}
           </div>
           <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <div>
               <span className="block text-xs uppercase tracking-wider text-primary/60">
                 Daily burn
               </span>
-              <span className="font-medium text-foreground">${data.dailyBurn.toFixed(2)}/day</span>
+              <span className="font-medium text-foreground">
+                {formatCreditStandard(data.dailyBurn)}/day
+              </span>
             </div>
             <div>
               <span className="block text-xs uppercase tracking-wider text-primary/60">Runway</span>

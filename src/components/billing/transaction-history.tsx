@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditTransaction, CreditTransactionType } from "@/lib/api";
 import { getCreditHistory } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 const TYPE_CONFIG: Record<CreditTransactionType, { icon: typeof ArrowUpIcon; label: string }> = {
@@ -188,7 +189,8 @@ export function TransactionHistory() {
                           isPositive ? "text-emerald-500" : "text-red-500",
                         )}
                       >
-                        {isPositive ? "+" : "-"}${Math.abs(tx.amount).toFixed(2)}
+                        {isPositive ? "+" : "-"}
+                        {formatCreditStandard(Math.abs(tx.amount))}
                       </span>
                     </div>
                     <AnimatePresence>

@@ -16,6 +16,7 @@ import {
 import { ByokCallout } from "@/components/billing/byok-callout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditDetailed } from "@/components/ui/credit-detailed";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -42,6 +43,7 @@ import {
   getUsageHistory,
   updateSpendingLimits,
 } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 const CAPABILITY_LABELS: Record<HostedCapability, string> = {
@@ -220,7 +222,7 @@ export default function UsagePage() {
                   summary.amountDue === 0 ? "text-terminal" : "text-foreground",
                 )}
               >
-                ${summary.amountDue.toFixed(2)}
+                {formatCreditStandard(summary.amountDue)}
               </span>
               <span className="text-sm text-muted-foreground">amount due</span>
             </div>
@@ -228,17 +230,19 @@ export default function UsagePage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total spend this period</span>
-                <span className="font-medium tabular-nums">${summary.totalSpend.toFixed(2)}</span>
+                <span className="font-medium tabular-nums">
+                  {formatCreditStandard(summary.totalSpend)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Included credit</span>
                 <span className="font-medium tabular-nums text-terminal-dim">
-                  -${summary.includedCredit.toFixed(2)}
+                  -{formatCreditStandard(summary.includedCredit)}
                 </span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Amount due</span>
-                <span className="tabular-nums">${summary.amountDue.toFixed(2)}</span>
+                <span className="tabular-nums">{formatCreditStandard(summary.amountDue)}</span>
               </div>
             </div>
           </CardContent>
@@ -317,7 +321,7 @@ export default function UsagePage() {
                       }}
                       labelStyle={{ color: "var(--foreground)" }}
                       itemStyle={{ color: "var(--muted-foreground)" }}
-                      formatter={(value) => [`$${Number(value).toFixed(2)}`, "Cost"]}
+                      formatter={(value) => [formatCreditStandard(Number(value)), "Cost"]}
                     />
                     <Bar dataKey="cost" fill="var(--terminal)" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -334,8 +338,8 @@ export default function UsagePage() {
                     <span>
                       {cap.units.toLocaleString()} {cap.unitLabel}
                     </span>
-                    <span className="w-16 text-right font-medium text-foreground">
-                      ${cap.cost.toFixed(2)}
+                    <span className="w-16 text-right font-medium text-foreground min-w-[7rem]">
+                      <CreditDetailed value={cap.cost} />
                     </span>
                   </div>
                 </div>
@@ -345,15 +349,15 @@ export default function UsagePage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between font-medium">
                 <span>Total this period</span>
-                <span>${hostedUsage.totalCost.toFixed(2)}</span>
+                <span>{formatCreditStandard(hostedUsage.totalCost)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Included in plan</span>
-                <span>-${hostedUsage.includedCredit.toFixed(2)}</span>
+                <span>-{formatCreditStandard(hostedUsage.includedCredit)}</span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Amount due</span>
-                <span>${hostedUsage.amountDue.toFixed(2)}</span>
+                <span>{formatCreditStandard(hostedUsage.amountDue)}</span>
               </div>
             </div>
             <Button variant="outline" size="sm" asChild>
@@ -388,7 +392,7 @@ export default function UsagePage() {
         {showCostTracker && (
           <CardContent className="space-y-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold">${totalEstimatedCost.toFixed(2)}</span>
+              <span className="text-2xl font-bold">{formatCreditStandard(totalEstimatedCost)}</span>
               <span className="text-sm text-muted-foreground">estimated this period</span>
             </div>
             <div className="space-y-2">
@@ -400,8 +404,8 @@ export default function UsagePage() {
                       {(cost.inputTokens / 1000).toFixed(0)}k in /{" "}
                       {(cost.outputTokens / 1000).toFixed(0)}k out
                     </span>
-                    <span className="font-medium text-foreground">
-                      ~${cost.estimatedCost.toFixed(2)}
+                    <span className="font-medium text-foreground min-w-[7rem]">
+                      ~<CreditDetailed value={cost.estimatedCost} />
                     </span>
                   </div>
                 </div>

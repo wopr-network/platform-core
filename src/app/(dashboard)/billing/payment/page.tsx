@@ -8,6 +8,7 @@ import { ByokCallout } from "@/components/billing/byok-callout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditDetailed } from "@/components/ui/credit-detailed";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +29,7 @@ import {
   updateBillingEmail,
 } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { getOrganization } from "@/lib/org-api";
 import { getOrgBillingInfo } from "@/lib/org-billing-api";
 import { cn } from "@/lib/utils";
@@ -475,7 +477,7 @@ function InvoiceRow({
             year: "numeric",
           })}
         </TableCell>
-        <TableCell>${invoice.amount.toFixed(2)}</TableCell>
+        <TableCell>{formatCreditStandard(invoice.amount)}</TableCell>
         <TableCell>
           <Badge variant="outline" className={statusStyles[invoice.status]}>
             {invoice.status}
@@ -508,10 +510,13 @@ function InvoiceRow({
                 {invoice.hostedLineItems?.map((item, i) => (
                   <div key={`${invoice.id}-item-${i}`} className="flex justify-between">
                     <span>
-                      {item.capability} — {item.units.toLocaleString()} units @ $
-                      {item.unitPrice.toFixed(4)}/unit
+                      {item.capability} — {item.units.toLocaleString()} units @{" "}
+                      <CreditDetailed value={item.unitPrice} />
+                      /unit
                     </span>
-                    <span className="font-medium">${item.total.toFixed(2)}</span>
+                    <span className="font-medium min-w-[7rem]">
+                      <CreditDetailed value={item.total} />
+                    </span>
                   </div>
                 ))}
               </div>

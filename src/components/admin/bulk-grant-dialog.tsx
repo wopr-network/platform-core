@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 interface BulkGrantDialogProps {
@@ -41,8 +42,8 @@ function BulkGrantDialog({
   }, [amount]);
 
   const totalCents = amountCents * selectedCount;
-  const totalFormatted = (totalCents / 100).toFixed(2);
-  const perTenantFormatted = (amountCents / 100).toFixed(2);
+  const totalFormatted = formatCreditStandard(totalCents / 100);
+  const perTenantFormatted = formatCreditStandard(amountCents / 100);
 
   const handleConfirm = () => {
     if (amountCents > 0 && reason.trim()) {
@@ -99,7 +100,7 @@ function BulkGrantDialog({
                   "text-red-500": totalCents >= 1_000_000,
                 })}
               >
-                Total: ${totalFormatted}
+                Total: {totalFormatted}
               </p>
             )}
           </div>
@@ -135,7 +136,7 @@ function BulkGrantDialog({
             onClick={handleConfirm}
             disabled={amountCents === 0 || !reason.trim() || isLoading}
           >
-            Grant ${perTenantFormatted} x {selectedCount} = ${totalFormatted}
+            Grant {perTenantFormatted} x {selectedCount} = {totalFormatted}
           </Button>
         </DialogFooter>
       </DialogContent>

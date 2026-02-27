@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ActivityEvent, DividendWalletStats, FleetInstance, FleetResources } from "@/lib/api";
 import { getActivityFeed, getDividendStats, getFleetHealth, getFleetResources } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 function computeFleetStats(instances: FleetInstance[], resources: FleetResources | null) {
@@ -334,7 +335,7 @@ export function CommandCenter() {
                   className="mt-2 text-3xl font-bold tabular-nums text-terminal"
                   data-testid="dividend-amount"
                 >
-                  {loading ? "--" : `$${(dividendStats.perUserCents / 100).toFixed(2)}`}
+                  {loading ? "--" : formatCreditStandard(dividendStats.perUserCents / 100)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {dividendStats.userEligible ? "your daily share" : "join the pool to earn"}

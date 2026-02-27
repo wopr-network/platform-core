@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchPublicPricing } from "@/lib/api";
+import { formatCreditDetailed } from "@/lib/format-credit";
 import { mergeApiRates, type PricingCapability, pricingData } from "@/lib/pricing-data";
 import { DividendCalculator } from "./dividend-calculator";
 import { DividendStats } from "./dividend-stats";
@@ -16,9 +17,7 @@ const iconMap = {
 } as const;
 
 function formatPrice(price: number): string {
-  if (price < 0.01) return `$${price.toFixed(3)}`;
-  if (price < 1) return `$${price.toFixed(2)}`;
-  return `$${price.toFixed(2)}`;
+  return formatCreditDetailed(price);
 }
 
 export async function PricingPage() {

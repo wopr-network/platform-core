@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type OnboardingConfigField, usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { deployInstance, getCreditBalance, listInstances, testChannelConnection } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { type ByokAiProvider, getAiKeyField } from "@/lib/onboarding-data";
 import { markOnboardingComplete } from "@/lib/onboarding-store";
 
@@ -207,7 +208,7 @@ export function useOnboarding(
     let cancelled = false;
     getCreditBalance()
       .then((data) => {
-        if (!cancelled) setRealCreditBalance(`$${data.balance.toFixed(2)}`);
+        if (!cancelled) setRealCreditBalance(formatCreditStandard(data.balance));
       })
       .catch(() => {
         // Keep default $0.00 on error

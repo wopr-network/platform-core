@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AdminUserSummary, grantCredits } from "@/lib/admin-api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 function creditColor(cents: number): string {
@@ -86,7 +87,7 @@ export function GrantCreditsDialog({
             <p className="text-xs text-muted-foreground font-mono">
               Current balance:{" "}
               <span className={cn(creditColor(user.credit_balance_cents))}>
-                ${(user.credit_balance_cents / 100).toFixed(2)}
+                {formatCreditStandard(user.credit_balance_cents / 100)}
               </span>
             </p>
           </div>
@@ -111,7 +112,7 @@ export function GrantCreditsDialog({
           >
             {submitting
               ? "Granting..."
-              : `Grant $${isValidAmount ? parsedAmount.toFixed(2) : "0.00"}`}
+              : `Grant ${isValidAmount ? formatCreditStandard(parsedAmount) : "$0.00"}`}
           </Button>
         </DialogFooter>
       </DialogContent>

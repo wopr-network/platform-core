@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditDetailed } from "@/components/ui/credit-detailed";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ import {
   updateBotBrain,
   updateBotIdentity,
 } from "@/lib/bot-settings-data";
+import { formatCreditDetailed, formatCreditStandard } from "@/lib/format-credit";
 import { DEFAULT_STATUS_STYLE, PLUGIN_STATUS_STYLES } from "@/lib/status-colors";
 import { ResourcesTab } from "./resources-tab";
 import { StorageTab } from "./storage-tab";
@@ -648,8 +650,8 @@ function ActiveSuperpowerCard({
             <Badge variant="outline">{superpower.mode === "hosted" ? "Hosted" : "BYOK"}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {superpower.usageCount} {superpower.usageLabel} &middot; ${superpower.spend.toFixed(2)}{" "}
-            spent
+            {superpower.usageCount} {superpower.usageLabel} &middot;{" "}
+            <CreditDetailed value={superpower.spend} /> spent
           </p>
           <p className="text-xs text-muted-foreground">
             Provider: {superpower.provider} &middot; {superpower.model}
@@ -880,8 +882,8 @@ function UsageTab({ settings }: { settings: BotSettings }) {
       <Card>
         <CardContent className="space-y-4 p-4">
           <div className="text-sm text-muted-foreground">
-            This week: ${usage.totalSpend.toFixed(2)} of ${usage.creditBalance.toFixed(2)} remaining
-            credits
+            This week: {formatCreditStandard(usage.totalSpend)} of{" "}
+            {formatCreditStandard(usage.creditBalance)} remaining credits
           </div>
           <Progress value={spendPercent} className="h-2" />
         </CardContent>
@@ -899,7 +901,9 @@ function UsageTab({ settings }: { settings: BotSettings }) {
               <div className="flex-1">
                 <Progress value={cap.percent} className="h-2" />
               </div>
-              <span className="w-16 text-right text-sm font-medium">${cap.spend.toFixed(2)}</span>
+              <span className="w-16 text-right text-sm font-medium min-w-[7rem]">
+                <CreditDetailed value={cap.spend} />
+              </span>
               <span className="w-12 text-right text-xs text-muted-foreground">{cap.percent}%</span>
             </div>
           ))}
@@ -921,7 +925,7 @@ function UsageTab({ settings }: { settings: BotSettings }) {
                 <div
                   key={point.date}
                   className="flex flex-1 flex-col items-center gap-1"
-                  title={`${point.date}: $${point.spend.toFixed(2)}`}
+                  title={`${point.date}: ${formatCreditDetailed(point.spend)}`}
                 >
                   <div
                     className="w-full rounded-t bg-primary/60"

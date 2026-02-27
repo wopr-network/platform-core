@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchDividendStats } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 
 function useCountUp(target: number, duration = 1200) {
   const [value, setValue] = useState(0);
@@ -36,9 +37,7 @@ function useCountUp(target: number, duration = 1200) {
 }
 
 function formatDollars(n: number): string {
-  if (n >= 1000)
-    return `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  return `$${n.toFixed(2)}`;
+  return formatCreditStandard(n);
 }
 
 export function DividendStats() {
@@ -100,7 +99,7 @@ export function DividendStats() {
             className="text-3xl font-bold text-terminal sm:text-4xl"
             data-testid="projected-dividend"
           >
-            {loaded && dividend > 0 ? `~$${animatedDividend.toFixed(2)}` : "--"}
+            {loaded && dividend > 0 ? `~${formatCreditStandard(animatedDividend)}` : "--"}
           </p>
         </CardContent>
       </Card>

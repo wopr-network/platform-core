@@ -8,6 +8,7 @@ import { CreditBalance } from "@/components/billing/credit-balance";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditDetailed } from "@/components/ui/credit-detailed";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -17,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatCreditStandard } from "@/lib/format-credit";
 import type { OrgCreditBalance, OrgMemberUsageRow } from "@/lib/org-billing-api";
 import { getOrgBillingInfo, getOrgCreditBalance, getOrgMemberUsage } from "@/lib/org-billing-api";
 
@@ -212,8 +214,8 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
                               <p className="text-xs text-muted-foreground">{m.email}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            ${m.creditsConsumed.toFixed(2)}
+                          <TableCell className="text-right font-mono text-sm min-w-[7rem]">
+                            <CreditDetailed value={m.creditsConsumed} />
                           </TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">
                             {m.lastActiveAt ? (
@@ -336,7 +338,7 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
                         })}
                       </TableCell>
                       <TableCell className="font-mono text-sm text-foreground">
-                        ${inv.amount.toFixed(2)}
+                        {formatCreditStandard(inv.amount)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={invoiceStatusStyles[inv.status] ?? ""}>

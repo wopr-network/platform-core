@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCreditBalance } from "@/lib/api";
 import { signOut, useSession } from "@/lib/auth-client";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -116,7 +117,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {item.label}
               {item.label === "Credits" && creditBalance !== null && (
                 <span className={cn("text-xs font-mono", balanceColorClass(creditBalance))}>
-                  ${creditBalance.toFixed(2)}
+                  {formatCreditStandard(creditBalance)}
                 </span>
               )}
             </Link>

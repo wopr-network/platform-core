@@ -9,9 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AffiliateStats, Referral } from "@/lib/api";
 import { getAffiliateReferrals, getAffiliateStats } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 
 function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatCreditStandard(cents / 100);
 }
 
 export function AffiliateDashboard() {

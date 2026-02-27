@@ -21,6 +21,7 @@ import {
   bulkSuspendTenants,
   getUsersList,
 } from "@/lib/admin-api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import { TenantRowActions } from "./tenant-row-actions";
@@ -253,7 +254,7 @@ export function TenantTable() {
                       creditColor(user.credit_balance_cents),
                     )}
                   >
-                    ${(user.credit_balance_cents / 100).toFixed(2)}
+                    {formatCreditStandard(user.credit_balance_cents / 100)}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
                     {user.agent_count}

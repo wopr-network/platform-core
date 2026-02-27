@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditDetailed } from "@/components/ui/credit-detailed";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import type { HostedCapability, HostedUsageEvent } from "@/lib/api";
 import { getHostedUsageEvents } from "@/lib/api";
+import { formatCreditDetailed, formatCreditStandard } from "@/lib/format-credit";
 
 const CAPABILITY_LABELS: Record<HostedCapability, string> = {
   transcription: "Transcription",
@@ -112,7 +114,7 @@ export default function HostedUsageDetailPage() {
     const rows = filteredEvents
       .map(
         (e) =>
-          `${e.date},${CAPABILITY_LABELS[e.capability] ?? e.capability},${e.provider},${e.units},${e.unitLabel},${e.cost.toFixed(2)}`,
+          `${e.date},${CAPABILITY_LABELS[e.capability] ?? e.capability},${e.provider},${e.units},${e.unitLabel},${formatCreditDetailed(e.cost).slice(1)}`,
       )
       .join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
@@ -188,8 +190,8 @@ export default function HostedUsageDetailPage() {
             <div className="space-y-1">
               <CardTitle>Usage Events</CardTitle>
               <CardDescription>
-                {filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""} — Total: $
-                {totalCost.toFixed(2)}
+                {filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""} — Total:{" "}
+                {formatCreditStandard(totalCost)}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -280,8 +282,8 @@ export default function HostedUsageDetailPage() {
                       <TableCell className="text-right">
                         {event.units.toLocaleString()} {event.unitLabel}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${event.cost.toFixed(2)}
+                      <TableCell className="text-right font-medium min-w-[7rem]">
+                        <CreditDetailed value={event.cost} />
                       </TableCell>
                     </motion.tr>
                   ))}

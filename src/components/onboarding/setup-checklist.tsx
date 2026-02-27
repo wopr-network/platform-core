@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CapabilitySetting, ChannelInfo } from "@/lib/api";
 import { getCreditBalance, listChannels, listInstances } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 import { channelPlugins, superpowers } from "@/lib/onboarding-data";
 import { listCapabilities } from "@/lib/settings-api";
 
@@ -146,7 +147,7 @@ export function SetupChecklist() {
         }
 
         if (creditsResult.status === "fulfilled") {
-          setCreditBalance(`$${creditsResult.value.balance.toFixed(2)}`);
+          setCreditBalance(formatCreditStandard(creditsResult.value.balance));
         }
 
         if (capabilitiesResult.status === "fulfilled") {

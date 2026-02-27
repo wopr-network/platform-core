@@ -307,8 +307,10 @@ describe("Usage page", () => {
 
     expect(await screen.findByText("Anthropic")).toBeInTheDocument();
     expect(screen.getByText("OpenAI")).toBeInTheDocument();
-    expect(screen.getByText("~$23.40")).toBeInTheDocument();
-    expect(screen.getByText("~$8.12")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "~$23.40"),
+    ).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element?.textContent === "~$8.12")).toBeInTheDocument();
     expect(screen.getByText(/WOPR does not charge for inference/)).toBeInTheDocument();
   });
 
