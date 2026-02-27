@@ -22,7 +22,6 @@ src/
   app/
     (auth)/           # Login, register, OAuth
     (dashboard)/      # Main app shell (authenticated)
-    (onboard)/        # Onboarding wizard
     auth/             # Auth API routes
     channels/         # Channel management pages
     fleet/            # Multi-bot fleet view

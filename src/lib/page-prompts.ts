@@ -9,8 +9,6 @@ export const PAGE_PROMPTS: Record<string, string> = {
     "You are on the billing usage page. The user can see their credit consumption and API usage. Help them understand their usage and optimize costs.",
   "/instances":
     "You are on the bot instances page. The user can see all their WOPR bot instances, create new ones, and manage existing ones. Help with instance management.",
-  "/onboard":
-    "You are guiding the user through initial onboarding. Walk them through each step: choosing a provider, adding API keys, selecting plugins, and configuring channels.",
 };
 
 export function getPagePrompt(pathname: string): string | null {

@@ -186,13 +186,3 @@ export const ENHANCEMENT_PLUGINS = [
     requiresKey: false,
   },
 ] as const;
-
-export const ONBOARDING_STEPS = [
-  { path: "/onboard", label: "Welcome" },
-  { path: "/onboard/provider", label: "Providers" },
-  { path: "/onboard/keys", label: "API Keys" },
-  { path: "/onboard/channels", label: "Channels" },
-  { path: "/onboard/channels/setup", label: "Channel Setup" },
-  { path: "/onboard/plugins", label: "Plugins" },
-  { path: "/onboard/review", label: "Review" },
-] as const;
