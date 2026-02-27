@@ -39,12 +39,14 @@ const RANGE_MS: Record<TimeRange, number> = {
 // ---- Animated number hook ----
 
 function useAnimatedNumber(target: number, duration = 400): number {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target);
   const rafRef = useRef<number>(0);
+  const prevRef = useRef<number>(target);
 
   useEffect(() => {
+    const from = prevRef.current;
+    prevRef.current = target;
     const start = performance.now();
-    const from = 0;
     const tick = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);

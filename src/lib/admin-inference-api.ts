@@ -1,6 +1,6 @@
 import { trpcVanilla } from "./trpc";
 
-// ---- Types (mirror backend domain types) ----
+// ---- Types (mirror backend domain types until @wopr-network/sdk is published) ----
 
 export interface DailyCostAggregate {
   day: string; // YYYY-MM-DD
@@ -37,9 +37,7 @@ interface InferenceAdminProcedures {
   sessionCost: { query(input: { since: number }): Promise<SessionCostSummary> };
 }
 
-const inferenceClient = (
-  trpcVanilla as unknown as { admin: { inference: InferenceAdminProcedures } }
-).admin.inference;
+const inferenceClient = trpcVanilla.admin.inference as unknown as InferenceAdminProcedures;
 
 // ---- API calls ----
 

@@ -13,6 +13,7 @@
  */
 import type {
   AnyTRPCMutationProcedure,
+  AnyTRPCQueryProcedure,
   AnyTRPCRootTypes,
   TRPCBuiltRouter,
   TRPCRouterRecord,
@@ -26,6 +27,14 @@ import type {
 type AppRouterRecord = TRPCRouterRecord & {
   pageContext: {
     update: AnyTRPCMutationProcedure;
+  };
+  admin: {
+    inference: {
+      dailyCost: AnyTRPCQueryProcedure;
+      pageCost: AnyTRPCQueryProcedure;
+      cacheHitRate: AnyTRPCQueryProcedure;
+      sessionCost: AnyTRPCQueryProcedure;
+    };
   };
 };
 
