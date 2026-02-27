@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const adminNavItems = [
   { label: "Users", href: "/admin/tenants" },
   { label: "Accounting", href: "/admin/accounting" },
+  { label: "Billing Health", href: "/admin/billing-health" },
   { label: "Audit Log", href: "/admin/audit" },
   { label: "Marketplace", href: "/admin/marketplace" },
   { label: "Inference", href: "/admin/inference" },
