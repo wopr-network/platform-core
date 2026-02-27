@@ -323,7 +323,11 @@ export function BillingHealthDashboard() {
             <div>
               <div className="text-xs text-muted-foreground mb-1">CPU</div>
               <div className="text-lg font-medium">
-                {((data.system.cpuLoad1m / data.system.cpuCount) * 100).toFixed(0)}%
+                {(data.system.cpuCount > 0
+                  ? (data.system.cpuLoad1m / data.system.cpuCount) * 100
+                  : 0
+                ).toFixed(0)}
+                %
               </div>
               <div className="text-xs text-muted-foreground">
                 Load {data.system.cpuLoad1m.toFixed(2)} / {data.system.cpuCount} cores
@@ -332,7 +336,11 @@ export function BillingHealthDashboard() {
             <div>
               <div className="text-xs text-muted-foreground mb-1">Memory</div>
               <div className="text-lg font-medium">
-                {((data.system.memoryUsedBytes / data.system.memoryTotalBytes) * 100).toFixed(0)}%
+                {(data.system.memoryTotalBytes > 0
+                  ? (data.system.memoryUsedBytes / data.system.memoryTotalBytes) * 100
+                  : 0
+                ).toFixed(0)}
+                %
               </div>
               <div className="text-xs text-muted-foreground">
                 {formatBytes(data.system.memoryUsedBytes)} /{" "}
@@ -342,7 +350,11 @@ export function BillingHealthDashboard() {
             <div>
               <div className="text-xs text-muted-foreground mb-1">Disk</div>
               <div className="text-lg font-medium">
-                {((data.system.diskUsedBytes / data.system.diskTotalBytes) * 100).toFixed(0)}%
+                {(data.system.diskTotalBytes > 0
+                  ? (data.system.diskUsedBytes / data.system.diskTotalBytes) * 100
+                  : 0
+                ).toFixed(0)}
+                %
               </div>
               <div className="text-xs text-muted-foreground">
                 {formatBytes(data.system.diskUsedBytes)} / {formatBytes(data.system.diskTotalBytes)}
