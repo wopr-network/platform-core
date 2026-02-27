@@ -5,6 +5,23 @@ test.describe("Auth critical path", () => {
 		const email = testEmail();
 
 		await mockAuthAPI(page);
+
+		// Capture any request failures so CI logs show exactly what network error occurred
+		page.on("requestfailed", (req) => {
+			console.error(`[e2e] Request FAILED: ${req.method()} ${req.url()} — ${req.failure()?.errorText}`);
+		});
+		// Log all requests to http://localhost:3001 so we can see if mocks fire
+		page.on("request", (req) => {
+			if (req.url().includes("localhost:3001")) {
+				console.log(`[e2e] Request: ${req.method()} ${req.url()}`);
+			}
+		});
+		page.on("response", (res) => {
+			if (res.url().includes("localhost:3001")) {
+				console.log(`[e2e] Response: ${res.status()} ${res.url()}`);
+			}
+		});
+
 		await page.goto("/signup");
 		await bypassOnboarding(page);
 
@@ -75,6 +92,22 @@ test.describe("Auth critical path", () => {
 		const email = testEmail();
 
 		await mockAuthAPI(page);
+
+		// Capture request failures for CI diagnostics
+		page.on("requestfailed", (req) => {
+			console.error(`[e2e] Request FAILED: ${req.method()} ${req.url()} — ${req.failure()?.errorText}`);
+		});
+		page.on("request", (req) => {
+			if (req.url().includes("localhost:3001")) {
+				console.log(`[e2e] Request: ${req.method()} ${req.url()}`);
+			}
+		});
+		page.on("response", (res) => {
+			if (res.url().includes("localhost:3001")) {
+				console.log(`[e2e] Response: ${res.status()} ${res.url()}`);
+			}
+		});
+
 		await page.goto("/forgot-password");
 
 		// Fill the email
