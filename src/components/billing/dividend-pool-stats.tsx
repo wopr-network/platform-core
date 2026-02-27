@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { UsersIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCreditStandard } from "@/lib/format-credit";
 
 interface DividendPoolStatsProps {
   poolCents: number;
@@ -36,8 +37,8 @@ export function DividendPoolStats({
     );
   }
 
-  const poolDollars = (poolCents / 100).toFixed(2);
-  const perUserDollars = (perUserCents / 100).toFixed(2);
+  const poolDollars = formatCreditStandard(poolCents / 100);
+  const perUserDollars = formatCreditStandard(perUserCents / 100);
 
   return (
     <motion.div
@@ -55,7 +56,7 @@ export function DividendPoolStats({
               <span className="block text-xs uppercase tracking-wider text-primary/60">
                 Today&apos;s pool
               </span>
-              <span className="font-bold text-lg font-mono text-terminal">${poolDollars}</span>
+              <span className="font-bold text-lg font-mono text-terminal">{poolDollars}</span>
             </div>
             <div>
               <span className="block text-xs uppercase tracking-wider text-primary/60">
@@ -71,12 +72,12 @@ export function DividendPoolStats({
                 Your share
               </span>
               <span className="font-bold text-lg font-mono text-terminal">
-                ${perUserDollars}/day
+                {perUserDollars}/day
               </span>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            {activeUsers} users in the pool &mdash; your share: ~${perUserDollars}/day
+            {activeUsers} users in the pool &mdash; your share: ~{perUserDollars}/day
           </p>
         </CardContent>
       </Card>

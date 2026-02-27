@@ -5,6 +5,7 @@ import { TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { useCountUp } from "@/hooks/use-count-up";
 import type { DividendWalletStats } from "@/lib/api";
+import { formatCreditStandard } from "@/lib/format-credit";
 
 interface DividendBannerProps {
   todayAmountCents: number;
@@ -40,7 +41,7 @@ export function DividendBanner({ todayAmountCents, stats }: DividendBannerProps)
               <p className="text-lg font-bold text-terminal">
                 WOPR paid you{" "}
                 <span className="text-2xl font-bold font-mono tabular-nums">
-                  ${animatedAmount.toFixed(2)}
+                  {formatCreditStandard(animatedAmount)}
                 </span>{" "}
                 today.
               </p>
@@ -65,7 +66,7 @@ export function DividendBanner({ todayAmountCents, stats }: DividendBannerProps)
             <TrendingUpIcon className="size-5 text-terminal-dim shrink-0" />
             <div>
               <p className="text-sm font-medium text-foreground">
-                Your projected share: ~${(stats.perUserCents / 100).toFixed(2)}/day
+                Your projected share: ~{formatCreditStandard(stats.perUserCents / 100)}/day
               </p>
               <p className="text-xs text-muted-foreground">Next distribution at midnight UTC</p>
             </div>
