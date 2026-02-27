@@ -94,8 +94,7 @@ export function getMarketplaceOnboardingTools(
     // ── Onboarding tools ────────────────────────────────────────────
     {
       name: "onboarding.beginSetup",
-      description:
-        "Open fullscreen onboarding chat for a specific plugin, injecting the current page context.",
+      description: "Expand the chat panel to begin conversational setup for a specific plugin.",
       inputSchema: {
         type: "object",
         properties: {
@@ -104,8 +103,12 @@ export function getMarketplaceOnboardingTools(
         required: ["pluginId"],
       },
       handler: async (params) => {
-        router.push(`/onboarding?setup=${encodeURIComponent(params.pluginId as string)}`);
-        return { ok: true };
+        window.dispatchEvent(
+          new CustomEvent("wopr-chat-tool-call", {
+            detail: { tool: "chat.expand", args: {} },
+          }),
+        );
+        return { ok: true, pluginId: params.pluginId };
       },
     },
     {
@@ -136,6 +139,35 @@ export function getMarketplaceOnboardingTools(
       },
       handler: async () => {
         router.push("/pricing");
+        return { ok: true };
+      },
+    },
+    {
+      name: "onboarding.setProvider",
+      description:
+        "Save the user's AI provider choice. Use 'wopr-hosted' for hosted AI, or 'anthropic'/'openai'/'google' for BYOK.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          provider: {
+            type: "string",
+            enum: ["anthropic", "openai", "google", "wopr-hosted"],
+            description: "The provider to set",
+          },
+        },
+        required: ["provider"],
+      },
+      handler: async (params) => {
+        const provider = params.provider as string;
+        const valid = ["anthropic", "openai", "google", "wopr-hosted"];
+        if (!valid.includes(provider)) {
+          return { error: `Invalid provider: ${provider}. Must be one of: ${valid.join(", ")}` };
+        }
+        window.dispatchEvent(
+          new CustomEvent("wopr:onboarding", {
+            detail: { type: "setProvider", provider },
+          }),
+        );
         return { ok: true };
       },
     },
