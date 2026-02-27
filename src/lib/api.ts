@@ -1790,6 +1790,34 @@ export async function updateAutoAcceptConfig(
   });
 }
 
+// --- Login History API ---
+
+export interface LoginAttempt {
+  id: string;
+  timestamp: string;
+  userAgent: string;
+  ip: string;
+  location: string | null;
+  success: boolean;
+}
+
+export interface LoginHistoryResponse {
+  attempts: LoginAttempt[];
+  total: number;
+  hasMore: boolean;
+}
+
+export async function fetchLoginHistory(params: {
+  limit?: number;
+  offset?: number;
+}): Promise<LoginHistoryResponse> {
+  const query = new URLSearchParams();
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  return apiFetch<LoginHistoryResponse>(`/settings/login-history${qs ? `?${qs}` : ""}`);
+}
+
 // --- Audit Log API ---
 
 export interface AuditEvent {
