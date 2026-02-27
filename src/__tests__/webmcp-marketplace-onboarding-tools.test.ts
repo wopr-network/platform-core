@@ -26,9 +26,9 @@ describe("getMarketplaceOnboardingTools", () => {
     document.body.innerHTML = "";
   });
 
-  it("returns 8 tools", () => {
+  it("returns 9 tools", () => {
     const tools = getMarketplaceOnboardingTools(deps);
-    expect(tools).toHaveLength(8);
+    expect(tools).toHaveLength(9);
   });
 
   it("each tool has name, description, inputSchema, handler", () => {
@@ -120,12 +120,19 @@ describe("getMarketplaceOnboardingTools", () => {
   });
 
   describe("onboarding.beginSetup", () => {
-    it("navigates to onboarding chat for plugin", async () => {
+    it("dispatches wopr-chat-tool-call event to expand chat panel", async () => {
+      const spy = vi.fn();
+      window.addEventListener("wopr-chat-tool-call", spy);
       const tool = getTool("onboarding.beginSetup");
+
       const result = await tool.handler({ pluginId: "discord" });
 
-      expect(mockPush).toHaveBeenCalledWith("/onboarding?setup=discord");
-      expect(result).toEqual({ ok: true });
+      expect(spy).toHaveBeenCalledOnce();
+      const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
+      expect(detail).toEqual({ tool: "chat.expand", args: {} });
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(result).toEqual({ ok: true, pluginId: "discord" });
+      window.removeEventListener("wopr-chat-tool-call", spy);
     });
   });
 
