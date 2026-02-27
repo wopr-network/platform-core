@@ -8,6 +8,24 @@ const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3
  * This avoids needing a running backend for E2E tests.
  */
 export async function mockAuthAPI(page: Page) {
+	// Catch-all fallback: intercept ANY unhandled request to the platform API and return a
+	// structured error so tests fail fast with a descriptive message rather than timing out.
+	// Registered FIRST so it has LOWEST priority (Playwright uses LIFO — last registered
+	// route wins). Specific mocks registered below will override this for their paths.
+	await page.route(
+		(url) => url.href.includes(PLATFORM_BASE_URL),
+		async (route) => {
+			const url = route.request().url();
+			const method = route.request().method();
+			console.error(`[auth-mock] UNHANDLED platform request: ${method} ${url}`);
+			await route.fulfill({
+				status: 503,
+				contentType: "application/json",
+				body: JSON.stringify({ error: `No mock registered for ${method} ${url}` }),
+			});
+		},
+	);
+
 	// Mock sign-up endpoint
 	await page.route(`${PLATFORM_BASE_URL}/api/auth/sign-up/email`, async (route) => {
 		const body = route.request().postDataJSON();
