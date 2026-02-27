@@ -9,6 +9,7 @@ import {
   SmartphoneIcon,
   TabletIcon,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,9 @@ function TwoFactorSection() {
   // enable flow
   const [enableOpen, setEnableOpen] = useState(false);
   const [enableStep, setEnableStep] = useState(0);
+  const [enablePassword, setEnablePassword] = useState("");
+  const [enablePasswordError, setEnablePasswordError] = useState<string | null>(null);
+  const [enablePasswordLoading, setEnablePasswordLoading] = useState(false);
   const [totpUri, setTotpUri] = useState("");
   const [totpSecret, setTotpSecret] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
@@ -190,14 +194,22 @@ function TwoFactorSection() {
     check();
   }, []);
 
-  async function handleStartEnable() {
-    setEnableStep(0);
+  function handleStartEnable() {
+    setEnableStep(-1);
+    setEnablePassword("");
+    setEnablePasswordError(null);
     setVerifyCode("");
     setVerifyError(null);
     setRecoveryCodes([]);
     setError(null);
+    setEnableOpen(true);
+  }
+
+  async function handleEnableWithPassword() {
+    setEnablePasswordLoading(true);
+    setEnablePasswordError(null);
     try {
-      const res = await authClient.twoFactor.enable();
+      const res = await authClient.twoFactor.enable({ password: enablePassword });
       const data = res?.data as { totpURI?: string; backupCodes?: string[] } | undefined;
       const uri = data?.totpURI ?? "";
       setTotpUri(uri);
@@ -207,9 +219,11 @@ function TwoFactorSection() {
       if (data?.backupCodes) {
         setRecoveryCodes(data.backupCodes);
       }
-      setEnableOpen(true);
+      setEnableStep(0);
     } catch {
-      setError("Failed to start 2FA setup. Please try again.");
+      setEnablePasswordError("Incorrect password. Please try again.");
+    } finally {
+      setEnablePasswordLoading(false);
     }
   }
 
@@ -273,7 +287,9 @@ function TwoFactorSection() {
     const a = document.createElement("a");
     a.href = url;
     a.download = "wopr-recovery-codes.txt";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
@@ -368,7 +384,59 @@ function TwoFactorSection() {
       {/* Enable 2FA Dialog */}
       <Dialog open={enableOpen} onOpenChange={setEnableOpen}>
         <DialogContent className="max-w-md">
-          <StepIndicator currentStep={enableStep} steps={["Scan", "Verify", "Backup"]} />
+          {enableStep >= 0 && (
+            <StepIndicator currentStep={enableStep} steps={["Scan", "Verify", "Backup"]} />
+          )}
+
+          {enableStep === -1 && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm your password</DialogTitle>
+                <DialogDescription>
+                  Enter your password to set up two-factor authentication
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-3">
+                <Input
+                  type="password"
+                  value={enablePassword}
+                  onChange={(e) => setEnablePassword(e.target.value)}
+                  className={`w-full ${enablePasswordError ? "border-destructive" : ""}`}
+                  placeholder="Your account password"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && enablePassword.length > 0 && !enablePasswordLoading) {
+                      handleEnableWithPassword();
+                    }
+                  }}
+                />
+                <AnimatePresence>
+                  {enablePasswordError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="text-sm text-destructive"
+                    >
+                      {enablePasswordError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  variant="terminal"
+                  disabled={enablePassword.length === 0 || enablePasswordLoading}
+                  onClick={handleEnableWithPassword}
+                >
+                  {enablePasswordLoading ? "Verifying..." : "Continue"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
 
           {enableStep === 0 && (
             <>
@@ -381,14 +449,7 @@ function TwoFactorSection() {
               </DialogHeader>
               <div className="flex flex-col items-center gap-4">
                 <div className="rounded-sm border border-border bg-white p-3">
-                  {/* biome-ignore lint/performance/noImgElement: External QR API, next/image requires known domains */}
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(totpUri)}&size=192x192`}
-                    alt="TOTP QR Code"
-                    width={192}
-                    height={192}
-                    className="block"
-                  />
+                  <QRCodeSVG value={totpUri} size={192} />
                 </div>
                 <div className="w-full space-y-2">
                   <p className="text-xs text-muted-foreground">
@@ -660,6 +721,7 @@ function SessionsSection() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
 
@@ -682,11 +744,12 @@ function SessionsSection() {
 
   async function handleRevoke(token: string) {
     setRevokingId(token);
+    setRevokeError(null);
     try {
       await authClient.revokeSession({ token });
       setSessions((prev) => prev.filter((s) => s.token !== token));
     } catch {
-      // silently fail — session may already be expired
+      setRevokeError("Failed to revoke session. Please try again.");
     } finally {
       setRevokingId(null);
     }
@@ -694,11 +757,12 @@ function SessionsSection() {
 
   async function handleRevokeAll() {
     setRevokingAll(true);
+    setRevokeError(null);
     try {
       await authClient.revokeOtherSessions();
       setSessions((prev) => prev.filter((s) => s.current));
     } catch {
-      // silently fail
+      setRevokeError("Failed to revoke sessions. Please try again.");
     } finally {
       setRevokingAll(false);
     }
@@ -744,6 +808,11 @@ function SessionsSection() {
         </div>
       </CardHeader>
       <CardContent>
+        {revokeError && (
+          <div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {revokeError}
+          </div>
+        )}
         {loading ? (
           <div className="space-y-3">
             {["s1", "s2", "s3"].map((id) => (
