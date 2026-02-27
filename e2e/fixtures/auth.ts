@@ -54,6 +54,19 @@ export async function mockAuthAPI(page: Page) {
 				},
 			}),
 		});
+		// The set-cookie header above lands on localhost:3001 (the platform origin).
+		// The Next.js middleware runs on localhost:3000 and never sees it.
+		// Inject the session cookie directly onto the app origin so the middleware
+		// can redirect authenticated users to /marketplace.
+		await page.context().addCookies([{
+			name: "better-auth.session_token",
+			value: sessionToken,
+			domain: "localhost",
+			path: "/",
+			httpOnly: true,
+			sameSite: "Lax",
+			expires: Math.floor(Date.now() / 1000) + 86400,
+		}]);
 	});
 
 	// Mock get-session endpoint (for useSession hook after login)
