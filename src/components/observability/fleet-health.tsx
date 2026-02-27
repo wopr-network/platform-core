@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useImageStatus } from "@/hooks/use-image-status";
 import type { FleetInstance, HealthStatus } from "@/lib/api";
 import { getFleetHealth } from "@/lib/api";
+import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,7 @@ export function FleetHealth() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -126,6 +128,7 @@ export function FleetHealth() {
     try {
       const data = await getFleetHealth();
       setInstances(data);
+      setLastUpdated(new Date());
     } catch {
       setError("Failed to load fleet health — please try again.");
     } finally {
@@ -276,6 +279,12 @@ export function FleetHealth() {
           <RefreshCw className={cn("size-4", refreshing && "animate-spin")} />
           Refresh
         </Button>
+
+        {lastUpdated && (
+          <span className="text-xs text-muted-foreground font-mono">
+            Updated {formatRelativeTime(lastUpdated)}
+          </span>
+        )}
       </div>
 
       {/* Instance Grid */}

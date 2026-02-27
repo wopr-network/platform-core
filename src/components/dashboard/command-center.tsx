@@ -9,21 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ActivityEvent, DividendWalletStats, FleetInstance, FleetResources } from "@/lib/api";
 import { getActivityFeed, getDividendStats, getFleetHealth, getFleetResources } from "@/lib/api";
+import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-function formatRelativeTime(timestamp: string): string {
-  const now = Date.now();
-  const then = new Date(timestamp).getTime();
-  const diffSeconds = Math.floor((now - then) / 1000);
-
-  if (diffSeconds < 60) return "just now";
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
-}
 
 function computeFleetStats(instances: FleetInstance[], resources: FleetResources | null) {
   const running = instances.filter((i) => i.status === "running").length;
