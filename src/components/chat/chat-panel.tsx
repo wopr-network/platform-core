@@ -63,7 +63,7 @@ export function ChatPanel({
       className={
         isFullscreen
           ? "fixed inset-0 z-50 flex flex-col bg-background"
-          : "fixed bottom-6 right-6 z-50 flex h-[500px] w-[400px] flex-col rounded-lg border border-border bg-background shadow-2xl"
+          : "fixed bottom-0 right-0 z-50 flex h-[60vh] w-full flex-col rounded-t-lg border border-border bg-background shadow-2xl lg:bottom-6 lg:right-6 lg:h-[500px] lg:w-[400px] lg:rounded-lg"
       }
       data-testid={isFullscreen ? "chat-fullscreen" : "chat-panel"}
       style={
