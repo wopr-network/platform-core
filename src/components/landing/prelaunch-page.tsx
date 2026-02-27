@@ -70,17 +70,14 @@ export function PrelaunchPage() {
 
         <div className="mt-8 border border-terminal/20 px-6 py-4">
           <p className="text-terminal/40 text-xs uppercase tracking-widest mb-3">Pricing</p>
-          <div className="flex justify-center gap-8 text-sm text-terminal/70">
+          <div className="flex flex-col items-center text-sm text-terminal/70">
             <div>
-              <span className="text-terminal font-semibold">$0</span>
-              <span className="text-terminal/40 ml-1">/ free</span>
-              <p className="text-xs text-terminal/40 mt-1">$5 signup credit included</p>
+              <span className="text-terminal font-semibold text-lg">$5</span>
+              <span className="text-terminal/40 ml-1">/ month per bot</span>
             </div>
-            <div>
-              <span className="text-terminal font-semibold">$5</span>
-              <span className="text-terminal/40 ml-1">/ month</span>
-              <p className="text-xs text-terminal/40 mt-1">per bot</p>
-            </div>
+            <p className="text-xs text-terminal/40 mt-2">
+              $5 signup credit included. Usage billed from credits.
+            </p>
           </div>
         </div>
 

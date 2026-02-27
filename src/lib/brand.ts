@@ -434,7 +434,7 @@ export const copyExamples = [
     rule: "Sell the outcome, not the tool.",
   },
   {
-    do: "One bot. Everything handled.",
+    do: "Your WOPR Bot. Everything handled.",
     dont: "Our comprehensive solution covers all your needs.",
     rule: "Short sentences.",
   },
