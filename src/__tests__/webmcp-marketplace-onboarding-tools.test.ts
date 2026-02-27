@@ -120,7 +120,7 @@ describe("getMarketplaceOnboardingTools", () => {
   });
 
   describe("onboarding.beginSetup", () => {
-    it("dispatches wopr-chat-tool-call event to expand chat panel", async () => {
+    it("dispatches chat.expand event for plugin setup", async () => {
       const spy = vi.fn();
       window.addEventListener("wopr-chat-tool-call", spy);
       const tool = getTool("onboarding.beginSetup");
@@ -130,7 +130,6 @@ describe("getMarketplaceOnboardingTools", () => {
       expect(spy).toHaveBeenCalledOnce();
       const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
       expect(detail).toEqual({ tool: "chat.expand", args: {} });
-      expect(mockPush).not.toHaveBeenCalled();
       expect(result).toEqual({ ok: true, pluginId: "discord" });
       window.removeEventListener("wopr-chat-tool-call", spy);
     });

@@ -1,6 +1,6 @@
 export const PAGE_PROMPTS: Record<string, string> = {
   "/dashboard":
-    "You are on the user's dashboard. They can see their bot instances, setup checklist, and command center. Help them manage their bots or complete setup steps.",
+    "You are on the user's dashboard. If this is their first visit, greet them warmly and ask what they wish happened automatically. Guide them through superpower selection and setup conversationally. If they're a returning user, help them manage their bots or complete setup steps.",
   "/marketplace":
     "You are on the plugin marketplace. The user is browsing plugins they can install on their WOPR bots. Help them find plugins, explain what plugins do, and guide installation.",
   "/settings/account":

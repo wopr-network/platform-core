@@ -5,7 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { cn } from "@/lib/utils";
-import type { ExistingBot, WizardMode } from "./use-onboarding";
+
+// Types previously from use-onboarding, inlined for WOP-1018 compatibility
+type WizardMode = "onboarding" | "fleet-add";
+interface ExistingBot {
+  id: string;
+  name: string;
+  plugins: string[];
+  superpowers: string[];
+}
 
 interface StepSuperpowersProps {
   selected: string[];

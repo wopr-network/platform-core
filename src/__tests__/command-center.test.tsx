@@ -101,7 +101,7 @@ describe("CommandCenter", () => {
     render(<CommandCenter />);
 
     const launchLink = screen.getByText("Add Another WOPR Bot").closest("a");
-    expect(launchLink).toHaveAttribute("href", "/onboarding?mode=fleet-add");
+    expect(launchLink).toHaveAttribute("href", "/instances/new");
 
     const healthLink = screen.getByText("Fleet Health").closest("a");
     expect(healthLink).toHaveAttribute("href", "/fleet/health");

@@ -430,7 +430,7 @@ export function CommandCenter() {
           ))}
 
           {/* Add another WOPR Bot CTA card */}
-          <Link data-onboarding-id="dashboard.add-bot" href="/onboarding?mode=fleet-add">
+          <Link data-onboarding-id="dashboard.add-bot" href="/instances/new">
             <motion.div
               className="h-full rounded-sm border border-dashed border-terminal/20"
               animate={{
@@ -475,7 +475,7 @@ export function CommandCenter() {
           size="lg"
           className="h-auto py-4 hover:shadow-[0_0_16px_rgba(0,255,65,0.25)]"
         >
-          <Link href="/onboarding?mode=fleet-add">
+          <Link href="/instances/new">
             <div className="flex items-center gap-3">
               <Plus size={18} />
               <div className="text-left">
