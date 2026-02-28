@@ -18,14 +18,15 @@ export default defineConfig({
 		},
 	],
 	webServer: {
+		// NEXT_PUBLIC_API_URL must be present at build time so next.config.ts bakes
+		// http://localhost:3001 into the CSP connect-src header (headers() in next.config.ts
+		// is evaluated during `next build`, not at server startup). The CI workflow
+		// sets this env var on the Build step. Locally, set it before running `pnpm build`.
 		command: "npm run start",
 		url: "http://localhost:3000",
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,
 		env: {
-			// Needed so next.config.ts includes http://localhost:3001 in CSP connect-src
-			// when the server starts (NEXT_PUBLIC_API_URL is baked into the client bundle
-			// at build time, but the CSP header is computed at server startup from this var).
 			NEXT_PUBLIC_API_URL: "http://localhost:3001",
 		},
 	},
