@@ -28,7 +28,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CapabilityMode, CapabilityName, CapabilitySetting, ProviderKey } from "@/lib/api";
+import { useCapabilityMeta } from "@/hooks/use-capability-meta";
+import type {
+  CapabilityMetaEntry,
+  CapabilityMode,
+  CapabilityName,
+  CapabilitySetting,
+  ProviderKey,
+} from "@/lib/api";
 import {
   getBillingInfo,
   getCreditBalance,
@@ -41,44 +48,6 @@ import {
 } from "@/lib/api";
 import { listCapabilities, updateCapability } from "@/lib/settings-api";
 import { cn } from "@/lib/utils";
-
-// --- Capability metadata ---
-
-interface CapabilityMeta {
-  label: string;
-  description: string;
-  pricing: string;
-  hostedProvider: string;
-}
-
-const CAPABILITY_META: Record<CapabilityName, CapabilityMeta> = {
-  transcription: {
-    label: "Transcription",
-    description: "Powered by Whisper. No setup needed.",
-    pricing: "$0.006/min",
-    hostedProvider: "Whisper",
-  },
-  "image-gen": {
-    label: "Image Generation",
-    description: "Powered by FLUX & Stable Diffusion.",
-    pricing: "$0.05/image",
-    hostedProvider: "FLUX",
-  },
-  "text-gen": {
-    label: "Text Generation",
-    description: "200+ models via OpenRouter.",
-    pricing: "$0.002/1K tokens",
-    hostedProvider: "OpenRouter",
-  },
-  embeddings: {
-    label: "Embeddings",
-    description: "High-quality vector embeddings.",
-    pricing: "$0.0001/1K tokens",
-    hostedProvider: "OpenAI",
-  },
-};
-
-const CAPABILITY_ORDER: CapabilityName[] = ["transcription", "image-gen", "text-gen", "embeddings"];
 
 // --- Helpers ---
 
@@ -114,19 +83,16 @@ export default function ProvidersPage() {
   const [error, setError] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, "success" | "fail" | null>>({});
-  const [testingCap, setTestingCap] = useState<CapabilityName | null>(null);
-  const [testCapResult, setTestCapResult] = useState<
-    Partial<Record<CapabilityName, "success" | "fail" | null>>
-  >({});
-  const [savingCap, setSavingCap] = useState<CapabilityName | null>(null);
-  const [saveCapSuccess, setSaveCapSuccess] = useState<Partial<Record<CapabilityName, boolean>>>(
-    {},
-  );
-  const [byokKeys, setByokKeys] = useState<Partial<Record<CapabilityName, string>>>({});
-  const [billingGate, setBillingGate] = useState<CapabilityName | null>(null);
+  const [testingCap, setTestingCap] = useState<string | null>(null);
+  const [testCapResult, setTestCapResult] = useState<Record<string, "success" | "fail" | null>>({});
+  const [savingCap, setSavingCap] = useState<string | null>(null);
+  const [saveCapSuccess, setSaveCapSuccess] = useState<Record<string, boolean>>({});
+  const [byokKeys, setByokKeys] = useState<Record<string, string>>({});
+  const [billingGate, setBillingGate] = useState<string | null>(null);
   const saveCapSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const testCapResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const testResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { meta: capabilityMeta, loading: metaLoading, getMeta } = useCapabilityMeta();
 
   useEffect(() => {
     return () => {
@@ -154,7 +120,7 @@ export default function ProvidersPage() {
     load();
   }, [load]);
 
-  async function handleModeChange(capability: CapabilityName, mode: CapabilityMode) {
+  async function handleModeChange(capability: string, mode: CapabilityMode) {
     if (mode === "hosted") {
       setBillingGate(capability);
       return;
@@ -162,7 +128,7 @@ export default function ProvidersPage() {
     setSavingCap(capability);
     setError(null);
     try {
-      const updated = await updateCapability(capability, { mode });
+      const updated = await updateCapability(capability as CapabilityName, { mode });
       setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
     } catch {
       setError("Failed to change capability mode. Please try again.");
@@ -171,12 +137,12 @@ export default function ProvidersPage() {
     }
   }
 
-  async function handleHostedConfirm(capability: CapabilityName) {
+  async function handleHostedConfirm(capability: string) {
     setSavingCap(capability);
     setBillingGate(null);
     setError(null);
     try {
-      const updated = await updateCapability(capability, { mode: "hosted" });
+      const updated = await updateCapability(capability as CapabilityName, { mode: "hosted" });
       setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
     } catch {
       setError("Failed to enable hosted mode. Please try again.");
@@ -185,13 +151,13 @@ export default function ProvidersPage() {
     }
   }
 
-  async function handleSaveByokKey(capability: CapabilityName) {
+  async function handleSaveByokKey(capability: string) {
     const key = byokKeys[capability];
     if (!key) return;
     setSavingCap(capability);
     setError(null);
     try {
-      const updated = await updateCapability(capability, { mode: "byok", key });
+      const updated = await updateCapability(capability as CapabilityName, { mode: "byok", key });
       setCapabilities((prev) => prev.map((c) => (c.capability === capability ? updated : c)));
       setByokKeys((prev) => ({ ...prev, [capability]: "" }));
       setSaveCapSuccess((prev) => ({ ...prev, [capability]: true }));
@@ -206,11 +172,11 @@ export default function ProvidersPage() {
     }
   }
 
-  async function handleTestCapability(capability: CapabilityName) {
+  async function handleTestCapability(capability: string) {
     setTestingCap(capability);
     setTestCapResult((prev) => ({ ...prev, [capability]: null }));
     try {
-      await testCapabilityKey(capability);
+      await testCapabilityKey(capability as CapabilityName);
       const caps = await listCapabilities();
       setCapabilities(caps);
       const updatedCap = caps.find((c) => c.capability === capability);
@@ -271,7 +237,7 @@ export default function ProvidersPage() {
     }
   }
 
-  if (loading) {
+  if (loading || metaLoading) {
     return (
       <div className="max-w-2xl space-y-8">
         <div className="space-y-2">
@@ -326,9 +292,9 @@ export default function ProvidersPage() {
         )}
       </AnimatePresence>
 
-      {CAPABILITY_ORDER.map((capName) => {
+      {capabilityMeta.map((meta) => {
+        const capName = meta.capability;
         const cap = capabilities.find((c) => c.capability === capName);
-        const meta = CAPABILITY_META[capName];
         const mode = cap?.mode ?? "hosted";
         const isSaving = savingCap === capName;
         const isTesting = testingCap === capName;
@@ -512,7 +478,7 @@ export default function ProvidersPage() {
       {/* Billing gate dialog */}
       {billingGate && (
         <BillingGateDialog
-          meta={CAPABILITY_META[billingGate]}
+          meta={getMeta(billingGate)}
           onConfirm={() => handleHostedConfirm(billingGate)}
           onCancel={() => setBillingGate(null)}
         />
@@ -648,7 +614,7 @@ function BillingGateDialog({
   onConfirm,
   onCancel,
 }: {
-  meta: CapabilityMeta;
+  meta: CapabilityMetaEntry;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
