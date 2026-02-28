@@ -10,6 +10,7 @@ import {
   KeyRoundIcon,
   MenuIcon,
   ServerIcon,
+  ShieldIcon,
   UserIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 const settingsNav = [
   { label: "Profile", href: "/settings/profile", icon: UserIcon },
   { label: "Account", href: "/settings/account", icon: KeyRoundIcon },
+  { label: "Security", href: "/settings/security", icon: ShieldIcon },
   { label: "Brain", href: "/settings/brain", icon: BrainIcon },
   { label: "Provider Keys", href: "/settings/providers", icon: ServerIcon },
   { label: "API Keys", href: "/settings/api-keys", icon: KeyIcon },
