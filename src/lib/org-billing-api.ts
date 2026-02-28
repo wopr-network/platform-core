@@ -77,9 +77,9 @@ export interface OrgMemberUsageRow {
 export async function getOrgCreditBalance(orgId: string): Promise<OrgCreditBalance> {
   const res = await orgClient.orgBillingBalance.query({ orgId });
   return {
-    balance: res.balanceCents / 100,
-    dailyBurn: res.dailyBurnCents / 100,
-    runway: res.runwayDays,
+    balance: (res?.balanceCents ?? 0) / 100,
+    dailyBurn: (res?.dailyBurnCents ?? 0) / 100,
+    runway: res?.runwayDays ?? null,
   };
 }
 
@@ -89,21 +89,26 @@ export async function getOrgMemberUsage(orgId: string): Promise<{
   members: OrgMemberUsageRow[];
 }> {
   const res = await orgClient.orgMemberUsage.query({ orgId });
+  const members = Array.isArray(res?.members) ? res.members : [];
   return {
-    orgId: res.orgId,
-    periodStart: res.periodStart,
-    members: res.members.map((m) => ({
-      memberId: m.memberId,
-      name: m.name,
-      email: m.email,
-      creditsConsumed: m.creditsConsumedCents / 100,
-      lastActiveAt: m.lastActiveAt,
+    orgId: res?.orgId ?? orgId,
+    periodStart: res?.periodStart ?? "",
+    members: members.map((m) => ({
+      memberId: m.memberId ?? "",
+      name: m.name ?? "",
+      email: m.email ?? "",
+      creditsConsumed: (m.creditsConsumedCents ?? 0) / 100,
+      lastActiveAt: m.lastActiveAt ?? null,
     })),
   };
 }
 
 export async function getOrgBillingInfo(orgId: string) {
-  return orgClient.orgBillingInfo.query({ orgId });
+  const res = await orgClient.orgBillingInfo.query({ orgId });
+  return {
+    paymentMethods: Array.isArray(res?.paymentMethods) ? res.paymentMethods : [],
+    invoices: Array.isArray(res?.invoices) ? res.invoices : [],
+  };
 }
 
 export async function createOrgTopupCheckout(

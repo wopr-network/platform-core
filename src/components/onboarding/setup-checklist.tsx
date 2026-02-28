@@ -116,10 +116,10 @@ export function SetupChecklist() {
           const channels = new Set<string>();
           const supers = new Set<string>();
           for (const inst of instances) {
-            for (const ch of inst.channels) {
+            for (const ch of inst.channels ?? []) {
               channels.add(ch);
             }
-            for (const p of inst.plugins) {
+            for (const p of inst.plugins ?? []) {
               if (p.enabled) supers.add(p.id);
             }
           }

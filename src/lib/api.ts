@@ -240,7 +240,8 @@ function mapBotStatusToFleetInstance(bot: BotStatusResponse): FleetInstance {
 
 export async function listInstances(): Promise<Instance[]> {
   const data = await (trpcVanilla as unknown as FleetClient).fleet.listInstances.query();
-  const bots = (data as { bots: BotStatusResponse[] }).bots ?? [];
+  const raw = (data as { bots?: BotStatusResponse[] | null }).bots;
+  const bots = Array.isArray(raw) ? raw : [];
   return bots.map((bot) => ({
     id: bot.id,
     name: bot.name,
@@ -605,7 +606,7 @@ export async function getInstanceLogs(
     id,
     tail: 100,
   });
-  const rawLogs = (data as { logs: string[] }).logs ?? [];
+  const rawLogs = (data as { logs?: string[] | null }).logs ?? [];
 
   // Parse raw container log strings into structured LogEntry objects
   // Format: "2026-02-20T10:00:00Z [LEVEL] message" or plain text
@@ -677,7 +678,8 @@ export async function getInstanceMetrics(id: string): Promise<InstanceMetrics> {
 
 export async function getFleetHealth(): Promise<FleetInstance[]> {
   const data = await (trpcVanilla as unknown as FleetClient).fleet.listInstances.query();
-  const bots = (data as { bots: BotStatusResponse[] }).bots ?? [];
+  const raw = (data as { bots?: BotStatusResponse[] | null }).bots;
+  const bots = Array.isArray(raw) ? raw : [];
   return bots.map(mapBotStatusToFleetInstance);
 }
 
@@ -1240,9 +1242,9 @@ export interface CheckoutResponse {
 export async function getCreditBalance(): Promise<CreditBalance> {
   const res = await billingClient.creditsBalance.query({});
   return {
-    balance: res.balance_cents / 100,
-    dailyBurn: res.daily_burn_cents / 100,
-    runway: res.runway_days ?? null,
+    balance: (res?.balance_cents ?? 0) / 100,
+    dailyBurn: (res?.daily_burn_cents ?? 0) / 100,
+    runway: res?.runway_days ?? null,
   };
 }
 
@@ -1258,13 +1260,16 @@ function mapTransactionType(backendType: string): CreditTransactionType {
 
 export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryResponse> {
   const res = await billingClient.creditsHistory.query({});
+  const entries = Array.isArray(res?.entries) ? res.entries : [];
   return {
-    transactions: res.entries.map((e) => ({
-      id: e.id,
-      type: mapTransactionType(e.type),
-      description: e.reason,
-      amount: e.amount_cents / 100,
-      createdAt: new Date(e.created_at * 1000).toISOString(),
+    transactions: entries.map((e) => ({
+      id: e.id ?? "",
+      type: mapTransactionType(e.type ?? ""),
+      description: e.reason ?? "",
+      amount: (e.amount_cents ?? 0) / 100,
+      createdAt: e.created_at
+        ? new Date(e.created_at * 1000).toISOString()
+        : new Date().toISOString(),
     })),
     nextCursor: null, // NOTE(WOP-687): implement cursor-based pagination
   };
@@ -1322,47 +1327,48 @@ export interface DividendLifetime {
 
 export async function getDividendStats(): Promise<DividendWalletStats> {
   const res = await apiFetch<{
-    pool_cents: number;
-    active_users: number;
-    per_user_cents: number;
-    next_distribution_at: string;
-    user_eligible: boolean;
-    user_last_purchase_at: string | null;
-    user_window_expires_at: string | null;
+    pool_cents?: number;
+    active_users?: number;
+    per_user_cents?: number;
+    next_distribution_at?: string;
+    user_eligible?: boolean;
+    user_last_purchase_at?: string | null;
+    user_window_expires_at?: string | null;
   }>("/billing/dividend/stats");
   return {
-    poolCents: res.pool_cents,
-    activeUsers: res.active_users,
-    perUserCents: res.per_user_cents,
-    nextDistributionAt: res.next_distribution_at,
-    userEligible: res.user_eligible,
-    userLastPurchaseAt: res.user_last_purchase_at,
-    userWindowExpiresAt: res.user_window_expires_at,
+    poolCents: res?.pool_cents ?? 0,
+    activeUsers: res?.active_users ?? 0,
+    perUserCents: res?.per_user_cents ?? 0,
+    nextDistributionAt: res?.next_distribution_at ?? "",
+    userEligible: res?.user_eligible ?? false,
+    userLastPurchaseAt: res?.user_last_purchase_at ?? null,
+    userWindowExpiresAt: res?.user_window_expires_at ?? null,
   };
 }
 
 export async function getDividendHistory(): Promise<DividendHistoryResponse> {
   const res = await apiFetch<{
-    dividends: Array<{
+    dividends?: Array<{
       date: string;
       amount_cents: number;
       pool_cents: number;
       active_users: number;
     }>;
   }>("/billing/dividend/history");
+  const dividends = Array.isArray(res?.dividends) ? res.dividends : [];
   return {
-    dividends: res.dividends.map((d) => ({
-      date: d.date,
-      amountCents: d.amount_cents,
-      poolCents: d.pool_cents,
-      activeUsers: d.active_users,
+    dividends: dividends.map((d) => ({
+      date: d.date ?? "",
+      amountCents: d.amount_cents ?? 0,
+      poolCents: d.pool_cents ?? 0,
+      activeUsers: d.active_users ?? 0,
     })),
   };
 }
 
 export async function getDividendLifetime(): Promise<DividendLifetime> {
-  const res = await apiFetch<{ total_cents: number }>("/billing/dividend/lifetime");
-  return { totalCents: res.total_cents };
+  const res = await apiFetch<{ total_cents?: number }>("/billing/dividend/lifetime");
+  return { totalCents: res?.total_cents ?? 0 };
 }
 
 // --- Hosted usage API (tRPC) ---
@@ -1379,12 +1385,12 @@ export async function getHostedUsageSummary(): Promise<HostedUsageSummary> {
 export async function getBillingUsageSummary(): Promise<BillingUsageSummary> {
   const res = await billingClient.usageSummary.query();
   return {
-    periodStart: res.period_start,
-    periodEnd: res.period_end,
-    totalSpend: res.total_spend_cents / 100,
-    includedCredit: res.included_credit_cents / 100,
-    amountDue: res.amount_due_cents / 100,
-    planName: res.plan_name,
+    periodStart: res?.period_start ?? "",
+    periodEnd: res?.period_end ?? "",
+    totalSpend: (res?.total_spend_cents ?? 0) / 100,
+    includedCredit: (res?.included_credit_cents ?? 0) / 100,
+    amountDue: (res?.amount_due_cents ?? 0) / 100,
+    planName: res?.plan_name ?? "",
   };
 }
 
@@ -1409,11 +1415,11 @@ export async function updateSpendingLimits(limits: SpendingLimits): Promise<void
 export async function getAffiliateStats(): Promise<AffiliateStats> {
   const res = await billingClient.affiliateStats.query();
   return {
-    referralCode: res.referral_code,
-    referralUrl: res.referral_url,
-    totalReferred: res.total_referred,
-    totalConverted: res.total_converted,
-    totalEarnedCents: res.total_earned_cents,
+    referralCode: res?.referral_code ?? "",
+    referralUrl: res?.referral_url ?? "",
+    totalReferred: res?.total_referred ?? 0,
+    totalConverted: res?.total_converted ?? 0,
+    totalEarnedCents: res?.total_earned_cents ?? 0,
   };
 }
 
@@ -1425,15 +1431,16 @@ export async function getAffiliateReferrals(params?: {
     limit: params?.limit ?? 20,
     offset: params?.offset ?? 0,
   });
+  const referrals = Array.isArray(res?.referrals) ? res.referrals : [];
   return {
-    referrals: res.referrals.map((r) => ({
-      id: r.id,
-      maskedEmail: r.masked_email,
-      joinedAt: new Date(r.joined_at).toISOString(),
-      status: r.status,
-      matchAmountCents: r.match_amount_cents,
+    referrals: referrals.map((r) => ({
+      id: r.id ?? "",
+      maskedEmail: r.masked_email ?? "",
+      joinedAt: r.joined_at ? new Date(r.joined_at).toISOString() : "",
+      status: r.status ?? "pending",
+      matchAmountCents: r.match_amount_cents ?? null,
     })) as Referral[],
-    total: res.total,
+    total: res?.total ?? 0,
   };
 }
 

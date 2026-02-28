@@ -335,10 +335,10 @@ export function CommandCenter() {
                   className="mt-2 text-3xl font-bold tabular-nums text-terminal"
                   data-testid="dividend-amount"
                 >
-                  {loading ? "--" : formatCreditStandard(dividendStats.perUserCents / 100)}
+                  {loading ? "--" : formatCreditStandard((dividendStats?.perUserCents ?? 0) / 100)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {dividendStats.userEligible ? "your daily share" : "join the pool to earn"}
+                  {dividendStats?.userEligible ? "your daily share" : "join the pool to earn"}
                 </p>
               </CardContent>
             </Card>

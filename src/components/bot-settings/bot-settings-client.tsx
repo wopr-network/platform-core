@@ -452,7 +452,7 @@ function ChannelsTab({
       </div>
 
       <div className="space-y-3">
-        {settings.channels.map((ch) => (
+        {(settings.channels ?? []).map((ch) => (
           <Card key={ch.id}>
             <CardContent className="flex items-center justify-between p-4">
               <div className="space-y-1">
@@ -492,7 +492,7 @@ function ChannelsTab({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            {settings.availableChannels.map((ch) => (
+            {(settings.availableChannels ?? []).map((ch) => (
               <Button
                 key={ch.type}
                 variant="outline"
@@ -601,7 +601,7 @@ function SuperpowersTab({
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Active
         </h3>
-        {settings.activeSuperpowers.map((sp) => (
+        {(settings.activeSuperpowers ?? []).map((sp) => (
           <ActiveSuperpowerCard
             key={sp.id}
             superpower={sp}
@@ -618,7 +618,7 @@ function SuperpowersTab({
           Your WOPR can do more
         </h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {settings.availableSuperpowers.map((sp) => (
+          {(settings.availableSuperpowers ?? []).map((sp) => (
             <AvailableSuperpowerCard
               key={sp.id}
               superpower={sp}
@@ -747,7 +747,7 @@ function PluginsTab({
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Installed
         </h3>
-        {settings.installedPlugins.map((plugin) => (
+        {(settings.installedPlugins ?? []).map((plugin) => (
           <InstalledPluginCard
             key={plugin.id}
             plugin={plugin}
@@ -765,7 +765,7 @@ function PluginsTab({
           Discover Plugins
         </h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {settings.discoverPlugins.map((plugin) => (
+          {(settings.discoverPlugins ?? []).map((plugin) => (
             <DiscoverPluginCard
               key={plugin.id}
               plugin={plugin}
@@ -895,7 +895,7 @@ function UsageTab({ settings }: { settings: BotSettings }) {
           <CardTitle>By Capability</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {usage.capabilities.map((cap) => (
+          {(usage?.capabilities ?? []).map((cap) => (
             <div key={cap.capability} className="flex items-center gap-3">
               <span className="w-24 text-sm font-medium">{cap.capability}</span>
               <div className="flex-1">
@@ -918,8 +918,8 @@ function UsageTab({ settings }: { settings: BotSettings }) {
         </CardHeader>
         <CardContent>
           <div className="flex h-24 items-end gap-1">
-            {usage.trend.map((point) => {
-              const maxSpend = Math.max(...usage.trend.map((p) => p.spend));
+            {(usage?.trend ?? []).map((point) => {
+              const maxSpend = Math.max(0, ...(usage?.trend ?? []).map((p) => p.spend));
               const height = maxSpend > 0 ? (point.spend / maxSpend) * 100 : 0;
               return (
                 <div
