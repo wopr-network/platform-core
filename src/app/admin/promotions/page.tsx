@@ -59,10 +59,6 @@ function formatWindow(startsAt: string | null, endsAt: string | null): string {
   return `${fmt(startsAt)} — ${fmt(endsAt)}`;
 }
 
-function formatCredits(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 function formatCreditCount(n: number): string {
   return `${n.toLocaleString()} credits`;
 }
