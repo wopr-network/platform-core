@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateCsrfOrigin } from "../proxy";
+import { validateCsrfOrigin } from "../middleware";
 
 // Minimal NextRequest-compatible mock for testing Origin/Referer validation
 function mockRequest(opts: { method: string; url: string; headers?: Record<string, string> }) {
