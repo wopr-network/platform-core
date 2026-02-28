@@ -1149,6 +1149,16 @@ export interface CapabilitySetting {
   provider: string | null;
 }
 
+export interface CapabilityMetaEntry {
+  capability: string;
+  label: string;
+  description: string;
+  pricing: string;
+  hostedProvider: string;
+  icon: string;
+  sortOrder: number;
+}
+
 // --- Capability settings API ---
 
 // TODO(WOP-915): testCapabilityKey still uses REST. Migrate once server has a

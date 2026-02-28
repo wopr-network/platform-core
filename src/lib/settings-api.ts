@@ -1,4 +1,5 @@
 import type {
+  CapabilityMetaEntry,
   CapabilityMode,
   CapabilityName,
   CapabilitySetting,
@@ -40,6 +41,9 @@ interface CapabilitiesProcedures {
       mode: CapabilityMode;
       key?: string;
     }): Promise<CapabilitySetting>;
+  };
+  listCapabilityMeta: {
+    query(): Promise<CapabilityMetaEntry[]>;
   };
 }
 
@@ -90,4 +94,8 @@ export async function updateCapability(
     mode: data.mode,
     key: data.key,
   });
+}
+
+export async function fetchCapabilityMeta(): Promise<CapabilityMetaEntry[]> {
+  return capabilitiesClient.listCapabilityMeta.query();
 }
