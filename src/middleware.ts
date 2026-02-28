@@ -51,7 +51,7 @@ export function validateCsrfOrigin(request: NextRequest): boolean {
   return false;
 }
 
-export function proxy(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
 
