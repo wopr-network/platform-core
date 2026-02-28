@@ -82,7 +82,7 @@ export function AuditLogTable() {
   const [search, setSearch] = useState("");
 
   const load = useCallback(
-    async (newOffset: number) => {
+    async (newOffset: number, signal?: AbortSignal) => {
       setLoading(true);
       setLoadError(false);
       try {
@@ -96,19 +96,23 @@ export function AuditLogTable() {
           since,
           action: actionFilter === "all" ? undefined : actionFilter,
         });
+        if (signal?.aborted) return;
         setData(result);
         setOffset(newOffset);
       } catch {
+        if (signal?.aborted) return;
         setLoadError(true);
       } finally {
-        setLoading(false);
+        if (!signal?.aborted) setLoading(false);
       }
     },
     [dateRange, actionFilter],
   );
 
   useEffect(() => {
-    load(0);
+    const controller = new AbortController();
+    load(0, controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   const filteredEvents = useMemo(() => {

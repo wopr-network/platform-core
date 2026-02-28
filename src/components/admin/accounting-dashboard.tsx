@@ -17,6 +17,7 @@ interface AccountingSummary {
   totalCreditBalanceCents: number;
   totalAgents: number;
   users: AdminUserSummary[];
+  capped: boolean;
 }
 
 function MetricCard({
@@ -56,6 +57,7 @@ export function AccountingDashboard() {
     try {
       const result = await getUsersList({ limit: 250 });
       const users = result.users;
+      const capped = result.total > 250;
       setSummary({
         totalUsers: result.total,
         activeUsers: users.filter((u) => u.status === "active").length,
@@ -65,6 +67,7 @@ export function AccountingDashboard() {
         totalCreditBalanceCents: users.reduce((sum, u) => sum + u.credit_balance_cents, 0),
         totalAgents: users.reduce((sum, u) => sum + u.agent_count, 0),
         users,
+        capped,
       });
     } catch {
       setError(true);
@@ -111,12 +114,12 @@ export function AccountingDashboard() {
             <MetricCard
               label="Outstanding Credits"
               value={formatCreditStandard(summary.totalCreditBalanceCents / 100)}
-              sub="total platform liability"
+              sub={summary.capped ? "top 250 users only" : "total platform liability"}
             />
             <MetricCard
               label="Total Agents"
               value={String(summary.totalAgents)}
-              sub="across all tenants"
+              sub={summary.capped ? "top 250 users only" : "across all tenants"}
             />
             <MetricCard
               label="Status Breakdown"
@@ -125,6 +128,7 @@ export function AccountingDashboard() {
                 summary.suspendedUsers > 0 ? `${summary.suspendedUsers} suspended` : null,
                 summary.bannedUsers > 0 ? `${summary.bannedUsers} banned` : null,
                 summary.trialUsers > 0 ? `${summary.trialUsers} trial` : null,
+                summary.capped ? "(top 250 only)" : null,
               ]
                 .filter(Boolean)
                 .join(", ")}
@@ -134,7 +138,7 @@ export function AccountingDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm uppercase tracking-wider">
-                Top Credit Balances
+                Top Credit Balances{summary.capped ? " (top 250 users)" : ""}
               </CardTitle>
             </CardHeader>
             <CardContent>
