@@ -33,7 +33,10 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:staging
+          tags: |
+            ghcr.io/${{ github.repository }}:staging
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}
           cache-from: type=gha
