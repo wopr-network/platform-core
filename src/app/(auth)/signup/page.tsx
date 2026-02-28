@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { signUp } from "@/lib/auth-client";
+import { sanitizeRedirectUrl } from "@/lib/utils";
 
 function getPasswordStrength(password: string): { score: number; label: string } {
   let score = 0;
@@ -283,7 +284,7 @@ function SignupForm() {
             </span>
             <Separator className="flex-1" />
           </div>
-          <OAuthButtons callbackUrl={searchParams.get("callbackUrl") ?? "/"} />
+          <OAuthButtons callbackUrl={sanitizeRedirectUrl(searchParams.get("callbackUrl"))} />
         </CardContent>
         <CardFooter className="justify-center">
           <p className="text-sm text-muted-foreground">
