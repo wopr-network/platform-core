@@ -78,8 +78,7 @@ export function CouponInput() {
       {state === "success" && (
         <p className="flex items-center gap-1.5 text-sm text-terminal">
           <Check className="h-4 w-4" />
-          Code applied — +${(creditsGranted / 100).toFixed(2)} credits will be added after your
-          purchase
+          Code applied — +{creditsGranted} credits will be added after your purchase
         </p>
       )}
 

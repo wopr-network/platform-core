@@ -63,6 +63,10 @@ function formatCredits(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function formatCreditCount(n: number): string {
+  return `${n.toLocaleString()} credits`;
+}
+
 // ---------------------------------------------------------------------------
 // Typed wrappers for trpcVanilla (no full AppRouter type available yet)
 // ---------------------------------------------------------------------------
@@ -88,31 +92,40 @@ export default function PromotionsListPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await client.promotions.list.query({
-        status: statusFilter === "all" ? undefined : statusFilter,
-        type: typeFilter === "all" ? undefined : typeFilter,
-      });
-      setPromotions(result);
-    } catch {
-      // keep previous state
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, typeFilter]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      try {
+        const result = await client.promotions.list.query({
+          status: statusFilter === "all" ? undefined : statusFilter,
+          type: typeFilter === "all" ? undefined : typeFilter,
+        });
+        if (signal?.aborted) return;
+        setPromotions(result);
+      } catch {
+        // keep previous state
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [statusFilter, typeFilter],
+  );
 
   useEffect(() => {
-    load();
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   async function handleAction(id: string, action: "activate" | "pause" | "cancel") {
+    setActionError(null);
     try {
       await client.promotions[action].mutate({ id });
       load();
-    } catch {
-      // TODO: toast
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : `Failed to ${action} promotion`);
     }
   }
 
@@ -157,6 +170,9 @@ export default function PromotionsListPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Action error */}
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
 
       {/* Table */}
       {loading ? (

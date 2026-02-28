@@ -106,10 +106,15 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
       perUserLimit,
       budgetCap: noBudgetCap ? null : budgetCap,
       couponCode: type === "coupon_fixed" ? couponCode.toUpperCase() : null,
+      batchCount: type === "coupon_unique" ? batchCount : undefined,
     };
   }
 
   async function handleSave(activate: boolean) {
+    if (type === "coupon_fixed" && !couponCode.trim()) {
+      setError("Coupon code is required for fixed coupon promotions");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

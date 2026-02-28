@@ -64,6 +64,10 @@ function formatCredits(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function formatCreditCount(n: number): string {
+  return `${n.toLocaleString()} credits`;
+}
+
 function timeRemaining(endsAt: string | null): string {
   if (!endsAt) return "No expiry";
   const diff = new Date(endsAt).getTime() - Date.now();
@@ -98,7 +102,8 @@ export default function PromotionDetailPage() {
       setPromo(p);
       setRedemptions(r);
     } catch {
-      // keep state
+      setPromo(null);
+      setRedemptions([]);
     } finally {
       setLoading(false);
     }
@@ -197,7 +202,7 @@ export default function PromotionDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-terminal">
-              {formatCredits(promo.totalCreditsGranted)}
+              {formatCreditCount(promo.totalCreditsGranted)}
             </div>
           </CardContent>
         </Card>
@@ -211,7 +216,7 @@ export default function PromotionDetailPage() {
             {promo.budgetCap !== null ? (
               <div className="space-y-2">
                 <div className="text-2xl font-bold tabular-nums">
-                  {formatCredits(Math.max(0, promo.budgetCap - promo.totalCreditsGranted))}
+                  {formatCreditCount(Math.max(0, promo.budgetCap - promo.totalCreditsGranted))}
                 </div>
                 <Progress value={budgetUsedPercent ?? 0} className="h-1.5" />
               </div>
@@ -256,7 +261,10 @@ export default function PromotionDetailPage() {
                   min={1}
                   max={10000}
                   value={genCount}
-                  onChange={(e) => setGenCount(Number(e.target.value))}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(parsed)) setGenCount(parsed);
+                  }}
                 />
               </div>
               {genResult && <p className="text-sm text-muted-foreground">{genResult}</p>}
@@ -298,7 +306,7 @@ export default function PromotionDetailPage() {
                       {r.tenantId.slice(0, 12)}...
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-terminal">
-                      {formatCredits(r.creditsGranted)}
+                      {formatCreditCount(r.creditsGranted)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {r.purchaseAmountCents !== null ? formatCredits(r.purchaseAmountCents) : "—"}

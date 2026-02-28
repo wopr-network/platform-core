@@ -21,6 +21,7 @@ export default function EditPromotionPage() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const result = await client.promotions.get.query({ id });
       setPromo(result);

@@ -91,29 +91,34 @@ export default function RateOverridesPage() {
   const [formNotes, setFormNotes] = useState("");
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const result = await client.rateOverrides.list.query({});
+      if (signal?.aborted) return;
       setOverrides(result);
     } catch {
       // keep state
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   async function handleCancel(id: string) {
+    setCancelError(null);
     try {
       await client.rateOverrides.cancel.mutate({ id });
       load();
-    } catch {
-      // TODO: toast
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Failed to cancel override");
     }
   }
 
@@ -236,6 +241,9 @@ export default function RateOverridesPage() {
           </SheetContent>
         </Sheet>
       </div>
+
+      {/* Cancel error */}
+      {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
 
       {loading ? (
         <div className="space-y-2">
