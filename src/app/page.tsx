@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/landing-page";
+import { SITE_URL } from "@/lib/api-config";
 
 export const metadata: Metadata = {
   title: "WOPR Bot — Shall we play a game?",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
     title: "WOPR Bot — Shall we play a game?",
     description:
       "A $5/month supercomputer that runs your business. No really. We know because we run ours on one.",
-    url: "https://wopr.bot",
+    url: SITE_URL,
     siteName: "WOPR Bot",
     type: "website",
     images: [

@@ -8,3 +8,6 @@ export const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://loca
 
 /** Base URL for REST API calls (platform root + /api). */
 export const API_BASE_URL = `${PLATFORM_BASE_URL}/api`;
+
+/** Canonical site URL for SEO metadata (sitemap, OG tags, robots). */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wopr.bot";

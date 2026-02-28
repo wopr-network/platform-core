@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SITE_URL } from "@/lib/api-config";
 import { TRPCProvider } from "@/lib/trpc";
 import "./globals.css";
 
@@ -11,7 +12,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://wopr.bot"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "WOPR — AI Agent Platform",
     template: "%s | WOPR",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     siteName: "WOPR",
     title: "WOPR — AI Agent Platform",
     description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
-    url: "https://wopr.bot",
+    url: SITE_URL,
     images: [{ url: "/og", width: 1200, height: 630, alt: "WOPR — AI Agent Platform" }],
   },
   twitter: {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
     images: ["/og"],
   },
   alternates: {
-    canonical: "https://wopr.bot",
+    canonical: SITE_URL,
   },
   icons: {
     icon: [
