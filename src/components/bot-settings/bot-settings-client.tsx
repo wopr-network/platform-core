@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   ActiveSuperpower,
   AvailableSuperpower,
+  BotChannel,
   BotSettings,
   DiscoverPlugin,
   InstalledPlugin,
@@ -31,11 +33,17 @@ import {
   controlBot,
   disconnectChannel,
   getBotSettings,
+  getChannelConfig,
+  getPluginConfig,
+  getSuperpowerConfig,
   installPlugin,
   PERSONALITY_TEMPLATES,
   togglePlugin,
   updateBotBrain,
   updateBotIdentity,
+  updateChannelConfig,
+  updatePluginConfig,
+  updateSuperpowerConfig,
 } from "@/lib/bot-settings-data";
 import { formatCreditDetailed, formatCreditStandard } from "@/lib/format-credit";
 import { DEFAULT_STATUS_STYLE, PLUGIN_STATUS_STYLES } from "@/lib/status-colors";
@@ -427,6 +435,7 @@ function ChannelsTab({
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [channelError, setChannelError] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null);
+  const [configuringChannel, setConfiguringChannel] = useState<BotChannel | null>(null);
 
   async function handleDisconnect(channelId: string) {
     setDisconnecting(channelId);
@@ -465,11 +474,7 @@ function ChannelsTab({
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => alert("Channel configuration coming soon")}
-                >
+                <Button variant="outline" size="sm" onClick={() => setConfiguringChannel(ch)}>
                   Configure
                 </Button>
                 {ch.status === "connected" && (
@@ -508,6 +513,18 @@ function ChannelsTab({
       </Card>
 
       {channelError && <p className="text-sm text-destructive">{channelError}</p>}
+
+      {configuringChannel && (
+        <ConfigureChannelDialog
+          channel={configuringChannel}
+          botId={botId}
+          open={configuringChannel !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfiguringChannel(null);
+          }}
+          onSaved={onUpdate}
+        />
+      )}
 
       <Dialog open={confirmDisconnect !== null} onOpenChange={() => setConfirmDisconnect(null)}>
         <DialogContent>
@@ -560,6 +577,96 @@ function ChannelStatusBadge({ status }: { status: string }) {
   );
 }
 
+// --- Channel config dialog ---
+
+function ConfigureChannelDialog({
+  channel,
+  botId,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  channel: BotChannel;
+  botId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingConfig(true);
+    setError(null);
+    getChannelConfig(botId, channel.id)
+      .then(setConfig)
+      .catch(() => setError("Failed to load channel configuration."))
+      .finally(() => setLoadingConfig(false));
+  }, [open, botId, channel.id]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateChannelConfig(botId, channel.id, config);
+      onSaved();
+      onOpenChange(false);
+    } catch {
+      setError("Failed to save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateField(key: string, value: string) {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configure {channel.type}</DialogTitle>
+          <DialogDescription>Settings for {channel.name}</DialogDescription>
+        </DialogHeader>
+        {loadingConfig ? (
+          <p className="text-sm text-muted-foreground">Loading configuration...</p>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(config).map(([key, value]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={`channel-cfg-${key}`}>{key}</Label>
+                <Input
+                  id={`channel-cfg-${key}`}
+                  value={value}
+                  onChange={(e) => updateField(key, e.target.value)}
+                />
+              </div>
+            ))}
+            {Object.keys(config).length === 0 && !error && (
+              <p className="text-sm text-muted-foreground">
+                No configurable settings for this channel.
+              </p>
+            )}
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || loadingConfig}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Tab 4: Superpowers ---
 
 function SuperpowersTab({
@@ -573,6 +680,7 @@ function SuperpowersTab({
 }) {
   const [activating, setActivating] = useState<string | null>(null);
   const [activateError, setActivateError] = useState<string | null>(null);
+  const [configuringSuperpower, setConfiguringSuperpower] = useState<ActiveSuperpower | null>(null);
 
   async function handleActivate(superpowerId: string) {
     setActivating(superpowerId);
@@ -605,7 +713,7 @@ function SuperpowersTab({
           <ActiveSuperpowerCard
             key={sp.id}
             superpower={sp}
-            onConfigure={() => alert("Superpower configuration coming soon")}
+            onConfigure={() => setConfiguringSuperpower(sp)}
           />
         ))}
       </div>
@@ -630,7 +738,109 @@ function SuperpowersTab({
         <p className="text-sm text-muted-foreground">One click to activate. Uses your credits.</p>
         {activateError && <p className="text-sm text-destructive">{activateError}</p>}
       </div>
+
+      {configuringSuperpower && (
+        <ConfigureSuperpowerDialog
+          superpower={configuringSuperpower}
+          botId={botId}
+          open={configuringSuperpower !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfiguringSuperpower(null);
+          }}
+          onSaved={onUpdate}
+        />
+      )}
     </div>
+  );
+}
+
+function ConfigureSuperpowerDialog({
+  superpower,
+  botId,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  superpower: ActiveSuperpower;
+  botId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingConfig(true);
+    setError(null);
+    getSuperpowerConfig(botId, superpower.id)
+      .then(setConfig)
+      .catch(() => setError("Failed to load superpower configuration."))
+      .finally(() => setLoadingConfig(false));
+  }, [open, botId, superpower.id]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateSuperpowerConfig(botId, superpower.id, config);
+      onSaved();
+      onOpenChange(false);
+    } catch {
+      setError("Failed to save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateField(key: string, value: string) {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configure {superpower.name}</DialogTitle>
+          <DialogDescription>
+            Provider: {superpower.provider} · Model: {superpower.model}
+          </DialogDescription>
+        </DialogHeader>
+        {loadingConfig ? (
+          <p className="text-sm text-muted-foreground">Loading configuration...</p>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(config).map(([key, value]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={`sp-cfg-${key}`}>{key}</Label>
+                <Input
+                  id={`sp-cfg-${key}`}
+                  value={value}
+                  onChange={(e) => updateField(key, e.target.value)}
+                />
+              </div>
+            ))}
+            {Object.keys(config).length === 0 && !error && (
+              <p className="text-sm text-muted-foreground">
+                No configurable settings for this superpower.
+              </p>
+            )}
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || loadingConfig}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -708,6 +918,7 @@ function PluginsTab({
   const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [pluginError, setPluginError] = useState<string | null>(null);
+  const [configuringPlugin, setConfiguringPlugin] = useState<InstalledPlugin | null>(null);
 
   async function handleToggle(pluginId: string, enabled: boolean) {
     setTogglingPlugin(pluginId);
@@ -753,6 +964,7 @@ function PluginsTab({
             plugin={plugin}
             onToggle={handleToggle}
             toggling={togglingPlugin === plugin.id}
+            onConfigure={() => setConfiguringPlugin(plugin)}
           />
         ))}
       </div>
@@ -780,7 +992,107 @@ function PluginsTab({
       </div>
 
       {pluginError && <p className="text-sm text-destructive">{pluginError}</p>}
+
+      {configuringPlugin && (
+        <ConfigurePluginDialog
+          plugin={configuringPlugin}
+          botId={botId}
+          open={configuringPlugin !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfiguringPlugin(null);
+          }}
+          onSaved={onUpdate}
+        />
+      )}
     </div>
+  );
+}
+
+function ConfigurePluginDialog({
+  plugin,
+  botId,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  plugin: InstalledPlugin;
+  botId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingConfig(true);
+    setError(null);
+    getPluginConfig(botId, plugin.id)
+      .then(setConfig)
+      .catch(() => setError("Failed to load plugin configuration."))
+      .finally(() => setLoadingConfig(false));
+  }, [open, botId, plugin.id]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      await updatePluginConfig(botId, plugin.id, config);
+      onSaved();
+      onOpenChange(false);
+    } catch {
+      setError("Failed to save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateField(key: string, value: string) {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configure {plugin.name}</DialogTitle>
+          <DialogDescription>{plugin.description}</DialogDescription>
+        </DialogHeader>
+        {loadingConfig ? (
+          <p className="text-sm text-muted-foreground">Loading configuration...</p>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(config).map(([key, value]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={`plugin-cfg-${key}`}>{key}</Label>
+                <Input
+                  id={`plugin-cfg-${key}`}
+                  value={value}
+                  onChange={(e) => updateField(key, e.target.value)}
+                />
+              </div>
+            ))}
+            {Object.keys(config).length === 0 && !error && (
+              <p className="text-sm text-muted-foreground">
+                No configurable settings for this plugin.
+              </p>
+            )}
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || loadingConfig}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -788,10 +1100,12 @@ function InstalledPluginCard({
   plugin,
   onToggle,
   toggling,
+  onConfigure,
 }: {
   plugin: InstalledPlugin;
   onToggle: (pluginId: string, enabled: boolean) => void;
   toggling: boolean;
+  onConfigure: () => void;
 }) {
   return (
     <Card>
@@ -810,11 +1124,7 @@ function InstalledPluginCard({
           <p className="text-xs text-muted-foreground">Uses: {plugin.capabilities.join(", ")}</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => alert("Plugin configuration coming soon")}
-          >
+          <Button variant="outline" size="sm" onClick={onConfigure}>
             Configure
           </Button>
           <Button

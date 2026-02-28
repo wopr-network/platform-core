@@ -269,3 +269,65 @@ export async function installPlugin(botId: string, pluginId: string): Promise<vo
     body: JSON.stringify({}),
   });
 }
+
+/** Fetch channel configuration */
+export async function getChannelConfig(
+  botId: string,
+  channelId: string,
+): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>(`/fleet/bots/${botId}/channels/${channelId}/config`);
+}
+
+/** Save channel configuration */
+export async function updateChannelConfig(
+  botId: string,
+  channelId: string,
+  config: Record<string, string>,
+): Promise<void> {
+  await apiFetch(`/fleet/bots/${botId}/channels/${channelId}/config`, {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+/** Fetch plugin configuration */
+export async function getPluginConfig(
+  botId: string,
+  pluginId: string,
+): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>(`/fleet/bots/${botId}/plugins/${pluginId}/config`);
+}
+
+/** Save plugin configuration */
+export async function updatePluginConfig(
+  botId: string,
+  pluginId: string,
+  config: Record<string, string>,
+): Promise<void> {
+  await apiFetch(`/fleet/bots/${botId}/plugins/${pluginId}/config`, {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+/** Fetch superpower configuration */
+export async function getSuperpowerConfig(
+  botId: string,
+  superpowerId: string,
+): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>(
+    `/fleet/bots/${botId}/capabilities/${superpowerId}/config`,
+  );
+}
+
+/** Save superpower configuration */
+export async function updateSuperpowerConfig(
+  botId: string,
+  superpowerId: string,
+  config: Record<string, string>,
+): Promise<void> {
+  await apiFetch(`/fleet/bots/${botId}/capabilities/${superpowerId}/config`, {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
