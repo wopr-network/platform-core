@@ -1,4 +1,4 @@
-import { MOCK_MANIFESTS } from "./marketplace-data";
+import { listMarketplacePlugins } from "./marketplace-data";
 
 // --- Personalities ---
 
@@ -427,21 +427,27 @@ const ONBOARDING_ONLY_CHANNELS: PluginOption[] = [
   },
 ];
 
-// Derive marketplace channel plugins: identity from canonical data, overlay fields from CHANNEL_OVERLAY
-const marketplaceChannels: PluginOption[] = MOCK_MANIFESTS.filter(
-  (m) => m.category === "channel",
-).map((m) => ({
-  id: m.id,
-  name: m.name,
-  description: m.description,
-  icon: m.icon,
-  color: m.color,
-  capabilities: m.capabilities,
-  configFields: CHANNEL_OVERLAY[m.id]?.configFields ?? [],
-  diyCostData: CHANNEL_OVERLAY[m.id]?.diyCostData,
-}));
+// Static export kept for backward compat with sync callers.
+// Only contains onboarding-only channels (e.g. web-ui) that don't require API data.
+// For live channel data, use getChannelPlugins() which fetches from the marketplace API.
+export const channelPlugins: PluginOption[] = [...ONBOARDING_ONLY_CHANNELS];
 
-export const channelPlugins: PluginOption[] = [...marketplaceChannels, ...ONBOARDING_ONLY_CHANNELS];
+export async function getChannelPlugins(): Promise<PluginOption[]> {
+  const plugins = await listMarketplacePlugins();
+  const marketplaceChannels: PluginOption[] = plugins
+    .filter((m) => m.category === "channel")
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      icon: m.icon,
+      color: m.color,
+      capabilities: m.capabilities,
+      configFields: CHANNEL_OVERLAY[m.id]?.configFields ?? [],
+      diyCostData: CHANNEL_OVERLAY[m.id]?.diyCostData,
+    }));
+  return [...marketplaceChannels, ...ONBOARDING_ONLY_CHANNELS];
+}
 
 // --- Providers ---
 

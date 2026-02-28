@@ -5,7 +5,161 @@ import { FieldInteractive } from "@/components/channel-wizard/field-interactive"
 import { FieldPaste } from "@/components/channel-wizard/field-paste";
 import { StepRenderer } from "@/components/channel-wizard/step-renderer";
 import type { ChannelManifest, SetupStep } from "@/lib/mock-manifests";
-import { channelManifests, getManifest } from "@/lib/mock-manifests";
+
+// --- Sync fixture manifests for Wizard component tests ---
+const DISCORD_MANIFEST: ChannelManifest = {
+  id: "discord",
+  name: "Discord",
+  description: "Connect to Discord.",
+  icon: "MessageCircle",
+  color: "#5865F2",
+  setup: [
+    {
+      id: "create-bot",
+      title: "Create a Discord Bot",
+      description: "Visit the Developer Portal and create a bot.",
+      instruction: "Go to the Discord Developer Portal",
+      externalUrl: "https://discord.com/developers/applications",
+      fields: [],
+    },
+    {
+      id: "paste-token",
+      title: "Enter Bot Token",
+      description: "Paste the bot token.",
+      fields: [
+        {
+          key: "botToken",
+          label: "Bot Token",
+          type: "string",
+          required: true,
+          secret: true,
+          setupFlow: "paste",
+          placeholder: "Paste your Discord bot token",
+          description: "Found under Bot > Token.",
+          validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
+        },
+      ],
+    },
+    {
+      id: "select-guild",
+      title: "Select Server",
+      description: "Choose your server.",
+      fields: [
+        {
+          key: "guildId",
+          label: "Server",
+          type: "select",
+          required: true,
+          setupFlow: "interactive",
+          options: [
+            { label: "WOPR HQ", value: "1234567890" },
+            { label: "Test Server", value: "0987654321" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "done",
+      title: "Connection Complete",
+      description: "Your bot is ready to use.",
+      fields: [],
+    },
+  ],
+  connectionTest: { label: "Test Bot Connection", endpoint: "/api/channels/discord/test" },
+};
+
+const TELEGRAM_MANIFEST: ChannelManifest = {
+  id: "telegram",
+  name: "Telegram",
+  description: "Connect to Telegram.",
+  icon: "Send",
+  color: "#0088CC",
+  setup: [
+    {
+      id: "create-bot",
+      title: "Create a Telegram Bot",
+      description: "Use BotFather to create your bot.",
+      fields: [],
+    },
+    {
+      id: "paste-token",
+      title: "Enter Bot Token",
+      description: "Paste the token from BotFather.",
+      fields: [
+        {
+          key: "botToken",
+          label: "Bot Token",
+          type: "string",
+          required: true,
+          secret: true,
+          setupFlow: "paste",
+          placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+          description: "Issued by BotFather.",
+          validation: {
+            pattern: "^\\d+:[A-Za-z0-9_-]{35,}$",
+            message: "Invalid Telegram bot token format",
+          },
+        },
+      ],
+    },
+    {
+      id: "done",
+      title: "Connection Complete",
+      description: "Your Telegram bot is ready.",
+      fields: [],
+    },
+  ],
+  connectionTest: { label: "Test Telegram Connection", endpoint: "/api/channels/telegram/test" },
+};
+
+const SLACK_MANIFEST: ChannelManifest = {
+  id: "slack",
+  name: "Slack",
+  description: "Connect to Slack.",
+  icon: "Hash",
+  color: "#4A154B",
+  setup: [
+    {
+      id: "oauth",
+      title: "Authorize Slack",
+      description: "Sign in with Slack.",
+      fields: [
+        {
+          key: "slackToken",
+          label: "Slack Token",
+          type: "string",
+          required: true,
+          setupFlow: "oauth",
+        },
+      ],
+    },
+    {
+      id: "done",
+      title: "Connected",
+      description: "Slack is ready.",
+      fields: [],
+    },
+  ],
+  connectionTest: { label: "Test Slack Connection", endpoint: "/api/channels/slack/test" },
+};
+
+const CHANNEL_MANIFESTS_FIXTURE: ChannelManifest[] = [
+  DISCORD_MANIFEST,
+  SLACK_MANIFEST,
+  TELEGRAM_MANIFEST,
+];
+
+// Mock @/lib/mock-manifests to use fixture data (sync for Wizard component tests)
+vi.mock("@/lib/mock-manifests", async () => {
+  const actual = await vi.importActual("@/lib/mock-manifests");
+  return {
+    ...actual,
+    getChannelManifests: vi.fn().mockResolvedValue(CHANNEL_MANIFESTS_FIXTURE),
+    getManifest: vi
+      .fn()
+      .mockImplementation(async (id: string) => CHANNEL_MANIFESTS_FIXTURE.find((m) => m.id === id)),
+  };
+});
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
@@ -19,23 +173,29 @@ vi.mock("@/lib/api", () => ({
 }));
 
 describe("mock-manifests", () => {
-  it("provides Discord, Slack, and Telegram manifests", () => {
-    expect(channelManifests).toHaveLength(3);
-    expect(channelManifests.map((m) => m.id)).toEqual(["discord", "slack", "telegram"]);
+  it("provides Discord, Slack, and Telegram manifests via getChannelManifests", async () => {
+    const { getChannelManifests } = await import("@/lib/mock-manifests");
+    const manifests = await getChannelManifests();
+    expect(manifests).toHaveLength(3);
+    expect(manifests.map((m) => m.id)).toEqual(["discord", "slack", "telegram"]);
   });
 
-  it("getManifest returns correct manifest by id", () => {
-    const discord = getManifest("discord");
+  it("getManifest returns correct manifest by id", async () => {
+    const { getManifest } = await import("@/lib/mock-manifests");
+    const discord = await getManifest("discord");
     expect(discord).toBeDefined();
     expect(discord?.name).toBe("Discord");
   });
 
-  it("getManifest returns undefined for unknown id", () => {
-    expect(getManifest("unknown")).toBeUndefined();
+  it("getManifest returns undefined for unknown id", async () => {
+    const { getManifest } = await import("@/lib/mock-manifests");
+    const result = await getManifest("unknown");
+    expect(result).toBeUndefined();
   });
 
-  it("Discord manifest has 4 setup steps", () => {
-    const discord = getManifest("discord");
+  it("Discord manifest has 4 setup steps", async () => {
+    const { getManifest } = await import("@/lib/mock-manifests");
+    const discord = await getManifest("discord");
     expect(discord).toBeDefined();
     expect(discord?.setup).toHaveLength(4);
     expect(discord?.setup.map((s) => s.id)).toEqual([
@@ -46,8 +206,9 @@ describe("mock-manifests", () => {
     ]);
   });
 
-  it("Telegram manifest has secret token field with paste flow", () => {
-    const telegram = getManifest("telegram");
+  it("Telegram manifest has secret token field with paste flow", async () => {
+    const { getManifest } = await import("@/lib/mock-manifests");
+    const telegram = await getManifest("telegram");
     expect(telegram).toBeDefined();
     const tokenStep = telegram?.setup.find((s) => s.id === "paste-token");
     expect(tokenStep).toBeDefined();
@@ -56,8 +217,9 @@ describe("mock-manifests", () => {
     expect(tokenField?.setupFlow).toBe("paste");
   });
 
-  it("Slack manifest has oauth flow", () => {
-    const slack = getManifest("slack");
+  it("Slack manifest has oauth flow", async () => {
+    const { getManifest } = await import("@/lib/mock-manifests");
+    const slack = await getManifest("slack");
     expect(slack).toBeDefined();
     const oauthStep = slack?.setup.find((s) => s.id === "oauth");
     expect(oauthStep).toBeDefined();
@@ -239,7 +401,7 @@ describe("StepRenderer", () => {
 });
 
 describe("Wizard", () => {
-  const discord = getManifest("discord") as ChannelManifest;
+  const discord = DISCORD_MANIFEST;
 
   it("renders the first step", () => {
     render(<Wizard manifest={discord} onComplete={vi.fn()} onCancel={vi.fn()} />);
@@ -383,7 +545,7 @@ describe("Wizard", () => {
 });
 
 describe("Wizard with Telegram (short flow)", () => {
-  const telegram = getManifest("telegram") as ChannelManifest;
+  const telegram = TELEGRAM_MANIFEST;
 
   it("renders Telegram wizard with 3 steps", () => {
     render(<Wizard manifest={telegram} onComplete={vi.fn()} onCancel={vi.fn()} />);
@@ -407,7 +569,7 @@ describe("Wizard with Telegram (short flow)", () => {
 });
 
 describe("Wizard connection test API integration", () => {
-  const discord = getManifest("discord") as ChannelManifest;
+  const discord = DISCORD_MANIFEST;
 
   /** Navigate the Discord wizard to the final step with a valid token. */
   async function navigateToFinalStep() {

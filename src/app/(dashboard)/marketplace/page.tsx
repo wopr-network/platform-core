@@ -10,6 +10,7 @@ import { MarketplaceTabs } from "@/components/marketplace/marketplace-tabs";
 import { PluginCard } from "@/components/marketplace/plugin-card";
 import { SuperpowerCard } from "@/components/marketplace/superpower-card";
 import { TerminalSearch } from "@/components/marketplace/terminal-search";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   listMarketplacePlugins,
@@ -22,6 +23,7 @@ const FIRST_VISIT_KEY = "wopr-marketplace-visited";
 export default function MarketplacePage() {
   const [plugins, setPlugins] = useState<PluginManifest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("superpower");
   const [showFirstVisit, setShowFirstVisit] = useState(false);
@@ -30,9 +32,15 @@ export default function MarketplacePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await listMarketplacePlugins();
-    setPlugins(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await listMarketplacePlugins();
+      setPlugins(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load marketplace plugins");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -137,6 +145,17 @@ export default function MarketplacePage() {
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center space-y-4">
+        <p className="text-sm text-red-500">{error}</p>
+        <Button variant="outline" onClick={load}>
+          Retry
+        </Button>
       </div>
     );
   }

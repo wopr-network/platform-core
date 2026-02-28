@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Instance } from "@/lib/api";
 import { listInstances } from "@/lib/api";
-import { channelManifests } from "@/lib/mock-manifests";
+import { type ChannelManifest, getChannelManifests } from "@/lib/mock-manifests";
 
 const staggerContainer = {
   hidden: {},
@@ -27,6 +27,7 @@ const staggerItem = {
 
 export default function ChannelsPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
+  const [channelManifests, setChannelManifests] = useState<ChannelManifest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -37,8 +38,11 @@ export default function ChannelsPage() {
     setLoading(true);
     async function load() {
       try {
-        const data = await listInstances();
-        if (!cancelled) setInstances(data);
+        const [data, manifests] = await Promise.all([listInstances(), getChannelManifests()]);
+        if (!cancelled) {
+          setInstances(data);
+          setChannelManifests(manifests);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load instances");
       } finally {

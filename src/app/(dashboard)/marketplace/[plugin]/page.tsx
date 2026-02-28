@@ -117,16 +117,23 @@ export default function PluginDetailPage() {
   const [plugin, setPlugin] = useState<PluginManifest | null>(null);
   const [content, setContent] = useState<PluginContentResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
   const [showTerminalLog, setShowTerminalLog] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await getMarketplacePlugin(pluginId);
-    setPlugin(data);
-    const contentData = await getPluginContent(pluginId);
-    setContent(contentData);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const data = await getMarketplacePlugin(pluginId);
+      setPlugin(data);
+      const contentData = await getPluginContent(pluginId);
+      setContent(contentData);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load plugin");
+    } finally {
+      setLoading(false);
+    }
   }, [pluginId]);
 
   useEffect(() => {
@@ -165,6 +172,20 @@ export default function PluginDetailPage() {
         </div>
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6 text-center space-y-4">
+        <p className="text-sm text-red-500">{loadError}</p>
+        <Button variant="outline" onClick={load}>
+          Retry
+        </Button>
+        <Button variant="ghost" onClick={() => router.push("/marketplace")}>
+          Back to Marketplace
+        </Button>
       </div>
     );
   }

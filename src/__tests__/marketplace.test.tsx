@@ -1,14 +1,229 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PluginManifest } from "../lib/marketplace-data";
 import {
   ALL_CATEGORIES,
   formatInstallCount,
   getHostedAdaptersForCapabilities,
   HOSTED_ADAPTERS,
   hasHostedOption,
-  MOCK_MANIFESTS,
 } from "../lib/marketplace-data";
+
+// vi.hoisted runs before module imports so TEST_PLUGINS is available in vi.mock factories
+const { TEST_PLUGINS } = vi.hoisted(() => {
+  // biome-ignore lint/suspicious/noExplicitAny: type not available at hoist time
+  const TEST_PLUGINS: any[] = [
+    {
+      id: "discord",
+      name: "Discord",
+      description:
+        "Connect your WOPR instance to Discord servers. Supports text channels, threads, DMs, and slash commands.",
+      version: "3.2.0",
+      author: "WOPR Team",
+      icon: "MessageCircle",
+      color: "#5865F2",
+      category: "channel",
+      tags: ["channel", "chat", "community"],
+      capabilities: ["channel"],
+      requires: [],
+      install: [],
+      configSchema: [
+        {
+          key: "botToken",
+          label: "Bot Token",
+          type: "string",
+          required: true,
+          secret: true,
+          setupFlow: "paste",
+          placeholder: "Paste your Discord bot token",
+          description: "Found under Bot > Token in the Developer Portal.",
+          validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
+        },
+        {
+          key: "guildId",
+          label: "Server ID",
+          type: "string",
+          required: true,
+          placeholder: "e.g. 123456789012345678",
+          description: "Right-click server name > Copy Server ID.",
+          validation: { pattern: "^\\d{17,20}$", message: "Must be a numeric server ID" },
+        },
+      ],
+      setup: [
+        {
+          id: "create-bot",
+          title: "Create a Discord Bot",
+          description: "Create a bot.",
+          fields: [],
+        },
+        {
+          id: "paste-token",
+          title: "Enter Bot Token",
+          description: "Paste the token.",
+          fields: [
+            {
+              key: "botToken",
+              label: "Bot Token",
+              type: "string",
+              required: true,
+              secret: true,
+              setupFlow: "paste",
+              placeholder: "Paste your Discord bot token",
+              description: "Found under Bot > Token.",
+              validation: { pattern: "^[A-Za-z0-9_.-]+$", message: "Invalid token format" },
+            },
+          ],
+        },
+        { id: "done", title: "Connection Complete", description: "Ready.", fields: [] },
+      ],
+      connectionTest: { label: "Test Bot Connection", endpoint: "/api/channels/discord/test" },
+      installCount: 12400,
+      changelog: [
+        { version: "3.2.0", date: "2026-02-10", notes: "Added thread support and slash commands." },
+      ],
+      marketplaceTab: "channel",
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      description: "Connect your WOPR instance to Slack workspaces.",
+      version: "2.1.0",
+      author: "WOPR Team",
+      icon: "Hash",
+      color: "#4A154B",
+      category: "channel",
+      tags: ["channel", "chat"],
+      capabilities: ["channel"],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [{ id: "done", title: "Ready", description: "Ready.", fields: [] }],
+      connectionTest: { label: "Test Slack Connection", endpoint: "/api/channels/slack/test" },
+      installCount: 8200,
+      changelog: [],
+      marketplaceTab: "channel",
+    },
+    {
+      id: "telegram",
+      name: "Telegram",
+      description: "Connect your WOPR instance to Telegram.",
+      version: "1.5.0",
+      author: "WOPR Team",
+      icon: "Send",
+      color: "#0088CC",
+      category: "channel",
+      tags: ["channel"],
+      capabilities: ["channel"],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [{ id: "done", title: "Ready", description: "Ready.", fields: [] }],
+      connectionTest: {
+        label: "Test Telegram Connection",
+        endpoint: "/api/channels/telegram/test",
+      },
+      installCount: 5100,
+      changelog: [],
+      marketplaceTab: "channel",
+    },
+    {
+      id: "semantic-memory",
+      name: "Semantic Memory",
+      description: "Long-term memory with vector search.",
+      version: "1.4.0",
+      author: "WOPR Team",
+      icon: "Database",
+      color: "#8B5CF6",
+      category: "memory",
+      tags: ["memory", "vectors"],
+      capabilities: ["memory", "embeddings"],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [{ id: "done", title: "Memory Ready", description: "Ready.", fields: [] }],
+      installCount: 9800,
+      changelog: [],
+      marketplaceTab: "superpower",
+      superpowerHeadline: "A Bot That Never Forgets",
+      superpowerTagline: "Your bot remembers every conversation.",
+      superpowerOutcomes: ["Recalls context from months ago"],
+    },
+    {
+      id: "meeting-transcriber",
+      name: "Meeting Transcriber",
+      description: "Transcribe voice meetings automatically.",
+      version: "1.0.0",
+      author: "WOPR Team",
+      icon: "Mic",
+      color: "#F59E0B",
+      category: "voice",
+      tags: ["voice", "transcription"],
+      capabilities: ["stt", "llm"],
+      requires: [{ id: "discord", label: "Discord (for voice channels)" }],
+      install: ["discord"],
+      configSchema: [],
+      setup: [{ id: "done", title: "Ready", description: "Ready.", fields: [] }],
+      installCount: 3200,
+      changelog: [],
+      marketplaceTab: "superpower",
+      superpowerHeadline: "Fire Your Secretary",
+      superpowerTagline: "Your bot takes meeting notes.",
+      superpowerOutcomes: ["Auto-transcribed meetings"],
+    },
+    {
+      id: "webhooks",
+      name: "Webhooks",
+      description: "Send and receive webhooks.",
+      version: "1.1.0",
+      author: "WOPR Team",
+      icon: "Webhook",
+      color: "#F59E0B",
+      category: "webhook",
+      tags: ["webhook"],
+      capabilities: ["webhook"],
+      requires: [],
+      install: [],
+      configSchema: [
+        {
+          key: "secret",
+          label: "Webhook Secret",
+          type: "string",
+          required: false,
+          secret: true,
+          placeholder: "Optional",
+        },
+      ],
+      setup: [
+        { id: "configure", title: "Configure Webhooks", description: "Set up.", fields: [] },
+        { id: "done", title: "Webhooks Ready", description: "Ready.", fields: [] },
+      ],
+      installCount: 7100,
+      changelog: [],
+      marketplaceTab: "utility",
+    },
+    {
+      id: "deepgram-stt",
+      name: "Deepgram STT",
+      description: "Speech-to-text powered by Deepgram.",
+      version: "1.0.0",
+      author: "WOPR Team",
+      icon: "Mic",
+      color: "#6366F1",
+      category: "voice",
+      tags: ["stt", "voice"],
+      capabilities: ["stt"],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [{ id: "done", title: "Ready", description: "Ready.", fields: [] }],
+      installCount: 4500,
+      changelog: [],
+      marketplaceTab: "capability",
+    },
+  ];
+  return { TEST_PLUGINS };
+});
 
 // --- Mock next/navigation for page components ---
 const mockPush = vi.fn();
@@ -33,9 +248,22 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// --- Mock marketplace-data API functions ---
+vi.mock("../lib/marketplace-data", async () => {
+  const actual = await vi.importActual("../lib/marketplace-data");
+  return {
+    ...actual,
+    listMarketplacePlugins: vi.fn().mockResolvedValue(TEST_PLUGINS),
+    getMarketplacePlugin: vi.fn().mockImplementation(async (id: string) => {
+      return TEST_PLUGINS.find((p) => p.id === id) ?? null;
+    }),
+    getPluginContent: vi.fn().mockResolvedValue(null),
+  };
+});
+
 function findManifest(id: string) {
-  const m = MOCK_MANIFESTS.find((p) => p.id === id);
-  if (!m) throw new Error(`Manifest ${id} not found`);
+  const m = TEST_PLUGINS.find((p) => p.id === id);
+  if (!m) throw new Error(`Manifest ${id} not found in TEST_PLUGINS`);
   return m;
 }
 
@@ -92,69 +320,6 @@ describe("marketplace-data", () => {
 
     it("returns empty array when no match", () => {
       expect(getHostedAdaptersForCapabilities(["channel"])).toHaveLength(0);
-    });
-  });
-
-  describe("MOCK_MANIFESTS", () => {
-    it("has plugins for each category in use", () => {
-      const categories = new Set(MOCK_MANIFESTS.map((m) => m.category));
-      expect(categories.size).toBeGreaterThanOrEqual(5);
-    });
-
-    it("every plugin has required fields", () => {
-      for (const manifest of MOCK_MANIFESTS) {
-        expect(manifest.id).toBeTruthy();
-        expect(manifest.name).toBeTruthy();
-        expect(manifest.version).toBeTruthy();
-        expect(manifest.category).toBeTruthy();
-        expect(Array.isArray(manifest.capabilities)).toBe(true);
-        expect(Array.isArray(manifest.setup)).toBe(true);
-        expect(Array.isArray(manifest.configSchema)).toBe(true);
-        expect(Array.isArray(manifest.requires)).toBe(true);
-        expect(typeof manifest.installCount).toBe("number");
-      }
-    });
-
-    it("Discord plugin uses canonical short id 'discord'", () => {
-      const discord = MOCK_MANIFESTS.find((m) => m.id === "discord");
-      expect(discord).toBeDefined();
-      expect(discord?.name).toBe("Discord");
-    });
-
-    it("Slack plugin uses canonical short id 'slack'", () => {
-      const slack = MOCK_MANIFESTS.find((m) => m.id === "slack");
-      expect(slack).toBeDefined();
-      expect(slack?.name).toBe("Slack");
-    });
-
-    it("Telegram plugin is in MOCK_MANIFESTS with id 'telegram'", () => {
-      const telegram = MOCK_MANIFESTS.find((m) => m.id === "telegram");
-      expect(telegram).toBeDefined();
-      expect(telegram?.name).toBe("Telegram");
-      expect(telegram?.category).toBe("channel");
-    });
-
-    it("channel plugins have connectionTest field", () => {
-      const channels = MOCK_MANIFESTS.filter((m) => m.category === "channel");
-      for (const ch of channels) {
-        expect(ch.connectionTest).toBeDefined();
-        expect(ch.connectionTest?.endpoint).toBeTruthy();
-      }
-    });
-
-    it("channel plugin setup fields support setupFlow", () => {
-      const discord = MOCK_MANIFESTS.find((m) => m.id === "discord");
-      const tokenStep = discord?.setup.find((s) => s.id === "paste-token");
-      const tokenField = tokenStep?.fields.find((f) => f.key === "botToken");
-      expect(tokenField?.setupFlow).toBe("paste");
-    });
-
-    it("meeting-transcriber requires discord (not discord-channel)", () => {
-      const mt = MOCK_MANIFESTS.find((m) => m.id === "meeting-transcriber");
-      expect(mt).toBeDefined();
-      const req = mt?.requires.find((r) => r.id === "discord");
-      expect(req).toBeDefined();
-      expect(mt?.install).toContain("discord");
     });
   });
 
@@ -457,7 +622,7 @@ describe("InstallWizard", () => {
 describe("PluginCard", () => {
   it("renders plugin info with link to detail page", async () => {
     const { PluginCard } = await import("../components/marketplace/plugin-card");
-    const plugin = MOCK_MANIFESTS[0]; // discord
+    const plugin = TEST_PLUGINS[0]; // discord
 
     render(<PluginCard plugin={plugin} />);
 

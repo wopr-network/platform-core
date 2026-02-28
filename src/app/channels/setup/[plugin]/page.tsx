@@ -2,20 +2,39 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Wizard } from "@/components/channel-wizard";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { connectChannel } from "@/lib/api";
-import { getManifest } from "@/lib/mock-manifests";
+import { type ChannelManifest, getManifest } from "@/lib/mock-manifests";
 
 export default function ChannelSetupPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const botId = searchParams.get("botId");
-  const manifest = getManifest(plugin);
+  const [manifest, setManifest] = useState<ChannelManifest | null>(null);
+  const [loadingManifest, setLoadingManifest] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getManifest(plugin)
+      .then((m) => setManifest(m ?? null))
+      .finally(() => setLoadingManifest(false));
+  }, [plugin]);
+
+  if (loadingManifest) {
+    return (
+      <div className="flex min-h-full items-center justify-center p-8">
+        <div className="w-full max-w-xl space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   if (!manifest) {
     return (
