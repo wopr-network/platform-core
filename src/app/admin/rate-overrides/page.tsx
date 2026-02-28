@@ -116,7 +116,7 @@ export default function RateOverridesPage() {
     setCancelError(null);
     try {
       await client.rateOverrides.cancel.mutate({ id });
-      load();
+      await load();
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Failed to cancel override");
     }
@@ -140,7 +140,7 @@ export default function RateOverridesPage() {
       setFormStartsAt("");
       setFormEndsAt("");
       setFormNotes("");
-      load();
+      await load();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to create override");
     } finally {

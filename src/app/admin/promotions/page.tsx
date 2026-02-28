@@ -123,7 +123,7 @@ export default function PromotionsListPage() {
     setActionError(null);
     try {
       await client.promotions[action].mutate({ id });
-      load();
+      await load();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : `Failed to ${action} promotion`);
     }
@@ -225,10 +225,10 @@ export default function PromotionsListPage() {
                   )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-terminal">
-                  {formatCredits(p.totalCreditsGranted)}
+                  {formatCreditCount(p.totalCreditsGranted)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {p.budgetCap !== null ? formatCredits(p.budgetCap) : "—"}
+                  {p.budgetCap !== null ? formatCreditCount(p.budgetCap) : "—"}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

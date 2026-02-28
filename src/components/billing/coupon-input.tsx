@@ -4,6 +4,7 @@ import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpcVanilla } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
@@ -47,8 +48,10 @@ export function CouponInput() {
 
   return (
     <div className="space-y-2">
+      <Label htmlFor="coupon-code">Coupon code</Label>
       <div className="flex gap-2">
         <Input
+          id="coupon-code"
           value={code}
           onChange={(e) => {
             setCode(e.target.value.toUpperCase());
@@ -75,19 +78,21 @@ export function CouponInput() {
         </Button>
       </div>
 
-      {state === "success" && (
-        <p className="flex items-center gap-1.5 text-sm text-terminal">
-          <Check className="h-4 w-4" />
-          Code applied — +{creditsGranted} credits will be added after your purchase
-        </p>
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {state === "success" && (
+          <p className="flex items-center gap-1.5 text-sm text-terminal">
+            <Check className="h-4 w-4" />
+            Code applied — +{creditsGranted} credits added to your balance
+          </p>
+        )}
 
-      {state === "error" && (
-        <p className="flex items-center gap-1.5 text-sm text-destructive">
-          <X className="h-4 w-4" />
-          {message}
-        </p>
-      )}
+        {state === "error" && (
+          <p className="flex items-center gap-1.5 text-sm text-destructive">
+            <X className="h-4 w-4" />
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

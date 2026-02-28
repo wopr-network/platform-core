@@ -73,7 +73,7 @@ describe("CouponInput", () => {
     await user.type(input, "VALID50");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(await screen.findByText(/\+\$5\.00 credits will be added/)).toBeInTheDocument();
+    expect(await screen.findByText(/\+500 credits added to your balance/)).toBeInTheDocument();
   });
 
   it("shows error state after invalid code — red error message with server message shown", async () => {

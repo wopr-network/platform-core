@@ -175,7 +175,7 @@ describe("PromotionsListPage", () => {
     await user.selectOptions(selects[0], "active");
 
     // After filter changes, query should be called with status: "active"
-    expect(mockListQuery).toHaveBeenCalledWith(expect.objectContaining({ status: "active" }));
+    expect(mockListQuery).toHaveBeenLastCalledWith(expect.objectContaining({ status: "active" }));
   });
 
   it("New Promotion link points to /admin/promotions/new", async () => {

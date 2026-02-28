@@ -74,10 +74,14 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
   const [userSegment, setUserSegment] = useState<UserSegment>(initialData?.userSegment ?? "all");
 
   // Limits
-  const [unlimited, setUnlimited] = useState(initialData?.totalUseLimit === null);
+  const [unlimited, setUnlimited] = useState(
+    initialData ? initialData.totalUseLimit === null : true,
+  );
   const [totalUseLimit, setTotalUseLimit] = useState(initialData?.totalUseLimit ?? 1000);
   const [perUserLimit, setPerUserLimit] = useState(initialData?.perUserLimit ?? 1);
-  const [noBudgetCap, setNoBudgetCap] = useState(initialData?.budgetCap === null);
+  const [noBudgetCap, setNoBudgetCap] = useState(
+    initialData ? initialData.budgetCap === null : true,
+  );
   const [budgetCap, setBudgetCap] = useState(initialData?.budgetCap ?? 0);
 
   // Coupon
@@ -97,8 +101,8 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
       valueType,
       amount,
       cap: valueType === "percent_of_purchase" ? cap : null,
-      startsAt: startsImmediately ? null : startsAt || null,
-      endsAt: noExpiry ? null : endsAt || null,
+      startsAt: startsImmediately ? null : startsAt ? new Date(startsAt).toISOString() : null,
+      endsAt: noExpiry ? null : endsAt ? new Date(endsAt).toISOString() : null,
       firstPurchaseOnly,
       minPurchaseCents: minPurchaseCents || null,
       userSegment,
