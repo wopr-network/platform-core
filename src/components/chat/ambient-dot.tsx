@@ -20,6 +20,7 @@ export function AmbientDot({ hasUnread, onClick }: AmbientDotProps) {
       <div className="h-3 w-3 rounded-full bg-terminal" />
       {hasUnread && (
         <motion.div
+          data-testid="chat-unread-pulse"
           className="absolute inset-0 rounded-full border-2 border-terminal"
           animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0, 0.8] }}
           transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
