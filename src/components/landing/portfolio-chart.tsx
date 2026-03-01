@@ -207,7 +207,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       // Base opacity for entire chart — background texture
       ctx.save();
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.25;
 
       // Layer 1: Bloom (phosphor glow) — shadowBlur, not ctx.filter
       ctx.save();
@@ -250,7 +250,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
         if (mx < -20 || my > h + 20 || alpha <= 0) continue;
 
-        const outerRadius = 10 + (1 - age) * 14;
+        const outerRadius = 20 + (1 - age) * 40;
 
         // Halo
         const grad = ctx.createRadialGradient(mx, my, 0, mx, my, outerRadius);
@@ -270,7 +270,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = m.color;
         ctx.beginPath();
-        ctx.arc(mx, my, 4, 0, Math.PI * 2);
+        ctx.arc(mx, my, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
