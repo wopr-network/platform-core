@@ -56,12 +56,6 @@ interface BillingHealthData {
   };
 }
 
-interface BillingHealthProcedures {
-  admin: {
-    billingHealth: { query(): Promise<BillingHealthData> };
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -137,8 +131,9 @@ export function BillingHealthDashboard() {
 
     async function poll() {
       try {
-        const client = trpcVanilla as unknown as BillingHealthProcedures;
-        const result = await client.admin.billingHealth.query();
+        const result = (await trpcVanilla.admin.billingHealth.query(
+          undefined,
+        )) as BillingHealthData;
         if (active) {
           setData(result);
           setError(null);

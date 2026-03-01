@@ -30,31 +30,6 @@ import { trpcVanilla } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Typed client
-// ---------------------------------------------------------------------------
-
-interface RateOverrideProcedures {
-  rateOverrides: {
-    list: {
-      query(input: { status?: string; adapterId?: string }): Promise<AdapterRateOverride[]>;
-    };
-    create: {
-      mutate(input: {
-        adapterId: string;
-        name: string;
-        discountPercent: number;
-        startsAt: string;
-        endsAt?: string;
-        notes?: string;
-      }): Promise<AdapterRateOverride>;
-    };
-    cancel: { mutate(input: { id: string }): Promise<void> };
-  };
-}
-
-const client = trpcVanilla as unknown as RateOverrideProcedures;
-
-// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -97,9 +72,9 @@ export default function RateOverridesPage() {
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const result = await client.rateOverrides.list.query({});
+      const result = await trpcVanilla.rateOverrides.list.query({});
       if (signal?.aborted) return;
-      setOverrides(result);
+      setOverrides(result as AdapterRateOverride[]);
     } catch {
       // keep state
     } finally {
@@ -116,7 +91,7 @@ export default function RateOverridesPage() {
   async function handleCancel(id: string) {
     setCancelError(null);
     try {
-      await client.rateOverrides.cancel.mutate({ id });
+      await trpcVanilla.rateOverrides.cancel.mutate({ id });
       await load();
     } catch (err) {
       setCancelError(toUserMessage(err, "Failed to cancel override"));
@@ -127,7 +102,7 @@ export default function RateOverridesPage() {
     setCreating(true);
     setFormError(null);
     try {
-      await client.rateOverrides.create.mutate({
+      await trpcVanilla.rateOverrides.create.mutate({
         adapterId: formAdapter,
         name: formName,
         discountPercent: formDiscount,

@@ -9,19 +9,6 @@ import { toUserMessage } from "@/lib/errors";
 import { trpcVanilla } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
-interface CouponProcedures {
-  billing: {
-    applyCoupon: {
-      mutate(input: { code: string }): Promise<{
-        creditsGranted: number;
-        message: string;
-      }>;
-    };
-  };
-}
-
-const client = trpcVanilla as unknown as CouponProcedures;
-
 type CouponState = "idle" | "loading" | "success" | "error";
 
 export function CouponInput() {
@@ -35,9 +22,9 @@ export function CouponInput() {
     setState("loading");
     setMessage("");
     try {
-      const result = await client.billing.applyCoupon.mutate({
+      const result = (await trpcVanilla.billing.applyCoupon.mutate({
         code: code.trim().toUpperCase(),
-      });
+      })) as { creditsGranted: number; message: string };
       setCreditsGranted(result.creditsGranted);
       setMessage(result.message);
       setState("success");

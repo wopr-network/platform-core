@@ -36,6 +36,7 @@ type AppRouterRecord = TRPCRouterRecord & {
       cacheHitRate: AnyTRPCQueryProcedure;
       sessionCost: AnyTRPCQueryProcedure;
     };
+    billingHealth: AnyTRPCQueryProcedure;
   };
   promotions: {
     list: AnyTRPCQueryProcedure;

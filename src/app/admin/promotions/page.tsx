@@ -65,21 +65,6 @@ function formatCreditCount(n: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Typed wrappers for trpcVanilla (no full AppRouter type available yet)
-// ---------------------------------------------------------------------------
-
-interface PromotionsProcedures {
-  promotions: {
-    list: { query(input: { status?: string; type?: string }): Promise<Promotion[]> };
-    activate: { mutate(input: { id: string }): Promise<void> };
-    pause: { mutate(input: { id: string }): Promise<void> };
-    cancel: { mutate(input: { id: string }): Promise<void> };
-  };
-}
-
-const client = trpcVanilla as unknown as PromotionsProcedures;
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -95,12 +80,12 @@ export default function PromotionsListPage() {
     async (signal?: AbortSignal) => {
       setLoading(true);
       try {
-        const result = await client.promotions.list.query({
+        const result = await trpcVanilla.promotions.list.query({
           status: statusFilter === "all" ? undefined : statusFilter,
           type: typeFilter === "all" ? undefined : typeFilter,
         });
         if (signal?.aborted) return;
-        setPromotions(result);
+        setPromotions(result as Promotion[]);
       } catch {
         // keep previous state
       } finally {
@@ -119,7 +104,11 @@ export default function PromotionsListPage() {
   async function handleAction(id: string, action: "activate" | "pause" | "cancel") {
     setActionError(null);
     try {
-      await client.promotions[action].mutate({ id });
+      await (
+        trpcVanilla.promotions[action as keyof typeof trpcVanilla.promotions] as {
+          mutate: (input: { id: string }) => Promise<void>;
+        }
+      ).mutate({ id });
       await load();
     } catch (err) {
       setActionError(toUserMessage(err, `Failed to ${action} promotion`));
