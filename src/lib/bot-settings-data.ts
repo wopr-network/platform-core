@@ -1,5 +1,4 @@
-import { API_BASE_URL } from "./api-config";
-import { handleUnauthorized } from "./fetch-utils";
+import { apiFetch } from "./api";
 
 // --- Bot Settings types ---
 
@@ -130,19 +129,6 @@ export interface BotSettings {
 }
 
 // --- API functions ---
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (res.status === 401) {
-    handleUnauthorized();
-  }
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-  return res.json() as Promise<T>;
-}
 
 export async function getBotSettings(botId: string): Promise<BotSettings> {
   return apiFetch<BotSettings>(`/fleet/bots/${botId}/settings`);

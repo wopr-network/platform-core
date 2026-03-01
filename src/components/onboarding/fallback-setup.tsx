@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { API_BASE_URL } from "@/lib/api-config";
+import { quickSetup } from "@/lib/api";
 import { markOnboardingComplete } from "@/lib/onboarding-store";
 
 const CHANNELS = [
@@ -45,15 +45,10 @@ export function FallbackSetup() {
 
       setSubmitting(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/onboarding/quick-setup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ apiKey: apiKey.trim(), channel }),
-        });
+        const res = await quickSetup(apiKey.trim(), channel);
         if (!res.ok) {
           const data = await res.json().catch(() => ({ error: "Setup failed" }));
-          setError(data.error || "Setup failed");
+          setError((data as { error?: string }).error || "Setup failed");
           return;
         }
         markOnboardingComplete();

@@ -91,7 +91,7 @@ export interface InstanceDetail extends Instance {
 
 // --- API client ---
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const tenantId = getActiveTenantId();
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -110,6 +110,63 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, res.statusText, (body as { error?: string }).error ?? undefined);
   }
   return res.json() as Promise<T>;
+}
+
+/** Like apiFetch but returns the raw Response (for streaming or status inspection). */
+export async function apiFetchRaw(path: string, init?: RequestInit): Promise<Response> {
+  const tenantId = getActiveTenantId();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+      ...init?.headers,
+    },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  return res;
+}
+
+/** Fetch against the PLATFORM_BASE_URL (not /api) — for Next.js API routes and OAuth endpoints. */
+export async function platformFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const tenantId = getActiveTenantId();
+  const res = await fetch(`${PLATFORM_BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+      ...init?.headers,
+    },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+/** Like platformFetch but returns the raw Response. */
+export async function platformFetchRaw(path: string, init?: RequestInit): Promise<Response> {
+  const tenantId = getActiveTenantId();
+  const res = await fetch(`${PLATFORM_BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+      ...init?.headers,
+    },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  return res;
 }
 
 export async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -1869,4 +1926,93 @@ export async function fetchAuditLog(params: {
   if (params.action) query.set("action", params.action);
   const qs = query.toString();
   return apiFetch<AuditLogResponse>(`/audit${qs ? `?${qs}` : ""}`);
+}
+
+// --- Typed helpers used by components ---
+
+export interface VpsInfo {
+  botId: string;
+  status: "active" | "canceling" | "canceled";
+  hostname: string | null;
+  sshConnectionString: string | null;
+  diskSizeGb: number;
+  createdAt: string;
+}
+
+/** Fetch VPS info for a bot. Returns null if not found or on error. */
+export async function getVpsInfo(botId: string): Promise<VpsInfo | null> {
+  const res = await apiFetchRaw(`/fleet/bots/${botId}/vps-info`);
+  if (!res.ok) return null;
+  return res.json() as Promise<VpsInfo>;
+}
+
+export interface VpsUpgradeResult {
+  url?: string;
+}
+
+/** Initiate a VPS upgrade for a bot. Returns the raw Response for status inspection (409, 402). */
+export async function upgradeToVps(
+  botId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<Response> {
+  return apiFetchRaw(`/fleet/bots/${botId}/upgrade-to-vps`, {
+    method: "POST",
+    body: JSON.stringify({ successUrl, cancelUrl }),
+  });
+}
+
+export interface OAuthInitiateResult {
+  authorizeUrl: string;
+  state: string;
+}
+
+/** Initiate OAuth flow. Returns the raw Response so callers can inspect errors. */
+export async function initiateChannelOAuth(provider: string): Promise<Response> {
+  return platformFetchRaw(`/api/channel-oauth/initiate`, {
+    method: "POST",
+    body: JSON.stringify({ provider }),
+  });
+}
+
+export interface OAuthPollResult {
+  status: "pending" | "completed" | "expired";
+  token?: string;
+}
+
+/** Poll for OAuth token after the popup callback. */
+export async function pollChannelOAuth(state: string): Promise<OAuthPollResult> {
+  const res = await platformFetchRaw(`/api/channel-oauth/poll?state=${encodeURIComponent(state)}`);
+  if (!res.ok) throw new Error("Failed to retrieve token");
+  return res.json() as Promise<OAuthPollResult>;
+}
+
+/** Post a message to the onboarding quick-setup endpoint. Returns the raw Response. */
+export async function quickSetup(apiKey: string, channel: string): Promise<Response> {
+  return apiFetchRaw(`/onboarding/quick-setup`, {
+    method: "POST",
+    body: JSON.stringify({ apiKey, channel }),
+  });
+}
+
+/** Send a chat message. Fire-and-forget; caller handles errors. */
+export async function sendChatMessage(sessionId: string, message: string): Promise<void> {
+  await apiFetchRaw(`/chat`, {
+    method: "POST",
+    body: JSON.stringify({ sessionId, message }),
+  });
+}
+
+/** Open an SSE stream for chat. Returns the raw Response for body reading. */
+export async function openChatStream(sessionId: string, signal: AbortSignal): Promise<Response> {
+  const tenantId = getActiveTenantId();
+  const res = await fetch(`${API_BASE_URL}/chat/stream`, {
+    headers: {
+      "X-Session-ID": sessionId,
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+    },
+    credentials: "include",
+    signal,
+  });
+  return res;
 }

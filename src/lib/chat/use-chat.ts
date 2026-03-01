@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/lib/api-config";
+import { openChatStream, sendChatMessage } from "@/lib/api";
 import { clearChatHistory, getSessionId, loadChatHistory, saveChatHistory } from "./chat-store";
 import type { ChatEvent, ChatMessage, ChatMode } from "./types";
 
@@ -55,7 +55,6 @@ export function useChat(): UseChatReturn {
       eventSourceRef.current.close();
     }
 
-    const url = `${API_BASE_URL}/chat/stream`;
     const abortController = new AbortController();
     // Store a pseudo-EventSource object so the cleanup path can call .close()
     eventSourceRef.current = {
@@ -112,11 +111,7 @@ export function useChat(): UseChatReturn {
       }
     };
 
-    fetch(url, {
-      headers: { "X-Session-ID": sessionId.current },
-      credentials: "include",
-      signal: abortController.signal,
-    })
+    openChatStream(sessionId.current, abortController.signal)
       .then(async (res) => {
         if (!res.ok || !res.body) throw new Error("SSE connection failed");
         setIsConnected(true);
@@ -174,12 +169,7 @@ export function useChat(): UseChatReturn {
       setIsTyping(true);
 
       // POST to chat API
-      fetch(`${API_BASE_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ sessionId: sessionId.current, message: trimmed }),
-      }).catch(() => {
+      sendChatMessage(sessionId.current, trimmed).catch(() => {
         setIsTyping(false);
       });
     },

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { PLATFORM_BASE_URL } from "@/lib/api-config";
+import { initiateChannelOAuth, pollChannelOAuth } from "@/lib/api";
 import type { ConfigField } from "@/lib/mock-manifests";
 
 interface FieldOAuthProps {
@@ -32,19 +32,7 @@ export function FieldOAuth({ field, value, onChange, error }: FieldOAuthProps) {
       const maxAttempts = 30; // 30 seconds at 1s interval
       for (let i = 0; i < maxAttempts; i++) {
         try {
-          const res = await fetch(
-            `${PLATFORM_BASE_URL}/api/channel-oauth/poll?state=${encodeURIComponent(state)}`,
-            { credentials: "include" },
-          );
-          if (!res.ok) {
-            setStatus("error");
-            setErrorMsg("Failed to retrieve token");
-            return;
-          }
-          const data = (await res.json()) as {
-            status: "pending" | "completed" | "expired";
-            token?: string;
-          };
+          const data = await pollChannelOAuth(state);
 
           if (data.status === "completed" && data.token) {
             onChange(field.key, data.token);
@@ -131,12 +119,7 @@ export function FieldOAuth({ field, value, onChange, error }: FieldOAuthProps) {
     popupRef.current = popup;
 
     try {
-      const res = await fetch(`${PLATFORM_BASE_URL}/api/channel-oauth/initiate`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
-      });
+      const res = await initiateChannelOAuth(provider);
 
       if (!res.ok) {
         popup.close();

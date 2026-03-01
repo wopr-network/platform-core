@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { API_BASE_URL } from "@/lib/api-config";
+import { upgradeToVps } from "@/lib/api";
 
 interface VpsUpgradeCardProps {
   botId: string;
@@ -19,15 +19,11 @@ export function VpsUpgradeCard({ botId }: VpsUpgradeCardProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/fleet/bots/${botId}/upgrade-to-vps`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          successUrl: `${window.location.origin}/instances/${botId}?vps=activated`,
-          cancelUrl: window.location.href,
-        }),
-      });
+      const res = await upgradeToVps(
+        botId,
+        `${window.location.origin}/instances/${botId}?vps=activated`,
+        window.location.href,
+      );
 
       if (res.status === 409) {
         setError("This bot is already on the VPS tier.");

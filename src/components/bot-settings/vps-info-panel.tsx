@@ -5,16 +5,8 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { API_BASE_URL } from "@/lib/api-config";
-
-interface VpsInfo {
-  botId: string;
-  status: "active" | "canceling" | "canceled";
-  hostname: string | null;
-  sshConnectionString: string | null;
-  diskSizeGb: number;
-  createdAt: string;
-}
+import type { VpsInfo } from "@/lib/api";
+import { getVpsInfo } from "@/lib/api";
 
 interface VpsPanelProps {
   botId: string;
@@ -26,10 +18,7 @@ export function VpsInfoPanel({ botId }: VpsPanelProps) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/fleet/bots/${botId}/vps-info`, {
-      credentials: "include",
-    })
-      .then((res) => (res.ok ? (res.json() as Promise<VpsInfo>) : null))
+    getVpsInfo(botId)
       .then((data) => setVps(data))
       .catch(() => setVps(null))
       .finally(() => setLoading(false));
