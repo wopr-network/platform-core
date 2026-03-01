@@ -67,6 +67,9 @@ type AppRouterRecord = TRPCRouterRecord & {
     updateCapabilitySettings: AnyTRPCMutationProcedure;
     listCapabilityMeta: AnyTRPCQueryProcedure;
   };
+  authSocial: {
+    enabledSocialProviders: AnyTRPCQueryProcedure;
+  };
 };
 
 export type AppRouter = TRPCBuiltRouter<AnyTRPCRootTypes, AppRouterRecord>;
