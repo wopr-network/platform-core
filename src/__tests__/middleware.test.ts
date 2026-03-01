@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import middleware, { config, validateCsrfOrigin } from "../middleware";
+import middleware, { config, validateCsrfOrigin } from "../proxy";
 
 /**
  * Build a real NextRequest for the given path with optional cookies and headers.

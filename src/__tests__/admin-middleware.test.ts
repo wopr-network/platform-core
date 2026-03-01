@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // We test the middleware function directly by importing from the module.
 // The middleware was renamed from proxy.ts to middleware.ts by WOP-1128.
-import middleware from "../middleware";
+import middleware from "../proxy";
 
 // Minimal NextRequest-compatible mock
 function mockRequest(opts: {
