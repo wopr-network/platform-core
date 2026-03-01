@@ -1,12 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  addPluginByNpm,
-  getDiscoveryQueue,
-  getEnabledPlugins,
-  updatePlugin,
-} from "../lib/admin-marketplace-api";
 
-// vi.mock is hoisted, so mocks must be defined with vi.hoisted() to be available in the factory.
 const { mockListPlugins, mockUpdatePlugin, mockAddPlugin } = vi.hoisted(() => ({
   mockListPlugins: vi.fn(),
   mockUpdatePlugin: vi.fn(),
@@ -47,8 +40,16 @@ describe("admin-marketplace-api", () => {
     vi.clearAllMocks();
   });
 
+  describe("isMockMode", () => {
+    it("returns true when NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE is not set", async () => {
+      const { isMockMode } = await import("../lib/admin-marketplace-api");
+      expect(isMockMode()).toBe(true);
+    });
+  });
+
   describe("getDiscoveryQueue", () => {
     it("returns only unreviewed plugins when tRPC succeeds", async () => {
+      const { getDiscoveryQueue } = await import("../lib/admin-marketplace-api");
       const plugins = [
         { ...PLUGIN_BASE, id: "reviewed", reviewed: true },
         { ...PLUGIN_BASE, id: "unreviewed", reviewed: false },
@@ -63,7 +64,8 @@ describe("admin-marketplace-api", () => {
       expect(queue[0].reviewed).toBe(false);
     });
 
-    it("falls back to mock data when tRPC throws", async () => {
+    it("returns mock data in mock mode when tRPC throws", async () => {
+      const { getDiscoveryQueue } = await import("../lib/admin-marketplace-api");
       mockListPlugins.mockRejectedValue(new Error("tRPC unavailable"));
 
       const queue = await getDiscoveryQueue();
@@ -77,6 +79,7 @@ describe("admin-marketplace-api", () => {
 
   describe("getEnabledPlugins", () => {
     it("returns only enabled reviewed plugins sorted by sort_order when tRPC succeeds", async () => {
+      const { getEnabledPlugins } = await import("../lib/admin-marketplace-api");
       const plugins = [
         { ...PLUGIN_BASE, id: "a", enabled: true, reviewed: true, sort_order: 2 },
         { ...PLUGIN_BASE, id: "b", enabled: false, reviewed: true, sort_order: 0 },
@@ -98,7 +101,8 @@ describe("admin-marketplace-api", () => {
       }
     });
 
-    it("falls back to mock data when tRPC throws", async () => {
+    it("returns mock data in mock mode when tRPC throws", async () => {
+      const { getEnabledPlugins } = await import("../lib/admin-marketplace-api");
       mockListPlugins.mockRejectedValue(new Error("tRPC unavailable"));
 
       const result = await getEnabledPlugins();
@@ -112,6 +116,7 @@ describe("admin-marketplace-api", () => {
 
   describe("updatePlugin", () => {
     it("returns updated plugin from tRPC when it succeeds", async () => {
+      const { updatePlugin } = await import("../lib/admin-marketplace-api");
       const updated = { ...PLUGIN_BASE, notes: "test note" };
       mockUpdatePlugin.mockResolvedValue(updated);
 
@@ -121,7 +126,8 @@ describe("admin-marketplace-api", () => {
       expect(result.notes).toBe("test note");
     });
 
-    it("falls back to in-memory update when tRPC throws", async () => {
+    it("returns mock update in mock mode when tRPC throws", async () => {
+      const { updatePlugin } = await import("../lib/admin-marketplace-api");
       mockUpdatePlugin.mockRejectedValue(new Error("tRPC unavailable"));
 
       // "discord" is a known id in the module-level mock data
@@ -133,6 +139,7 @@ describe("admin-marketplace-api", () => {
 
   describe("addPluginByNpm", () => {
     it("returns new plugin from tRPC when it succeeds", async () => {
+      const { addPluginByNpm } = await import("../lib/admin-marketplace-api");
       const newPlugin = {
         ...PLUGIN_BASE,
         id: "new-id",
@@ -150,7 +157,8 @@ describe("admin-marketplace-api", () => {
       expect(result.enabled).toBe(false);
     });
 
-    it("falls back to creating in-memory plugin when tRPC throws", async () => {
+    it("returns mock plugin in mock mode when tRPC throws", async () => {
+      const { addPluginByNpm } = await import("../lib/admin-marketplace-api");
       mockAddPlugin.mockRejectedValue(new Error("tRPC unavailable"));
 
       const result = await addPluginByNpm({ npm_package: "@wopr-network/plugin-test" });

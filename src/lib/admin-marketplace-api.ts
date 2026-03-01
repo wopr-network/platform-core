@@ -37,9 +37,22 @@ export interface UpdatePluginRequest {
   reviewed?: boolean;
 }
 
-// ---- Mock data for development ----
+// ---- Mock mode detection ----
 
-// DEV FALLBACK: mock data used only when tRPC backend is unavailable. Remove once tRPC procedures are confirmed live.
+/**
+ * Returns true when the admin marketplace tRPC procedures are not yet live.
+ * Mock mode is ONLY allowed in development. In production, API failures propagate.
+ *
+ * To switch to live mode once the backend procedures exist:
+ *   1. Add `adminMarketplace` to AppRouterRecord in src/lib/trpc-types.ts
+ *   2. Set NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE=true in .env
+ *   3. Remove MOCK_ADMIN_PLUGINS and this function
+ */
+export function isMockMode(): boolean {
+  return process.env.NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE !== "true";
+}
+
+// ---- Mock data (development only) ----
 const MOCK_ADMIN_PLUGINS: AdminPlugin[] = [
   {
     id: "discord",
@@ -175,7 +188,8 @@ export async function getDiscoveryQueue(): Promise<AdminPlugin[]> {
     const all = await marketplaceClient.listPlugins.query();
     return all.filter((p) => !p.reviewed);
   } catch (e) {
-    console.warn("Failed to fetch pending plugins, using mock data", e);
+    if (!isMockMode()) throw e;
+    console.warn("[MOCK MODE] Failed to fetch pending plugins, using mock data", e);
     return getMockPlugins().filter((p) => !p.reviewed);
   }
 }
@@ -185,7 +199,8 @@ export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
     const all = await marketplaceClient.listPlugins.query();
     return all.filter((p) => p.enabled && p.reviewed).sort((a, b) => a.sort_order - b.sort_order);
   } catch (e) {
-    console.warn("Failed to fetch featured plugins, using mock data", e);
+    if (!isMockMode()) throw e;
+    console.warn("[MOCK MODE] Failed to fetch enabled plugins, using mock data", e);
     return getMockPlugins()
       .filter((p) => p.enabled && p.reviewed)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -196,7 +211,8 @@ export async function getAllPlugins(): Promise<AdminPlugin[]> {
   try {
     return await marketplaceClient.listPlugins.query();
   } catch (e) {
-    console.warn("Failed to fetch all plugins, using mock data", e);
+    if (!isMockMode()) throw e;
+    console.warn("[MOCK MODE] Failed to fetch all plugins, using mock data", e);
     return getMockPlugins();
   }
 }
@@ -205,7 +221,8 @@ export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugi
   try {
     return await marketplaceClient.updatePlugin.mutate(req);
   } catch (e) {
-    console.warn("Failed to update plugin, using mock fallback", e);
+    if (!isMockMode()) throw e;
+    console.warn("[MOCK MODE] Failed to update plugin, using mock fallback", e);
     const plugins = getMockPlugins();
     const idx = plugins.findIndex((p) => p.id === req.id);
     if (idx === -1) throw new Error(`Plugin not found: ${req.id}`);
@@ -224,7 +241,8 @@ export async function addPluginByNpm(req: AddPluginRequest): Promise<AdminPlugin
   try {
     return await marketplaceClient.addPlugin.mutate(req);
   } catch (e) {
-    console.warn("Failed to add plugin via API, using mock fallback", e);
+    if (!isMockMode()) throw e;
+    console.warn("[MOCK MODE] Failed to add plugin via API, using mock fallback", e);
     const newPlugin: AdminPlugin = {
       id: `manual-${Date.now()}`,
       npm_package: req.npm_package,
@@ -252,8 +270,8 @@ export async function reorderPlugins(orderedIds: string[]): Promise<void> {
     await Promise.all(
       orderedIds.map((id, i) => marketplaceClient.updatePlugin.mutate({ id, sort_order: i })),
     );
-  } catch {
+  } catch (e) {
+    if (!isMockMode()) throw e;
     // No-op in mock mode: state is not persisted between calls
-    void orderedIds;
   }
 }
