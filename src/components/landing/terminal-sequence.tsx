@@ -62,6 +62,9 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
   const [animationDone, setAnimationDone] = useState(false);
   const [textBlur, setTextBlur] = useState(0);
   const bufferRef = useRef<HTMLDivElement>(null);
+  // Keep onComplete in a ref so changing the prop never restarts the animation
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
   const stateRef = useRef<{
     state: AnimState;
     lineIndex: number;
@@ -104,7 +107,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
       setCurrentText("");
       setShowCursor(false);
       setAnimationDone(true);
-      onComplete?.();
+      onCompleteRef.current?.();
       return;
     }
 
@@ -249,7 +252,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             setShowCursor(false);
             setAnimationDone(true);
             s.state = "done";
-            onComplete?.();
+            onCompleteRef.current?.();
             break;
           }
 
@@ -271,7 +274,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [onComplete, updateCurrentText, updateLines]);
+  }, [updateCurrentText, updateLines]);
 
   return (
     <div
@@ -319,7 +322,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
                 }),
           }}
         >
-          <div className="flex min-h-full flex-col justify-end">
+          <div className="absolute bottom-0 flex w-full flex-col">
             {lines.map((line, i) => (
               <div
                 key={`${i}-${line}`}
