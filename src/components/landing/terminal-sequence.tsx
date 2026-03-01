@@ -7,11 +7,9 @@ interface TerminalSequenceProps {
   onComplete?: () => void;
 }
 
-// Opening line has special timing — deliberate, almost painful
-const OPENING_TYPE_SPEED = 160; // ms/char
-const OPENING_PAUSE = 800; // ms hold after typing
-const OPENING_BACKSPACE_SPEED = 100; // ms/char
-const OPENING_SILENCE = 600; // ms before sequence begins
+// "Shall we" persists on screen — only the suffix animates
+const PREFIX = "Shall we";
+const PREFIX_LENGTH = PREFIX.length; // 8
 
 // Final held lines type at near-human speed after the blur
 const FINAL_TYPE_SPEED = 65; // ms/char
@@ -34,15 +32,13 @@ function getBackspaceDelay(lineIndex: number): number {
 }
 
 function getPauseAfter(lineIndex: number): number {
+  // Line 0 gets a longer beat — "Shall we play a game?" lands, then reconsiders
+  if (lineIndex === 0) return 800;
   return Math.max(0, Math.round(120 * 0.94 ** lineIndex));
 }
 
 type AnimState =
   | "idle"
-  | "opening-type"
-  | "opening-pause"
-  | "opening-backspace"
-  | "opening-silence"
   | "typing"
   | "pause"
   | "backspacing"
@@ -61,6 +57,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
     state: AnimState;
     lineIndex: number;
     charIndex: number;
+    startCharIndex: number; // where typing begins for the current line
     elapsed: number;
     lastTime: number;
     blinkCount: number;
@@ -69,6 +66,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
     state: "idle",
     lineIndex: 0,
     charIndex: 0,
+    startCharIndex: 0,
     elapsed: 0,
     lastTime: 0,
     blinkCount: 0,
@@ -116,9 +114,10 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
     }
 
     const s = stateRef.current;
-    s.state = "opening-type";
+    s.state = "typing";
     s.lineIndex = 0;
     s.charIndex = 0;
+    s.startCharIndex = 0; // Line 0 types from the very beginning
     s.elapsed = 0;
     s.lastTime = performance.now();
 
@@ -127,59 +126,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
       s.lastTime = now;
       s.elapsed += dt;
 
-      const line = TERMINAL_LINES[s.lineIndex];
-
       switch (s.state) {
-        case "opening-type": {
-          // "Shall we play a game?" at 160ms/char
-          const target = line.text;
-          const charsToType = Math.floor(s.elapsed / OPENING_TYPE_SPEED);
-          if (charsToType > s.charIndex) {
-            const newIndex = Math.min(charsToType, target.length);
-            s.charIndex = newIndex;
-            updateCurrentText(target.slice(0, newIndex));
-          }
-          if (s.charIndex >= target.length) {
-            s.state = "opening-pause";
-            s.elapsed = 0;
-          }
-          break;
-        }
-
-        case "opening-pause": {
-          if (s.elapsed >= OPENING_PAUSE) {
-            s.state = "opening-backspace";
-            s.elapsed = 0;
-            s.charIndex = currentTextRef.current.length;
-          }
-          break;
-        }
-
-        case "opening-backspace": {
-          const charsToDelete = Math.floor(s.elapsed / OPENING_BACKSPACE_SPEED);
-          const newLen = Math.max(0, s.charIndex - charsToDelete);
-          if (newLen !== currentTextRef.current.length) {
-            updateCurrentText(TERMINAL_LINES[0].text.slice(0, newLen));
-          }
-          if (newLen === 0) {
-            s.state = "opening-silence";
-            s.elapsed = 0;
-          }
-          break;
-        }
-
-        case "opening-silence": {
-          if (s.elapsed >= OPENING_SILENCE) {
-            // Move to line 1 (skipping the opening which was line 0)
-            s.lineIndex = 1;
-            s.charIndex = 0;
-            s.elapsed = 0;
-            s.state = "typing";
-            updateCurrentText("");
-          }
-          break;
-        }
-
         case "typing": {
           const currentLine = TERMINAL_LINES[s.lineIndex];
           if (!currentLine) {
@@ -188,21 +135,22 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           }
 
           if (currentLine.hold) {
-            // Switch to final typing mode
+            // Clear the "Shall we" prefix — final block has its own lines
+            updateCurrentText("");
             s.state = "final-typing";
             s.charIndex = 0;
+            s.startCharIndex = 0;
             s.elapsed = 0;
             break;
           }
 
           const typeDelay = getTypeDelay(s.lineIndex);
-          // Batch chars per frame at high speeds
-          const charsToType = Math.max(1, Math.floor(s.elapsed / typeDelay));
-          if (charsToType > s.charIndex) {
-            const target = currentLine.text;
-            const newIndex = Math.min(charsToType, target.length);
+          // Chars typed since this line started (offset from startCharIndex)
+          const charsTyped = Math.max(0, Math.floor(s.elapsed / typeDelay));
+          const newIndex = Math.min(s.startCharIndex + charsTyped, currentLine.text.length);
+          if (newIndex !== s.charIndex) {
             s.charIndex = newIndex;
-            updateCurrentText(target.slice(0, newIndex));
+            updateCurrentText(currentLine.text.slice(0, newIndex));
           }
           if (s.charIndex >= currentLine.text.length) {
             s.state = "pause";
@@ -216,30 +164,31 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           if (s.elapsed >= pauseDuration) {
             s.state = "backspacing";
             s.elapsed = 0;
-            s.charIndex = currentTextRef.current.length;
           }
           break;
         }
 
         case "backspacing": {
           const bsDelay = getBackspaceDelay(s.lineIndex);
-          const charsToDelete = Math.max(1, Math.floor(s.elapsed / bsDelay));
           const currentLine = TERMINAL_LINES[s.lineIndex];
-          const newLen = Math.max(0, currentLine.text.length - charsToDelete);
+          // Backspace from full line length toward PREFIX_LENGTH
+          // "Shall we" persists — never erased
+          const charsToDelete = Math.max(1, Math.floor(s.elapsed / bsDelay));
+          const newLen = Math.max(PREFIX_LENGTH, currentLine.text.length - charsToDelete);
           if (newLen !== currentTextRef.current.length) {
             updateCurrentText(currentLine.text.slice(0, newLen));
           }
-          if (newLen === 0) {
-            // Add completed line to history (shows as typed-then-erased in buffer)
+          if (newLen === PREFIX_LENGTH) {
+            // Commit completed line to dimmed history
             const newLines = [...linesRef.current, currentLine.text];
-            // Keep last 20 lines in buffer
             if (newLines.length > 20) {
               newLines.splice(0, newLines.length - 20);
             }
             updateLines(newLines);
-            updateCurrentText("");
+            // "Shall we" stays in currentText — next line types its suffix onto it
             s.lineIndex++;
-            s.charIndex = 0;
+            s.charIndex = PREFIX_LENGTH;
+            s.startCharIndex = PREFIX_LENGTH;
             s.elapsed = 0;
             s.state = "typing";
           }
@@ -263,6 +212,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
               updateLines(newLines);
               s.lineIndex++;
               s.charIndex = 0;
+              s.startCharIndex = 0;
               s.elapsed = 0;
             }
             break;
@@ -281,6 +231,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             updateCurrentText("");
             s.lineIndex++;
             s.charIndex = 0;
+            s.startCharIndex = 0;
             s.elapsed = -FINAL_LINE_PAUSE; // negative = built-in pause before next
           }
           break;
@@ -299,7 +250,6 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           const withinCycle = blinkElapsed % cycleDuration;
 
           if (currentCycle >= CURSOR_BLINK_COUNT) {
-            // Cursor disappears — hard cut
             setShowCursor(false);
             setAnimationDone(true);
             s.state = "done";
