@@ -95,3 +95,58 @@ Then re-run `pnpm run check`. Do not add `.next/types` to `tsconfig.json` exclud
 At the start of every WOPR session, **read `~/.wopr-memory.md` if it exists.** It contains recent session context: which repos were active, what branches are in flight, and how many uncommitted changes exist. Use it to orient quickly without re-investigating.
 
 The `Stop` hook writes to this file automatically at session end. Only non-main branches are recorded — if everything is on `main`, nothing is written for that repo.
+
+## API Client Layer
+
+All API calls go through `apiFetch` in `src/lib/api.ts`. This function:
+- Prepends the base URL from `src/lib/api-config.ts` (`NEXT_PUBLIC_API_URL`)
+- Attaches auth cookies and the `X-Tenant-Id` header automatically
+- Throws typed `ApiError` on non-2xx responses
+- Calls `handleUnauthorized()` on 401 to redirect to `/login`
+
+For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the same base URL and auth plumbing.
+
+## Forbidden Patterns
+
+- **No raw `fetch()` in components.** Use `apiFetch` (REST) or the tRPC client. Raw fetch skips auth headers, tenant context, and 401 handling.
+- **No hardcoded API URLs.** Import `API_BASE_URL` or `PLATFORM_BASE_URL` from `src/lib/api-config.ts`.
+- **No `console.log`.** Biome enforces `noConsole` as an error. Use `console.warn` or `console.error` for legitimate diagnostics.
+- **No `any` casts.** Use `unknown` and narrow, or define a proper type.
+- **No `alert()` for UI feedback.** Use `sonner` toast notifications (`toast.success()`, `toast.error()`).
+- **No `localStorage` for tenant ID.** Tenant ID is stored in a `Secure; SameSite=Lax` cookie via `src/lib/tenant-context.tsx`. See `getActiveTenantId()`.
+
+## Testing
+
+- **Runner:** Vitest with `jsdom` environment. Config in `vitest.config.ts`.
+- **Libraries:** `@testing-library/react`, `@testing-library/jest-dom/vitest`, `@testing-library/user-event`.
+- **Setup file:** `src/__tests__/setup.ts` — stubs `fetch` (rejects by default), polyfills `IntersectionObserver` and `matchMedia`.
+- **Test location:** `src/__tests__/` for unit/integration tests. `e2e/` for Playwright end-to-end tests.
+- **Run targeted tests only** — never run the full suite locally:
+  ```bash
+  npx vitest run src/__tests__/specific-file.test.ts
+  ```
+- **Mocking fetch:** Tests stub `fetch` via `vi.stubGlobal("fetch", vi.fn(...))`. The setup file rejects all fetches by default so components fall back to mock data.
+
+## Security Rules
+
+- **No tenant ID in localStorage.** Always use the cookie-based tenant context (`src/lib/tenant-context.tsx`).
+- **Validate redirects.** The middleware (`src/middleware.ts`) is the auth gate — it checks session cookies and redirects unauthenticated users to `/login` with a `callbackUrl` param. Never bypass it.
+- **CSRF protection** is enforced in middleware for mutation requests (`POST`/`PUT`/`PATCH`/`DELETE`) on `/api` routes (except `/api/auth`). Origin/Referer headers are validated.
+- **CSP headers** are configured in `next.config.ts` — includes script-src, connect-src, frame-src allowlists. Update CSP if adding new external services.
+- **Admin routes** (`/admin/*`) are server-side gated in middleware — only `platform_admin` role can access.
+
+## Key Patterns
+
+- **Error hierarchy:** `AppError` (base) > `ApiError` (HTTP errors), `ValidationError` (form/input), `NetworkError` (fetch failures). All in `src/lib/errors.ts`. Use `toUserMessage(err)` in catch blocks to extract display text.
+- **401 handling:** `src/lib/fetch-utils.ts` exports `handleUnauthorized()` — redirects to `/login?reason=expired&callbackUrl=...` and throws `UnauthorizedError`.
+- **CapabilityResolver:** Never build per-capability bespoke UI. Plugins declare abstract capabilities and the platform resolves them generically. See `src/__tests__/capability-resolver.test.tsx` for the pattern.
+- **Error boundaries:** Use React error boundaries for route-level crash isolation. See `src/__tests__/error-boundaries.test.ts` for existing coverage.
+
+## Pre-Commit Checklist
+
+```bash
+npm run check   # biome check + tsc --noEmit
+npm test        # vitest run (targeted files only in local dev)
+```
+
+Both must pass before committing. CI runs the full suite.
