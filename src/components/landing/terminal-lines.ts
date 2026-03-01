@@ -79,6 +79,6 @@ export const TERMINAL_LINES: TerminalLine[] = [
   { text: "", hold: true },
   { text: "Shall we rule the universe?", hold: true },
   { text: "WOPR Bot.", hold: true },
+  { text: "The AI with superpowers to do anything.", hold: true },
   { text: "Ready to launch.", hold: true },
-  { text: "$5/month.", hold: true },
 ];
