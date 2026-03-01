@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage as ChatMessageType, ChatMode } from "@/lib/chat/types";
 
 // ChatPanel uses scrollIntoView for auto-scroll; jsdom doesn't implement it
@@ -46,6 +46,22 @@ vi.mock("@/lib/chat/chat-context", () => ({
 import { ChatWidget } from "@/components/chat/chat-widget";
 
 describe("ChatWidget", () => {
+  beforeEach(() => {
+    mockContext.messages = [];
+    mockContext.mode = "collapsed";
+    mockContext.isConnected = true;
+    mockContext.isTyping = false;
+    mockContext.hasUnread = false;
+    mockContext.sessionId = "test-session";
+    mockContext.expand.mockReset();
+    mockContext.collapse.mockReset();
+    mockContext.fullscreen.mockReset();
+    mockContext.sendMessage.mockReset();
+    mockContext.addEventMarker.mockReset();
+    mockContext.showTyping.mockReset();
+    mockContext.notify.mockReset();
+  });
+
   it("shows ambient dot in collapsed mode", () => {
     mockContext.mode = "collapsed";
     render(<ChatWidget />);
@@ -86,11 +102,8 @@ describe("ChatWidget", () => {
   });
 
   it("passes hasUnread to ambient dot", () => {
-    mockContext.mode = "collapsed";
     mockContext.hasUnread = true;
     render(<ChatWidget />);
-    const button = screen.getByTestId("chat-ambient-dot");
-    // 2 child divs = unread pulse present
-    expect(button.querySelectorAll("div").length).toBe(2);
+    expect(screen.getByTestId("chat-unread-pulse")).toBeInTheDocument();
   });
 });

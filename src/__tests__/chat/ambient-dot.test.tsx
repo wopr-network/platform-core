@@ -25,17 +25,11 @@ describe("AmbientDot", () => {
 
   it("renders unread pulse animation when hasUnread is true", () => {
     render(<AmbientDot hasUnread={true} onClick={vi.fn()} />);
-    const button = screen.getByTestId("chat-ambient-dot");
-    // When hasUnread=true, there are 2 child divs (inner dot + pulse ring)
-    const children = button.querySelectorAll("div");
-    expect(children.length).toBe(2);
+    expect(screen.getByTestId("chat-unread-pulse")).toBeInTheDocument();
   });
 
   it("does not render pulse animation when hasUnread is false", () => {
     render(<AmbientDot hasUnread={false} onClick={vi.fn()} />);
-    const button = screen.getByTestId("chat-ambient-dot");
-    // When hasUnread=false, there is only 1 child div (inner dot)
-    const children = button.querySelectorAll("div");
-    expect(children.length).toBe(1);
+    expect(screen.queryByTestId("chat-unread-pulse")).not.toBeInTheDocument();
   });
 });
