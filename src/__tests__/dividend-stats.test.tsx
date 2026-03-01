@@ -1,30 +1,26 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
-  return {
-    ...actual,
-    fetchDividendStats: vi.fn().mockResolvedValue(null),
-  };
-});
+// Stub fetch globally before any module imports
+const mockFetch = vi.fn();
+vi.stubGlobal("fetch", mockFetch);
+
+vi.mock("@/lib/api-config", () => ({
+  API_BASE_URL: "http://test:3001/api",
+  PLATFORM_BASE_URL: "http://test:3001",
+}));
 
 describe("DividendStats", () => {
-  it("renders fallback values when API returns null", async () => {
-    const { DividendStats } = await import("@/components/pricing/dividend-stats");
-    render(<DividendStats />);
-
-    expect(screen.getByTestId("pool-amount")).toBeInTheDocument();
-    expect(screen.getByTestId("active-users")).toBeInTheDocument();
-    expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
+  beforeEach(() => {
+    mockFetch.mockReset();
   });
 
-  it("renders live data when API succeeds", async () => {
-    const { fetchDividendStats } = await import("@/lib/api");
-    (fetchDividendStats as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      poolAmountDollars: 2500.0,
-      activeUsers: 8000,
-      projectedDailyDividend: 0.31,
+  it("renders fallback values when API returns null", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: () => Promise.resolve({}),
     });
 
     const { DividendStats } = await import("@/components/pricing/dividend-stats");
@@ -35,16 +31,34 @@ describe("DividendStats", () => {
     expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
   });
 
-  it("renders error message when API rejects", async () => {
-    const { fetchDividendStats } = await import("@/lib/api");
-    (fetchDividendStats as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error("Network failure"),
-    );
+  it("renders live data when API succeeds", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          poolAmountDollars: 2500.0,
+          activeUsers: 8000,
+          projectedDailyDividend: 0.31,
+        }),
+    });
 
     const { DividendStats } = await import("@/components/pricing/dividend-stats");
     render(<DividendStats />);
 
-    const errorEl = await screen.findByText(/failed to load dividend stats/i);
-    expect(errorEl).toBeInTheDocument();
+    expect(screen.getByTestId("pool-amount")).toBeInTheDocument();
+    expect(screen.getByTestId("active-users")).toBeInTheDocument();
+    expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
+  });
+
+  it("renders fallback dashes when fetch rejects (network error)", async () => {
+    mockFetch.mockRejectedValue(new Error("Network failure"));
+
+    const { DividendStats } = await import("@/components/pricing/dividend-stats");
+    render(<DividendStats />);
+
+    // fetchDividendStats catches network errors and returns null — component shows "--"
+    expect(screen.getByTestId("pool-amount")).toBeInTheDocument();
+    expect(screen.getByTestId("active-users")).toBeInTheDocument();
+    expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchDividendStats } from "@/lib/api";
+import { toUserMessage } from "@/lib/errors";
 import { formatCreditStandard } from "@/lib/format-credit";
 
 function useCountUp(target: number, duration = 1200) {
@@ -61,8 +62,7 @@ export function DividendStats() {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Failed to load dividend stats:", err);
-        setError("Failed to load dividend stats");
+        setError(toUserMessage(err, "Failed to load dividend stats"));
         setLoaded(true);
       });
     return () => {
