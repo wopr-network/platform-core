@@ -308,7 +308,9 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           ref={bufferRef}
           className="absolute bottom-full w-full overflow-hidden font-mono text-xs leading-relaxed sm:text-sm"
           style={{
-            maxHeight: "45vh",
+            // Fixed height so justify-end has something to push against —
+            // content anchors at the bottom, old lines overflow off the top into the mask
+            height: "45vh",
             ...(animationDone
               ? {}
               : {
@@ -317,7 +319,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
                 }),
           }}
         >
-          <div className="flex flex-col justify-end">
+          <div className="flex min-h-full flex-col justify-end">
             {lines.map((line, i) => (
               <div
                 key={`${i}-${line}`}
