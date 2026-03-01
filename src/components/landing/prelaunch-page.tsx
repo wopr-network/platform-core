@@ -26,15 +26,19 @@ export function PrelaunchPage() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(getTimeLeft);
 
   useEffect(() => {
+    let reloadTimeout: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
       const next = getTimeLeft();
       setTimeLeft(next);
       if (next === null) {
         clearInterval(interval);
-        setTimeout(() => window.location.reload(), 1000);
+        reloadTimeout = setTimeout(() => window.location.reload(), 1000);
       }
     }, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (reloadTimeout) clearTimeout(reloadTimeout);
+    };
   }, []);
 
   return (
