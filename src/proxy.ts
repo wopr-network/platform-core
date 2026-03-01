@@ -7,6 +7,7 @@ const publicPaths = [
   "/reset-password",
   "/auth/callback",
   "/auth/verify",
+  "/api/auth",
 ];
 
 /** Paths that are public only when matched exactly (not as a prefix). */
@@ -140,7 +141,7 @@ export default async function middleware(request: NextRequest) {
   }
 
   // Allow static files and API routes
-  if (pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.includes(".")) {
+  if (pathname.startsWith("/_next") || pathname.includes(".")) {
     return NextResponse.next();
   }
 

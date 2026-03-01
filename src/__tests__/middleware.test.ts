@@ -305,14 +305,36 @@ describe("middleware", () => {
       expect(isPassThrough(res)).toBe(true);
     });
 
-    it("allows /api/health without authentication", async () => {
+    it("redirects /api/health to /login without authentication", async () => {
       const req = buildRequest("/api/health");
       const res = await middleware(req);
-      expect(isPassThrough(res)).toBe(true);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
     });
 
     it("allows /api/auth/session without authentication", async () => {
       const req = buildRequest("/api/auth/session");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("redirects unauthenticated GET /api/something to /login", async () => {
+      const req = buildRequest("/api/something");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("passes /api/something through with a valid session cookie", async () => {
+      const req = buildRequest("/api/something", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /api/auth/callback without authentication (public)", async () => {
+      const req = buildRequest("/api/auth/callback");
       const res = await middleware(req);
       expect(isPassThrough(res)).toBe(true);
     });
