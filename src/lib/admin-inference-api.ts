@@ -37,7 +37,8 @@ interface InferenceAdminProcedures {
   sessionCost: { query(input: { since: number }): Promise<SessionCostSummary> };
 }
 
-const inferenceClient = trpcVanilla.admin.inference as unknown as InferenceAdminProcedures;
+const inferenceClient = (trpcVanilla.admin as unknown as { inference: InferenceAdminProcedures })
+  .inference;
 
 // ---- API calls ----
 

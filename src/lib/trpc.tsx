@@ -3,11 +3,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
+import type { AppRouter } from "@wopr-network/wopr-platform/dist/trpc/index.js";
 import { useState } from "react";
 import { PLATFORM_BASE_URL } from "./api-config";
 import { handleUnauthorized } from "./fetch-utils";
 import { getActiveTenantId, TenantProvider } from "./tenant-context";
-import type { AppRouter } from "./trpc-types";
 
 export const trpc = createTRPCReact<AppRouter>();
 
