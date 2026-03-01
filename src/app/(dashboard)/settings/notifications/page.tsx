@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, Loader2Icon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -95,27 +95,40 @@ export default function NotificationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const toggle = useCallback(
-    async (key: keyof NotificationPreferences) => {
-      if (!prefs) return;
-      const updated = { ...prefs, [key]: !prefs[key] };
-      setPrefs(updated);
-      setSaving(true);
-      setSaved(false);
-      try {
-        const saved = await updateNotificationPreferences({ [key]: updated[key] });
-        setPrefs(saved);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      } catch {
-        // Revert optimistic update
-        setPrefs(prefs);
-      } finally {
-        setSaving(false);
-      }
-    },
-    [prefs],
-  );
+  const inflightRef = useRef(false);
+
+  const toggle = useCallback(async (key: keyof NotificationPreferences) => {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+
+    // Snapshot the value we are about to flip (for revert on error)
+    let previousValue: boolean | undefined;
+
+    setPrefs((prev) => {
+      if (!prev) return prev;
+      previousValue = prev[key];
+      return { ...prev, [key]: !prev[key] };
+    });
+
+    setSaving(true);
+    setSaved(false);
+
+    try {
+      const result = await updateNotificationPreferences({ [key]: !previousValue });
+      setPrefs(result);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // Revert the specific key using functional updater
+      setPrefs((prev) => {
+        if (!prev) return prev;
+        return { ...prev, [key]: previousValue ?? prev[key] };
+      });
+    } finally {
+      setSaving(false);
+      inflightRef.current = false;
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
