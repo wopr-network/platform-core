@@ -15,9 +15,10 @@ import {
 interface PluginCardProps {
   plugin: PluginManifest;
   index?: number;
+  installed?: boolean;
 }
 
-export function PluginCard({ plugin, index = 0 }: PluginCardProps) {
+export function PluginCard({ plugin, index = 0, installed = false }: PluginCardProps) {
   const hostedAvailable = hasHostedOption(plugin.capabilities);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +92,11 @@ export function PluginCard({ plugin, index = 0 }: PluginCardProps) {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1.5">
+                {installed && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Installed
+                  </Badge>
+                )}
                 {plugin.capabilities.map((cap) => {
                   const color = getCapabilityColor(cap);
                   return (
