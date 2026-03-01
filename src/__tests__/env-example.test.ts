@@ -18,4 +18,8 @@ describe(".env.example", () => {
   it("provides a default localhost value", () => {
     expect(envExample).toMatch(/NEXT_PUBLIC_API_URL=http:\/\/localhost:3001/);
   });
+
+  it("warns about production requiring a public HTTPS URL", () => {
+    expect(envExample).toMatch(/production.*https/i);
+  });
 });

@@ -6,6 +6,67 @@ describe("api-config", () => {
     vi.resetModules();
   });
 
+  describe("production URL validation", () => {
+    it("throws when NEXT_PUBLIC_API_URL contains localhost in production runtime", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:3001");
+      vi.resetModules();
+      await expect(import("./api-config")).rejects.toThrow(/internal hostname/i);
+    });
+
+    it("throws when NEXT_PUBLIC_API_URL contains a Docker-internal hostname in production runtime", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "http://platform-api:3001");
+      vi.resetModules();
+      await expect(import("./api-config")).rejects.toThrow(/internal hostname/i);
+    });
+
+    it("throws when NEXT_PUBLIC_API_URL is unset in production runtime", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", undefined as unknown as string);
+      vi.resetModules();
+      await expect(import("./api-config")).rejects.toThrow(/internal hostname/i);
+    });
+
+    it("throws when NEXT_PUBLIC_API_URL uses http (not https) in production runtime", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.wopr.bot");
+      vi.resetModules();
+      await expect(import("./api-config")).rejects.toThrow(/https/i);
+    });
+
+    it("allows https public URL in production runtime", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.wopr.bot");
+      vi.resetModules();
+      const mod = await import("./api-config");
+      expect(mod.PLATFORM_BASE_URL).toBe("https://api.wopr.bot");
+    });
+
+    it("skips validation during build time (no NEXT_RUNTIME)", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_RUNTIME", undefined as unknown as string);
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:3001");
+      vi.resetModules();
+      const mod = await import("./api-config");
+      expect(mod.PLATFORM_BASE_URL).toBe("http://localhost:3001");
+    });
+
+    it("skips validation in development", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("NEXT_RUNTIME", "nodejs");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:3001");
+      vi.resetModules();
+      const mod = await import("./api-config");
+      expect(mod.PLATFORM_BASE_URL).toBe("http://localhost:3001");
+    });
+  });
+
   it("uses default PLATFORM_BASE_URL when env is not set", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", undefined as unknown as string);
     vi.resetModules();
