@@ -17,12 +17,17 @@ export default function ChannelSetupPage({ params }: { params: Promise<{ plugin:
   const botId = searchParams.get("botId");
   const [manifest, setManifest] = useState<ChannelManifest | null>(null);
   const [loadingManifest, setLoadingManifest] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     getManifest(plugin)
       .then((m) => setManifest(m ?? null))
+      .catch((err) => {
+        console.error("Failed to load channel manifest:", err);
+        setLoadError(toUserMessage(err, "Failed to load channel configuration"));
+      })
       .finally(() => setLoadingManifest(false));
   }, [plugin]);
 
@@ -32,6 +37,23 @@ export default function ChannelSetupPage({ params }: { params: Promise<{ plugin:
         <div className="w-full max-w-xl space-y-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="mx-auto w-full max-w-xl text-center space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+            <AlertTriangle className="size-6 text-red-500" />
+          </div>
+          <h1 className="text-lg font-semibold uppercase tracking-wider">LOAD ERROR</h1>
+          <p className="text-sm text-muted-foreground">{loadError}</p>
+          <Button variant="terminal" onClick={() => window.location.reload()}>
+            RETRY
+          </Button>
         </div>
       </div>
     );
