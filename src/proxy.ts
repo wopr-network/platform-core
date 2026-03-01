@@ -185,6 +185,7 @@ export default async function middleware(request: NextRequest) {
       const response = NextResponse.next();
       response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
       response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
       return withCsp(response);
     }
     // No session cookie → fall through to the session check below which redirects to /login
