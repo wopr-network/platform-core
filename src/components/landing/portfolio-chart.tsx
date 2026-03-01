@@ -11,17 +11,13 @@ const BUFFER_SIZE = 800;
 
 // Color stops: [milestone, r, g, b]
 const COLOR_STOPS: [number, number, number, number][] = [
-  [0, 0, 255, 65],    // #00FF41 terminal green
+  [0, 0, 255, 65], // #00FF41 terminal green
   [13, 245, 158, 11], // #F59E0B amber
-  [26, 239, 68, 68],  // #EF4444 red
+  [26, 239, 68, 68], // #EF4444 red
   [39, 255, 255, 255], // #FFFFFF white
 ];
 
-function lerpColor(
-  a: [number, number, number],
-  b: [number, number, number],
-  t: number,
-): string {
+function lerpColor(a: [number, number, number], b: [number, number, number], t: number): string {
   const r = Math.round(a[0] + (b[0] - a[0]) * t);
   const g = Math.round(a[1] + (b[1] - a[1]) * t);
   const bl = Math.round(a[2] + (b[2] - a[2]) * t);
@@ -82,9 +78,9 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
     lastTime: 0,
     animId: 0,
     // Anchor ratchets — one-way, can only move toward vertical/top
-    anchorX: 1.0,       // fraction of w where current point renders (1.0 = right edge)
+    anchorX: 1.0, // fraction of w where current point renders (1.0 = right edge)
     anchorTopFrac: 0.3, // fraction of yRange above current point (0 = current at top edge)
-    smoothedSlope: 0,   // EMA of screen-space slope
+    smoothedSlope: 0, // EMA of screen-space slope
     // t-positions of the last 4 milestones (permanent, for end-fade clip)
     lastMilestoneTs: [] as number[],
     // Set when terminal enters final-typing phase — drives the end fade
@@ -132,7 +128,9 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
     ref.current = () => {
       stateRef.current.fadeStartTime = performance.now();
     };
-    return () => { ref.current = null; };
+    return () => {
+      ref.current = null;
+    };
   }, [onFadeStartRef]);
 
   useEffect(() => {
@@ -205,7 +203,7 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
 
       // Screen-space slope: how far up does the chart move per pixel of rightward travel?
       // bias drives upward speed; normalize against viewport dimensions.
-      const rawSlope = s.bias * (h * xSpan) / (w * yRange);
+      const rawSlope = (s.bias * (h * xSpan)) / (w * yRange);
       s.smoothedSlope = s.smoothedSlope * 0.95 + rawSlope * 0.05;
 
       // slopeFactor: 0 = flat/horizontal, 1 = clearly vertical
@@ -213,13 +211,13 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
       const slopeFactor = Math.min(1, Math.max(0, (s.smoothedSlope - 0.8) / 2.2));
 
       // One-way ratchets — can only move toward the vertical/top anchor, never back
-      const targetAnchorX    = 1.0 - slopeFactor * 0.5; // 1.0 (right edge) → 0.5 (center)
-      const targetTopFrac    = 0.3 * (1 - slopeFactor); // 0.3 (30% above) → 0.0 (top edge)
-      s.anchorX       = Math.min(s.anchorX,       targetAnchorX);
+      const targetAnchorX = 1.0 - slopeFactor * 0.5; // 1.0 (right edge) → 0.5 (center)
+      const targetTopFrac = 0.3 * (1 - slopeFactor); // 0.3 (30% above) → 0.0 (top edge)
+      s.anchorX = Math.min(s.anchorX, targetAnchorX);
       s.anchorTopFrac = Math.min(s.anchorTopFrac, targetTopFrac);
 
       // Viewport derived from anchors
-      const yTop    = s.value + yRange * s.anchorTopFrac;
+      const yTop = s.value + yRange * s.anchorTopFrac;
       const yBottom = s.value - yRange * (1 - s.anchorTopFrac);
 
       const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * (w * s.anchorX);
@@ -270,9 +268,8 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
       // Fades over 6 seconds. Old history already gone via gradient —
       // only the last 4 segments are visible as everything dissolves.
       const FADE_DURATION = 6000; // ms
-      const lineAlpha = s.fadeStartTime < 0
-        ? 1
-        : Math.max(0, 1 - (now - s.fadeStartTime) / FADE_DURATION);
+      const lineAlpha =
+        s.fadeStartTime < 0 ? 1 : Math.max(0, 1 - (now - s.fadeStartTime) / FADE_DURATION);
 
       if (lineAlpha > 0.01) {
         // Layer 1: Bloom
