@@ -66,6 +66,7 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
   const [animationDone, setAnimationDone] = useState(false);
   const [textBlur, setTextBlur] = useState(0);
   const bufferRef = useRef<HTMLDivElement>(null);
+  const fadeStartTimeRef = useRef(-1);
   // Keep onComplete in a ref so changing the prop never restarts the animation
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -132,6 +133,12 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
       s.lastTime = now;
       s.elapsed += dt;
 
+      // Fade history buffer in sync with the chart line
+      if (fadeStartTimeRef.current >= 0 && bufferRef.current) {
+        const alpha = Math.max(0, 1 - (now - fadeStartTimeRef.current) / 6000);
+        bufferRef.current.style.opacity = String(alpha);
+      }
+
       switch (s.state) {
         case "typing": {
           const currentLine = TERMINAL_LINES[s.lineIndex];
@@ -144,6 +151,7 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
             // Clear the "Shall we" prefix — final block has its own lines
             updateCurrentText("");
             s.state = "final-typing";
+            fadeStartTimeRef.current = performance.now();
             onFadeStartRef.current?.();
             s.charIndex = 0;
             s.startCharIndex = 0;
