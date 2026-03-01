@@ -23,9 +23,8 @@ const CURSOR_BLINK_ON = 250; // ms
 const CURSOR_BLINK_OFF = 250; // ms
 
 function getTypeDelay(lineIndex: number): number {
-  // Exponent stretched so acceleration spans the full 70-line sequence
-  // Line 0: 125ms/char → Line 30: ~9ms → Line 60: ~1ms (floor)
-  const factor = 1.09 ** lineIndex;
+  // Line 0: 125ms/char → floor at line ~42 (was ~56 with 1.09)
+  const factor = 1.12 ** lineIndex;
   return Math.max(1, Math.round(125 / factor));
 }
 
@@ -33,16 +32,19 @@ function getBackspaceDelay(lineIndex: number): number {
   return Math.max(1, Math.round(getTypeDelay(lineIndex) / 2));
 }
 
+// At the floor (1ms/char) the per-char loop is pointless — just flash the line
+export function isAtFloor(lineIndex: number): boolean {
+  return getTypeDelay(lineIndex) === 1;
+}
+
 function getPauseAfter(lineIndex: number): number {
-  // Line 0 gets the long beat — "Shall we play a game?" lands, then reconsiders
   if (lineIndex === 0) return 800;
-  // Starts ~500ms, decays rapidly — near zero by line 20
   return Math.max(0, Math.round(600 * 0.82 ** lineIndex));
 }
 
 // Blur increases as speed increases — makes fast lines feel illegible, not chunky
 function getTextBlur(lineIndex: number): number {
-  return Math.min(6, Math.max(0, (lineIndex - 20) * 0.18));
+  return Math.min(8, Math.max(0, (lineIndex - 18) * 0.22));
 }
 
 type AnimState =
@@ -143,12 +145,17 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           }
 
           const typeDelay = getTypeDelay(s.lineIndex);
-          // Chars typed since this line started (offset from startCharIndex)
-          const charsTyped = Math.max(0, Math.floor(s.elapsed / typeDelay));
-          const newIndex = Math.min(s.startCharIndex + charsTyped, currentLine.text.length);
-          if (newIndex !== s.charIndex) {
-            s.charIndex = newIndex;
-            updateCurrentText(currentLine.text.slice(0, newIndex));
+          // At the floor: flash the full line in one tick — no per-char stepping
+          if (isAtFloor(s.lineIndex)) {
+            s.charIndex = currentLine.text.length;
+            updateCurrentText(currentLine.text);
+          } else {
+            const charsTyped = Math.max(0, Math.floor(s.elapsed / typeDelay));
+            const newIndex = Math.min(s.startCharIndex + charsTyped, currentLine.text.length);
+            if (newIndex !== s.charIndex) {
+              s.charIndex = newIndex;
+              updateCurrentText(currentLine.text.slice(0, newIndex));
+            }
           }
           if (s.charIndex >= currentLine.text.length) {
             s.state = "pause";
@@ -171,15 +178,19 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
         }
 
         case "backspacing": {
-          const bsDelay = getBackspaceDelay(s.lineIndex);
           const currentLine = TERMINAL_LINES[s.lineIndex];
-          // Backspace from full line length toward PREFIX_LENGTH
-          // "Shall we" persists — never erased
-          const charsToDelete = Math.max(1, Math.floor(s.elapsed / bsDelay));
-          const newLen = Math.max(PREFIX_LENGTH, currentLine.text.length - charsToDelete);
-          if (newLen !== currentTextRef.current.length) {
-            updateCurrentText(currentLine.text.slice(0, newLen));
+          // At the floor: snap straight to PREFIX_LENGTH — backspace is invisible anyway
+          if (isAtFloor(s.lineIndex)) {
+            updateCurrentText(currentLine.text.slice(0, PREFIX_LENGTH));
+          } else {
+            const bsDelay = getBackspaceDelay(s.lineIndex);
+            const charsToDelete = Math.max(1, Math.floor(s.elapsed / bsDelay));
+            const newLen = Math.max(PREFIX_LENGTH, currentLine.text.length - charsToDelete);
+            if (newLen !== currentTextRef.current.length) {
+              updateCurrentText(currentLine.text.slice(0, newLen));
+            }
           }
+          const newLen = currentTextRef.current.length;
           if (newLen === PREFIX_LENGTH) {
             // Line already in history — just advance to next
             s.lineIndex++;
