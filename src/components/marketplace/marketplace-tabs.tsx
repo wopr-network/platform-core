@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MARKETPLACE_TABS, type MarketplaceTab } from "@/lib/marketplace-data";
 import { cn } from "@/lib/utils";
 
@@ -19,13 +20,14 @@ export function MarketplaceTabs({ selected, onSelect, counts }: MarketplaceTabsP
         const count = counts[tab.id] ?? 0;
 
         return (
-          <button
+          <Button
             key={tab.id}
             data-onboarding-id={`marketplace.tab.${tab.id}`}
             type="button"
+            variant="ghost"
             aria-pressed={isSelected}
             onClick={() => onSelect(tab.id)}
-            className="relative"
+            className="relative p-0 h-auto hover:bg-transparent"
           >
             {isSelected && (
               <motion.div
@@ -44,7 +46,7 @@ export function MarketplaceTabs({ selected, onSelect, counts }: MarketplaceTabsP
               {tab.label}
               {count > 0 && <span className="ml-1 opacity-60">{count}</span>}
             </Badge>
-          </button>
+          </Button>
         );
       })}
     </div>

@@ -1,7 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { ConfigField } from "@/lib/mock-manifests";
+import { cn } from "@/lib/utils";
 
 interface FieldInteractiveProps {
   field: ConfigField;
@@ -18,21 +20,23 @@ export function FieldInteractive({ field, value, onChange, error }: FieldInterac
         {field.description && <p className="text-sm text-muted-foreground">{field.description}</p>}
         <div className="space-y-2">
           {field.options.map((option) => (
-            <button
+            <Button
               key={option.value}
               type="button"
+              variant="ghost"
               onClick={() => onChange(field.key, option.value)}
-              className={`flex w-full items-center rounded-sm border px-4 py-3 text-left text-sm transition-colors ${
+              className={cn(
+                "flex w-full items-center rounded-sm border px-4 py-3 text-left text-sm h-auto transition-colors hover:bg-transparent",
                 value === option.value
                   ? "border-primary bg-primary/10 text-foreground"
-                  : "border-border hover:border-primary/50 hover:bg-accent"
-              }`}
+                  : "border-border hover:border-primary/50 hover:bg-accent",
+              )}
             >
               <span className="flex-1">{option.label}</span>
               {value === option.value && (
                 <span className="text-primary text-xs font-medium">Selected</span>
               )}
-            </button>
+            </Button>
           ))}
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}

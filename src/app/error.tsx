@@ -36,13 +36,15 @@ export default function GlobalError({
             An unexpected error occurred. You can try again or return to the dashboard.
           </p>
           {isDev && (
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={() => setShowDetails((v) => !v)}
-              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              className="h-auto p-0 text-muted-foreground"
             >
               {showDetails ? "Hide" : "Show"} error details
-            </button>
+            </Button>
           )}
           {isDev && showDetails && (
             <pre className="max-h-48 overflow-auto rounded-md border bg-muted p-3 text-xs">

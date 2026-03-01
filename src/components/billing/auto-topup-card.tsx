@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { CreditCardIcon, InfoIcon, Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -246,13 +247,9 @@ export function AutoTopupCard() {
         <CardContent>
           <div className="flex h-20 flex-col items-center justify-center gap-2 text-muted-foreground">
             <p>{error}</p>
-            <button
-              type="button"
-              onClick={load}
-              className="text-sm underline hover:text-foreground"
-            >
+            <Button type="button" variant="link" size="sm" onClick={load} className="h-auto p-0">
               Retry
-            </button>
+            </Button>
           </div>
         </CardContent>
       </Card>

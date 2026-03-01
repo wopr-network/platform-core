@@ -1,6 +1,7 @@
 "use client";
 
 import { type KeyboardEvent, useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -39,15 +40,17 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         className="flex-1 resize-none bg-transparent font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
         aria-label="Chat message input"
       />
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={handleSend}
         disabled={!value.trim() || disabled}
-        className="px-3 py-1 text-xs font-mono text-terminal hover:text-terminal/80 disabled:opacity-30"
+        className="px-3 py-1 text-xs font-mono text-terminal hover:text-terminal/80 hover:bg-transparent"
         aria-label="Send message"
       >
         SEND
-      </button>
+      </Button>
     </div>
   );
 }

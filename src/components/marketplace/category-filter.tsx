@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ALL_CATEGORIES, type PluginCategory } from "@/lib/marketplace-data";
 import { cn } from "@/lib/utils";
 
@@ -28,14 +29,15 @@ export function CategoryFilter({ selected, onSelect, counts }: CategoryFilterPro
       {items.map((item) => {
         const isSelected = selected === item.id;
         return (
-          <button
+          <Button
             key={item.id ?? "all"}
             data-onboarding-id={`marketplace.category.${item.id ?? "all"}`}
             type="button"
+            variant="ghost"
             role="tab"
             aria-selected={isSelected}
             onClick={() => onSelect(item.id)}
-            className="relative"
+            className="relative p-0 h-auto hover:bg-transparent"
           >
             {isSelected && (
               <motion.div
@@ -51,7 +53,7 @@ export function CategoryFilter({ selected, onSelect, counts }: CategoryFilterPro
               {item.label}
               {item.count !== undefined && <span className="ml-1 opacity-60">{item.count}</span>}
             </Badge>
-          </button>
+          </Button>
         );
       })}
     </div>

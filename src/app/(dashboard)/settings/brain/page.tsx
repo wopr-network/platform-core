@@ -203,10 +203,11 @@ export default function BrainSettingsPage() {
           {/* Hero models */}
           <div className="grid gap-4 sm:grid-cols-3">
             {heroModels.map((model) => (
-              <button
+              <Button
                 key={model.id}
                 type="button"
-                className="w-full text-left"
+                variant="ghost"
+                className="w-full text-left h-auto p-0 hover:bg-transparent"
                 onClick={() => handleSelectModel(model)}
                 disabled={saving}
               >
@@ -245,7 +246,7 @@ export default function BrainSettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -263,10 +264,11 @@ export default function BrainSettingsPage() {
             <CollapsibleContent>
               <div className="grid gap-3 pt-3 sm:grid-cols-2">
                 {additionalModels.map((model) => (
-                  <button
+                  <Button
                     key={model.id}
                     type="button"
-                    className="w-full text-left"
+                    variant="ghost"
+                    className="w-full text-left h-auto p-0 hover:bg-transparent"
                     onClick={() => handleSelectModel(model)}
                     disabled={saving}
                   >
@@ -304,7 +306,7 @@ export default function BrainSettingsPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </CollapsibleContent>

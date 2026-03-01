@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Button } from "@/components/ui/button";
 import type {
   CacheStats,
   DailyCostAggregate,
@@ -24,6 +25,7 @@ import {
   getPageCost,
   getSessionCost,
 } from "@/lib/admin-inference-api";
+import { cn } from "@/lib/utils";
 
 // ---- Time ranges ----
 
@@ -175,18 +177,21 @@ export function InferenceDashboard() {
         </h1>
         <div className="flex gap-1">
           {(["7d", "30d", "90d", "all"] as TimeRange[]).map((r) => (
-            <button
+            <Button
               key={r}
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={() => setRange(r)}
-              className={`px-3 py-1 text-xs font-mono rounded-sm transition-colors duration-150 ${
+              className={cn(
+                "font-mono transition-colors duration-150 hover:bg-transparent",
                 range === r
                   ? "bg-terminal/10 text-terminal border border-terminal/20"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-              }`}
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80",
+              )}
             >
               {r}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

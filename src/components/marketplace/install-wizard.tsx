@@ -345,13 +345,14 @@ function BotSelector({
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">Select which bot to install this plugin on:</p>
       {bots.map((bot) => (
-        <button
+        <Button
           key={bot.id}
           data-onboarding-id={`marketplace.wizard.select-bot.${bot.id}`}
           type="button"
+          variant="ghost"
           onClick={() => onSelect(bot.id)}
           className={cn(
-            "w-full rounded-lg border p-3 text-left transition-colors",
+            "w-full rounded-lg border p-3 text-left h-auto transition-colors hover:bg-transparent",
             selectedBotId === bot.id
               ? "border-primary bg-primary/5"
               : "border-border hover:border-primary/50",
@@ -363,7 +364,7 @@ function BotSelector({
               {bot.state}
             </Badge>
           </div>
-        </button>
+        </Button>
       ))}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

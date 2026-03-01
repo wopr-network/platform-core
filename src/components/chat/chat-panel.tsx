@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Maximize2, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import type { ChatMessage as ChatMessageType, ChatMode } from "@/lib/chat/types";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
@@ -85,23 +86,27 @@ export function ChatPanel({
         </div>
         <div className="flex items-center gap-1">
           {!isFullscreen && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={onFullscreen}
-              className="p-1 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
               aria-label="Full screen"
             >
               <Maximize2 className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={onClose}
-            className="p-1 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Close chat"
           >
             <X className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
 

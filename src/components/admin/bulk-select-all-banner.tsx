@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 interface BulkSelectAllBannerProps {
   visible: boolean;
@@ -26,13 +27,14 @@ function BulkSelectAllBanner({
           className="w-full py-2 px-4 text-sm text-center bg-terminal/[0.06] border border-terminal/15 rounded-sm"
         >
           All {pageCount} users on this page are selected.{" "}
-          <button
+          <Button
             type="button"
-            className="text-terminal font-medium hover:underline cursor-pointer"
+            variant="link"
+            className="h-auto p-0 text-terminal font-medium"
             onClick={onSelectAllMatching}
           >
             Select all {totalMatching} matching filters
-          </button>
+          </Button>
         </motion.div>
       )}
     </AnimatePresence>

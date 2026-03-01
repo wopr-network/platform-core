@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConfigField } from "@/lib/mock-manifests";
@@ -29,13 +30,15 @@ export function FieldPaste({ field, value, onChange, error }: FieldPasteProps) {
           className={error ? "border-destructive" : ""}
         />
         {field.secret && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => setRevealed(!revealed)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground hover:bg-transparent h-auto px-1"
           >
             {revealed ? "Hide" : "Show"}
-          </button>
+          </Button>
         )}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
