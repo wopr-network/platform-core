@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getOAuthErrorMessage } from "@/lib/oauth-errors";
 import { sanitizeRedirectUrl } from "@/lib/utils";
 
 function OAuthCallbackContent() {
@@ -21,17 +22,11 @@ function OAuthCallbackContent() {
   const searchParams = useSearchParams();
   const provider = params.provider as string;
   const errorParam = searchParams.get("error");
-  const [error, setError] = useState<string | null>(errorParam);
+  const [error, setError] = useState<string | null>(getOAuthErrorMessage(errorParam));
 
   useEffect(() => {
     if (errorParam) {
-      if (errorParam === "access_denied") {
-        setError("Access was denied. Please try again.");
-      } else if (errorParam === "account_already_linked") {
-        setError("An account with this email already exists. Sign in to link your account.");
-      } else {
-        setError(`Authentication failed: ${errorParam}`);
-      }
+      setError(getOAuthErrorMessage(errorParam));
       return;
     }
 
