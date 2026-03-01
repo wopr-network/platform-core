@@ -183,7 +183,8 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
       const xRight = s.t;
       const xLeft = s.t - xSpan;
 
-      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * w;
+      // Leave 25% right margin so the live point isn't pinned to the edge
+      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * w * 0.75;
       const toScreenY = (v: number) => ((yTop - v) / (yTop - yBottom)) * h;
 
       // Collect visible screen points
