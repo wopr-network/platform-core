@@ -34,4 +34,17 @@ describe("DividendStats", () => {
     expect(screen.getByTestId("active-users")).toBeInTheDocument();
     expect(screen.getByTestId("projected-dividend")).toBeInTheDocument();
   });
+
+  it("renders error message when API rejects", async () => {
+    const { fetchDividendStats } = await import("@/lib/api");
+    (fetchDividendStats as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Network failure"),
+    );
+
+    const { DividendStats } = await import("@/components/pricing/dividend-stats");
+    render(<DividendStats />);
+
+    const errorEl = await screen.findByText(/failed to load dividend stats/i);
+    expect(errorEl).toBeInTheDocument();
+  });
 });
