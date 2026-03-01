@@ -1,42 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatMessage as ChatMessageType, ChatMode } from "@/lib/chat/types";
+import type { ChatContextValue } from "@/lib/chat/chat-context";
 
 // ChatPanel uses scrollIntoView for auto-scroll; jsdom doesn't implement it
 beforeAll(() => {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
-const mockContext: {
-  messages: ChatMessageType[];
-  mode: ChatMode;
-  isConnected: boolean;
-  isTyping: boolean;
-  hasUnread: boolean;
-  sessionId: string;
-  expand: ReturnType<typeof vi.fn>;
-  collapse: ReturnType<typeof vi.fn>;
-  fullscreen: ReturnType<typeof vi.fn>;
-  sendMessage: ReturnType<typeof vi.fn>;
-  addEventMarker: ReturnType<typeof vi.fn>;
-  showTyping: ReturnType<typeof vi.fn>;
-  notify: ReturnType<typeof vi.fn>;
-} = {
-  messages: [],
-  mode: "collapsed",
-  isConnected: true,
-  isTyping: false,
-  hasUnread: false,
-  sessionId: "test-session",
-  expand: vi.fn(),
-  collapse: vi.fn(),
-  fullscreen: vi.fn(),
-  sendMessage: vi.fn(),
-  addEventMarker: vi.fn(),
-  showTyping: vi.fn(),
-  notify: vi.fn(),
-};
+let mockContext: ChatContextValue;
 
 vi.mock("@/lib/chat/chat-context", () => ({
   useChatContext: () => mockContext,
@@ -47,19 +19,21 @@ import { ChatWidget } from "@/components/chat/chat-widget";
 
 describe("ChatWidget", () => {
   beforeEach(() => {
-    mockContext.messages = [];
-    mockContext.mode = "collapsed";
-    mockContext.isConnected = true;
-    mockContext.isTyping = false;
-    mockContext.hasUnread = false;
-    mockContext.sessionId = "test-session";
-    mockContext.expand.mockReset();
-    mockContext.collapse.mockReset();
-    mockContext.fullscreen.mockReset();
-    mockContext.sendMessage.mockReset();
-    mockContext.addEventMarker.mockReset();
-    mockContext.showTyping.mockReset();
-    mockContext.notify.mockReset();
+    mockContext = {
+      messages: [],
+      mode: "collapsed",
+      isConnected: true,
+      isTyping: false,
+      hasUnread: false,
+      sessionId: "test-session",
+      expand: vi.fn(),
+      collapse: vi.fn(),
+      fullscreen: vi.fn(),
+      sendMessage: vi.fn(),
+      addEventMarker: vi.fn(),
+      showTyping: vi.fn(),
+      notify: vi.fn(),
+    };
   });
 
   it("shows ambient dot in collapsed mode", () => {
@@ -84,7 +58,6 @@ describe("ChatWidget", () => {
   it("calls expand when ambient dot is clicked", async () => {
     const user = userEvent.setup();
     mockContext.mode = "collapsed";
-    mockContext.expand.mockClear();
     render(<ChatWidget />);
 
     await user.click(screen.getByTestId("chat-ambient-dot"));
@@ -94,7 +67,6 @@ describe("ChatWidget", () => {
   it("calls collapse when close button is clicked in expanded mode", async () => {
     const user = userEvent.setup();
     mockContext.mode = "expanded";
-    mockContext.collapse.mockClear();
     render(<ChatWidget />);
 
     await user.click(screen.getByLabelText("Close chat"));

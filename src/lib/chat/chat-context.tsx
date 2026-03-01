@@ -4,7 +4,7 @@ import { createContext, type ReactNode, useContext, useEffect } from "react";
 import type { ChatActions, ChatMessage, ChatMode } from "./types";
 import { useChat } from "./use-chat";
 
-interface ChatContextValue extends ChatActions {
+export interface ChatContextValue extends ChatActions {
   messages: ChatMessage[];
   mode: ChatMode;
   isConnected: boolean;
