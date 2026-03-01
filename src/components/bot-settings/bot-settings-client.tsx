@@ -262,7 +262,7 @@ function IdentityTab({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving || !name.trim()}>
           {saving ? "Saving..." : "Save changes"}
         </Button>
         {saved && <span className="text-sm text-emerald-500">Saved!</span>}
