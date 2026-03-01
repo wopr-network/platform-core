@@ -75,7 +75,9 @@ export function Wizard({ manifest, onComplete, onCancel, submitting, botId }: Wi
     const stepErrors: Record<string, string> = {};
     for (const issue of result.error.issues) {
       const key = issue.path[0] as string;
-      stepErrors[key] = issue.message;
+      if (!(key in stepErrors)) {
+        stepErrors[key] = issue.message;
+      }
     }
     setErrors(stepErrors);
     return false;
