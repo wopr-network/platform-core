@@ -29,9 +29,19 @@ function createWrapper() {
   );
 }
 
+function clearTenantCookie() {
+  // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
+  document.cookie = "wopr_tenant_id=; path=/; max-age=0";
+}
+
+function setTenantCookie(tenantId: string) {
+  // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
+  document.cookie = `wopr_tenant_id=${encodeURIComponent(tenantId)}; path=/`;
+}
+
 describe("useTenant", () => {
   beforeEach(() => {
-    localStorage.clear();
+    clearTenantCookie();
     mockQuery.mockResolvedValue([]);
   });
 
@@ -70,7 +80,7 @@ describe("useTenant", () => {
     });
   });
 
-  it("persists tenant switch to localStorage", async () => {
+  it("persists tenant switch to cookie", async () => {
     mockQuery.mockResolvedValue([{ id: "org-1", name: "My Team", image: null }]);
 
     const { result } = renderHook(() => useTenant(), {
@@ -86,11 +96,11 @@ describe("useTenant", () => {
     });
 
     expect(result.current.activeTenantId).toBe("org-1");
-    expect(localStorage.getItem("wopr:activeTenantId")).toBe("org-1");
+    expect(document.cookie).toContain("wopr_tenant_id=org-1");
   });
 
   it("falls back to personal if stored tenant is not in list", async () => {
-    localStorage.setItem("wopr:activeTenantId", "org-deleted");
+    setTenantCookie("org-deleted");
     mockQuery.mockResolvedValue([]);
 
     const { result } = renderHook(() => useTenant(), {
@@ -122,11 +132,11 @@ describe("useTenant", () => {
 
 describe("getActiveTenantId", () => {
   beforeEach(() => {
-    localStorage.clear();
+    clearTenantCookie();
   });
 
-  it("returns stored tenant ID from localStorage", () => {
-    localStorage.setItem("wopr:activeTenantId", "org-1");
+  it("returns stored tenant ID from cookie", () => {
+    setTenantCookie("org-1");
     expect(getActiveTenantId()).toBe("org-1");
   });
 
