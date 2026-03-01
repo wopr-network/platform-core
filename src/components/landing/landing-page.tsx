@@ -1,8 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { LandingNav } from "./landing-nav";
 import { PortfolioChart } from "./portfolio-chart";
@@ -21,8 +20,7 @@ function CtaBlock({ className }: { className?: string }) {
 }
 
 export function LandingPage() {
-  const [animationDone, setAnimationDone] = useState(false);
-  const milestoneRef = useRef<(() => void) | null>(null);
+  const milestoneRef = useRef<((label: string) => void) | null>(null);
   const fadeStartRef = useRef<(() => void) | null>(null);
 
   return (
@@ -32,21 +30,13 @@ export function LandingPage() {
       <div className="relative bg-black">
         <PortfolioChart onMilestoneRef={milestoneRef} onFadeStartRef={fadeStartRef} />
         <TerminalSequence
-          onComplete={() => setAnimationDone(true)}
-          onMilestone={() => milestoneRef.current?.()}
+          onMilestone={(label) => milestoneRef.current?.(label)}
           onFadeStart={() => fadeStartRef.current?.()}
         />
+        <div className="absolute bottom-12 left-1/2 z-30 -translate-x-1/2">
+          <CtaBlock />
+        </div>
       </div>
-
-      {/* Top CTA — fades in after animation */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={animationDone ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
-        className="bg-black"
-      >
-        <CtaBlock className="py-16" />
-      </motion.div>
 
       {/* Story Sections */}
       <div className="bg-black">
@@ -55,7 +45,7 @@ export function LandingPage() {
 
       {/* Bottom CTA — always visible (scrolled to) */}
       <div className="bg-black">
-        <CtaBlock className="py-24" />
+        <CtaBlock className="py-12" />
       </div>
 
       {/* Footer */}

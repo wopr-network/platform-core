@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 interface PortfolioChartProps {
-  onMilestoneRef: React.RefObject<(() => void) | null>;
+  onMilestoneRef: React.RefObject<((label: string) => void) | null>;
   onFadeStartRef: React.RefObject<(() => void) | null>;
 }
 
@@ -47,16 +47,23 @@ function getLineColor(milestoneCount: number, now: number): string {
   return `rgb(${COLOR_STOPS[0][1]},${COLOR_STOPS[0][2]},${COLOR_STOPS[0][3]})`;
 }
 
-// Box-Muller single output
-function gaussianNoise(): number {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+// 1D value noise — smooth interpolation between a seeded lattice
+// Produces correlated, organic motion instead of frame-to-frame random spikes
+const NOISE_SIZE = 256;
+const noiseTable = new Float32Array(NOISE_SIZE + 1);
+for (let i = 0; i <= NOISE_SIZE; i++) noiseTable[i] = Math.random() * 2 - 1;
+
+function smoothNoise(x: number): number {
+  const xi = Math.floor(x);
+  const f = x - xi;
+  const u = f * f * (3 - 2 * f); // smoothstep
+  const i0 = ((xi % NOISE_SIZE) + NOISE_SIZE) % NOISE_SIZE;
+  const i1 = (i0 + 1) % NOISE_SIZE;
+  return noiseTable[i0] * (1 - u) + noiseTable[i1] * u;
 }
 
 interface MilestoneNode {
+  label: string;
   t: number;
   value: number;
   born: number;
@@ -81,11 +88,12 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
     anchorX: 1.0, // fraction of w where current point renders (1.0 = right edge)
     anchorTopFrac: 0.3, // fraction of yRange above current point (0 = current at top edge)
     smoothedSlope: 0, // EMA of screen-space slope
+    smoothedValue: 0, // EMA of s.value — viewport anchor, eliminates noise jitter
     // Set when terminal enters final-typing phase — drives the end fade
     fadeStartTime: -1,
   });
 
-  const handleMilestone = useCallback(() => {
+  const handleMilestone = useCallback((label: string) => {
     const s = stateRef.current;
     const now = performance.now();
     const color = getLineColor(s.milestoneCount, now);
@@ -93,7 +101,7 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
     s.milestoneCount++;
     s.bias *= 1.18;
 
-    const lifetime = Math.max(400, 3000 - s.milestoneCount * 45);
+    const lifetime = Math.max(2000, 4000 - s.milestoneCount * 25);
 
     s.milestones.push({
       t: s.t,
@@ -101,17 +109,19 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
       born: now,
       lifetime,
       color, // freeze birth color
+      label,
     });
   }, []);
 
   // Wire milestone ref
   useEffect(() => {
     if (onMilestoneRef && "current" in onMilestoneRef) {
-      (onMilestoneRef as React.MutableRefObject<(() => void) | null>).current = handleMilestone;
+      (onMilestoneRef as React.MutableRefObject<((label: string) => void) | null>).current =
+        handleMilestone;
     }
     return () => {
       if (onMilestoneRef && "current" in onMilestoneRef) {
-        (onMilestoneRef as React.MutableRefObject<(() => void) | null>).current = null;
+        (onMilestoneRef as React.MutableRefObject<((label: string) => void) | null>).current = null;
       }
     };
   }, [handleMilestone, onMilestoneRef]);
@@ -172,7 +182,7 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
       const noiseFactor = 1.2 * Math.max(0.1, 0.92 ** s.milestoneCount);
       for (let i = 0; i < steps; i++) {
         s.t += 1;
-        s.value += s.bias + gaussianNoise() * noiseFactor;
+        s.value += s.bias + smoothNoise(s.t * 0.07) * noiseFactor;
         addPoint(s.t, s.value);
       }
 
@@ -189,30 +199,37 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
         return;
       }
 
-      // Viewport — tight at start, zooms out linearly with milestones
+      // Smooth the viewport anchor — EMA tracks trend, not raw noise
+      // Faster at start (less history), slower as chart matures
+      const emaAlpha = Math.max(0.02, 0.15 - s.milestoneCount * 0.002);
+      s.smoothedValue =
+        s.count < 2 ? s.value : s.smoothedValue * (1 - emaAlpha) + s.value * emaAlpha;
+
+      // Viewport — zooms in gently early, then zooms WAY out as milestones accumulate
       const yRange = 30 + s.milestoneCount * 8;
-      const xSpan = Math.max(150, 500 - s.milestoneCount * 5);
+      const xSpan =
+        s.milestoneCount < 30
+          ? Math.max(300, 500 - s.milestoneCount * 4)
+          : 380 + (s.milestoneCount - 30) * 150;
       const xRight = s.t;
       const xLeft = s.t - xSpan;
 
       // Screen-space slope: how far up does the chart move per pixel of rightward travel?
-      // bias drives upward speed; normalize against viewport dimensions.
       const rawSlope = (s.bias * (h * xSpan)) / (w * yRange);
       s.smoothedSlope = s.smoothedSlope * 0.95 + rawSlope * 0.05;
 
       // slopeFactor: 0 = flat/horizontal, 1 = clearly vertical
-      // Threshold raised to 0.8 so anchor doesn't shift until chart is clearly climbing
       const slopeFactor = Math.min(1, Math.max(0, (s.smoothedSlope - 0.8) / 2.2));
 
       // One-way ratchets — can only move toward the vertical/top anchor, never back
-      const targetAnchorX = 1.0 - slopeFactor * 0.5; // 1.0 (right edge) → 0.5 (center)
-      const targetTopFrac = 0.3 * (1 - slopeFactor); // 0.3 (30% above) → 0.0 (top edge)
+      const targetAnchorX = 1.0 - slopeFactor * 0.5;
+      const targetTopFrac = 0.3 * (1 - slopeFactor);
       s.anchorX = Math.min(s.anchorX, targetAnchorX);
       s.anchorTopFrac = Math.min(s.anchorTopFrac, targetTopFrac);
 
-      // Viewport derived from anchors
-      const yTop = s.value + yRange * s.anchorTopFrac;
-      const yBottom = s.value - yRange * (1 - s.anchorTopFrac);
+      // Viewport derived from smoothed anchor — steady camera, line moves within it
+      const yTop = s.smoothedValue + yRange * s.anchorTopFrac;
+      const yBottom = s.smoothedValue - yRange * (1 - s.anchorTopFrac);
 
       const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * (w * s.anchorX);
       const toScreenY = (v: number) => ((yTop - v) / (yTop - yBottom)) * h;
@@ -236,7 +253,7 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
       const color = getLineColor(s.milestoneCount, now);
 
       // End-of-sequence fade: triggered when terminal enters final-typing.
-      const FADE_DURATION = 6000; // ms
+      const FADE_DURATION = 2000; // ms
       const lineAlpha =
         s.fadeStartTime < 0 ? 1 : Math.max(0, 1 - (now - s.fadeStartTime) / FADE_DURATION);
 
@@ -303,6 +320,18 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
         ctx.arc(mx, my, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+
+        // Label — rendered centered below the dot, fades with the milestone
+        if (m.label) {
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.fillStyle = m.color;
+          ctx.font = "bold 18px 'JetBrains Mono', monospace";
+          ctx.textBaseline = "top";
+          ctx.textAlign = "center";
+          ctx.fillText(m.label, mx, my + 16);
+          ctx.restore();
+        }
       }
 
       s.animId = requestAnimationFrame(tick);

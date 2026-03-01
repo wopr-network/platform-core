@@ -19,7 +19,7 @@ const stories = [
 
 export function StorySections() {
   return (
-    <section className="mx-auto max-w-2xl space-y-24 px-4 py-24 md:py-32">
+    <section className="mx-auto max-w-2xl space-y-16 px-4 py-12 md:py-16">
       {stories.map((story, i) => (
         <motion.div
           key={story.heading}

@@ -5,13 +5,22 @@ import { TERMINAL_LINES } from "./terminal-lines";
 
 interface TerminalSequenceProps {
   onComplete?: () => void;
-  onMilestone?: () => void;
+  onMilestone?: (label: string) => void;
   onFadeStart?: () => void;
 }
 
 // "Shall we" persists on screen — only the suffix animates
 const PREFIX = "Shall we";
 const PREFIX_LENGTH = PREFIX.length; // 8
+
+function toMilestoneLabel(text: string): string {
+  const stripped = text
+    .replace(/^Shall we\s*/i, "")
+    .replace(/\?$/, "")
+    .trim();
+  if (!stripped) return "";
+  return `${stripped.charAt(0).toUpperCase() + stripped.slice(1)}.`;
+}
 
 // Final held lines type at near-human speed after the blur
 const FINAL_TYPE_SPEED = 65; // ms/char
@@ -60,6 +69,7 @@ type AnimState =
 
 export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: TerminalSequenceProps) {
   const [lines, setLines] = useState<string[]>([]);
+  const [holdLines, setHoldLines] = useState<string[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [showCursor, setShowCursor] = useState(true);
   const [cursorVisible, setCursorVisible] = useState(true);
@@ -94,12 +104,18 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
     blinkPhase: "on",
   });
   const linesRef = useRef<string[]>([]);
+  const holdLinesRef = useRef<string[]>([]);
   const currentTextRef = useRef("");
   const rafRef = useRef<number>(0);
 
   const updateLines = useCallback((newLines: string[]) => {
     linesRef.current = newLines;
     setLines(newLines);
+  }, []);
+
+  const updateHoldLines = useCallback((newLines: string[]) => {
+    holdLinesRef.current = newLines;
+    setHoldLines(newLines);
   }, []);
 
   const updateCurrentText = useCallback((text: string) => {
@@ -111,8 +127,8 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
     // Check prefers-reduced-motion
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (mq.matches) {
-      const holdLines = TERMINAL_LINES.filter((l) => l.hold);
-      setLines(holdLines.map((l) => l.text));
+      const reducedHoldLines = TERMINAL_LINES.filter((l) => l.hold);
+      setHoldLines(reducedHoldLines.map((l) => l.text));
       setCurrentText("");
       setShowCursor(false);
       setAnimationDone(true);
@@ -134,8 +150,8 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
       s.elapsed += dt;
 
       // Fade history buffer in sync with the chart line
-      if (fadeStartTimeRef.current >= 0 && bufferRef.current) {
-        const alpha = Math.max(0, 1 - (now - fadeStartTimeRef.current) / 6000);
+      if (fadeStartTimeRef.current >= 0 && bufferRef.current && s.state !== "done") {
+        const alpha = Math.max(0, 1 - (now - fadeStartTimeRef.current) / 2000);
         bufferRef.current.style.opacity = String(alpha);
       }
 
@@ -186,7 +202,7 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
             const currentLine = TERMINAL_LINES[s.lineIndex];
             const newLines = [...linesRef.current, currentLine.text];
             updateLines(newLines);
-            onMilestoneRef.current?.();
+            onMilestoneRef.current?.(toMilestoneLabel(currentLine.text));
             s.state = "backspacing";
             s.elapsed = 0;
           }
@@ -232,9 +248,9 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
           // Blank hold line = just a pause
           if (currentLine.text === "") {
             if (s.elapsed >= FINAL_BLANK_PAUSE) {
-              const newLines = [...linesRef.current, ""];
-              updateLines(newLines);
-              onMilestoneRef.current?.();
+              const newLines = [...holdLinesRef.current, ""];
+              updateHoldLines(newLines);
+              onMilestoneRef.current?.("");
               s.lineIndex++;
               s.charIndex = 0;
               s.startCharIndex = 0;
@@ -250,10 +266,10 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
             updateCurrentText(currentLine.text.slice(0, newIndex));
           }
           if (s.charIndex >= currentLine.text.length) {
-            // Commit this line and move to next
-            const newLines = [...linesRef.current, currentLine.text];
-            updateLines(newLines);
-            onMilestoneRef.current?.();
+            // Commit this line to hold buffer (not fading history)
+            const newLines = [...holdLinesRef.current, currentLine.text];
+            updateHoldLines(newLines);
+            onMilestoneRef.current?.(toMilestoneLabel(currentLine.text));
             updateCurrentText("");
             s.lineIndex++;
             s.charIndex = 0;
@@ -301,7 +317,7 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [updateCurrentText, updateLines]);
+  }, [updateCurrentText, updateLines, updateHoldLines]);
 
   return (
     <div
@@ -363,6 +379,26 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
           ))}
         </div>
       </div>
+
+      {/* Hold lines — same anchor as history buffer, grows upward, never fades */}
+      {holdLines.length > 0 && (
+        <div
+          className="absolute z-20 mx-auto w-full max-w-2xl overflow-hidden px-4 font-mono text-xs leading-relaxed text-terminal sm:text-sm"
+          style={{
+            top: "5vh",
+            bottom: "calc(50vh + 14px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div className="absolute bottom-0 flex w-full flex-col">
+            {holdLines.map((line, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: hold lines are append-only, index is stable
+              <div key={i}>{line || "\u00A0"}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Current line — viewport-anchored at exactly 50vh, never moves */}
       {!animationDone && (
