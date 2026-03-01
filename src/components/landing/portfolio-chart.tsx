@@ -252,10 +252,9 @@ export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChar
         const g = ctx.createLinearGradient(0, 0, anchorScreenX, 0);
         g.addColorStop(0, "transparent");
         if (s.lastMilestoneTs.length >= 4 && anchorScreenX > 0) {
-          const f0 = Math.min(0.998, (fadeX - 2) / anchorScreenX);
-          const f1 = Math.min(0.999, (fadeX + 60) / anchorScreenX);
-          g.addColorStop(Math.max(0, f0), "transparent");
-          g.addColorStop(f1, color);
+          const f = Math.min(0.999, fadeX / anchorScreenX);
+          g.addColorStop(Math.max(0, f - 0.001), "transparent");
+          g.addColorStop(f, color);
         } else {
           // Fewer than 4 milestones — show full line
           g.addColorStop(0.001, color);
