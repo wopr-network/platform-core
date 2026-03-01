@@ -31,7 +31,7 @@ function createMockSSEStream() {
   return {
     stream,
     push(line: string) {
-      controller.enqueue(encoder.encode(line + "\n"));
+      controller.enqueue(encoder.encode(`${line}\n`));
     },
     close() {
       controller.close();

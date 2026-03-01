@@ -9,21 +9,6 @@ const apiOrigin = process.env.NEXT_PUBLIC_API_URL
 // during e2e tests, which would break cookie injection.
 const isSecureOrigin = apiOrigin.startsWith("https://");
 
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://js.stripe.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  `connect-src 'self' https://api.stripe.com${apiOrigin ? ` ${apiOrigin}` : ""}`,
-  "frame-src https://js.stripe.com",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-  ...(isSecureOrigin ? ["upgrade-insecure-requests"] : []),
-].join("; ");
-
 const nextConfig: NextConfig = {
   output: "standalone",
   headers: async () => [
@@ -58,10 +43,8 @@ const nextConfig: NextConfig = {
           key: "Permissions-Policy",
           value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
         },
-        {
-          key: "Content-Security-Policy",
-          value: csp,
-        },
+        // Content-Security-Policy is set per-request by the middleware (src/proxy.ts)
+        // with a unique nonce. No static CSP here to avoid overwriting the nonce-based header.
       ],
     },
   ],
