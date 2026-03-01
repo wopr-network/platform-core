@@ -1,6 +1,16 @@
 import { bypassOnboarding, expect, mockAuthAPI, test, testEmail } from "./fixtures/auth";
 
 test.describe("Auth critical path", () => {
+	test("unauthenticated user is redirected to /login from /dashboard", async ({ page }) => {
+		// No mockAuthAPI — middleware checks cookie, finds none, redirects.
+		// No session cookie is set, so middleware at src/middleware.ts:152
+		// will redirect to /login?callbackUrl=/dashboard.
+		await page.goto("/dashboard");
+		await expect(page).toHaveURL(/\/login/);
+		// Verify callbackUrl is preserved so user returns to /dashboard after login
+		await expect(page).toHaveURL(/callbackUrl=%2Fdashboard/);
+	});
+
 	test("signup — fill form, submit, see verification interstitial", async ({ page }) => {
 		const email = testEmail();
 
