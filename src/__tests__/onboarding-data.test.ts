@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   channelPlugins,
   collectConfigFields,
   getAllPlugins,
+  getChannelPlugins,
   getPluginById,
   pluginCategories,
   presets,
@@ -10,6 +11,65 @@ import {
   resolveDependencies,
   validateField,
 } from "@/lib/onboarding-data";
+
+vi.mock("@/lib/marketplace-data", () => ({
+  listMarketplacePlugins: vi.fn().mockResolvedValue([
+    {
+      id: "discord",
+      name: "Discord",
+      description: "Discord channel",
+      icon: "MessageCircle",
+      color: "#5865F2",
+      category: "channel",
+      capabilities: ["channel"],
+      version: "1.0.0",
+      author: "WOPR",
+      tags: [],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [],
+      installCount: 0,
+      changelog: [],
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      description: "Slack channel",
+      icon: "Hash",
+      color: "#4A154B",
+      category: "channel",
+      capabilities: ["channel"],
+      version: "1.0.0",
+      author: "WOPR",
+      tags: [],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [],
+      installCount: 0,
+      changelog: [],
+    },
+    {
+      id: "memory-plugin",
+      name: "Memory",
+      description: "Not a channel",
+      icon: "Brain",
+      color: "#10B981",
+      category: "memory",
+      capabilities: ["memory"],
+      version: "1.0.0",
+      author: "WOPR",
+      tags: [],
+      requires: [],
+      install: [],
+      configSchema: [],
+      setup: [],
+      installCount: 0,
+      changelog: [],
+    },
+  ]),
+}));
 
 describe("onboarding-data", () => {
   describe("channelPlugins", () => {
@@ -225,6 +285,45 @@ describe("onboarding-data", () => {
       };
       expect(validateField(field, "123:ABC_def")).toBeNull();
       expect(validateField(field, "invalid token!")).toBe("Invalid Telegram token");
+    });
+  });
+
+  describe("getChannelPlugins", () => {
+    it("returns marketplace channels merged with onboarding-only channels", async () => {
+      const channels = await getChannelPlugins();
+      const ids = channels.map((c) => c.id);
+      // Marketplace channels
+      expect(ids).toContain("discord");
+      expect(ids).toContain("slack");
+      // Onboarding-only channels
+      expect(ids).toContain("signal");
+      expect(ids).toContain("whatsapp");
+      expect(ids).toContain("msteams");
+      // Non-channel plugins excluded
+      expect(ids).not.toContain("memory-plugin");
+    });
+
+    it("applies CHANNEL_OVERLAY config fields to marketplace channels", async () => {
+      const channels = await getChannelPlugins();
+      const discord = channels.find((c) => c.id === "discord");
+      expect(discord).toBeDefined();
+      const keys = discord?.configFields.map((f) => f.key);
+      expect(keys).toContain("discord_bot_token");
+      expect(keys).toContain("discord_guild_id");
+    });
+
+    it("applies CHANNEL_OVERLAY diyCostData to marketplace channels", async () => {
+      const channels = await getChannelPlugins();
+      const discord = channels.find((c) => c.id === "discord");
+      expect(discord?.diyCostData).toBeDefined();
+      expect(discord?.diyCostData?.diyLabel).toBe("Discord bot hosting");
+    });
+
+    it("marketplace channels with overlay get their config fields", async () => {
+      const channels = await getChannelPlugins();
+      const slack = channels.find((c) => c.id === "slack");
+      expect(slack).toBeDefined();
+      expect(slack?.configFields.length).toBeGreaterThan(0);
     });
   });
 });

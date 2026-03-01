@@ -1,6 +1,75 @@
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
+
+vi.mock("@/lib/marketplace-data", () => ({
+  listMarketplacePlugins: vi.fn(),
+}));
+
+import { listMarketplacePlugins } from "@/lib/marketplace-data";
+
+const mockListMarketplacePlugins = vi.mocked(listMarketplacePlugins);
+
+const MOCK_MARKETPLACE_PLUGINS = [
+  {
+    id: "discord",
+    name: "Discord",
+    description: "Discord channel plugin",
+    version: "1.0.0",
+    author: "WOPR",
+    icon: "MessageCircle",
+    color: "#5865F2",
+    category: "channel" as const,
+    tags: [],
+    capabilities: ["channel"],
+    requires: [],
+    install: [],
+    configSchema: [],
+    setup: [],
+    installCount: 0,
+    changelog: [],
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    description: "Slack channel plugin",
+    version: "1.0.0",
+    author: "WOPR",
+    icon: "Hash",
+    color: "#4A154B",
+    category: "channel" as const,
+    tags: [],
+    capabilities: ["channel"],
+    requires: [],
+    install: [],
+    configSchema: [],
+    setup: [],
+    installCount: 0,
+    changelog: [],
+  },
+  {
+    id: "some-non-channel",
+    name: "Memory Plugin",
+    description: "Not a channel",
+    version: "1.0.0",
+    author: "WOPR",
+    icon: "Brain",
+    color: "#10B981",
+    category: "memory" as const,
+    tags: [],
+    capabilities: ["memory"],
+    requires: [],
+    install: [],
+    configSchema: [],
+    setup: [],
+    installCount: 0,
+    changelog: [],
+  },
+];
+
+beforeEach(() => {
+  mockListMarketplacePlugins.mockResolvedValue(MOCK_MARKETPLACE_PLUGINS);
+});
 
 describe("usePluginRegistry", () => {
   it("returns all expected plugin categories", () => {
@@ -166,5 +235,58 @@ describe("usePluginRegistry", () => {
     const second = result.current;
     // The memoized registry should be the same object
     expect(first).toBe(second);
+  });
+
+  it("fetches channels from marketplace API on mount and includes them", async () => {
+    const { result } = renderHook(() => usePluginRegistry());
+    // Initially has static fallback (onboarding-only channels)
+    expect(result.current.channels.map((c) => c.id)).toContain("signal");
+
+    await waitFor(() => {
+      const ids = result.current.channels.map((c) => c.id);
+      expect(ids).toContain("discord");
+      expect(ids).toContain("slack");
+      // Still includes onboarding-only channels
+      expect(ids).toContain("signal");
+      expect(ids).toContain("whatsapp");
+      expect(ids).toContain("msteams");
+      // Does NOT include non-channel plugins
+      expect(ids).not.toContain("some-non-channel");
+    });
+  });
+
+  it("channelOptions updates after marketplace fetch", async () => {
+    const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => {
+      const values = result.current.channelOptions.map((o) => o.value);
+      expect(values).toContain("discord");
+      expect(values).toContain("signal");
+    });
+  });
+
+  it("falls back to static channels when marketplace API fails", async () => {
+    mockListMarketplacePlugins.mockRejectedValueOnce(new Error("Network error"));
+    const { result } = renderHook(() => usePluginRegistry());
+
+    await waitFor(() => {
+      expect(result.current.channelsLoaded).toBe(true);
+    });
+
+    // Should still have onboarding-only channels
+    const ids = result.current.channels.map((c) => c.id);
+    expect(ids).toContain("signal");
+    expect(ids).toContain("whatsapp");
+    expect(ids).toContain("msteams");
+    // Should NOT have marketplace channels since API failed
+    expect(ids).not.toContain("discord");
+  });
+
+  it("exposes channelsLoaded flag", async () => {
+    const { result } = renderHook(() => usePluginRegistry());
+    // Initially false
+    expect(result.current.channelsLoaded).toBe(false);
+    await waitFor(() => {
+      expect(result.current.channelsLoaded).toBe(true);
+    });
   });
 });

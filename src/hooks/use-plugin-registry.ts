@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   additionalModels,
   allModels,
@@ -7,6 +7,7 @@ import {
   channelPlugins,
   collectConfigFields,
   getAllPlugins,
+  getChannelPlugins,
   getPluginById,
   heroModels,
   MODEL_COUNT,
@@ -70,6 +71,8 @@ export interface PluginRegistry {
   byokProviders: ByokProvider[];
   /** Total model count label */
   modelCount: string;
+  /** Whether marketplace channels have been loaded (or failed with fallback) */
+  channelsLoaded: boolean;
 
   // --- Derived simple lists for create-instance and similar pages ---
 
@@ -109,14 +112,36 @@ export interface PluginRegistry {
  * Future: can fetch from an API and fall back to static data.
  */
 export function usePluginRegistry(): PluginRegistry {
+  const [channels, setChannels] = useState<PluginOption[]>(channelPlugins);
+  const [channelsLoaded, setChannelsLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getChannelPlugins()
+      .then((result) => {
+        if (!cancelled) {
+          setChannels(result);
+          setChannelsLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setChannelsLoaded(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const providerOptions = useMemo<SimpleOption[]>(
     () => providerPlugins.map((p) => ({ value: p.id, label: p.name })),
     [],
   );
 
   const channelOptions = useMemo<SimpleOption[]>(
-    () => channelPlugins.map((c) => ({ value: c.id, label: c.name })),
-    [],
+    () => channels.map((c) => ({ value: c.id, label: c.name })),
+    [channels],
   );
 
   const pluginOptions = useMemo<SimpleOption[]>(
@@ -127,7 +152,7 @@ export function usePluginRegistry(): PluginRegistry {
 
   return useMemo<PluginRegistry>(
     () => ({
-      channels: channelPlugins,
+      channels,
       providers: providerPlugins,
       categories: pluginCategories,
       superpowers,
@@ -138,6 +163,7 @@ export function usePluginRegistry(): PluginRegistry {
       allModels,
       byokProviders,
       modelCount: MODEL_COUNT,
+      channelsLoaded,
       providerOptions,
       channelOptions,
       pluginOptions,
@@ -147,6 +173,6 @@ export function usePluginRegistry(): PluginRegistry {
       resolveDependencies,
       validateField,
     }),
-    [providerOptions, channelOptions, pluginOptions],
+    [channels, channelsLoaded, providerOptions, channelOptions, pluginOptions],
   );
 }
