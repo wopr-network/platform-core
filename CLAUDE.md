@@ -26,7 +26,6 @@ src/
     channels/         # Channel management pages
     fleet/            # Multi-bot fleet view
     instances/        # Bot instance pages
-    onboarding/       # Onboarding flow pages
     plugins/          # Plugin marketplace
     pricing/          # Pricing page
     privacy/ terms/   # Legal pages
