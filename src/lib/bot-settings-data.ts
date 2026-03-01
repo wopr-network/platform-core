@@ -203,9 +203,14 @@ export async function setResourceTier(
   });
 }
 
+export async function getBotStatus(botId: string): Promise<{ status: BotSettings["status"] }> {
+  const settings = await apiFetch<BotSettings>(`/fleet/bots/${botId}/settings`);
+  return { status: settings.status };
+}
+
 export async function controlBot(
   botId: string,
-  action: "stop" | "archive" | "delete",
+  action: "start" | "stop" | "restart" | "archive" | "delete",
 ): Promise<void> {
   if (action === "delete") {
     await apiFetch(`/fleet/bots/${botId}`, { method: "DELETE" });

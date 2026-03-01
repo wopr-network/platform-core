@@ -1,7 +1,10 @@
 "use client";
 
+import { Loader2, Play, RotateCw, Square } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { LogsViewer } from "@/components/observability/logs-viewer";
+import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useSaveQueue } from "@/hooks/use-save-queue";
+import type { InstanceHealth } from "@/lib/api";
+import { getInstanceHealth } from "@/lib/api";
 import type {
   ActiveSuperpower,
   AvailableSuperpower,
@@ -35,6 +40,7 @@ import {
   controlBot,
   disconnectChannel,
   getBotSettings,
+  getBotStatus,
   getChannelConfig,
   getPluginConfig,
   getSuperpowerConfig,
@@ -59,6 +65,12 @@ export function BotSettingsClient({ botId }: { botId: string }) {
   const [settings, setSettings] = useState<BotSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [health, setHealth] = useState<InstanceHealth | null>(null);
+  const [statusChanged, setStatusChanged] = useState(false);
+  const prevStatusRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,6 +88,80 @@ export function BotSettingsClient({ botId }: { botId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const settingsLoaded = settings !== null;
+
+  // Poll bot status every 10 seconds
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    const interval = setInterval(async () => {
+      try {
+        const { status } = await getBotStatus(botId);
+        setSettings((prev) => (prev ? { ...prev, status } : prev));
+      } catch {
+        // Silently ignore polling errors
+      }
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [botId, settingsLoaded]);
+
+  // Poll health data every 10 seconds
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    let cancelled = false;
+    async function fetchHealth() {
+      try {
+        const h = await getInstanceHealth(botId);
+        if (!cancelled) setHealth(h);
+      } catch {
+        // silent
+      }
+    }
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [botId, settingsLoaded]);
+
+  // Detect status changes for badge glow animation
+  useEffect(() => {
+    if (!settings) return;
+    if (prevStatusRef.current && prevStatusRef.current !== settings.status) {
+      setStatusChanged(true);
+      const timeout = setTimeout(() => setStatusChanged(false), 1000);
+      return () => clearTimeout(timeout);
+    }
+    prevStatusRef.current = settings.status;
+  }, [settings]);
+
+  // Auto-dismiss action error after 5 seconds
+  useEffect(() => {
+    if (!actionError) return;
+    const timeout = setTimeout(() => setActionError(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [actionError]);
+
+  async function handleAction(action: "start" | "stop" | "restart") {
+    setActionPending(true);
+    setPendingAction(action);
+    setActionError(null);
+    try {
+      await controlBot(botId, action);
+      if (action === "start") {
+        setSettings((prev) => (prev ? { ...prev, status: "running" } : prev));
+      } else if (action === "stop") {
+        setSettings((prev) => (prev ? { ...prev, status: "stopped" } : prev));
+      }
+      // restart: status will update via polling
+    } catch {
+      setActionError(`Failed to ${action} bot`);
+    } finally {
+      setActionPending(false);
+      setPendingAction(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -120,13 +206,82 @@ export function BotSettingsClient({ botId }: { botId: string }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <a href="/dashboard">&larr; Back to Fleet</a>
         </Button>
-        <StatusDot status={settings.status} />
+        <div
+          className={`transition-all duration-500 ${statusChanged ? "ring-2 ring-terminal/30 rounded-full" : ""}`}
+        >
+          <StatusBadge status={settings.status === "archived" ? "stopped" : settings.status} />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight">{settings.identity.name}</h1>
+        <div className="flex gap-2 ml-auto">
+          {(settings.status === "stopped" || settings.status === "archived") && (
+            <Button
+              size="sm"
+              variant="terminal"
+              disabled={actionPending}
+              onClick={() => handleAction("start")}
+            >
+              {actionPending && pendingAction === "start" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Play className="size-4" />
+              )}
+              Start
+            </Button>
+          )}
+          {settings.status === "running" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={actionPending}
+                className="border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/60"
+                onClick={() => handleAction("stop")}
+              >
+                {actionPending && pendingAction === "stop" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Square className="size-3.5" />
+                )}
+                Stop
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={actionPending}
+                onClick={() => handleAction("restart")}
+              >
+                <RotateCw
+                  className={`size-3.5 ${actionPending && pendingAction === "restart" ? "animate-spin" : ""}`}
+                />
+                Restart
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Health info bar */}
+      {health && health.uptime > 0 && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>
+            Uptime: {Math.floor(health.uptime / 3600)}h {Math.floor((health.uptime % 3600) / 60)}m
+          </span>
+          <span>
+            Sessions: {health.activeSessions} active / {health.totalSessions} total
+          </span>
+        </div>
+      )}
+
+      {/* Action error banner */}
+      {actionError && (
+        <div className="rounded-sm border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-400 animate-in fade-in duration-200">
+          {actionError}
+        </div>
+      )}
 
       <Separator />
 
@@ -141,6 +296,7 @@ export function BotSettingsClient({ botId }: { botId: string }) {
           <TabsTrigger value="storage">Storage</TabsTrigger>
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="vps">VPS</TabsTrigger>
           <TabsTrigger value="danger">Danger Zone</TabsTrigger>
         </TabsList>
@@ -177,6 +333,10 @@ export function BotSettingsClient({ botId }: { botId: string }) {
           <ResourcesTab botId={botId} />
         </TabsContent>
 
+        <TabsContent value="logs" className="mt-6">
+          <LogsViewer instanceId={botId} />
+        </TabsContent>
+
         <TabsContent value="vps" className="mt-4">
           <div className="flex flex-col gap-4">
             <VpsInfoPanel botId={botId} />
@@ -190,17 +350,6 @@ export function BotSettingsClient({ botId }: { botId: string }) {
       </Tabs>
     </div>
   );
-}
-
-// --- Status dot ---
-
-function StatusDot({ status }: { status: BotSettings["status"] }) {
-  const colors = {
-    running: "bg-emerald-500",
-    stopped: "bg-zinc-400",
-    archived: "bg-amber-500",
-  };
-  return <span className={`inline-block size-3 rounded-full ${colors[status]}`} />;
 }
 
 // --- Tab 1: Identity ---
