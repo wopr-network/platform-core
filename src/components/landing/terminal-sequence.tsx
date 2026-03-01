@@ -151,6 +151,9 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             updateCurrentText(currentLine.text.slice(0, newIndex));
           }
           if (s.charIndex >= currentLine.text.length) {
+            // Commit to history NOW so it's visible as a ghost while backspacing
+            const newLines = [...linesRef.current, currentLine.text];
+            updateLines(newLines);
             s.state = "pause";
             s.elapsed = 0;
           }
@@ -177,10 +180,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             updateCurrentText(currentLine.text.slice(0, newLen));
           }
           if (newLen === PREFIX_LENGTH) {
-            // Commit completed line to dimmed history
-            const newLines = [...linesRef.current, currentLine.text];
-            updateLines(newLines);
-            // "Shall we" stays in currentText — next line types its suffix onto it
+            // Line already in history — just advance to next
             s.lineIndex++;
             s.charIndex = PREFIX_LENGTH;
             s.startCharIndex = PREFIX_LENGTH;
@@ -340,10 +340,21 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
           className="absolute z-20 w-full max-w-2xl px-4 font-mono text-xs leading-relaxed sm:text-sm"
           style={{ top: "50vh", left: "50%", transform: "translate(-50%, -50%)" }}
         >
-          <span className="text-terminal">
-            <span style={textBlur > 0 ? { filter: `blur(${textBlur}px)` } : undefined}>
-              {currentText}
-            </span>
+          {/* Blurred glow layer behind — intensity grows as speed increases */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute text-terminal"
+            style={{
+              filter: `blur(${textBlur * 2.5}px)`,
+              opacity: textBlur > 0 ? 0.65 : 0,
+              transition: "filter 600ms ease, opacity 600ms ease",
+            }}
+          >
+            {currentText}
+          </span>
+          {/* Sharp text on top — never blurred */}
+          <span className="relative text-terminal">
+            {currentText}
             {showCursor && (
               <span
                 data-testid="terminal-cursor"
