@@ -25,7 +25,7 @@ import {
 } from "@/lib/marketplace-data";
 
 // Terminal log simulation for install flow
-function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone: () => void }) {
+export function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone: () => void }) {
   const [lines, setLines] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
@@ -48,6 +48,7 @@ function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone: () =>
 
   useEffect(() => {
     let i = 0;
+    let doneTimeout: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
       if (i < logLines.length) {
         setLines((prev) => [...prev, logLines[i]]);
@@ -57,10 +58,13 @@ function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone: () =>
         }
       } else {
         clearInterval(interval);
-        setTimeout(() => onDoneRef.current(), 800);
+        doneTimeout = setTimeout(() => onDoneRef.current(), 800);
       }
     }, 300);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (doneTimeout) clearTimeout(doneTimeout);
+    };
   }, [logLines]);
 
   return (
