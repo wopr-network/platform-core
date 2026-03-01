@@ -4,6 +4,9 @@ import { AlertTriangleIcon, HomeIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
+
+const log = logger("error-boundary:billing");
 
 export default function BillingError({
   error,
@@ -16,7 +19,7 @@ export default function BillingError({
   const isDev = process.env.NODE_ENV === "development";
 
   useEffect(() => {
-    console.error("Billing error:", error);
+    log.error("Billing error", error);
   }, [error]);
 
   return (

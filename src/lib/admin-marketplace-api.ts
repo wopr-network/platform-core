@@ -1,4 +1,7 @@
+import { logger } from "./logger";
 import { trpcVanilla } from "./trpc";
+
+const log = logger("admin-marketplace");
 
 // ---- Types ----
 
@@ -189,7 +192,7 @@ export async function getDiscoveryQueue(): Promise<AdminPlugin[]> {
     return all.filter((p) => !p.reviewed);
   } catch (e) {
     if (!isMockMode()) throw e;
-    console.warn("[MOCK MODE] Failed to fetch pending plugins, using mock data", e);
+    log.warn("[MOCK MODE] Failed to fetch pending plugins, using mock data", e);
     return getMockPlugins().filter((p) => !p.reviewed);
   }
 }
@@ -200,7 +203,7 @@ export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
     return all.filter((p) => p.enabled && p.reviewed).sort((a, b) => a.sort_order - b.sort_order);
   } catch (e) {
     if (!isMockMode()) throw e;
-    console.warn("[MOCK MODE] Failed to fetch enabled plugins, using mock data", e);
+    log.warn("[MOCK MODE] Failed to fetch enabled plugins, using mock data", e);
     return getMockPlugins()
       .filter((p) => p.enabled && p.reviewed)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -212,7 +215,7 @@ export async function getAllPlugins(): Promise<AdminPlugin[]> {
     return await marketplaceClient.listPlugins.query();
   } catch (e) {
     if (!isMockMode()) throw e;
-    console.warn("[MOCK MODE] Failed to fetch all plugins, using mock data", e);
+    log.warn("[MOCK MODE] Failed to fetch all plugins, using mock data", e);
     return getMockPlugins();
   }
 }
@@ -222,7 +225,7 @@ export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugi
     return await marketplaceClient.updatePlugin.mutate(req);
   } catch (e) {
     if (!isMockMode()) throw e;
-    console.warn("[MOCK MODE] Failed to update plugin, using mock fallback", e);
+    log.warn("[MOCK MODE] Failed to update plugin, using mock fallback", e);
     const plugins = getMockPlugins();
     const idx = plugins.findIndex((p) => p.id === req.id);
     if (idx === -1) throw new Error(`Plugin not found: ${req.id}`);
@@ -242,7 +245,7 @@ export async function addPluginByNpm(req: AddPluginRequest): Promise<AdminPlugin
     return await marketplaceClient.addPlugin.mutate(req);
   } catch (e) {
     if (!isMockMode()) throw e;
-    console.warn("[MOCK MODE] Failed to add plugin via API, using mock fallback", e);
+    log.warn("[MOCK MODE] Failed to add plugin via API, using mock fallback", e);
     const newPlugin: AdminPlugin = {
       id: `manual-${Date.now()}`,
       npm_package: req.npm_package,

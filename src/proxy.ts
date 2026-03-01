@@ -1,4 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+
+const log = logger("middleware");
 
 const publicPaths = [
   "/login",
@@ -88,7 +91,7 @@ async function getSessionRole(request: NextRequest): Promise<string | null> {
     const data = await res.json();
     return data?.user?.role ?? null;
   } catch (e) {
-    console.warn("Failed to fetch user role for middleware routing", e);
+    log.warn("Failed to fetch user role for middleware routing", e);
     return null;
   }
 }

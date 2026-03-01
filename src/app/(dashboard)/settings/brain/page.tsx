@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ModelSelection } from "@/lib/api";
 import { getModelSelection, saveProviderKey, updateModelSelection } from "@/lib/api";
+import { logger } from "@/lib/logger";
 import {
   additionalModels,
   allModels,
@@ -20,6 +21,8 @@ import {
   type ModelOption,
 } from "@/lib/onboarding-data";
 import { cn } from "@/lib/utils";
+
+const log = logger("settings:brain");
 
 type ViewMode = "models" | "byok";
 
@@ -60,7 +63,7 @@ export default function BrainSettingsPage() {
       setSelection(sel);
       setError(null);
     } catch (err) {
-      console.error("Failed to load model selection:", err);
+      log.error("Failed to load model selection", err);
       setError("Failed to load model settings. Please try refreshing the page.");
     } finally {
       setLoading(false);
@@ -82,7 +85,7 @@ export default function BrainSettingsPage() {
       });
       setSelection(updated);
     } catch (err) {
-      console.error("Failed to update model selection:", err);
+      log.error("Failed to update model selection", err);
       setError("Failed to update model selection. Please try again.");
     } finally {
       setSaving(false);
@@ -106,7 +109,7 @@ export default function BrainSettingsPage() {
       setSaveSuccess(true);
       saveSuccessTimer.current = setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
-      console.error("Failed to save BYOK key:", err);
+      log.error("Failed to save BYOK key", err);
       setError("Failed to save your API key. Please check the key and try again.");
     } finally {
       setSaving(false);

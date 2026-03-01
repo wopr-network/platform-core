@@ -1,9 +1,12 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
 import { ApiError } from "./errors";
 import { handleUnauthorized } from "./fetch-utils";
+import { logger } from "./logger";
 import type { ApiPricingResponse, DividendStats } from "./pricing-data";
 import { getActiveTenantId } from "./tenant-context";
 import { trpcVanilla } from "./trpc";
+
+const log = logger("api");
 
 export { ApiError, NetworkError, toUserMessage, ValidationError } from "./errors";
 export { UnauthorizedError } from "./fetch-utils";
@@ -23,7 +26,7 @@ export async function fetchPublicPricing(): Promise<ApiPricingResponse | null> {
     if (!res.ok) return null;
     return (await res.json()) as ApiPricingResponse;
   } catch (e) {
-    console.warn("Failed to fetch pricing data", e);
+    log.warn("Failed to fetch pricing data", e);
     return null;
   }
 }
@@ -40,7 +43,7 @@ export async function fetchDividendStats(): Promise<DividendStats | null> {
     if (!res.ok) return null;
     return (await res.json()) as DividendStats;
   } catch (e) {
-    console.warn("Failed to fetch dividend stats", e);
+    log.warn("Failed to fetch dividend stats", e);
     return null;
   }
 }
@@ -519,7 +522,7 @@ export async function getImageStatus(id: string): Promise<ImageStatusResponse | 
   try {
     return await fleetFetch<ImageStatusResponse>(`/bots/${id}/image-status`);
   } catch (e) {
-    console.warn("Failed to fetch image status", e);
+    log.warn("Failed to fetch image status", e);
     return null;
   }
 }
@@ -1572,7 +1575,7 @@ export async function validateDeepgramKey(key: string): Promise<KeyValidationRes
       ? { valid: true }
       : { valid: false, message: "Invalid API key. Please check and try again." };
   } catch (e) {
-    console.warn("Key validation request failed", e);
+    log.warn("Key validation request failed", e);
     return { valid: false, message: "Could not validate key. Please try again." };
   }
 }
@@ -1592,7 +1595,7 @@ export async function validateElevenLabsKey(key: string): Promise<KeyValidationR
       message: result.error ?? "Invalid API key. Please check and try again.",
     };
   } catch (e) {
-    console.warn("Key validation request failed", e);
+    log.warn("Key validation request failed", e);
     return { valid: false, message: "Could not validate key. Please try again." };
   }
 }
@@ -1675,7 +1678,7 @@ export async function fetchPlatformHealth(): Promise<PlatformHealthResponse | nu
     if (!res.ok) return null;
     return (await res.json()) as PlatformHealthResponse;
   } catch (e) {
-    console.warn("Failed to fetch platform health", e);
+    log.warn("Failed to fetch platform health", e);
     return null;
   }
 }

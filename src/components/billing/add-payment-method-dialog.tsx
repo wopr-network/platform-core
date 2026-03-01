@@ -16,12 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSetupIntent } from "@/lib/api";
+import { logger } from "@/lib/logger";
+
+const log = logger("billing:add-payment-method");
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 if (!stripePublishableKey) {
-  console.error(
-    "[AddPaymentMethodDialog] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Stripe Elements will not load.",
-  );
+  log.error("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Stripe Elements will not load.");
 }
 const stripePromise = loadStripe(stripePublishableKey ?? "");
 

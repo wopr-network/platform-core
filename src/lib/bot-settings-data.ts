@@ -1,4 +1,7 @@
 import { apiFetch } from "./api";
+import { logger } from "./logger";
+
+const log = logger("bot-settings");
 
 // --- Bot Settings types ---
 
@@ -185,7 +188,7 @@ export async function getStorageUsage(botId: string): Promise<StorageUsage | nul
   try {
     return await apiFetch<StorageUsage>(`/fleet/bots/${botId}/storage-usage`);
   } catch (e) {
-    console.warn("Failed to fetch storage usage", e);
+    log.warn("Failed to fetch storage usage", e);
     return null;
   }
 }

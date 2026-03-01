@@ -4,6 +4,9 @@ import { AlertTriangleIcon, HomeIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
+
+const log = logger("error-boundary:plugins");
 
 export default function PluginsError({
   error,
@@ -16,7 +19,7 @@ export default function PluginsError({
   const isDev = process.env.NODE_ENV === "development";
 
   useEffect(() => {
-    console.error("Plugins error:", error);
+    log.error("Plugins error", error);
   }, [error]);
 
   return (

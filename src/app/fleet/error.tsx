@@ -4,6 +4,9 @@ import { AlertTriangleIcon, HomeIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
+
+const log = logger("error-boundary:fleet");
 
 export default function FleetError({
   error,
@@ -16,7 +19,7 @@ export default function FleetError({
   const isDev = process.env.NODE_ENV === "development";
 
   useEffect(() => {
-    console.error("Fleet error:", error);
+    log.error("Fleet error", error);
   }, [error]);
 
   return (

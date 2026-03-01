@@ -1,6 +1,9 @@
 // --- Plugin Manifest types ---
 
 import { z } from "zod";
+import { logger } from "./logger";
+
+const log = logger("marketplace");
 
 export type PluginCategory =
   | "channel"
@@ -237,7 +240,7 @@ export async function getPluginContent(pluginId: string): Promise<PluginContentR
   try {
     return await apiFetch<PluginContentResponse>(`/marketplace/plugins/${pluginId}/content`);
   } catch (e) {
-    console.warn("Failed to fetch plugin content", e);
+    log.warn("Failed to fetch plugin content", e);
     return null;
   }
 }
