@@ -151,9 +151,6 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             updateCurrentText(currentLine.text.slice(0, newIndex));
           }
           if (s.charIndex >= currentLine.text.length) {
-            // Commit to history NOW so it's visible as a ghost while backspacing
-            const newLines = [...linesRef.current, currentLine.text];
-            updateLines(newLines);
             s.state = "pause";
             s.elapsed = 0;
           }
@@ -163,6 +160,10 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
         case "pause": {
           const pauseDuration = getPauseAfter(s.lineIndex);
           if (s.elapsed >= pauseDuration) {
+            // Beat has landed — commit to history, then start erasing
+            const currentLine = TERMINAL_LINES[s.lineIndex];
+            const newLines = [...linesRef.current, currentLine.text];
+            updateLines(newLines);
             s.state = "backspacing";
             s.elapsed = 0;
           }
