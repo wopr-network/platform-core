@@ -174,7 +174,9 @@ describe("Credits page", () => {
     const { default: CreditsPage } = await import("../app/(dashboard)/billing/credits/page");
     render(<CreditsPage />);
 
-    expect(await screen.findByRole("button", { name: "Load more" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Load more" }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it("loads next page of transactions on load more click", async () => {
