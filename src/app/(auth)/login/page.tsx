@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { signIn } from "@/lib/auth-client";
 import { sanitizeRedirectUrl } from "@/lib/utils";
 
@@ -160,13 +159,6 @@ function LoginForm() {
               )}
             </Button>
           </form>
-          <div className="relative my-4 flex items-center">
-            <Separator className="flex-1" />
-            <span className="mx-3 text-xs uppercase tracking-wider text-muted-foreground">
-              or continue with
-            </span>
-            <Separator className="flex-1" />
-          </div>
           <OAuthButtons callbackUrl={sanitizeRedirectUrl(searchParams.get("callbackUrl"))} />
         </CardContent>
         <CardFooter className="justify-center">

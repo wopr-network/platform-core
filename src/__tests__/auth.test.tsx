@@ -26,6 +26,18 @@ vi.mock("better-auth/react", () => ({
   }),
 }));
 
+// Mock tRPC so OAuthButtons can query enabled social providers
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    authSocial: {
+      enabledSocialProviders: {
+        useQuery: () => ({ data: ["github", "discord", "google"], isLoading: false }),
+      },
+    },
+  },
+  TRPCProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock framer-motion to prevent animation issues in JSDOM
 vi.mock("framer-motion", () => ({
   motion: {
