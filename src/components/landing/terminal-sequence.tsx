@@ -65,6 +65,7 @@ type AnimState =
   | "backspacing"
   | "final-typing"
   | "cursor-death"
+  | "blinking"
   | "done";
 
 export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: TerminalSequenceProps) {
@@ -292,14 +293,21 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
           const withinCycle = blinkElapsed % cycleDuration;
 
           if (currentCycle >= CURSOR_BLINK_COUNT) {
-            setShowCursor(false);
             setAnimationDone(true);
-            s.state = "done";
+            s.state = "blinking";
+            s.elapsed = 0;
             onCompleteRef.current?.();
             break;
           }
 
           setCursorVisible(withinCycle < CURSOR_BLINK_ON);
+          break;
+        }
+
+        case "blinking": {
+          // Perpetual blink after animation completes
+          const cycleDuration = CURSOR_BLINK_ON + CURSOR_BLINK_OFF;
+          setCursorVisible(s.elapsed % cycleDuration < CURSOR_BLINK_ON);
           break;
         }
 
@@ -394,7 +402,15 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
           <div className="absolute bottom-0 flex w-full flex-col">
             {holdLines.map((line, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: hold lines are append-only, index is stable
-              <div key={i}>{line || "\u00A0"}</div>
+              <div key={i}>
+                {line || "\u00A0"}
+                {animationDone && showCursor && i === holdLines.length - 1 && (
+                  <span
+                    className="inline-block h-[1.1em] w-[0.6em] translate-y-[0.15em] bg-terminal"
+                    style={{ opacity: cursorVisible ? 1 : 0 }}
+                  />
+                )}
+              </div>
             ))}
           </div>
         </div>
