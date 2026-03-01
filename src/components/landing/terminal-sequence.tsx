@@ -23,7 +23,8 @@ const CURSOR_BLINK_ON = 250; // ms
 const CURSOR_BLINK_OFF = 250; // ms
 
 function getTypeDelay(lineIndex: number): number {
-  const factor = 1.065 ** lineIndex;
+  // Aggressive acceleration — hits near-illegible speed by line ~35
+  const factor = 1.12 ** lineIndex;
   return Math.max(1, Math.round(125 / factor));
 }
 
@@ -32,9 +33,10 @@ function getBackspaceDelay(lineIndex: number): number {
 }
 
 function getPauseAfter(lineIndex: number): number {
-  // Line 0 gets a longer beat — "Shall we play a game?" lands, then reconsiders
+  // Line 0 gets the long beat — "Shall we play a game?" lands, then reconsiders
   if (lineIndex === 0) return 800;
-  return Math.max(0, Math.round(120 * 0.94 ** lineIndex));
+  // Starts ~500ms, decays rapidly — near zero by line 20
+  return Math.max(0, Math.round(600 * 0.82 ** lineIndex));
 }
 
 type AnimState =
