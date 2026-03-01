@@ -5,15 +5,25 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useSession } from "@/lib/auth-client";
 import { trpcVanilla } from "@/lib/trpc";
 
-const STORAGE_KEY = "wopr:activeTenantId";
+const COOKIE_NAME = "wopr_tenant_id";
+
+function readTenantCookie(): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.split("; ").find((row) => row.startsWith(`${COOKIE_NAME}=`));
+  return match ? decodeURIComponent(match.split("=")[1]) : "";
+}
+
+function writeTenantCookie(tenantId: string): void {
+  // biome-ignore lint/suspicious/noDocumentCookie: intentional session cookie write (security: tenant ID moved out of localStorage)
+  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(tenantId)}; path=/; SameSite=Lax; Secure`;
+}
 
 /**
- * Read the active tenant ID from localStorage.
+ * Read the active tenant ID from a session cookie.
  * Used by non-React code (apiFetch, trpc client) to inject X-Tenant-Id headers.
  */
 export function getActiveTenantId(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(STORAGE_KEY) ?? "";
+  return readTenantCookie();
 }
 
 export interface TenantOption {
@@ -46,8 +56,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string; image?: string | null }>>([]);
   const [orgsLoaded, setOrgsLoaded] = useState(false);
   const [activeTenantId, setActiveTenantId] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem(STORAGE_KEY) ?? "";
+    return readTenantCookie();
   });
 
   // Fetch orgs once user is available
@@ -101,7 +110,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const switchTenant = useCallback(
     (tenantId: string) => {
       setActiveTenantId(tenantId);
-      localStorage.setItem(STORAGE_KEY, tenantId);
+      writeTenantCookie(tenantId);
       queryClient.invalidateQueries();
     },
     [queryClient],
