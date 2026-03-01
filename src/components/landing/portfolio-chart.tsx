@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 interface PortfolioChartProps {
   onMilestoneRef: React.RefObject<(() => void) | null>;
+  onFadeStartRef: React.RefObject<(() => void) | null>;
 }
 
 const BUFFER_SIZE = 800;
@@ -63,7 +64,7 @@ interface MilestoneNode {
   color: string; // birth color — retained even when line changes phase
 }
 
-export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
+export function PortfolioChart({ onMilestoneRef, onFadeStartRef }: PortfolioChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef({
     points: new Float64Array(BUFFER_SIZE * 2), // interleaved [t0, v0, t1, v1, ...]
@@ -71,11 +72,19 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
     count: 0,
     t: 0,
     value: 0,
-    bias: 0.15,
+    bias: 0.04,
     milestoneCount: 0,
     milestones: [] as MilestoneNode[],
     lastTime: 0,
     animId: 0,
+    // Anchor ratchets — one-way, can only move toward vertical/top
+    anchorX: 1.0, // fraction of w where current point renders (1.0 = right edge)
+    anchorTopFrac: 0.3, // fraction of yRange above current point (0 = current at top edge)
+    smoothedSlope: 0, // EMA of screen-space slope
+    // t-positions of the last 4 milestones (permanent, for end-fade clip)
+    lastMilestoneTs: [] as number[],
+    // Set when terminal enters final-typing phase — drives the end fade
+    fadeStartTime: -1,
   });
 
   const handleMilestone = useCallback(() => {
@@ -84,7 +93,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
     const color = getLineColor(s.milestoneCount, now);
 
     s.milestoneCount++;
-    s.bias *= 1.25;
+    s.bias *= 1.18;
 
     const lifetime = Math.max(400, 3000 - s.milestoneCount * 45);
 
@@ -95,6 +104,10 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
       lifetime,
       color, // freeze birth color
     });
+
+    // Track last 3 milestone t-positions for the history fade
+    s.lastMilestoneTs.push(s.t);
+    if (s.lastMilestoneTs.length > 4) s.lastMilestoneTs.shift();
   }, []);
 
   // Wire milestone ref
@@ -108,6 +121,17 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
       }
     };
   }, [handleMilestone, onMilestoneRef]);
+
+  // Wire fade-start ref — fires when terminal enters final-typing phase
+  useEffect(() => {
+    const ref = onFadeStartRef as React.MutableRefObject<(() => void) | null>;
+    ref.current = () => {
+      stateRef.current.fadeStartTime = performance.now();
+    };
+    return () => {
+      ref.current = null;
+    };
+  }, [onFadeStartRef]);
 
   useEffect(() => {
     // Reduced motion: skip entirely
@@ -173,14 +197,30 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       // Viewport — tight at start, zooms out linearly with milestones
       const yRange = 30 + s.milestoneCount * 8;
-      const yTop = s.value + yRange * 0.3;
-      const yBottom = s.value - yRange * 0.7;
       const xSpan = Math.max(150, 500 - s.milestoneCount * 5);
       const xRight = s.t;
       const xLeft = s.t - xSpan;
 
-      // Leave 25% right margin so the live point isn't pinned to the edge
-      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * w * 0.75;
+      // Screen-space slope: how far up does the chart move per pixel of rightward travel?
+      // bias drives upward speed; normalize against viewport dimensions.
+      const rawSlope = (s.bias * (h * xSpan)) / (w * yRange);
+      s.smoothedSlope = s.smoothedSlope * 0.95 + rawSlope * 0.05;
+
+      // slopeFactor: 0 = flat/horizontal, 1 = clearly vertical
+      // Threshold raised to 0.8 so anchor doesn't shift until chart is clearly climbing
+      const slopeFactor = Math.min(1, Math.max(0, (s.smoothedSlope - 0.8) / 2.2));
+
+      // One-way ratchets — can only move toward the vertical/top anchor, never back
+      const targetAnchorX = 1.0 - slopeFactor * 0.5; // 1.0 (right edge) → 0.5 (center)
+      const targetTopFrac = 0.3 * (1 - slopeFactor); // 0.3 (30% above) → 0.0 (top edge)
+      s.anchorX = Math.min(s.anchorX, targetAnchorX);
+      s.anchorTopFrac = Math.min(s.anchorTopFrac, targetTopFrac);
+
+      // Viewport derived from anchors
+      const yTop = s.value + yRange * s.anchorTopFrac;
+      const yBottom = s.value - yRange * (1 - s.anchorTopFrac);
+
+      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * (w * s.anchorX);
       const toScreenY = (v: number) => ((yTop - v) / (yTop - yBottom)) * h;
 
       // Collect visible screen points
@@ -201,54 +241,80 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       const color = getLineColor(s.milestoneCount, now);
 
-      // Base opacity for entire chart — background texture
-      ctx.save();
-      ctx.globalAlpha = 0.55;
+      // Gradient clips the line to the last 4 milestones' trail only.
+      // Everything older is transparent — this is permanent, not animated.
+      // Old history simply ceases to exist as new milestones push it out.
+      const anchorScreenX = w * s.anchorX;
+      const fadeOriginT = s.lastMilestoneTs.length > 0 ? s.lastMilestoneTs[0] : xLeft;
+      const fadeX = Math.max(0, toScreenX(fadeOriginT));
 
-      // Layer 1: Bloom (phosphor glow) — shadowBlur, not ctx.filter
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(screenPoints[0][0], screenPoints[0][1]);
-      for (let i = 1; i < screenPoints.length; i++) {
-        ctx.lineTo(screenPoints[i][0], screenPoints[i][1]);
+      const makeGrad = () => {
+        const g = ctx.createLinearGradient(0, 0, anchorScreenX, 0);
+        g.addColorStop(0, "transparent");
+        if (s.lastMilestoneTs.length >= 4 && anchorScreenX > 0) {
+          const f0 = Math.min(0.998, (fadeX - 2) / anchorScreenX);
+          const f1 = Math.min(0.999, (fadeX + 60) / anchorScreenX);
+          g.addColorStop(Math.max(0, f0), "transparent");
+          g.addColorStop(f1, color);
+        } else {
+          // Fewer than 4 milestones — show full line
+          g.addColorStop(0.001, color);
+        }
+        g.addColorStop(1, color);
+        return g;
+      };
+
+      // End-of-sequence fade: triggered when terminal enters final-typing.
+      // Fades over 6 seconds. Old history already gone via gradient —
+      // only the last 4 segments are visible as everything dissolves.
+      const FADE_DURATION = 6000; // ms
+      const lineAlpha =
+        s.fadeStartTime < 0 ? 1 : Math.max(0, 1 - (now - s.fadeStartTime) / FADE_DURATION);
+
+      if (lineAlpha > 0.01) {
+        // Layer 1: Bloom
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(screenPoints[0][0], screenPoints[0][1]);
+        for (let i = 1; i < screenPoints.length; i++) {
+          ctx.lineTo(screenPoints[i][0], screenPoints[i][1]);
+        }
+        ctx.strokeStyle = makeGrad();
+        ctx.lineWidth = 6;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 20;
+        ctx.globalAlpha = 0.4 * lineAlpha;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        ctx.restore();
+
+        // Layer 2: Sharp trace
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(screenPoints[0][0], screenPoints[0][1]);
+        for (let i = 1; i < screenPoints.length; i++) {
+          ctx.lineTo(screenPoints[i][0], screenPoints[i][1]);
+        }
+        ctx.strokeStyle = makeGrad();
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.85 * lineAlpha;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        ctx.restore();
       }
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 6;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 20;
-      ctx.globalAlpha = 0.4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      ctx.restore();
 
-      // Layer 2: Sharp trace on top
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(screenPoints[0][0], screenPoints[0][1]);
-      for (let i = 1; i < screenPoints.length; i++) {
-        ctx.lineTo(screenPoints[i][0], screenPoints[i][1]);
-      }
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.85;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      ctx.restore();
-
-      // Milestone nodes
+      // Milestone dots — also fade with lineAlpha
       for (const m of s.milestones) {
         const mx = toScreenX(m.t);
         const my = toScreenY(m.value);
         const age = (now - m.born) / m.lifetime;
-        const alpha = Math.max(0, 1 - age);
+        const alpha = Math.max(0, 1 - age) * lineAlpha;
 
         if (mx < -20 || my > h + 20 || alpha <= 0) continue;
 
-        const outerRadius = 10 + (1 - age) * 14;
-
-        // Halo
+        const outerRadius = 20 + (1 - age) * 40;
         const grad = ctx.createRadialGradient(mx, my, 0, mx, my, outerRadius);
         grad.addColorStop(0, m.color);
         grad.addColorStop(1, "transparent");
@@ -261,17 +327,14 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
         ctx.fill();
         ctx.restore();
 
-        // Solid core
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = m.color;
         ctx.beginPath();
-        ctx.arc(mx, my, 4, 0, Math.PI * 2);
+        ctx.arc(mx, my, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
-
-      ctx.restore(); // base opacity
 
       s.animId = requestAnimationFrame(tick);
     };

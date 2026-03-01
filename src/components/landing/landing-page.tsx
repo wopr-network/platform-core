@@ -23,16 +23,18 @@ function CtaBlock({ className }: { className?: string }) {
 export function LandingPage() {
   const [animationDone, setAnimationDone] = useState(false);
   const milestoneRef = useRef<(() => void) | null>(null);
+  const fadeStartRef = useRef<(() => void) | null>(null);
 
   return (
     <div className="bg-black font-mono">
       <LandingNav />
       {/* Hero — Terminal Animation */}
       <div className="relative bg-black">
-        <PortfolioChart onMilestoneRef={milestoneRef} />
+        <PortfolioChart onMilestoneRef={milestoneRef} onFadeStartRef={fadeStartRef} />
         <TerminalSequence
           onComplete={() => setAnimationDone(true)}
           onMilestone={() => milestoneRef.current?.()}
+          onFadeStart={() => fadeStartRef.current?.()}
         />
       </div>
 

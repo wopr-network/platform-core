@@ -6,6 +6,7 @@ import { TERMINAL_LINES } from "./terminal-lines";
 interface TerminalSequenceProps {
   onComplete?: () => void;
   onMilestone?: () => void;
+  onFadeStart?: () => void;
 }
 
 // "Shall we" persists on screen — only the suffix animates
@@ -57,7 +58,7 @@ type AnimState =
   | "cursor-death"
   | "done";
 
-export function TerminalSequence({ onComplete, onMilestone }: TerminalSequenceProps) {
+export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: TerminalSequenceProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [showCursor, setShowCursor] = useState(true);
@@ -70,6 +71,8 @@ export function TerminalSequence({ onComplete, onMilestone }: TerminalSequencePr
   onCompleteRef.current = onComplete;
   const onMilestoneRef = useRef(onMilestone);
   onMilestoneRef.current = onMilestone;
+  const onFadeStartRef = useRef(onFadeStart);
+  onFadeStartRef.current = onFadeStart;
   const stateRef = useRef<{
     state: AnimState;
     lineIndex: number;
@@ -141,6 +144,7 @@ export function TerminalSequence({ onComplete, onMilestone }: TerminalSequencePr
             // Clear the "Shall we" prefix — final block has its own lines
             updateCurrentText("");
             s.state = "final-typing";
+            onFadeStartRef.current?.();
             s.charIndex = 0;
             s.startCharIndex = 0;
             s.elapsed = 0;
