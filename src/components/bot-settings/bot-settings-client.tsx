@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useSaveQueue } from "@/hooks/use-save-queue";
@@ -78,8 +79,29 @@ export function BotSettingsClient({ botId }: { botId: string }) {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
-        Loading bot settings...
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-2 w-2 rounded-full" />
+          <Skeleton className="h-7 w-48" />
+        </div>
+        <div className="flex gap-3">
+          {Array.from({ length: 5 }, (_, n) => `sk-tab-${n}`).map((skId) => (
+            <Skeleton key={skId} className="h-9 w-24" />
+          ))}
+        </div>
+        <div className="space-y-4 rounded-md border p-6">
+          <Skeleton className="h-5 w-32" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
       </div>
     );
   }

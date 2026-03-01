@@ -59,6 +59,31 @@ vi.mock("@/lib/bot-settings-data", async (importOriginal) => {
   };
 });
 
+describe("BotSettingsClient — loading and error states", () => {
+  it("renders skeleton while loading", async () => {
+    const { getBotSettings } = await import("@/lib/bot-settings-data");
+    vi.mocked(getBotSettings).mockReturnValueOnce(new Promise(() => {})); // never resolves
+
+    const { container } = render(<BotSettingsClient botId="bot-001" />);
+    // No bot name rendered yet
+    expect(screen.queryByDisplayValue("TestBot")).not.toBeInTheDocument();
+    // Skeleton elements present
+    expect(container.querySelectorAll("[class*='animate-pulse']").length).toBeGreaterThan(0);
+  });
+
+  it("renders error state when getBotSettings fails", async () => {
+    const { getBotSettings } = await import("@/lib/bot-settings-data");
+    vi.mocked(getBotSettings).mockRejectedValueOnce(new Error("Server error"));
+
+    render(<BotSettingsClient botId="bot-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Server error/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /Back to Dashboard/i })).toBeInTheDocument();
+  });
+});
+
 describe("BotSettingsClient — IdentityTab save flow", () => {
   it("renders identity tab with bot name after loading", async () => {
     render(<BotSettingsClient botId="bot-001" />);

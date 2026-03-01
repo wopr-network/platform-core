@@ -126,4 +126,16 @@ describe("InstanceListClient", () => {
       expect(screen.getByText("Pull Update")).toBeInTheDocument();
     });
   });
+
+  it("shows error state with retry button when listInstances fails", async () => {
+    const { listInstances } = await import("@/lib/api");
+    vi.mocked(listInstances).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<InstanceListClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Network error")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
 });

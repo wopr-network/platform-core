@@ -47,6 +47,7 @@ export function InstanceListClient() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InstanceStatus | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [destroyTarget, setDestroyTarget] = useState<Instance | null>(null);
   const [destroyConfirmText, setDestroyConfirmText] = useState("");
@@ -54,9 +55,12 @@ export function InstanceListClient() {
 
   const loadInstances = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await listInstances();
       setInstances(data);
+    } catch (err) {
+      setLoadError(toUserMessage(err, "Failed to load instances"));
     } finally {
       setLoading(false);
     }
@@ -131,6 +135,15 @@ export function InstanceListClient() {
           </SelectContent>
         </Select>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+          <span>{loadError}</span>
+          <Button variant="ghost" size="sm" onClick={loadInstances}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {actionError && (
         <div className="rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">

@@ -208,8 +208,8 @@ vi.mock("@/lib/bot-settings-data", async (importOriginal) => {
 describe("BotSettingsClient", () => {
   it("renders loading state initially", async () => {
     const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
-    render(<BotSettingsClient botId="bot-001" />);
-    expect(screen.getByText("Loading bot settings...")).toBeInTheDocument();
+    const { container } = render(<BotSettingsClient botId="bot-001" />);
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
   it("renders bot name and status after loading", async () => {
