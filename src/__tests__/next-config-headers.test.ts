@@ -4,7 +4,6 @@ describe("next.config headers", () => {
   it("exports headers function", async () => {
     const config = await import("../../next.config.js");
     const nextConfig = config.default;
-    expect(nextConfig.headers).toBeDefined();
     expect(typeof nextConfig.headers).toBe("function");
 
     const headers = await nextConfig.headers?.();
@@ -24,6 +23,6 @@ describe("next.config headers", () => {
     if (hsts !== undefined) {
       expect(hsts).toContain("max-age=31536000");
     }
-    expect(headerMap.get("Permissions-Policy")).toBeDefined();
+    expect(headerMap.get("Permissions-Policy")).toMatch(/camera|microphone|geolocation/);
   });
 });

@@ -25,7 +25,8 @@ describe("getPagePrompt", () => {
   it("has prompts for all major routes", () => {
     const requiredRoutes = ["/dashboard", "/marketplace", "/instances"];
     for (const route of requiredRoutes) {
-      expect(PAGE_PROMPTS[route]).toBeDefined();
+      expect(typeof PAGE_PROMPTS[route]).toBe("string");
+      expect(PAGE_PROMPTS[route].length).toBeGreaterThan(0);
     }
   });
 });

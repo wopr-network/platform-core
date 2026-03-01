@@ -39,9 +39,9 @@ describe("Brand Bible", () => {
     });
 
     it("defines the absurdity gap mechanic", () => {
-      expect(vision.absurdityGap.what).toBeDefined();
+      expect(vision.absurdityGap.what).toBe("A supercomputer that runs your business");
       expect(vision.absurdityGap.cost).toBe("$5/month");
-      expect(vision.absurdityGap.emotion).toBeDefined();
+      expect(vision.absurdityGap.emotion).toBe("How is this even legal?");
     });
   });
 
@@ -88,9 +88,9 @@ describe("Brand Bible", () => {
         "fleet",
       ] as const;
       for (const page of pages) {
-        expect(emotionalArc[page].feel).toBeDefined();
-        expect(emotionalArc[page].job).toBeDefined();
-        expect(emotionalArc[page].tone).toBeDefined();
+        expect(typeof emotionalArc[page].feel).toBe("string");
+        expect(typeof emotionalArc[page].job).toBe("string");
+        expect(typeof emotionalArc[page].tone).toBe("string");
       }
     });
 
@@ -171,7 +171,6 @@ describe("Brand Bible", () => {
         "amber",
       ] as const;
       for (const key of required) {
-        expect(colors[key]).toBeDefined();
         expect(colors[key]).toMatch(/^#[0-9A-Fa-f]+$/);
       }
     });
@@ -189,10 +188,9 @@ describe("Brand Bible", () => {
     it("defines all scale levels", () => {
       const levels = ["hero", "h1", "h2", "h3", "body", "small", "xs", "mono"] as const;
       for (const level of levels) {
-        expect(typography.scale[level]).toBeDefined();
-        expect(typography.scale[level].size).toBeDefined();
-        expect(typography.scale[level].lineHeight).toBeDefined();
-        expect(typography.scale[level].weight).toBeDefined();
+        expect(typography.scale[level].size).toMatch(/^\d/);
+        expect(typography.scale[level].lineHeight).toMatch(/^\d/);
+        expect(typeof typography.scale[level].weight).toBe("string");
       }
     });
   });
@@ -235,9 +233,6 @@ describe("Brand Bible", () => {
 
     it("each example has do, dont, and rule", () => {
       for (const example of copyExamples) {
-        expect(example.do).toBeDefined();
-        expect(example.dont).toBeDefined();
-        expect(example.rule).toBeDefined();
         expect(typeof example.do).toBe("string");
         expect(typeof example.dont).toBe("string");
         expect(typeof example.rule).toBe("string");
@@ -272,8 +267,8 @@ describe("Brand Bible", () => {
     });
 
     it("separates marketing from product UI animation", () => {
-      expect(animation.marketing).toBeDefined();
-      expect(animation.productUI).toBeDefined();
+      expect(animation.marketing.allowed).toBeInstanceOf(Array);
+      expect(animation.productUI.allowed).toBeInstanceOf(Array);
     });
 
     it("marketing animation is restrained", () => {
@@ -317,8 +312,7 @@ describe("Brand Bible", () => {
         "empty",
       ] as const;
       for (const page of pages) {
-        expect(copyFrameworks[page]).toBeDefined();
-        expect(copyFrameworks[page].headline).toBeDefined();
+        expect(typeof copyFrameworks[page].headline).toBe("string");
       }
     });
 

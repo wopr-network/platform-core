@@ -42,7 +42,7 @@ describe("validateProductionApiUrl", () => {
       NEXT_PHASE: undefined,
       NEXT_PUBLIC_API_URL: INTERNAL_URL,
     });
-    await expect(import("../lib/api-config")).resolves.toBeDefined();
+    await expect(import("../lib/api-config")).resolves.toHaveProperty("API_BASE_URL");
   });
 
   it("does NOT throw during the Next.js build phase (NEXT_PHASE=phase-production-build)", async () => {
@@ -54,7 +54,7 @@ describe("validateProductionApiUrl", () => {
       NEXT_RUNTIME: "nodejs",
       NEXT_PUBLIC_API_URL: INTERNAL_URL,
     });
-    await expect(import("../lib/api-config")).resolves.toBeDefined();
+    await expect(import("../lib/api-config")).resolves.toHaveProperty("API_BASE_URL");
   });
 
   it("throws at production runtime with an internal URL", async () => {
@@ -84,6 +84,6 @@ describe("validateProductionApiUrl", () => {
       NEXT_RUNTIME: "nodejs",
       NEXT_PUBLIC_API_URL: VALID_PRODUCTION_URL,
     });
-    await expect(import("../lib/api-config")).resolves.toBeDefined();
+    await expect(import("../lib/api-config")).resolves.toHaveProperty("API_BASE_URL");
   });
 });

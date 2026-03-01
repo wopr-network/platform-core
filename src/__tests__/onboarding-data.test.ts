@@ -119,16 +119,15 @@ describe("onboarding-data", () => {
       expect(all.length).toBeGreaterThan(10);
       // Should include onboarding-only channels, providers, and optional plugins
       // (Discord/Slack/Telegram are marketplace-sourced via getChannelPlugins, not in static list)
-      expect(all.find((p) => p.id === "signal")).toBeDefined();
-      expect(all.find((p) => p.id === "anthropic")).toBeDefined();
-      expect(all.find((p) => p.id === "semantic-memory")).toBeDefined();
+      expect(all.map((p) => p.id)).toContain("signal");
+      expect(all.map((p) => p.id)).toContain("anthropic");
+      expect(all.map((p) => p.id)).toContain("semantic-memory");
     });
   });
 
   describe("getPluginById", () => {
     it("returns a plugin by id", () => {
       const signal = getPluginById("signal");
-      expect(signal).toBeDefined();
       expect(signal?.name).toBe("Signal");
     });
 

@@ -77,7 +77,6 @@ describe("parseManifestSafe", () => {
   it("returns parsed manifest for valid input", async () => {
     const { parseManifestSafe } = await import("../lib/marketplace-data");
     const result = parseManifestSafe({ id: "test", name: "Test" });
-    expect(result).not.toBeNull();
     expect(result?.id).toBe("test");
   });
 });
@@ -118,7 +117,6 @@ describe("listMarketplacePlugins with incomplete manifests", () => {
     expect(results.length).toBeGreaterThanOrEqual(2);
 
     const minimal = results.find((r) => r.id === "minimal");
-    expect(minimal).toBeDefined();
     expect(minimal?.description).toBe("No description provided");
     expect(minimal?.version).toBe("unknown");
     expect(minimal?.tags).toEqual([]);

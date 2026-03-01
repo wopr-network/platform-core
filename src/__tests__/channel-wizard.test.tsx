@@ -183,7 +183,6 @@ describe("mock-manifests", () => {
   it("getManifest returns correct manifest by id", async () => {
     const { getManifest } = await import("@/lib/mock-manifests");
     const discord = await getManifest("discord");
-    expect(discord).toBeDefined();
     expect(discord?.name).toBe("Discord");
   });
 
@@ -196,7 +195,6 @@ describe("mock-manifests", () => {
   it("Discord manifest has 4 setup steps", async () => {
     const { getManifest } = await import("@/lib/mock-manifests");
     const discord = await getManifest("discord");
-    expect(discord).toBeDefined();
     expect(discord?.setup).toHaveLength(4);
     expect(discord?.setup.map((s) => s.id)).toEqual([
       "create-bot",
@@ -209,9 +207,7 @@ describe("mock-manifests", () => {
   it("Telegram manifest has secret token field with paste flow", async () => {
     const { getManifest } = await import("@/lib/mock-manifests");
     const telegram = await getManifest("telegram");
-    expect(telegram).toBeDefined();
     const tokenStep = telegram?.setup.find((s) => s.id === "paste-token");
-    expect(tokenStep).toBeDefined();
     const tokenField = tokenStep?.fields[0];
     expect(tokenField?.secret).toBe(true);
     expect(tokenField?.setupFlow).toBe("paste");
@@ -220,9 +216,7 @@ describe("mock-manifests", () => {
   it("Slack manifest has oauth flow", async () => {
     const { getManifest } = await import("@/lib/mock-manifests");
     const slack = await getManifest("slack");
-    expect(slack).toBeDefined();
     const oauthStep = slack?.setup.find((s) => s.id === "oauth");
-    expect(oauthStep).toBeDefined();
     const oauthField = oauthStep?.fields[0];
     expect(oauthField?.setupFlow).toBe("oauth");
   });

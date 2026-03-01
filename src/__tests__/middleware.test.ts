@@ -536,7 +536,6 @@ describe("validateCsrfOrigin", () => {
 // ---------------------------------------------------------------------------
 describe("middleware config", () => {
   it("exports a matcher that excludes _next/static, _next/image, and favicon.ico", () => {
-    expect(config.matcher).toBeDefined();
     const pattern = config.matcher[0];
     expect(pattern).toContain("_next/static");
     expect(pattern).toContain("favicon.ico");

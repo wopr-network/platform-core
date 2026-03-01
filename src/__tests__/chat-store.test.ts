@@ -15,7 +15,7 @@ describe("chat-store", () => {
   describe("getSessionId", () => {
     it("generates a session ID on first call", () => {
       const id = getSessionId();
-      expect(id).toBeTruthy();
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
       expect(typeof id).toBe("string");
       expect(id.length).toBeGreaterThan(10);
     });

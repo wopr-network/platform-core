@@ -136,9 +136,9 @@ describe("usePluginRegistry", () => {
     const { result } = renderHook(() => usePluginRegistry());
     const all = result.current.getAllPlugins();
     // signal is an onboarding-only channel in the static list; discord is marketplace-sourced
-    expect(all.find((p) => p.id === "signal")).toBeDefined();
-    expect(all.find((p) => p.id === "anthropic")).toBeDefined();
-    expect(all.find((p) => p.id === "semantic-memory")).toBeDefined();
+    expect(all.map((p) => p.id)).toContain("signal");
+    expect(all.map((p) => p.id)).toContain("anthropic");
+    expect(all.map((p) => p.id)).toContain("semantic-memory");
   });
 
   it("getPluginById finds plugins from any source", () => {

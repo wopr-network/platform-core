@@ -9,7 +9,6 @@ describe("mergeApiRates", () => {
     });
 
     const voice = result.find((c) => c.category === "Voice");
-    expect(voice).toBeDefined();
     expect(voice?.models).toHaveLength(2);
     expect(voice?.icon).toBe("mic");
   });
