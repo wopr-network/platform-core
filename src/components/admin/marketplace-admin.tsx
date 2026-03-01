@@ -57,6 +57,7 @@ export function MarketplaceAdmin() {
   const [enabled, setEnabled] = useState<AdminPlugin[]>([]);
   const [selected, setSelected] = useState<AdminPlugin | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addPackage, setAddPackage] = useState("");
   const [addLoading, setAddLoading] = useState(false);
@@ -67,12 +68,13 @@ export function MarketplaceAdmin() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [q, e] = await Promise.all([getDiscoveryQueue(), getEnabledPlugins()]);
       setQueue(q);
       setEnabled(e);
     } catch {
-      // keep previous state
+      setLoadError("Failed to load marketplace data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -176,6 +178,14 @@ export function MarketplaceAdmin() {
   };
 
   // ---- Skeleton ----
+
+  if (loadError) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-3">
+        <p className="text-sm text-destructive font-mono">{loadError}</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
