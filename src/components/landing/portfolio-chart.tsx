@@ -49,7 +49,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
     count: 0,
     t: 0,
     value: 0,
-    bias: 0.02,
+    bias: 0.15,
     milestoneCount: 0,
     milestones: [] as MilestoneNode[],
     lastTime: 0,
@@ -62,7 +62,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
     const color = getLineColor(s.milestoneCount, now);
 
     s.milestoneCount++;
-    s.bias *= 1.35;
+    s.bias *= 1.25;
 
     const lifetime = Math.max(400, 3000 - s.milestoneCount * 45);
 
@@ -128,7 +128,8 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       // Simulation steps (~16.67ms each)
       const steps = Math.max(1, Math.round(dt / 16.67));
-      const noiseFactor = 0.5 * Math.max(0.3, 0.97 ** s.milestoneCount);
+      // Noise shrinks as bias grows — at high milestones the line is clearly going up
+      const noiseFactor = 1.2 * Math.max(0.1, 0.92 ** s.milestoneCount);
       for (let i = 0; i < steps; i++) {
         s.t += 1;
         s.value += s.bias + gaussianNoise() * noiseFactor;
@@ -148,11 +149,11 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
         return;
       }
 
-      // Viewport
-      const yRange = 40 * Math.max(1, 1.35 ** s.milestoneCount * 0.3);
-      const yTop = s.value + yRange * 0.35;
-      const yBottom = s.value - yRange * 0.65;
-      const xSpan = Math.max(200, 600 - s.milestoneCount * 3);
+      // Viewport — tight at start, zooms out linearly with milestones
+      const yRange = 30 + s.milestoneCount * 8;
+      const yTop = s.value + yRange * 0.3;
+      const yBottom = s.value - yRange * 0.7;
+      const xSpan = Math.max(150, 500 - s.milestoneCount * 5);
       const xRight = s.t;
       const xLeft = s.t - xSpan;
 
@@ -179,7 +180,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       // Base opacity for entire chart — background texture
       ctx.save();
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = 0.55;
 
       // Layer 1: Bloom (phosphor glow) — shadowBlur, not ctx.filter
       ctx.save();
@@ -220,9 +221,9 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
         const age = (now - m.born) / m.lifetime;
         const alpha = Math.max(0, 1 - age);
 
-        if (mx < -20 || alpha <= 0) continue;
+        if (mx < -20 || my > h + 20 || alpha <= 0) continue;
 
-        const outerRadius = 6 + (1 - age) * 8;
+        const outerRadius = 10 + (1 - age) * 14;
 
         // Halo
         const grad = ctx.createRadialGradient(mx, my, 0, mx, my, outerRadius);
@@ -242,7 +243,7 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = m.color;
         ctx.beginPath();
-        ctx.arc(mx, my, 3, 0, Math.PI * 2);
+        ctx.arc(mx, my, 4, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
