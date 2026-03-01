@@ -9,62 +9,10 @@ const { TEST_PLUGINS, mockInstallPlugin, mockListBots } = vi.hoisted(() => {
   const mockListBots = vi
     .fn()
     .mockResolvedValue([{ id: "bot-001", name: "My Bot", state: "running" }]);
-  const TEST_PLUGINS: Array<Record<string, unknown>> = [
-    {
-      id: "webhooks",
-      name: "Webhooks",
-      description: "Send and receive webhooks.",
-      version: "1.1.0",
-      author: "WOPR Team",
-      icon: "Webhook",
-      color: "#F59E0B",
-      category: "webhook",
-      tags: ["webhook"],
-      capabilities: ["webhook"],
-      requires: [],
-      install: [],
-      configSchema: [
-        {
-          key: "secret",
-          label: "Webhook Secret",
-          type: "string",
-          required: false,
-          secret: true,
-          placeholder: "Optional",
-        },
-      ],
-      setup: [
-        { id: "configure", title: "Configure Webhooks", description: "Set up.", fields: [] },
-        { id: "done", title: "Webhooks Ready", description: "Ready.", fields: [] },
-      ],
-      installCount: 7100,
-      changelog: [],
-      marketplaceTab: "utility",
-    },
-    {
-      id: "meeting-transcriber",
-      name: "Meeting Transcriber",
-      description: "Transcribe voice meetings automatically.",
-      version: "1.0.0",
-      author: "WOPR Team",
-      icon: "Mic",
-      color: "#F59E0B",
-      category: "voice",
-      tags: ["voice", "transcription"],
-      capabilities: ["stt", "llm"],
-      requires: [{ id: "discord", label: "Discord (for voice channels)" }],
-      install: ["discord"],
-      configSchema: [],
-      setup: [{ id: "done", title: "Ready", description: "Ready.", fields: [] }],
-      installCount: 3200,
-      changelog: [],
-      marketplaceTab: "superpower",
-      superpowerHeadline: "Fire Your Secretary",
-      superpowerTagline: "Your bot takes meeting notes.",
-      superpowerOutcomes: ["Auto-transcribed meetings"],
-    },
-  ];
-  return { TEST_PLUGINS, mockInstallPlugin, mockListBots };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { INSTALL_FLOW_TEST_PLUGINS } =
+    require("./fixtures/mock-manifests-data") as typeof import("./fixtures/mock-manifests");
+  return { TEST_PLUGINS: INSTALL_FLOW_TEST_PLUGINS, mockInstallPlugin, mockListBots };
 });
 
 const mockPush = vi.fn();
