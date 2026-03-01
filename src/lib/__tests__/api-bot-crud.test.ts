@@ -355,6 +355,7 @@ describe("controlInstance", () => {
 describe("pollChannelQr error handling", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("throws on 500 with status text", async () => {

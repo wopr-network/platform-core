@@ -52,6 +52,7 @@ describe("bot-settings-data API functions", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe("getBotSettings", () => {
