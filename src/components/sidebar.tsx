@@ -83,7 +83,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   }, [user, loadBalance]);
 
   async function handleSignOut() {
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      // Continue to redirect even if signOut throws
+    }
     router.push("/login");
   }
 

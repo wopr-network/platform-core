@@ -160,15 +160,19 @@ export default function PaymentPage() {
   }
 
   async function handleSetDefault(id: string) {
-    await setDefaultPaymentMethod(id);
-    if (info) {
-      setInfo({
-        ...info,
-        paymentMethods: info.paymentMethods.map((pm) => ({
-          ...pm,
-          isDefault: pm.id === id,
-        })),
-      });
+    try {
+      await setDefaultPaymentMethod(id);
+      if (info) {
+        setInfo({
+          ...info,
+          paymentMethods: info.paymentMethods.map((pm) => ({
+            ...pm,
+            isDefault: pm.id === id,
+          })),
+        });
+      }
+    } catch {
+      setRemoveError("Failed to update default payment method.");
     }
   }
 

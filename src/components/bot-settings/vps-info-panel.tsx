@@ -39,9 +39,13 @@ export function VpsInfoPanel({ botId }: VpsPanelProps) {
 
   async function handleCopy() {
     if (!vps?.sshConnectionString) return;
-    await navigator.clipboard.writeText(vps.sshConnectionString);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(vps.sshConnectionString);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard write may fail in some browser contexts
+    }
   }
 
   const statusBadge =

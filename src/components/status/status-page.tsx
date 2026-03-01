@@ -68,16 +68,21 @@ export function StatusPage() {
 
   const load = useCallback(async () => {
     setRefreshing(true);
-    const data = await fetchPlatformHealth();
-    if (data) {
-      setHealth(data);
-      setError(false);
-    } else {
+    try {
+      const data = await fetchPlatformHealth();
+      if (data) {
+        setHealth(data);
+        setError(false);
+      } else {
+        setError(true);
+      }
+    } catch {
       setError(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLastChecked(new Date());
     }
-    setLoading(false);
-    setRefreshing(false);
-    setLastChecked(new Date());
   }, []);
 
   useEffect(() => {

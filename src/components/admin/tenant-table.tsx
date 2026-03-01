@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -111,15 +112,27 @@ export function TenantTable() {
   async function handleBulkSuspend() {
     const reason = window.prompt("Reason for suspension:");
     if (!reason) return;
-    await bulkSuspendTenants(Array.from(selected), reason);
-    setSelected(new Set());
-    reload();
+    try {
+      await bulkSuspendTenants(Array.from(selected), reason);
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      toast.error(
+        `Failed to suspend tenants: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
+    }
   }
 
   async function handleBulkReactivate() {
-    await bulkReactivateTenants(Array.from(selected));
-    setSelected(new Set());
-    reload();
+    try {
+      await bulkReactivateTenants(Array.from(selected));
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      toast.error(
+        `Failed to reactivate tenants: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
+    }
   }
 
   async function handleBulkGrantCredits() {
@@ -129,9 +142,15 @@ export function TenantTable() {
     if (Number.isNaN(amountCents) || amountCents <= 0) return;
     const reason = window.prompt("Reason for grant:");
     if (!reason) return;
-    await bulkGrantCredits(Array.from(selected), amountCents, reason);
-    setSelected(new Set());
-    reload();
+    try {
+      await bulkGrantCredits(Array.from(selected), amountCents, reason);
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      toast.error(
+        `Failed to grant credits: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
+    }
   }
 
   function handleExport() {

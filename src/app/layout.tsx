@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SITE_URL } from "@/lib/api-config";
 import { TRPCProvider } from "@/lib/trpc";
@@ -53,7 +54,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${jetbrainsMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <TRPCProvider>{children}</TRPCProvider>
+          <TRPCProvider>
+            {children}
+            <Toaster theme="dark" richColors />
+          </TRPCProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -19,11 +19,16 @@ export function OAuthButtons({ callbackUrl = "/" }: OAuthButtonsProps) {
 
   async function handleOAuth(provider: string) {
     setLoading(provider);
-    await signIn.social({
-      provider,
-      callbackURL: callbackUrl,
-    });
-    setLoading(null);
+    try {
+      await signIn.social({
+        provider,
+        callbackURL: callbackUrl,
+      });
+    } catch {
+      // signIn.social redirects on success; failure here means the redirect didn't happen
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (

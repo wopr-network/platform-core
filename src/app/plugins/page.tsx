@@ -93,9 +93,14 @@ export default function PluginsPage() {
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
-    const data = await listMarketplacePlugins();
-    setCatalog(data);
-    setLoading(false);
+    try {
+      const data = await listMarketplacePlugins();
+      setCatalog(data);
+    } catch {
+      // Keep previous catalog on error
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

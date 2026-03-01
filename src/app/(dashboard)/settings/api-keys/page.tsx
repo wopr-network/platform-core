@@ -92,9 +92,13 @@ export default function ApiKeysPage() {
 
   async function handleCopy() {
     if (newSecret) {
-      await navigator.clipboard.writeText(newSecret);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(newSecret);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Clipboard write may fail in some browser contexts
+      }
     }
   }
 
