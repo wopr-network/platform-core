@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PluginManifest } from "../lib/marketplace-data";
 import {
   ALL_CATEGORIES,
   formatInstallCount,
@@ -655,6 +654,24 @@ describe("PluginCard", () => {
     render(<PluginCard plugin={plugin} />);
 
     expect(screen.queryByText("WOPR Hosted")).not.toBeInTheDocument();
+  });
+
+  it("shows Installed badge when installed prop is true", async () => {
+    const { PluginCard } = await import("../components/marketplace/plugin-card");
+    const plugin = findManifest("discord");
+
+    render(<PluginCard plugin={plugin} installed={true} />);
+
+    expect(screen.getByText("Installed")).toBeInTheDocument();
+  });
+
+  it("does not show Installed badge when installed prop is false", async () => {
+    const { PluginCard } = await import("../components/marketplace/plugin-card");
+    const plugin = findManifest("discord");
+
+    render(<PluginCard plugin={plugin} installed={false} />);
+
+    expect(screen.queryByText("Installed")).not.toBeInTheDocument();
   });
 });
 
