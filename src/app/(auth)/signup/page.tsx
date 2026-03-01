@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -241,14 +242,17 @@ function SignupForm() {
                 className="placeholder:text-muted-foreground/50"
               />
             </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5 rounded border-input accent-terminal"
+            <div className="flex items-start gap-2 text-sm">
+              <Checkbox
+                id="agree-terms"
                 checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                className="mt-0.5 data-[state=checked]:border-terminal data-[state=checked]:bg-terminal"
               />
-              <span className="text-muted-foreground">
+              <Label
+                htmlFor="agree-terms"
+                className="text-muted-foreground font-normal cursor-pointer"
+              >
                 I agree to the{" "}
                 <Link
                   href="/terms"
@@ -263,8 +267,8 @@ function SignupForm() {
                 >
                   Privacy Policy
                 </Link>
-              </span>
-            </label>
+              </Label>
+            </div>
             {error && <AuthError message={error} />}
             <Button type="submit" variant="terminal" className="w-full" disabled={loading}>
               {loading ? (

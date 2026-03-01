@@ -41,3 +41,21 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
     removeEventListener: vi.fn(),
   });
 }
+
+// Polyfill ResizeObserver for Radix UI components (e.g. Checkbox via @radix-ui/react-use-size).
+// jsdom does not provide ResizeObserver natively. Must be a class (constructor) not an arrow fn.
+class MockResizeObserver {
+  observe() {
+    /* no-op stub */
+  }
+  unobserve() {
+    /* no-op stub */
+  }
+  disconnect() {
+    /* no-op stub */
+  }
+}
+
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+}

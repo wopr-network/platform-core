@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,30 +48,39 @@ export function Wizard({ manifest, onComplete, onCancel, submitting, botId }: Wi
   }, []);
 
   function validateStep(): boolean {
-    const stepErrors: Record<string, string> = {};
-
+    const shape: Record<string, z.ZodTypeAny> = {};
     for (const field of step.fields) {
-      const value = values[field.key] || "";
-
-      if (field.required && !value) {
-        stepErrors[field.key] = `${field.label} is required`;
-        continue;
+      let strSchema = z.string();
+      if (field.required) {
+        strSchema = strSchema.min(1, `${field.label} is required`);
       }
-
-      if (value && field.validation?.pattern) {
-        try {
-          const regex = new RegExp(field.validation.pattern);
-          if (!regex.test(value)) {
-            stepErrors[field.key] = field.validation.message || "Invalid format";
-          }
-        } catch {
-          stepErrors[field.key] = field.validation.message || "Invalid format";
-        }
+      if (field.validation?.pattern) {
+        strSchema = strSchema.regex(
+          new RegExp(field.validation.pattern),
+          field.validation.message || "Invalid format",
+        );
+      }
+      shape[field.key] = field.required ? strSchema : strSchema.optional().or(z.literal(""));
+    }
+    const schema = z.object(shape);
+    const fieldValues: Record<string, string> = {};
+    for (const field of step.fields) {
+      fieldValues[field.key] = values[field.key] ?? "";
+    }
+    const result = schema.safeParse(fieldValues);
+    if (result.success) {
+      setErrors({});
+      return true;
+    }
+    const stepErrors: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string;
+      if (!(key in stepErrors)) {
+        stepErrors[key] = issue.message;
       }
     }
-
     setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
+    return false;
   }
 
   function handleNext() {

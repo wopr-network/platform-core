@@ -59,8 +59,8 @@ test.describe("Auth critical path", () => {
 			{ testEmail: email, pwd: PASSWORD },
 		);
 
-		// Check terms checkbox using Playwright's built-in check (handles React controlled checkboxes)
-		await page.locator('input[type="checkbox"]').check({ force: true });
+		// Click the Radix checkbox button element (not the hidden native input)
+		await page.getByRole("checkbox").click();
 
 		// Wait for React to process all state updates
 		await page.waitForTimeout(300);

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -195,28 +196,24 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
           <CardTitle className="text-sm">Value</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="valueType"
-                checked={valueType === "flat_credits"}
-                onChange={() => setValueType("flat_credits")}
-                className="accent-primary"
-              />
-              Flat credits
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="valueType"
-                checked={valueType === "percent_of_purchase"}
-                onChange={() => setValueType("percent_of_purchase")}
-                className="accent-primary"
-              />
-              Percent of purchase
-            </label>
-          </div>
+          <RadioGroup
+            value={valueType}
+            onValueChange={(v) => setValueType(v as ValueType)}
+            className="flex gap-4"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="flat_credits" id="vt-flat" />
+              <Label htmlFor="vt-flat" className="text-sm cursor-pointer">
+                Flat credits
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="percent_of_purchase" id="vt-pct" />
+              <Label htmlFor="vt-pct" className="text-sm cursor-pointer">
+                Percent of purchase
+              </Label>
+            </div>
+          </RadioGroup>
           <div>
             <Label htmlFor="promo-amount">
               {valueType === "flat_credits" ? "Credits (cents)" : "Basis points (1000 = 10%)"}
@@ -317,7 +314,11 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
           </div>
           <div>
             <Label>User segment</Label>
-            <div className="flex flex-wrap gap-3 mt-1.5">
+            <RadioGroup
+              value={userSegment}
+              onValueChange={(v) => setUserSegment(v as UserSegment)}
+              className="flex flex-wrap gap-3 mt-1.5"
+            >
               {(
                 [
                   ["all", "All users"],
@@ -326,18 +327,14 @@ export function PromotionForm({ initialData }: PromotionFormProps) {
                   ["tenant_list", "Specific tenants"],
                 ] as const
               ).map(([val, label]) => (
-                <label key={val} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    name="userSegment"
-                    checked={userSegment === val}
-                    onChange={() => setUserSegment(val)}
-                    className="accent-primary"
-                  />
-                  {label}
-                </label>
+                <div key={val} className="flex items-center gap-2">
+                  <RadioGroupItem value={val} id={`seg-${val}`} />
+                  <Label htmlFor={`seg-${val}`} className="text-sm cursor-pointer">
+                    {label}
+                  </Label>
+                </div>
               ))}
-            </div>
+            </RadioGroup>
           </div>
         </CardContent>
       </Card>

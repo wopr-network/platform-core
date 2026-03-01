@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,27 +106,43 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
   }, []);
 
   function validateFields(fields: ConfigSchemaField[]): boolean {
-    const stepErrors: Record<string, string> = {};
+    const shape: Record<string, z.ZodTypeAny> = {};
     for (const field of fields) {
-      const val = values[field.key];
-      if (field.required && (val === undefined || val === "")) {
-        stepErrors[field.key] = `${field.label} is required`;
-        continue;
-      }
-      if (typeof val === "string" && val && field.validation?.pattern) {
-        try {
-          const regex = new RegExp(field.validation.pattern);
-          if (!regex.test(val)) {
-            stepErrors[field.key] = field.validation.message || "Invalid format";
-          }
-        } catch {
-          // Invalid regex in field validation config — treat as validation failure
-          stepErrors[field.key] = field.validation.message || "Invalid format";
+      if (field.type === "boolean") {
+        shape[field.key] = z.boolean().optional();
+      } else if (field.type === "number") {
+        shape[field.key] = z.number().optional();
+      } else {
+        let strSchema = z.string();
+        if (field.required) {
+          strSchema = strSchema.min(1, `${field.label} is required`);
         }
+        if (field.validation?.pattern) {
+          strSchema = strSchema.regex(
+            new RegExp(field.validation.pattern),
+            field.validation.message || "Invalid format",
+          );
+        }
+        shape[field.key] = field.required ? strSchema : strSchema.optional().or(z.literal(""));
       }
     }
+    const schema = z.object(shape);
+    const fieldValues: Record<string, unknown> = {};
+    for (const field of fields) {
+      fieldValues[field.key] = values[field.key];
+    }
+    const result = schema.safeParse(fieldValues);
+    if (result.success) {
+      setErrors({});
+      return true;
+    }
+    const stepErrors: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string;
+      stepErrors[key] = issue.message;
+    }
     setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
+    return false;
   }
 
   function handleNext() {

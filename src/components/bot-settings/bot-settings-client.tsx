@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -535,55 +536,50 @@ function BrainTab({
           <CardTitle>Provider Mode</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
-            <input
-              type="radio"
-              name="provider-mode"
-              value="hosted"
-              checked={brain.mode === "hosted"}
-              onChange={() => handleModeChange("hosted")}
-              disabled={changingMode}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">WOPR Hosted</span>
-                {brain.mode === "hosted" && <Badge variant="default">Active</Badge>}
+          <RadioGroup
+            value={brain.mode}
+            onValueChange={(v) => handleModeChange(v as "hosted" | "byok")}
+            disabled={changingMode}
+            className="space-y-2"
+          >
+            <div className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+              <RadioGroupItem value="hosted" id="mode-hosted" className="mt-1" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="mode-hosted" className="text-sm font-medium cursor-pointer">
+                    WOPR Hosted
+                  </Label>
+                  {brain.mode === "hosted" && <Badge variant="default">Active</Badge>}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Everything routed through WOPR. Uses credits. No API keys needed.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Everything routed through WOPR. Uses credits. No API keys needed.
-              </p>
             </div>
-          </label>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
-            <input
-              type="radio"
-              name="provider-mode"
-              value="byok"
-              checked={brain.mode === "byok"}
-              onChange={() => handleModeChange("byok")}
-              disabled={changingMode}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <span className="text-sm font-medium">Bring Your Own Key</span>
-              <p className="text-sm text-muted-foreground">
-                Use your own Anthropic/OpenAI key. You pay the provider directly.
-              </p>
-              {brain.mode !== "byok" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => handleModeChange("byok")}
-                  disabled={changingMode}
-                >
-                  {changingMode ? "Switching..." : "Switch to BYOK"}
-                </Button>
-              )}
+            <div className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-accent/50">
+              <RadioGroupItem value="byok" id="mode-byok" className="mt-1" />
+              <div className="flex-1">
+                <Label htmlFor="mode-byok" className="text-sm font-medium cursor-pointer">
+                  Bring Your Own Key
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Use your own Anthropic/OpenAI key. You pay the provider directly.
+                </p>
+                {brain.mode !== "byok" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => handleModeChange("byok")}
+                    disabled={changingMode}
+                  >
+                    {changingMode ? "Switching..." : "Switch to BYOK"}
+                  </Button>
+                )}
+              </div>
             </div>
-          </label>
+          </RadioGroup>
         </CardContent>
       </Card>
 

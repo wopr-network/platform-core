@@ -225,34 +225,59 @@ export default function HostedUsageDetailPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>
-                      <button type="button" onClick={() => handleSort("date")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-medium"
+                        onClick={() => handleSort("date")}
+                      >
                         Date
                         <SortIcon field="date" />
-                      </button>
+                      </Button>
                     </TableHead>
                     <TableHead>
-                      <button type="button" onClick={() => handleSort("capability")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-medium"
+                        onClick={() => handleSort("capability")}
+                      >
                         Capability
                         <SortIcon field="capability" />
-                      </button>
+                      </Button>
                     </TableHead>
                     <TableHead>
-                      <button type="button" onClick={() => handleSort("provider")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-medium"
+                        onClick={() => handleSort("provider")}
+                      >
                         Provider
                         <SortIcon field="provider" />
-                      </button>
+                      </Button>
                     </TableHead>
                     <TableHead className="text-right">
-                      <button type="button" onClick={() => handleSort("units")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-medium"
+                        onClick={() => handleSort("units")}
+                      >
                         Units
                         <SortIcon field="units" />
-                      </button>
+                      </Button>
                     </TableHead>
                     <TableHead className="text-right">
-                      <button type="button" onClick={() => handleSort("cost")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-medium"
+                        onClick={() => handleSort("cost")}
+                      >
                         Cost
                         <SortIcon field="cost" />
-                      </button>
+                      </Button>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

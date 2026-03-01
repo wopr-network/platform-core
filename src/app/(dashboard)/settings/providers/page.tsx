@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -311,54 +312,55 @@ export default function ProvidersPage() {
               <CardTitle>{meta.label}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Hosted option */}
-              <label
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
-                  mode === "hosted" && "border-terminal/30 bg-terminal/5",
-                )}
+              <RadioGroup
+                value={mode}
+                onValueChange={(v) => handleModeChange(capName, v as "hosted" | "byok")}
+                disabled={isSaving}
+                className="space-y-2"
               >
-                <input
-                  type="radio"
-                  name={`mode-${capName}`}
-                  value="hosted"
-                  checked={mode === "hosted"}
-                  onChange={() => handleModeChange(capName, "hosted")}
-                  disabled={isSaving}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">WOPR Hosted</span>
-                    <Badge variant="outline">{meta.pricing}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{meta.description}</p>
-                </div>
-              </label>
-
-              {/* BYOK option */}
-              <label
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
-                  mode === "byok" && "border-primary/30 bg-primary/5",
-                )}
-              >
-                <input
-                  type="radio"
-                  name={`mode-${capName}`}
-                  value="byok"
-                  checked={mode === "byok"}
-                  onChange={() => handleModeChange(capName, "byok")}
-                  disabled={isSaving}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium">Bring Your Own Key</span>
-                  {cap?.provider && (
-                    <span className="ml-2 text-xs text-muted-foreground">({cap.provider})</span>
+                {/* Hosted option */}
+                <div
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
+                    mode === "hosted" && "border-terminal/30 bg-terminal/5",
                   )}
+                >
+                  <RadioGroupItem value="hosted" id={`mode-${capName}-hosted`} className="mt-1" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor={`mode-${capName}-hosted`}
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        WOPR Hosted
+                      </Label>
+                      <Badge variant="outline">{meta.pricing}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{meta.description}</p>
+                  </div>
                 </div>
-              </label>
+
+                {/* BYOK option */}
+                <div
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors hover:bg-accent/50",
+                    mode === "byok" && "border-primary/30 bg-primary/5",
+                  )}
+                >
+                  <RadioGroupItem value="byok" id={`mode-${capName}-byok`} className="mt-1" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor={`mode-${capName}-byok`}
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Bring Your Own Key
+                    </Label>
+                    {cap?.provider && (
+                      <span className="ml-2 text-xs text-muted-foreground">({cap.provider})</span>
+                    )}
+                  </div>
+                </div>
+              </RadioGroup>
 
               {/* BYOK key input with progressive disclosure */}
               {mode === "byok" && (
