@@ -12,6 +12,7 @@ export function getSessionId(): string {
     localStorage.setItem(SESSION_KEY, id);
     return id;
   } catch {
+    // localStorage blocked (private browsing) — use ephemeral session ID
     return crypto.randomUUID();
   }
 }

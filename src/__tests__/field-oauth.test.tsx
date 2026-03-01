@@ -151,7 +151,11 @@ describe("FieldOAuth", () => {
     vi.spyOn(window, "open").mockReturnValue(mockPopup as never);
 
     // Slow fetch — never resolves during the test
-    vi.mocked(global.fetch).mockReturnValue(new Promise(() => {}));
+    vi.mocked(global.fetch).mockReturnValue(
+      new Promise(() => {
+        /* never resolves — keep loading state for test */
+      }),
+    );
 
     render(<FieldOAuth field={slackOAuthField} value="" onChange={vi.fn()} />);
 

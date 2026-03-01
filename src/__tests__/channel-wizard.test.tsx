@@ -632,7 +632,11 @@ describe("Wizard connection test API integration", () => {
 
   it("shows Testing... and disables button while request is in flight", async () => {
     const { testChannelConnection } = await import("@/lib/api");
-    vi.mocked(testChannelConnection).mockReturnValue(new Promise(() => {})); // never resolves
+    vi.mocked(testChannelConnection).mockReturnValue(
+      new Promise(() => {
+        /* never resolves — keep in-flight state for test */
+      }),
+    );
 
     await navigateToFinalStep();
     await act(async () => {

@@ -1080,6 +1080,7 @@ export function validateField(field: OnboardingConfigField, value: string): stri
         return field.validation.message;
       }
     } catch {
+      // Invalid regex in field validation config — treat as validation failure
       return field.validation.message;
     }
   }

@@ -105,10 +105,14 @@ export default function PaymentPage() {
             setOrgPaymentMethods(data.paymentMethods);
             setOrgInvoices(data.invoices);
           })
-          .catch(() => {})
+          .catch(() => {
+            // Silently degrade — payment methods and invoices default to empty
+          })
           .finally(() => setOrgLoading(false));
       })
-      .catch(() => {})
+      .catch(() => {
+        // Silently degrade — org billing section will not render
+      })
       .finally(() => setOrgChecked(true));
   }, [session?.user?.email]);
 

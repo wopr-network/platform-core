@@ -66,7 +66,9 @@ export function ResourcesTab({ botId }: { botId: string }) {
   useEffect(() => {
     getResourceTier(botId)
       .then((res) => setCurrentTier(res.tier))
-      .catch(() => {})
+      .catch(() => {
+        // Silently degrade — tier defaults to null and UI shows no current tier
+      })
       .finally(() => setLoading(false));
   }, [botId]);
 

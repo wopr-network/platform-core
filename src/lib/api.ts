@@ -22,7 +22,8 @@ export async function fetchPublicPricing(): Promise<ApiPricingResponse | null> {
     });
     if (!res.ok) return null;
     return (await res.json()) as ApiPricingResponse;
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch pricing data", e);
     return null;
   }
 }
@@ -38,7 +39,8 @@ export async function fetchDividendStats(): Promise<DividendStats | null> {
     });
     if (!res.ok) return null;
     return (await res.json()) as DividendStats;
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch dividend stats", e);
     return null;
   }
 }
@@ -516,7 +518,8 @@ export interface ImageStatusResponse {
 export async function getImageStatus(id: string): Promise<ImageStatusResponse | null> {
   try {
     return await fleetFetch<ImageStatusResponse>(`/bots/${id}/image-status`);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch image status", e);
     return null;
   }
 }
@@ -1580,7 +1583,8 @@ export async function validateDeepgramKey(key: string): Promise<KeyValidationRes
     return result.valid
       ? { valid: true }
       : { valid: false, message: "Invalid API key. Please check and try again." };
-  } catch {
+  } catch (e) {
+    console.warn("Key validation request failed", e);
     return { valid: false, message: "Could not validate key. Please try again." };
   }
 }
@@ -1599,7 +1603,8 @@ export async function validateElevenLabsKey(key: string): Promise<KeyValidationR
       valid: false,
       message: result.error ?? "Invalid API key. Please check and try again.",
     };
-  } catch {
+  } catch (e) {
+    console.warn("Key validation request failed", e);
     return { valid: false, message: "Could not validate key. Please try again." };
   }
 }
@@ -1681,7 +1686,8 @@ export async function fetchPlatformHealth(): Promise<PlatformHealthResponse | nu
     });
     if (!res.ok) return null;
     return (await res.json()) as PlatformHealthResponse;
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch platform health", e);
     return null;
   }
 }
