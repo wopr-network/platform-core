@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useSaveQueue } from "@/hooks/use-save-queue";
 import type {
   ActiveSuperpower,
   AvailableSuperpower,
@@ -193,27 +194,26 @@ function IdentityTab({
 }) {
   const [name, setName] = useState(settings.identity.name);
   const [personality, setPersonality] = useState(settings.identity.personality);
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  async function handleSave() {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const updated = await updateBotIdentity(botId, {
-        name,
-        avatar: settings.identity.avatar,
-        personality,
-      });
-      onUpdate({ ...settings, identity: updated });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setSaveError("Failed to save \u2014 please try again.");
-    } finally {
-      setSaving(false);
-    }
+  const saveFn = useCallback(
+    async (payload: { name: string; avatar: string; personality: string }) => {
+      try {
+        const updated = await updateBotIdentity(botId, payload);
+        onUpdate({ ...settings, identity: updated });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch {
+        throw new Error("Failed to save \u2014 please try again.");
+      }
+    },
+    [botId, settings, onUpdate],
+  );
+
+  const { enqueue: enqueueSave, saving, error: saveError } = useSaveQueue(saveFn);
+
+  function handleSave() {
+    enqueueSave({ name, avatar: settings.identity.avatar, personality });
   }
 
   return (
@@ -286,25 +286,34 @@ function BrainTab({
 }) {
   const { brain } = settings;
   const [modelInput, setModelInput] = useState(brain.model);
-  const [savingModel, setSavingModel] = useState(false);
   const [changingMode, setChangingMode] = useState(false);
   const [brainError, setBrainError] = useState<string | null>(null);
 
-  async function handleSaveModel() {
-    if (modelInput === brain.model) return;
-    setSavingModel(true);
-    setBrainError(null);
-    try {
-      await updateBotBrain(botId, { model: modelInput });
+  const saveModelFn = useCallback(
+    async (payload: { model: string }) => {
+      await updateBotBrain(botId, payload);
       onUpdate({
         ...settings,
-        brain: { ...settings.brain, model: modelInput },
+        brain: { ...settings.brain, model: payload.model },
       });
-    } catch {
-      setBrainError("Failed to update model -- please try again.");
-    } finally {
-      setSavingModel(false);
-    }
+    },
+    [botId, settings, onUpdate],
+  );
+
+  const {
+    enqueue: enqueueModelSave,
+    saving: savingModel,
+    error: modelSaveError,
+  } = useSaveQueue(saveModelFn);
+
+  useEffect(() => {
+    if (modelSaveError) setBrainError(modelSaveError);
+  }, [modelSaveError]);
+
+  function handleSaveModel() {
+    if (modelInput === brain.model) return;
+    setBrainError(null);
+    enqueueModelSave({ model: modelInput });
   }
 
   async function handleModeChange(mode: "hosted" | "byok") {
