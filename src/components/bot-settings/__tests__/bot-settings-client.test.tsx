@@ -62,7 +62,11 @@ vi.mock("@/lib/bot-settings-data", async (importOriginal) => {
 describe("BotSettingsClient — loading and error states", () => {
   it("renders skeleton while loading", async () => {
     const { getBotSettings } = await import("@/lib/bot-settings-data");
-    vi.mocked(getBotSettings).mockReturnValueOnce(new Promise(() => {})); // never resolves
+    vi.mocked(getBotSettings).mockReturnValueOnce(
+      new Promise(() => {
+        /* never resolves — keep loading state for test */
+      }),
+    );
 
     const { container } = render(<BotSettingsClient botId="bot-001" />);
     // No bot name rendered yet

@@ -174,7 +174,8 @@ export async function getDiscoveryQueue(): Promise<AdminPlugin[]> {
   try {
     const all = await marketplaceClient.listPlugins.query();
     return all.filter((p) => !p.reviewed);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch pending plugins, using mock data", e);
     return getMockPlugins().filter((p) => !p.reviewed);
   }
 }
@@ -183,7 +184,8 @@ export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
   try {
     const all = await marketplaceClient.listPlugins.query();
     return all.filter((p) => p.enabled && p.reviewed).sort((a, b) => a.sort_order - b.sort_order);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch featured plugins, using mock data", e);
     return getMockPlugins()
       .filter((p) => p.enabled && p.reviewed)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -193,7 +195,8 @@ export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
 export async function getAllPlugins(): Promise<AdminPlugin[]> {
   try {
     return await marketplaceClient.listPlugins.query();
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch all plugins, using mock data", e);
     return getMockPlugins();
   }
 }
@@ -201,7 +204,8 @@ export async function getAllPlugins(): Promise<AdminPlugin[]> {
 export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugin> {
   try {
     return await marketplaceClient.updatePlugin.mutate(req);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to update plugin, using mock fallback", e);
     const plugins = getMockPlugins();
     const idx = plugins.findIndex((p) => p.id === req.id);
     if (idx === -1) throw new Error(`Plugin not found: ${req.id}`);
@@ -219,7 +223,8 @@ export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugi
 export async function addPluginByNpm(req: AddPluginRequest): Promise<AdminPlugin> {
   try {
     return await marketplaceClient.addPlugin.mutate(req);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to add plugin via API, using mock fallback", e);
     const newPlugin: AdminPlugin = {
       id: `manual-${Date.now()}`,
       npm_package: req.npm_package,

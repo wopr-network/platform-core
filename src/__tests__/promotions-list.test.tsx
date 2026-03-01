@@ -132,7 +132,12 @@ describe("PromotionsListPage", () => {
 
   it("shows loading skeleton while fetching", async () => {
     // Never resolves so loading state persists
-    mockListQuery.mockImplementation(() => new Promise(() => {}));
+    mockListQuery.mockImplementation(
+      () =>
+        new Promise(() => {
+          /* never resolves — keep loading state for test */
+        }),
+    );
     const PromotionsListPage = (await import("../app/admin/promotions/page")).default;
     render(<PromotionsListPage />);
 

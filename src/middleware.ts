@@ -44,6 +44,7 @@ export function validateCsrfOrigin(request: NextRequest): boolean {
       const refererOrigin = new URL(referer).origin;
       return refererOrigin === allowedOrigin;
     } catch {
+      // Malformed referer URL — treat as non-matching origin
       return false;
     }
   }
@@ -74,7 +75,8 @@ async function getSessionRole(request: NextRequest): Promise<string | null> {
     if (!res.ok) return null;
     const data = await res.json();
     return data?.user?.role ?? null;
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch user role for middleware routing", e);
     return null;
   }
 }

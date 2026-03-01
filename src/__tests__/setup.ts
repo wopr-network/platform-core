@@ -13,9 +13,15 @@ class MockIntersectionObserver {
   readonly root: Element | null = null;
   readonly rootMargin: string = "";
   readonly thresholds: ReadonlyArray<number> = [];
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() {
+    /* no-op stub */
+  }
+  unobserve() {
+    /* no-op stub */
+  }
+  disconnect() {
+    /* no-op stub */
+  }
   takeRecords(): IntersectionObserverEntry[] {
     return [];
   }

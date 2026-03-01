@@ -209,7 +209,8 @@ export interface PluginContentResponse {
 export async function getPluginContent(pluginId: string): Promise<PluginContentResponse | null> {
   try {
     return await apiFetch<PluginContentResponse>(`/marketplace/plugins/${pluginId}/content`);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch plugin content", e);
     return null;
   }
 }

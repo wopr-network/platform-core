@@ -91,7 +91,11 @@ describe("ActivityPage", () => {
   });
 
   it("shows loading skeletons initially", () => {
-    mockFetchAuditLog.mockReturnValue(new Promise(() => {}));
+    mockFetchAuditLog.mockReturnValue(
+      new Promise(() => {
+        /* never resolves — keep loading state for test */
+      }),
+    );
     render(<ActivityPage />);
 
     expect(screen.queryByText("Action")).not.toBeInTheDocument();

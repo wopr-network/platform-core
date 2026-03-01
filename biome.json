@@ -15,7 +15,8 @@
           "options": {
             "allow": ["assert", "error", "info", "warn"]
           }
-        }
+        },
+        "noEmptyBlockStatements": "error"
       }
     }
   },

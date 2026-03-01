@@ -48,7 +48,12 @@ describe("CouponInput", () => {
 
   it("shows loading state while applying — button shows Applying... and is disabled", async () => {
     // Never resolves so we can inspect the loading state
-    mockApplyCoupon.mockImplementation(() => new Promise(() => {}));
+    mockApplyCoupon.mockImplementation(
+      () =>
+        new Promise(() => {
+          /* never resolves — keep loading state for test */
+        }),
+    );
     const user = userEvent.setup();
     const { CouponInput } = await import("../components/billing/coupon-input");
     render(<CouponInput />);

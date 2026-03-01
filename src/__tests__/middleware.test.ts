@@ -49,6 +49,7 @@ function redirectPath(res: Response): string {
     const u = new URL(loc);
     return u.pathname + (u.search ? u.search : "");
   } catch {
+    // Non-URL location string (e.g. relative path) — return as-is
     return loc;
   }
 }

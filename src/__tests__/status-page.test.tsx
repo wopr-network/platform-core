@@ -30,7 +30,11 @@ describe("StatusPage", () => {
   });
 
   it("shows loading skeleton initially", () => {
-    mockFetch.mockReturnValue(new Promise(() => {}));
+    mockFetch.mockReturnValue(
+      new Promise(() => {
+        /* never resolves — keep loading state for test */
+      }),
+    );
     render(<StatusPage />);
     expect(screen.getByText("Platform Status")).toBeInTheDocument();
   });

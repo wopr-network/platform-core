@@ -184,7 +184,8 @@ export async function setStorageTier(botId: string, tier: string): Promise<{ tie
 export async function getStorageUsage(botId: string): Promise<StorageUsage | null> {
   try {
     return await apiFetch<StorageUsage>(`/fleet/bots/${botId}/storage-usage`);
-  } catch {
+  } catch (e) {
+    console.warn("Failed to fetch storage usage", e);
     return null;
   }
 }

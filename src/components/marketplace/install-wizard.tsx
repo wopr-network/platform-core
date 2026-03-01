@@ -119,6 +119,7 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
             stepErrors[field.key] = field.validation.message || "Invalid format";
           }
         } catch {
+          // Invalid regex in field validation config — treat as validation failure
           stepErrors[field.key] = field.validation.message || "Invalid format";
         }
       }
