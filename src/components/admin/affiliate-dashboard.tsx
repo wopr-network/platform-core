@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,15 +62,17 @@ function SuppressionFeed() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (pageOffset: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await getAffiliateSuppressions(PAGE_SIZE, pageOffset);
       setEvents(result.events);
       setTotal(result.total);
     } catch {
-      // keep previous state
+      setLoadError("Failed to load suppression events. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -117,6 +120,12 @@ function SuppressionFeed() {
                   ))}
                 </TableRow>
               ))
+            ) : loadError ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-32 text-center">
+                  <p className="text-sm text-destructive font-mono">{loadError}</p>
+                </TableCell>
+              </TableRow>
             ) : events.length === 0 && !loading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center">
@@ -196,6 +205,7 @@ function SuppressionFeed() {
 function VelocityPanel() {
   const [referrers, setReferrers] = useState<VelocityReferrer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -203,7 +213,7 @@ function VelocityPanel() {
         const result = await getAffiliateVelocity(CAP_REFERRALS, CAP_PAYOUT_CENTS);
         setReferrers(result);
       } catch {
-        // keep empty
+        setLoadError("Failed to load velocity data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -247,6 +257,12 @@ function VelocityPanel() {
                   ))}
                 </TableRow>
               ))
+            ) : loadError ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-32 text-center">
+                  <p className="text-sm text-destructive font-mono">{loadError}</p>
+                </TableCell>
+              </TableRow>
             ) : referrers.length === 0 && !loading ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-32 text-center">
@@ -329,7 +345,7 @@ function FingerprintPanel() {
       const result = await getAffiliateFingerprintClusters();
       setClusters(result);
     } catch {
-      // keep empty
+      toast.error("Failed to load fingerprint clusters. Please try again.");
     } finally {
       setLoading(false);
     }

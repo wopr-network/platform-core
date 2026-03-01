@@ -54,6 +54,7 @@ export function TenantTable() {
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -61,6 +62,7 @@ export function TenantTable() {
 
   const load = useCallback(async (searchTerm: string, pageOffset: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await getUsersList({
         search: searchTerm || undefined,
@@ -70,7 +72,7 @@ export function TenantTable() {
       setUsers(result.users);
       setTotal(result.total);
     } catch {
-      // Keep previous state on error
+      setLoadError("Failed to load users. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -227,6 +229,12 @@ export function TenantTable() {
                   ))}
                 </TableRow>
               ))
+            ) : loadError ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center">
+                  <p className="text-sm text-destructive font-mono">{loadError}</p>
+                </TableCell>
+              </TableRow>
             ) : users.length === 0 && !loading ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center">
