@@ -80,6 +80,10 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
     milestones: [] as MilestoneNode[],
     lastTime: 0,
     animId: 0,
+    // Anchor ratchets — one-way, can only move toward vertical/top
+    anchorX: 1.0,       // fraction of w where current point renders (1.0 = right edge)
+    anchorTopFrac: 0.3, // fraction of yRange above current point (0 = current at top edge)
+    smoothedSlope: 0,   // EMA of screen-space slope
   });
 
   const handleMilestone = useCallback(() => {
@@ -177,14 +181,29 @@ export function PortfolioChart({ onMilestoneRef }: PortfolioChartProps) {
 
       // Viewport — tight at start, zooms out linearly with milestones
       const yRange = 30 + s.milestoneCount * 8;
-      const yTop = s.value + yRange * 0.3;
-      const yBottom = s.value - yRange * 0.7;
       const xSpan = Math.max(150, 500 - s.milestoneCount * 5);
       const xRight = s.t;
       const xLeft = s.t - xSpan;
 
-      // Leave 25% right margin so the live point isn't pinned to the edge
-      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * w * 0.75;
+      // Screen-space slope: how far up does the chart move per pixel of rightward travel?
+      // bias drives upward speed; normalize against viewport dimensions.
+      const rawSlope = s.bias * (h * xSpan) / (w * yRange);
+      s.smoothedSlope = s.smoothedSlope * 0.95 + rawSlope * 0.05;
+
+      // slopeFactor: 0 = flat/horizontal, 1 = clearly vertical
+      const slopeFactor = Math.min(1, Math.max(0, (s.smoothedSlope - 0.3) / 1.7));
+
+      // One-way ratchets — can only move toward the vertical/top anchor, never back
+      const targetAnchorX    = 1.0 - slopeFactor * 0.5; // 1.0 (right edge) → 0.5 (center)
+      const targetTopFrac    = 0.3 * (1 - slopeFactor); // 0.3 (30% above) → 0.0 (top edge)
+      s.anchorX       = Math.min(s.anchorX,       targetAnchorX);
+      s.anchorTopFrac = Math.min(s.anchorTopFrac, targetTopFrac);
+
+      // Viewport derived from anchors
+      const yTop    = s.value + yRange * s.anchorTopFrac;
+      const yBottom = s.value - yRange * (1 - s.anchorTopFrac);
+
+      const toScreenX = (t: number) => ((t - xLeft) / (xRight - xLeft)) * (w * s.anchorX);
       const toScreenY = (v: number) => ((yTop - v) / (yTop - yBottom)) * h;
 
       // Collect visible screen points
