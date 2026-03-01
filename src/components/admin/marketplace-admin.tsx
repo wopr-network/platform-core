@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, GripVertical, Package, Plus, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,8 +94,10 @@ export function MarketplaceAdmin() {
       const updated = await updatePlugin({ id: plugin.id, [field]: !plugin[field] });
       if (selected?.id === plugin.id) setSelected(updated);
       await load();
-    } catch {
-      // Keep previous state on error
+    } catch (err) {
+      toast.error(
+        `Failed to update plugin: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -107,8 +110,10 @@ export function MarketplaceAdmin() {
       });
       if (selected?.id === plugin.id) setSelected(null);
       await load();
-    } catch {
-      // Keep previous state on error
+    } catch (err) {
+      toast.error(
+        `Failed to review plugin: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   };
 

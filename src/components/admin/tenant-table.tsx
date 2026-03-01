@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -115,8 +116,10 @@ export function TenantTable() {
       await bulkSuspendTenants(Array.from(selected), reason);
       setSelected(new Set());
       reload();
-    } catch {
-      // Keep selection on error
+    } catch (err) {
+      toast.error(
+        `Failed to suspend tenants: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -125,8 +128,10 @@ export function TenantTable() {
       await bulkReactivateTenants(Array.from(selected));
       setSelected(new Set());
       reload();
-    } catch {
-      // Keep selection on error
+    } catch (err) {
+      toast.error(
+        `Failed to reactivate tenants: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -141,8 +146,10 @@ export function TenantTable() {
       await bulkGrantCredits(Array.from(selected), amountCents, reason);
       setSelected(new Set());
       reload();
-    } catch {
-      // Keep selection on error
+    } catch (err) {
+      toast.error(
+        `Failed to grant credits: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   }
 
