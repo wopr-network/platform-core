@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { upgradeToVps } from "@/lib/api";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
 
 interface VpsUpgradeCardProps {
   botId: string;
@@ -43,6 +44,10 @@ export function VpsUpgradeCard({ botId }: VpsUpgradeCardProps) {
 
       const data = (await res.json()) as { url: string };
       if (data.url) {
+        if (!isAllowedRedirectUrl(data.url)) {
+          setError("Unexpected checkout URL. Please contact support.");
+          return;
+        }
         window.location.href = data.url;
       }
     } catch {

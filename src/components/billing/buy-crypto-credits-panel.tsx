@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createCryptoCheckout } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
 
 const CRYPTO_AMOUNTS = [
   { value: 10, label: "$10" },
@@ -26,6 +27,11 @@ export function BuyCryptoCreditPanel() {
     setError(null);
     try {
       const { url } = await createCryptoCheckout(selected);
+      if (!isAllowedRedirectUrl(url)) {
+        setError("Unexpected checkout URL. Please contact support.");
+        setLoading(false);
+        return;
+      }
       window.location.href = url;
     } catch {
       setError("Checkout failed. Please try again.");
