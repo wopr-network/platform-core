@@ -3,6 +3,50 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { CreditBalance, CreditHistoryResponse } from "@/lib/api";
 
+// Mock framer-motion to prevent animation/rAF issues in JSDOM.
+vi.mock("framer-motion", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require("react");
+  return {
+    motion: new Proxy(
+      {},
+      {
+        get:
+          (_target, tag: string) =>
+          ({ children, ...props }: { children?: unknown; [key: string]: unknown }) =>
+            React.createElement(tag, props, children),
+      },
+    ),
+    AnimatePresence: ({ children }: { children?: unknown }) => children,
+    useMotionValue: (v: number) => ({
+      get: () => v,
+      on: () => () => {
+        /* no-op */
+      },
+      set: () => {
+        /* no-op */
+      },
+    }),
+    useTransform: (_mv: unknown, _fn: unknown) => ({
+      on: () => () => {
+        /* no-op */
+      },
+      get: () => 0,
+    }),
+    animate: () => ({
+      stop: () => {
+        /* no-op */
+      },
+    }),
+  };
+});
+
+// Mock @/lib/org-api so getOrganization rejects immediately (no org context),
+// bypassing the orgChecked skeleton and letting the balance content render.
+vi.mock("@/lib/org-api", () => ({
+  getOrganization: vi.fn().mockRejectedValue(new Error("no org")),
+}));
+
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),

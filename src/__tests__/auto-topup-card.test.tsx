@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AutoTopupSettings } from "@/lib/api";
 
 const { mockGetAutoTopupSettings, mockUpdateAutoTopupSettings } = vi.hoisted(() => ({
@@ -93,9 +93,6 @@ const MOCK_SETTINGS_MONTHLY: AutoTopupSettings = {
   },
 };
 
-mockGetAutoTopupSettings.mockResolvedValue(MOCK_SETTINGS);
-mockUpdateAutoTopupSettings.mockImplementation(async () => MOCK_SETTINGS_ENABLED);
-
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
@@ -106,6 +103,12 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 describe("AutoTopupCard", () => {
+  beforeEach(() => {
+    // Reset defaults before each test so per-test overrides don't leak.
+    mockGetAutoTopupSettings.mockResolvedValue(MOCK_SETTINGS);
+    mockUpdateAutoTopupSettings.mockResolvedValue(MOCK_SETTINGS_ENABLED);
+  });
+
   it("renders card title", async () => {
     const { AutoTopupCard } = await import("../components/billing/auto-topup-card");
     render(<AutoTopupCard />);

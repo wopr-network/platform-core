@@ -1,6 +1,62 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+// Mock framer-motion so CountUp animation resolves in tests.
+// CountUp uses useMotionValue → useTransform → animate. The effects run in
+// declaration order (animate effect first, then the rounded.on subscription).
+// We defer the motion-value set via queueMicrotask so Effect 2 has time to
+// register its listener before the value propagates.
+vi.mock("framer-motion", () => {
+  const React = require("react");
+
+  function makeMotionValue(initial: number) {
+    let current = initial;
+    const listeners: Array<(v: number) => void> = [];
+    return {
+      get: () => current,
+      set: (v: number) => {
+        current = v;
+        for (const l of listeners) l(v);
+      },
+      on: (_event: string, cb: (v: number) => void) => {
+        listeners.push(cb);
+        return () => {
+          const i = listeners.indexOf(cb);
+          if (i !== -1) listeners.splice(i, 1);
+        };
+      },
+    };
+  }
+
+  return {
+    motion: new Proxy(
+      {},
+      {
+        get:
+          (_target, tag: string) =>
+          ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) =>
+            React.createElement(tag, props, children),
+      },
+    ),
+    AnimatePresence: ({ children }: React.PropsWithChildren) => children,
+    useMotionValue: makeMotionValue,
+    useTransform: (mv: ReturnType<typeof makeMotionValue>, fn: (v: number) => number) => {
+      const derived = makeMotionValue(fn(mv.get()));
+      mv.on("change", (v) => derived.set(fn(v)));
+      return derived;
+    },
+    // Defer the set so Effect 2 (rounded.on subscription) registers before propagation.
+    animate: (mv: ReturnType<typeof makeMotionValue>, target: number) => {
+      queueMicrotask(() => mv.set(target));
+      return {
+        stop: () => {
+          /* no-op */
+        },
+      };
+    },
+  };
+});
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
