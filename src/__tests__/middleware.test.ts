@@ -1,0 +1,522 @@
+import { NextRequest } from "next/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import middleware, { config, validateCsrfOrigin } from "../middleware";
+
+/**
+ * Build a real NextRequest for the given path with optional cookies and headers.
+ * Uses https://localhost as the base URL so `nextUrl.protocol` is "https:".
+ */
+function buildRequest(
+  path: string,
+  opts: {
+    method?: string;
+    cookies?: Record<string, string>;
+    headers?: Record<string, string>;
+    host?: string;
+  } = {},
+): NextRequest {
+  const url = new URL(path, "https://localhost");
+  const headers = new Headers(opts.headers ?? {});
+  // opts.host takes explicit precedence; fall back to existing header or "localhost"
+  if (opts.host) {
+    headers.set("host", opts.host);
+  } else if (!headers.has("host")) {
+    headers.set("host", "localhost");
+  }
+
+  const req = new NextRequest(url, {
+    method: opts.method ?? "GET",
+    headers,
+  });
+
+  if (opts.cookies) {
+    for (const [name, value] of Object.entries(opts.cookies)) {
+      req.cookies.set(name, value);
+    }
+  }
+
+  return req;
+}
+
+function isRedirect(res: Response): boolean {
+  return res.status >= 300 && res.status < 400;
+}
+
+function redirectPath(res: Response): string {
+  const loc = res.headers.get("location");
+  if (!loc) return "";
+  try {
+    const u = new URL(loc);
+    return u.pathname + (u.search ? u.search : "");
+  } catch {
+    return loc;
+  }
+}
+
+function isPassThrough(res: Response): boolean {
+  return res.headers.get("x-middleware-next") === "1";
+}
+
+describe("middleware", () => {
+  beforeEach(() => {
+    // Reset to a safe no-session mock by default.
+    // Tests that need fetch (admin routes) stub it themselves.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    delete process.env.NEXT_PUBLIC_APP_DOMAIN;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.NEXT_PUBLIC_APP_DOMAIN;
+  });
+
+  // ---------------------------------------------------------------------------
+  // Unauthenticated redirects
+  // ---------------------------------------------------------------------------
+  describe("unauthenticated redirects", () => {
+    it("redirects /dashboard to /login with callbackUrl", async () => {
+      const req = buildRequest("/dashboard");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      const loc = redirectPath(res);
+      expect(loc).toContain("/login");
+      expect(loc).toContain("callbackUrl=%2Fdashboard");
+    });
+
+    it("redirects /marketplace to /login with callbackUrl", async () => {
+      const req = buildRequest("/marketplace");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+      expect(redirectPath(res)).toContain("callbackUrl=%2Fmarketplace");
+    });
+
+    it("redirects /settings to /login", async () => {
+      const req = buildRequest("/settings");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("does not treat an empty session cookie as authenticated", async () => {
+      const req = buildRequest("/dashboard", {
+        cookies: { "better-auth.session_token": "" },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("does not treat a whitespace-only session cookie as authenticated", async () => {
+      const req = buildRequest("/dashboard", {
+        cookies: { "better-auth.session_token": "   " },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Authenticated pass-through
+  // ---------------------------------------------------------------------------
+  describe("authenticated pass-through", () => {
+    it("passes /dashboard through with a valid session cookie", async () => {
+      const req = buildRequest("/dashboard", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("passes /marketplace through with a valid session cookie", async () => {
+      const req = buildRequest("/marketplace", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("passes /settings/profile through with a valid session cookie", async () => {
+      const req = buildRequest("/settings/profile", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("accepts __Secure- prefixed session cookie as authenticated", async () => {
+      const req = buildRequest("/dashboard", {
+        cookies: { "__Secure-better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Public routes — prefix match
+  // ---------------------------------------------------------------------------
+  describe("public routes (prefix match)", () => {
+    it("allows /login without authentication", async () => {
+      const req = buildRequest("/login");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /signup without authentication", async () => {
+      const req = buildRequest("/signup");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /forgot-password without authentication", async () => {
+      const req = buildRequest("/forgot-password");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /reset-password without authentication", async () => {
+      const req = buildRequest("/reset-password");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /auth/callback without authentication", async () => {
+      const req = buildRequest("/auth/callback");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /auth/verify without authentication", async () => {
+      const req = buildRequest("/auth/verify");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /login/extra (prefix match extends beyond exact path)", async () => {
+      const req = buildRequest("/login/extra");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Public routes — exact match only
+  // ---------------------------------------------------------------------------
+  describe("public routes (exact match only)", () => {
+    it("allows /terms without authentication (exact)", async () => {
+      const req = buildRequest("/terms");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /privacy without authentication (exact)", async () => {
+      const req = buildRequest("/privacy");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /pricing without authentication (exact)", async () => {
+      const req = buildRequest("/pricing");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("does NOT allow /terms/extra (exact match only, no prefix)", async () => {
+      const req = buildRequest("/terms/extra");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("does NOT allow /pricing/enterprise (exact match only)", async () => {
+      const req = buildRequest("/pricing/enterprise");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("does NOT allow /privacy/policy (exact match only)", async () => {
+      const req = buildRequest("/privacy/policy");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Root path (/) — special handling
+  // ---------------------------------------------------------------------------
+  describe("root path special handling", () => {
+    it("allows unauthenticated GET / (public exact path)", async () => {
+      const req = buildRequest("/");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("redirects authenticated GET / to /marketplace (no app domain configured)", async () => {
+      const req = buildRequest("/", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toBe("/marketplace");
+    });
+
+    it("redirects authenticated GET / to app domain when NEXT_PUBLIC_APP_DOMAIN is set and host is the marketing domain", async () => {
+      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.wopr.bot";
+      const req = buildRequest("/", {
+        cookies: { "better-auth.session_token": "valid-token" },
+        host: "wopr.bot",
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      const loc = res.headers.get("location");
+      expect(loc).toBe("https://app.wopr.bot/marketplace");
+    });
+
+    it("redirects authenticated GET / to /marketplace when already on app subdomain", async () => {
+      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.wopr.bot";
+      const req = buildRequest("/", {
+        cookies: { "better-auth.session_token": "valid-token" },
+        host: "app.wopr.bot",
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toBe("/marketplace");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Static files and API routes — always pass through
+  // ---------------------------------------------------------------------------
+  describe("static files and API routes", () => {
+    it("allows /_next/static paths without authentication", async () => {
+      const req = buildRequest("/_next/static/chunk.js");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows paths with file extensions (favicon.ico)", async () => {
+      const req = buildRequest("/favicon.ico");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /api/health without authentication", async () => {
+      const req = buildRequest("/api/health");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("allows /api/auth/session without authentication", async () => {
+      const req = buildRequest("/api/auth/session");
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Admin route authorization — combined with session check
+  // ---------------------------------------------------------------------------
+  describe("admin route authorization", () => {
+    it("redirects unauthenticated /admin to /login (not /marketplace)", async () => {
+      const req = buildRequest("/admin");
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toContain("/login");
+    });
+
+    it("redirects authenticated non-admin to /marketplace when accessing /admin", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ user: { role: "user" } }),
+        }),
+      );
+      const req = buildRequest("/admin", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toBe("/marketplace");
+    });
+
+    it("allows platform_admin through to /admin", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ user: { role: "platform_admin" } }),
+        }),
+      );
+      const req = buildRequest("/admin", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isPassThrough(res)).toBe(true);
+    });
+
+    it("redirects non-admin from /admin/users to /marketplace", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ user: { role: "user" } }),
+        }),
+      );
+      const req = buildRequest("/admin/users", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toBe("/marketplace");
+    });
+
+    it("redirects to /marketplace when session fetch fails (fail closed)", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
+      const req = buildRequest("/admin", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      const res = await middleware(req);
+      expect(isRedirect(res)).toBe(true);
+      expect(redirectPath(res)).toBe("/marketplace");
+    });
+
+    it("does not call fetch for non-admin routes", async () => {
+      const fetchSpy = vi.fn().mockResolvedValue({ ok: false });
+      vi.stubGlobal("fetch", fetchSpy);
+      const req = buildRequest("/marketplace", {
+        cookies: { "better-auth.session_token": "valid-token" },
+      });
+      await middleware(req);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // CSRF protection — integration-level (validateCsrfOrigin unit tests are in csrf-middleware.test.ts)
+  // ---------------------------------------------------------------------------
+  describe("CSRF protection (middleware integration)", () => {
+    it("blocks POST to /api/foo without Origin header", async () => {
+      const req = buildRequest("/api/foo", {
+        method: "POST",
+        host: "localhost",
+      });
+      const res = await middleware(req);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe("CSRF validation failed");
+    });
+
+    it("allows POST to /api/foo with matching Origin", async () => {
+      const req = buildRequest("/api/foo", {
+        method: "POST",
+        headers: {
+          host: "localhost",
+          origin: "https://localhost",
+        },
+      });
+      const res = await middleware(req);
+      expect(res.status).not.toBe(403);
+    });
+
+    it("exempts POST /api/auth routes from CSRF check", async () => {
+      const req = buildRequest("/api/auth/callback", {
+        method: "POST",
+        host: "localhost",
+        // No Origin header
+      });
+      const res = await middleware(req);
+      expect(res.status).not.toBe(403);
+    });
+
+    it("allows GET to /api/foo without Origin (GET is not a mutation)", async () => {
+      const req = buildRequest("/api/foo", {
+        method: "GET",
+        host: "localhost",
+      });
+      const res = await middleware(req);
+      expect(res.status).not.toBe(403);
+    });
+
+    it("blocks DELETE to /api/foo without Origin", async () => {
+      const req = buildRequest("/api/foo", {
+        method: "DELETE",
+        host: "localhost",
+      });
+      const res = await middleware(req);
+      expect(res.status).toBe(403);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateCsrfOrigin — additional edge cases not in csrf-middleware.test.ts
+// ---------------------------------------------------------------------------
+describe("validateCsrfOrigin", () => {
+  it("returns true when Origin matches host exactly", () => {
+    const req = buildRequest("/api/foo", {
+      method: "POST",
+      host: "example.com",
+      headers: { origin: "https://example.com" },
+    });
+    expect(validateCsrfOrigin(req)).toBe(true);
+  });
+
+  it("returns false when Origin mismatches host", () => {
+    const req = buildRequest("/api/foo", {
+      method: "POST",
+      host: "example.com",
+      headers: { origin: "https://evil.com" },
+    });
+    expect(validateCsrfOrigin(req)).toBe(false);
+  });
+
+  it("returns false when no Origin and no Referer", () => {
+    const req = buildRequest("/api/foo", {
+      method: "POST",
+      host: "example.com",
+    });
+    expect(validateCsrfOrigin(req)).toBe(false);
+  });
+
+  it("falls back to Referer when Origin is absent", () => {
+    const req = buildRequest("/api/foo", {
+      method: "POST",
+      host: "example.com",
+      headers: { referer: "https://example.com/some/page" },
+    });
+    expect(validateCsrfOrigin(req)).toBe(true);
+  });
+
+  it("returns false for an invalid Referer URL", () => {
+    const req = buildRequest("/api/foo", {
+      method: "POST",
+      host: "example.com",
+      headers: { referer: "not-a-url" },
+    });
+    expect(validateCsrfOrigin(req)).toBe(false);
+  });
+
+  it("returns false when no host header present", () => {
+    const url = new URL("/api/foo", "https://localhost");
+    const headers = new Headers(); // No host header
+    const req = new NextRequest(url, { method: "POST", headers });
+    expect(validateCsrfOrigin(req)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// config export
+// ---------------------------------------------------------------------------
+describe("middleware config", () => {
+  it("exports a matcher that excludes _next/static, _next/image, and favicon.ico", () => {
+    expect(config.matcher).toBeDefined();
+    const pattern = config.matcher[0];
+    expect(pattern).toContain("_next/static");
+    expect(pattern).toContain("favicon.ico");
+  });
+});
