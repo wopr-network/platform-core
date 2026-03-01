@@ -305,11 +305,10 @@ describe("middleware", () => {
       expect(isPassThrough(res)).toBe(true);
     });
 
-    it("redirects /api/health to /login without authentication", async () => {
+    it("allows /api/health without authentication (public exact path for infra probes)", async () => {
       const req = buildRequest("/api/health");
       const res = await middleware(req);
-      expect(isRedirect(res)).toBe(true);
-      expect(redirectPath(res)).toContain("/login");
+      expect(isPassThrough(res)).toBe(true);
     });
 
     it("allows /api/auth/session without authentication", async () => {

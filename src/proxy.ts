@@ -11,7 +11,16 @@ const publicPaths = [
 ];
 
 /** Paths that are public only when matched exactly (not as a prefix). */
-const publicExactPaths = new Set(["/", "/og", "/terms", "/privacy", "/pricing"]);
+const publicExactPaths = new Set([
+  "/",
+  "/og",
+  "/terms",
+  "/privacy",
+  "/pricing",
+  // Health endpoint must be publicly accessible for infra probes (uptime monitors,
+  // Kubernetes liveness/readiness, load balancers) that do not carry session cookies.
+  "/api/health",
+]);
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -145,7 +154,11 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for session cookie (Better Auth uses "better-auth.session_token" by default)
+  // Check for session cookie (Better Auth uses "better-auth.session_token" by default).
+  // NOTE: Bearer token auth (Authorization: Bearer <token>) is intentionally not supported
+  // here. This is a browser-facing UI application; all API consumers are the Next.js
+  // front-end itself (cookie-based). Automation/SDK/CLI clients should use the platform
+  // API directly (wopr-platform), which issues and validates Bearer tokens independently.
   const sessionToken =
     request.cookies.get("better-auth.session_token") ??
     request.cookies.get("__Secure-better-auth.session_token");
