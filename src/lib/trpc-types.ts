@@ -9,7 +9,7 @@
  * Then switch to:
  *   export type { AppRouter } from "@wopr-network/wopr-platform/dist/trpc/index.js";
  *
- * TODO: import from @wopr-network/sdk once published
+ * TODO: WOP-1189 — import from @wopr-network/sdk and delete this stub
  */
 import type {
   AnyTRPCMutationProcedure,
@@ -22,7 +22,7 @@ import type {
 /**
  * Minimal router record for the procedures this UI consumes.
  * Replacing this with the real router record from @wopr-network/sdk adds full autocomplete.
- * TODO: import from @wopr-network/sdk once published
+ * TODO: WOP-1189 — import from @wopr-network/sdk and delete this stub
  */
 type AppRouterRecord = TRPCRouterRecord & {
   pageContext: {
