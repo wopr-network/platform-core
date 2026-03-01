@@ -23,8 +23,9 @@ const CURSOR_BLINK_ON = 250; // ms
 const CURSOR_BLINK_OFF = 250; // ms
 
 function getTypeDelay(lineIndex: number): number {
-  // Aggressive acceleration — hits near-illegible speed by line ~35
-  const factor = 1.12 ** lineIndex;
+  // Exponent stretched so acceleration spans the full 70-line sequence
+  // Line 0: 125ms/char → Line 30: ~9ms → Line 60: ~1ms (floor)
+  const factor = 1.09 ** lineIndex;
   return Math.max(1, Math.round(125 / factor));
 }
 
@@ -37,6 +38,11 @@ function getPauseAfter(lineIndex: number): number {
   if (lineIndex === 0) return 800;
   // Starts ~500ms, decays rapidly — near zero by line 20
   return Math.max(0, Math.round(600 * 0.82 ** lineIndex));
+}
+
+// Blur increases as speed increases — makes fast lines feel illegible, not chunky
+function getTextBlur(lineIndex: number): number {
+  return Math.min(6, Math.max(0, (lineIndex - 20) * 0.18));
 }
 
 type AnimState =
@@ -54,6 +60,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
   const [showCursor, setShowCursor] = useState(true);
   const [cursorVisible, setCursorVisible] = useState(true);
   const [animationDone, setAnimationDone] = useState(false);
+  const [textBlur, setTextBlur] = useState(0);
   const bufferRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<{
     state: AnimState;
@@ -78,29 +85,15 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
   const currentTextRef = useRef("");
   const rafRef = useRef<number>(0);
 
-  const scrollToBottom = useCallback(() => {
-    if (bufferRef.current) {
-      bufferRef.current.scrollTop = bufferRef.current.scrollHeight;
-    }
+  const updateLines = useCallback((newLines: string[]) => {
+    linesRef.current = newLines;
+    setLines(newLines);
   }, []);
 
-  const updateLines = useCallback(
-    (newLines: string[]) => {
-      linesRef.current = newLines;
-      setLines(newLines);
-      scrollToBottom();
-    },
-    [scrollToBottom],
-  );
-
-  const updateCurrentText = useCallback(
-    (text: string) => {
-      currentTextRef.current = text;
-      setCurrentText(text);
-      scrollToBottom();
-    },
-    [scrollToBottom],
-  );
+  const updateCurrentText = useCallback((text: string) => {
+    currentTextRef.current = text;
+    setCurrentText(text);
+  }, []);
 
   useEffect(() => {
     // Check prefers-reduced-motion
@@ -193,6 +186,7 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
             s.startCharIndex = PREFIX_LENGTH;
             s.elapsed = 0;
             s.state = "typing";
+            setTextBlur(getTextBlur(s.lineIndex));
           }
           break;
         }
@@ -279,11 +273,6 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
     };
   }, [onComplete, updateCurrentText, updateLines]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: lines triggers re-scroll intentionally
-  useEffect(() => {
-    scrollToBottom();
-  }, [lines, scrollToBottom]);
-
   return (
     <div
       role="img"
@@ -311,36 +300,50 @@ export function TerminalSequence({ onComplete }: TerminalSequenceProps) {
       {/* CRT scanlines */}
       <div className="crt-scanlines pointer-events-none absolute inset-0 z-10" />
 
-      {/* Terminal buffer */}
-      <div className="relative z-20 w-full max-w-2xl px-4">
+      {/* Terminal buffer — current line is truly fixed at 50vh; history grows upward from it */}
+      <div className="absolute top-1/2 z-20 w-full max-w-2xl -translate-y-1/2 px-4">
+        {/* History: absolutely above the current line, fades toward the top.
+            Mask only applied during animation — in reduced-motion/done mode lines must be fully visible. */}
         <div
           ref={bufferRef}
-          className="max-h-[60vh] overflow-hidden font-mono text-xs leading-relaxed text-terminal sm:text-sm"
+          className="absolute bottom-full w-full overflow-hidden font-mono text-xs leading-relaxed sm:text-sm"
+          style={{
+            maxHeight: "45vh",
+            ...(animationDone
+              ? {}
+              : {
+                  maskImage: "linear-gradient(to bottom, transparent 0%, black 60%)",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 60%)",
+                }),
+          }}
         >
-          {/* History lines (dimmed — already typed and erased) */}
-          {lines.map((line, i) => (
-            <div
-              key={`${i}-${line}`}
-              className={animationDone ? "text-terminal" : "text-terminal/30"}
-            >
-              {line || "\u00A0"}
-            </div>
-          ))}
-
-          {/* Current line being typed */}
-          {!animationDone && (
-            <div className="text-terminal">
-              <span>{currentText}</span>
-              {showCursor && (
-                <span
-                  data-testid="terminal-cursor"
-                  className="inline-block h-[1.1em] w-[0.6em] translate-y-[0.15em] bg-terminal"
-                  style={{ opacity: cursorVisible ? 1 : 0 }}
-                />
-              )}
-            </div>
-          )}
+          <div className="flex flex-col justify-end">
+            {lines.map((line, i) => (
+              <div
+                key={`${i}-${line}`}
+                className={animationDone ? "text-terminal" : "text-terminal/30"}
+              >
+                {line || "\u00A0"}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Current line — sits at exactly 50vh, never moves */}
+        {!animationDone && (
+          <div className="text-terminal font-mono text-xs sm:text-sm">
+            <span style={textBlur > 0 ? { filter: `blur(${textBlur}px)` } : undefined}>
+              {currentText}
+            </span>
+            {showCursor && (
+              <span
+                data-testid="terminal-cursor"
+                className="inline-block h-[1.1em] w-[0.6em] translate-y-[0.15em] bg-terminal"
+                style={{ opacity: cursorVisible ? 1 : 0 }}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

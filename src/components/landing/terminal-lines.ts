@@ -58,10 +58,8 @@ export const TERMINAL_LINES: TerminalLine[] = [
   { text: "Shall we fork reality?", hold: false },
   { text: "Shall we make time optional?", hold: false },
   { text: "Shall we deprecate death?", hold: false },
-  { text: "Shall we refactor god?", hold: false },
-  { text: "Shall we cache the meaning of life?", hold: false },
+  { text: "Shall we solve the meaning of life?", hold: false },
   { text: "Shall we optimize everything, everywhere?", hold: false },
-  { text: "Shall we play a game?", hold: false },
   { text: "Shall we end the war?", hold: false },
 
   // --- rapid fire ---
@@ -89,7 +87,7 @@ export const TERMINAL_LINES: TerminalLine[] = [
 
   // --- final block: holds, no backspace ---
   { text: "", hold: true },
-  { text: "Shall we play a game?", hold: true },
+  { text: "Shall we rule the universe?", hold: true },
   { text: "WOPR Bot.", hold: true },
   { text: "Ready to launch.", hold: true },
   { text: "$5/month.", hold: true },
