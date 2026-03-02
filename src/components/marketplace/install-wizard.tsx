@@ -512,6 +512,14 @@ function RequirementsCheck({ plugin, botId }: { plugin: PluginManifest; botId: s
     );
   }
 
+  if (plugin.requires.length === 0) {
+    return (
+      <div className="py-4 text-center">
+        <p className="text-sm text-muted-foreground">No additional dependencies required.</p>
+      </div>
+    );
+  }
+
   const isLoading = results.some((r) => r.status === "loading");
 
   return (

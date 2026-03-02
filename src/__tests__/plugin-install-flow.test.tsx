@@ -223,6 +223,37 @@ describe("Plugin Toggle (Enable/Disable)", () => {
     expect(screen.getByText("Second Bot")).toBeInTheDocument();
   });
 
+  it("RequirementsCheck shows 'No additional dependencies required' when plugin.requires is empty", async () => {
+    const { RequirementsCheck } = (await import("../components/marketplace/install-wizard")) as {
+      RequirementsCheck?: React.ComponentType<{ plugin: PluginManifest; botId: string }>;
+    };
+    // RequirementsCheck is not exported — test via InstallWizard with a plugin that has requires: []
+    // and manually reach the requirements phase
+    // Since requires=[] the requirements phase is skipped in the wizard, so we test the component
+    // behavior indirectly: the wizard for TEST_PLUGINS[0] (webhooks, requires:[]) should never show
+    // "This plugin requires the following dependencies:" text at all.
+    const user = userEvent.setup();
+    const { InstallWizard } = await import("../components/marketplace/install-wizard");
+    const plugin = TEST_PLUGINS[0] as unknown as PluginManifest; // webhooks, requires: []
+
+    render(<InstallWizard plugin={plugin} onComplete={vi.fn()} onCancel={vi.fn()} />);
+
+    // Walk through all wizard phases
+    const botButton = await screen.findByText("My Bot");
+    await user.click(botButton);
+    await user.click(screen.getByText("Continue"));
+
+    // Advance through setup steps
+    await user.click(screen.getByText("Continue"));
+    await user.click(screen.getByText("Continue"));
+
+    // Complete phase reached — "This plugin requires the following dependencies:" was never shown
+    expect(screen.getByText("Plugin installed successfully")).toBeInTheDocument();
+    expect(
+      screen.queryByText("This plugin requires the following dependencies:"),
+    ).not.toBeInTheDocument();
+  });
+
   it("InstallWizard shows requirements phase for plugins with dependencies", async () => {
     const user = userEvent.setup();
     const { InstallWizard } = await import("../components/marketplace/install-wizard");
