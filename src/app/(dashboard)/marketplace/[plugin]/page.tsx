@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toUserMessage } from "@/lib/errors";
+import { toast } from "sonner";
 import {
   formatInstallCount,
   getCapabilityColor,
@@ -153,7 +154,14 @@ export default function PluginDetailPage() {
     try {
       const providerChoices = (config._providerChoices as Record<string, string>) ?? {};
       const { _providerChoices: _, ...pluginConfig } = config;
-      await installPlugin(plugin.id, botId, pluginConfig, providerChoices);
+      const result = await installPlugin(plugin.id, botId, pluginConfig, providerChoices);
+      if (!result.dispatched) {
+        if (result.dispatchError === "bot_not_deployed") {
+          toast.warning("Bot isn't running — plugin will activate on next start");
+        } else {
+          toast.warning("Couldn't reach bot — plugin saved and will activate on restart");
+        }
+      }
       setInstalling(false);
       setShowTerminalLog(true);
     } catch (err) {

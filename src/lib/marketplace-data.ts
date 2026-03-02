@@ -255,7 +255,7 @@ export async function installPlugin(
   botId: string,
   config: Record<string, unknown>,
   providerChoices: Record<string, string>,
-): Promise<{ success: boolean; botId: string; pluginId: string; installedPlugins: string[] }> {
+): Promise<{ success: boolean; botId: string; pluginId: string; installedPlugins: string[]; dispatched: boolean; dispatchError?: string }> {
   return fleetFetch(`/bots/${botId}/plugins/${pluginId}`, {
     method: "POST",
     body: JSON.stringify({ config, providerChoices }),
