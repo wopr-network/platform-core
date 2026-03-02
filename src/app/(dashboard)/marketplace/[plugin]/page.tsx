@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Download, Terminal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { InstallWizard } from "@/components/marketplace/install-wizard";
 import { SuperpowerContent } from "@/components/marketplace/superpower-content";
 import { Badge } from "@/components/ui/badge";
@@ -153,7 +154,14 @@ export default function PluginDetailPage() {
     try {
       const providerChoices = (config._providerChoices as Record<string, string>) ?? {};
       const { _providerChoices: _, ...pluginConfig } = config;
-      await installPlugin(plugin.id, botId, pluginConfig, providerChoices);
+      const result = await installPlugin(plugin.id, botId, pluginConfig, providerChoices);
+      if (!result.dispatched) {
+        if (result.dispatchError === "bot_not_deployed") {
+          toast.warning("Bot isn't running — plugin will activate on next start");
+        } else {
+          toast.warning("Couldn't reach bot — plugin saved and will activate on restart");
+        }
+      }
       setInstalling(false);
       setShowTerminalLog(true);
     } catch (err) {
