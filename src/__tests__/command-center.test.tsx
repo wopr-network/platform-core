@@ -119,7 +119,15 @@ vi.mock("@/lib/api", () => ({
     totalMemoryMb: 768,
     memoryCapacityMb: 2048,
   }),
-  getDividendStats: vi.fn().mockRejectedValue(new Error("Not implemented")),
+  getDividendStats: vi.fn().mockResolvedValue({
+    poolCents: 50000,
+    activeUsers: 120,
+    perUserCents: 416,
+    nextDistributionAt: "2026-03-03T00:00:00Z",
+    userEligible: true,
+    userLastPurchaseAt: "2026-03-01T12:00:00Z",
+    userWindowExpiresAt: "2026-03-08T12:00:00Z",
+  }),
 }));
 
 import { CommandCenter } from "../components/dashboard/command-center";
@@ -190,6 +198,14 @@ describe("CommandCenter", () => {
     render(<CommandCenter />);
     await waitFor(() => {
       expect(screen.getByText(/STANDING BY/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows dividend stats when available", async () => {
+    render(<CommandCenter />);
+
+    await waitFor(() => {
+      expect(screen.getByText("your daily share")).toBeInTheDocument();
     });
   });
 
