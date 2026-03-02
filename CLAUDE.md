@@ -146,7 +146,9 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **Import order:** Biome's `organizeImports` rule sorts `toast` imports (from `sonner`) before `@/` imports. If your imports fail biome check despite being alphabetical, move toast to the top of your import block.
 - **Middleware utilities must not override response headers:** Helper functions like `withCsp()` should never unconditionally set headers that route handlers might need to customize (e.g., `Cache-Control`). Routes (especially admin routes) should set their own headers _before_ calling middleware utilities.
 - **Fetch cache options:** Use `next: { revalidate: 60 }` (ISR) instead of `cache: 'no-store'` for dynamic data fetches — `no-store` disables static rendering and causes e2e webserver startup timeouts. Apply ISR to pricing, pricing checks, and other infrequently-changing data.
-- **testing:** Components using `useQueryClient()` must be wrapped in `QueryClientProvider` in tests — use a `renderWithQueryClient` helper, never bare `render()`.
+- **Testing:** Components using `useQueryClient()` must be wrapped in `QueryClientProvider` in tests — use a `renderWithQueryClient` helper, never bare `render()`.
+- **tRPC hook mocking:** When migrating API calls to tRPC, mock the tRPC hooks directly (`vi.mock("@/lib/trpc", { trpc: { ... } })`) not the old `@/lib/api` functions — mocking the wrong abstraction causes tests to pass silently without testing anything. Also add `apiFetch: vi.fn()` to any `@/lib/api` mocks to prevent import failures.
+- **Animation/motion mocking:** Components using `framer-motion`, `useImageStatus`, or similar async motion libraries should be mocked in tests to prevent spurious failures unrelated to the feature under test.
 
 ## Pre-Commit Checklist
 
