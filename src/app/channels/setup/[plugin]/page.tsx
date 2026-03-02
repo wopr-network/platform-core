@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Wizard } from "@/components/channel-wizard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +27,7 @@ export default function ChannelSetupPage({ params }: { params: Promise<{ plugin:
       .then((m) => setManifest(m ?? null))
       .catch((err) => {
         console.error("Failed to load channel manifest:", err);
+        toast.error("Failed to load channel setup. Please try again.");
         setLoadError(toUserMessage(err, "Failed to load channel configuration"));
       })
       .finally(() => setLoadingManifest(false));
