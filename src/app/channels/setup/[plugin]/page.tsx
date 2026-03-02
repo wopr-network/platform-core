@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { connectChannel } from "@/lib/api";
 import { type ChannelManifest, getManifest } from "@/lib/channel-manifests";
 import { toUserMessage } from "@/lib/errors";
+import { logger } from "@/lib/logger";
+
+const log = logger("channel-setup");
 
 export default function ChannelSetupPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);
@@ -26,7 +29,7 @@ export default function ChannelSetupPage({ params }: { params: Promise<{ plugin:
     getManifest(plugin)
       .then((m) => setManifest(m ?? null))
       .catch((err) => {
-        console.error("Failed to load channel manifest:", err);
+        log.error("Failed to load channel manifest:", err);
         toast.error("Failed to load channel setup. Please try again.");
         setLoadError(toUserMessage(err, "Failed to load channel configuration"));
       })
