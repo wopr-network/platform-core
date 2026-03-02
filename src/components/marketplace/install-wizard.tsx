@@ -80,6 +80,8 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
   const [conflictsLoading, setConflictsLoading] = useState(false);
   const [conflictsError, setConflictsError] = useState<string | null>(null);
   const [primaryOverrides, setPrimaryOverrides] = useState<Record<string, string>>({});
+  const [requirementsSatisfied, setRequirementsSatisfied] = useState(false);
+  const [requirementsLoading, setRequirementsLoading] = useState(false);
 
   useEffect(() => {
     listBots()
@@ -92,6 +94,27 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
         setBotsLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!selectedBotId || plugin.requires.length === 0) {
+      setRequirementsSatisfied(true);
+      return;
+    }
+    setRequirementsLoading(true);
+    setRequirementsSatisfied(false);
+
+    listInstalledPlugins(selectedBotId)
+      .then((installed) => {
+        const installedIds = new Set(installed.map((p) => p.pluginId));
+        const allSatisfied = plugin.requires.every((req) => installedIds.has(req.id));
+        setRequirementsSatisfied(allSatisfied);
+        setRequirementsLoading(false);
+      })
+      .catch(() => {
+        setRequirementsSatisfied(false);
+        setRequirementsLoading(false);
+      });
+  }, [selectedBotId, plugin]);
 
   useEffect(() => {
     if (!selectedBotId || plugin.capabilities.length === 0) {
@@ -256,6 +279,7 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
   const allConflictsResolved = conflicts.every((c) => primaryOverrides[c.capability]);
   const isContinueDisabled =
     (currentPhase === "bot-select" && !selectedBotId) ||
+    (currentPhase === "requirements" && (requirementsLoading || !requirementsSatisfied)) ||
     (currentPhase === "conflicts" && conflicts.length > 0 && !allConflictsResolved);
 
   return (
@@ -302,7 +326,9 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
             error={errors._botId}
           />
         )}
-        {currentPhase === "requirements" && <RequirementsCheck plugin={plugin} />}
+        {currentPhase === "requirements" && (
+          <RequirementsCheck plugin={plugin} botId={selectedBotId!} />
+        )}
         {currentPhase === "conflicts" && conflicts.length > 0 && (
           <CapabilityConflicts
             conflicts={conflicts}
@@ -452,26 +478,80 @@ function BotSelector({
   );
 }
 
-function RequirementsCheck({ plugin }: { plugin: PluginManifest }) {
+function RequirementsCheck({ plugin, botId }: { plugin: PluginManifest; botId: string }) {
+  const [results, setResults] = useState<
+    { id: string; label: string; status: "satisfied" | "missing" | "loading" | "error" }[]
+  >(plugin.requires.map((r) => ({ ...r, status: "loading" })));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setResults(plugin.requires.map((r) => ({ ...r, status: "loading" })));
+    setError(null);
+
+    listInstalledPlugins(botId)
+      .then((installed) => {
+        const installedIds = new Set(installed.map((p) => p.pluginId));
+        setResults(
+          plugin.requires.map((req) => ({
+            ...req,
+            status: installedIds.has(req.id) ? "satisfied" : "missing",
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        setError(toUserMessage(err, "Failed to check dependencies"));
+        setResults(plugin.requires.map((r) => ({ ...r, status: "error" })));
+      });
+  }, [botId, plugin]);
+
+  if (error) {
+    return (
+      <div className="py-4 text-center">
+        <p className="text-sm text-destructive">{error}</p>
+      </div>
+    );
+  }
+
+  const isLoading = results.some((r) => r.status === "loading");
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         This plugin requires the following dependencies:
       </p>
-      {plugin.requires.length === 0 ? (
-        <p className="text-sm text-emerald-500">No additional dependencies required.</p>
+      {isLoading ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Checking installed plugins...</p>
+          {plugin.requires.map((req) => (
+            <Skeleton key={req.id} className="h-8 w-full" />
+          ))}
+        </div>
       ) : (
         <ul className="space-y-2">
-          {plugin.requires.map((req) => (
+          {results.map((req) => (
             <li key={req.id} className="flex items-center gap-2 text-sm">
-              <span className="text-emerald-500">&#10003;</span>
+              {req.status === "satisfied" ? (
+                <span className="text-emerald-500">&#10003;</span>
+              ) : (
+                <span className="text-destructive">&#10007;</span>
+              )}
               <span>{req.label}</span>
               <Badge variant="outline" className="text-[10px]">
                 {req.id}
               </Badge>
+              {req.status === "missing" && (
+                <span className="text-xs text-destructive">Not installed</span>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {!isLoading && results.some((r) => r.status === "missing") && (
+        <div className="mt-3 rounded-sm border border-destructive/25 bg-destructive/5 p-3">
+          <p className="text-sm text-destructive">
+            Install the missing dependencies before continuing.
+          </p>
+        </div>
       )}
       {plugin.install.length > 0 && (
         <div className="mt-4 rounded-sm border border-dashed p-3">
