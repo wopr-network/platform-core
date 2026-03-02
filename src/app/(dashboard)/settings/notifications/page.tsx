@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import type { NotificationPreferences } from "@/lib/api";
-import { getNotificationPreferences, updateNotificationPreferences } from "@/lib/api";
+import { getNotificationPreferences, updateNotificationPreferences } from "@/lib/settings-api";
 
 // ---------------------------------------------------------------------------
 // Preference groups

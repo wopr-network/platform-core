@@ -34,8 +34,8 @@ const mockGetPrefs = vi.fn<() => Promise<NotificationPreferences>>();
 const mockUpdatePrefs =
   vi.fn<(p: Partial<NotificationPreferences>) => Promise<NotificationPreferences>>();
 
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api")>();
+vi.mock("@/lib/settings-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/settings-api")>();
   return {
     ...actual,
     getNotificationPreferences: (...args: unknown[]) => mockGetPrefs(...(args as [])),
