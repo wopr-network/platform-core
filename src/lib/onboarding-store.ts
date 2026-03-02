@@ -10,6 +10,22 @@ export interface ProviderConfig {
   validated: boolean;
 }
 
+/** Persisted shape — intentionally excludes `key` and `channelConfigs` to prevent secrets from reaching localStorage. */
+interface PersistedProviderConfig {
+  id: string;
+  name: string;
+  validated: boolean;
+}
+
+interface PersistedOnboardingState {
+  currentStep: number;
+  providers: PersistedProviderConfig[];
+  channels: string[];
+  channelsConfigured: string[];
+  plugins: string[];
+  instanceName: string;
+}
+
 export interface OnboardingState {
   currentStep: number;
   providers: ProviderConfig[];
@@ -36,26 +52,45 @@ export function loadOnboardingState(): OnboardingState {
   if (typeof window === "undefined") return { ...defaultState };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultState, ...JSON.parse(raw) };
+    if (raw) {
+      const persisted = JSON.parse(raw) as Partial<PersistedOnboardingState>;
+      return {
+        ...defaultState,
+        currentStep: persisted.currentStep ?? defaultState.currentStep,
+        providers: (persisted.providers ?? []).map((p) => ({
+          ...p,
+          key: "",
+          validated: p.validated ?? false,
+        })),
+        channels: persisted.channels ?? defaultState.channels,
+        channelsConfigured: persisted.channelsConfigured ?? defaultState.channelsConfigured,
+        channelConfigs: {},
+        plugins: persisted.plugins ?? defaultState.plugins,
+        instanceName: persisted.instanceName ?? defaultState.instanceName,
+      };
+    }
   } catch {
     // ignore
   }
   return { ...defaultState };
 }
 
-/** Remove API keys and channel secrets before localStorage persistence. */
-function stripSecrets(state: OnboardingState): OnboardingState {
+/** Build a persisted snapshot that never includes API keys or channel secrets. */
+function toPersistedState(state: OnboardingState): PersistedOnboardingState {
   return {
-    ...state,
-    providers: state.providers.map((p) => ({ ...p, key: "", validated: false })),
-    channelConfigs: Object.fromEntries(Object.keys(state.channelConfigs).map((ch) => [ch, {}])),
+    currentStep: state.currentStep,
+    providers: state.providers.map(({ id, name, validated }) => ({ id, name, validated })),
+    channels: state.channels,
+    channelsConfigured: state.channelsConfigured,
+    plugins: state.plugins,
+    instanceName: state.instanceName,
   };
 }
 
 export function saveOnboardingState(state: OnboardingState): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripSecrets(state)));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersistedState(state)));
   } catch {
     // ignore
   }
