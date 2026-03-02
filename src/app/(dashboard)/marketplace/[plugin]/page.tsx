@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Download, Terminal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { InstallWizard } from "@/components/marketplace/install-wizard";
 import { SuperpowerContent } from "@/components/marketplace/superpower-content";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toUserMessage } from "@/lib/errors";
-import { toast } from "sonner";
 import {
   formatInstallCount,
   getCapabilityColor,
