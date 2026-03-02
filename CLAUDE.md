@@ -141,6 +141,12 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **CapabilityResolver:** Never build per-capability bespoke UI. Plugins declare abstract capabilities and the platform resolves them generically. See `src/__tests__/capability-resolver.test.tsx` for the pattern.
 - **Error boundaries:** Use React error boundaries for route-level crash isolation. See `src/__tests__/error-boundaries.test.ts` for existing coverage.
 
+## Gotchas
+
+- **Import order:** Biome's `organizeImports` rule sorts `toast` imports (from `sonner`) before `@/` imports. If your imports fail biome check despite being alphabetical, move toast to the top of your import block.
+- **Middleware utilities must not override response headers:** Helper functions like `withCsp()` should never unconditionally set headers that route handlers might need to customize (e.g., `Cache-Control`). Routes (especially admin routes) should set their own headers _before_ calling middleware utilities.
+- **Fetch cache options:** Use `next: { revalidate: 60 }` (ISR) instead of `cache: 'no-store'` for dynamic data fetches — `no-store` disables static rendering and causes e2e webserver startup timeouts. Apply ISR to pricing, pricing checks, and other infrequently-changing data.
+
 ## Pre-Commit Checklist
 
 ```bash
