@@ -2,6 +2,7 @@
 
 import { ArrowDownToLine, Loader2, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -355,7 +356,7 @@ function InstanceRowActions({
     try {
       await pullImageUpdate(inst.id);
     } catch {
-      // Error swallowed — user sees the bot restarting
+      toast.error("Image pull failed. Please try again.");
     } finally {
       setPulling(false);
       setOpen(false);
