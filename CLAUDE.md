@@ -141,6 +141,10 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **CapabilityResolver:** Never build per-capability bespoke UI. Plugins declare abstract capabilities and the platform resolves them generically. See `src/__tests__/capability-resolver.test.tsx` for the pattern.
 - **Error boundaries:** Use React error boundaries for route-level crash isolation. See `src/__tests__/error-boundaries.test.ts` for existing coverage.
 
+## Gotchas
+
+- **Import order:** Biome's `organizeImports` rule sorts `toast` imports (from `sonner`) before `@/` imports. If your imports fail biome check despite being alphabetical, move toast to the top of your import block.
+
 ## Pre-Commit Checklist
 
 ```bash
