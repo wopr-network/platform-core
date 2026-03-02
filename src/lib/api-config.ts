@@ -19,7 +19,8 @@ function validateProductionApiUrl(url: string | undefined): void {
   const isProductionRuntime =
     process.env.NODE_ENV === "production" &&
     process.env.NEXT_RUNTIME === "nodejs" &&
-    process.env.NEXT_PHASE !== "phase-production-build";
+    process.env.NEXT_PHASE !== "phase-production-build" &&
+    !process.env.PLAYWRIGHT_TESTING;
 
   if (!isProductionRuntime) return;
 
