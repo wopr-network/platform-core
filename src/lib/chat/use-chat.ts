@@ -5,6 +5,11 @@ import { openChatStream, sendChatMessage } from "@/lib/api";
 import { clearChatHistory, getSessionId, loadChatHistory, saveChatHistory } from "./chat-store";
 import type { ChatEvent, ChatMessage, ChatMode } from "./types";
 
+/** Minimal interface for stream handles that support cleanup via .close(). */
+interface Closeable {
+  close(): void;
+}
+
 interface UseChatReturn {
   messages: ChatMessage[];
   mode: ChatMode;
@@ -30,7 +35,7 @@ export function useChat(): UseChatReturn {
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const sessionId = useRef(getSessionId());
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const eventSourceRef = useRef<Closeable | null>(null);
   const pendingBotMsgRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(1000);
@@ -56,10 +61,9 @@ export function useChat(): UseChatReturn {
     }
 
     const abortController = new AbortController();
-    // Store a pseudo-EventSource object so the cleanup path can call .close()
     eventSourceRef.current = {
       close: () => abortController.abort(),
-    } as unknown as EventSource;
+    };
 
     const processLine = (line: string) => {
       if (!line.startsWith("data:")) return;
