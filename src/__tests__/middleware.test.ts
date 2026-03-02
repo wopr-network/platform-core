@@ -625,6 +625,22 @@ describe("CSP nonce in middleware", () => {
 });
 
 // ---------------------------------------------------------------------------
+// CSP style-src directive
+// ---------------------------------------------------------------------------
+describe("CSP style-src directive", () => {
+  it("uses unsafe-inline for style-src by default (NONCE_STYLES_ENABLED = false)", async () => {
+    const req = buildRequest("/login", {
+      cookies: { "better-auth.session_token": "tok" },
+    });
+    const res = await middleware(req);
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    // Must NOT contain a nonce in style-src while flag is off
+    expect(csp).not.toMatch(/style-src[^;]*'nonce-/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // config export
 // ---------------------------------------------------------------------------
 describe("middleware config", () => {

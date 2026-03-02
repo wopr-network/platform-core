@@ -9,17 +9,27 @@ const apiOrigin = process.env.NEXT_PUBLIC_API_URL
 
 const isSecureOrigin = apiOrigin.startsWith("https://");
 
+/**
+ * Nonce-based style-src toggle.
+ *
+ * Set to `true` to switch style-src from 'unsafe-inline' to nonce-based.
+ * Blocked on:
+ *   - Tailwind CSS v4 nonce support: https://github.com/tailwindlabs/tailwindcss/issues/5394
+ *   - framer-motion nonce support for runtime style injection
+ *
+ * When both dependencies ship nonce support, flip this to `true` and verify
+ * that all styles render correctly (Tailwind utility classes + framer-motion
+ * animations). No other code changes are needed — the nonce is already
+ * generated per-request and forwarded via x-nonce header to server components.
+ */
+const NONCE_STYLES_ENABLED = false;
+
 /** Build the CSP header value with a per-request nonce. */
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://js.stripe.com`,
-    // style-src: 'unsafe-inline' is required for Tailwind CSS v4 inline styles
-    // and framer-motion animation styles. Risk is mitigated by nonce-based
-    // script-src with 'strict-dynamic', which prevents JS injection.
-    // TODO: migrate to nonce-based style injection when Tailwind CSS adds support
-    // (track https://github.com/tailwindlabs/tailwindcss/issues/5394).
-    "style-src 'self' 'unsafe-inline'",
+    NONCE_STYLES_ENABLED ? `style-src 'self' 'nonce-${nonce}'` : "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
     `connect-src 'self' https://api.stripe.com${apiOrigin ? ` ${apiOrigin}` : ""}`,
