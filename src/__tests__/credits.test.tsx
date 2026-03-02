@@ -110,6 +110,26 @@ const MOCK_HISTORY_PAGE2: CreditHistoryResponse = {
   nextCursor: null,
 };
 
+vi.mock("@/lib/trpc", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/trpc")>();
+  return {
+    ...actual,
+    trpc: {
+      ...((actual as { trpc?: unknown }).trpc ?? {}),
+      billing: {
+        creditsBalance: {
+          useQuery: vi.fn().mockReturnValue({
+            data: { balance_cents: 1250, daily_burn_cents: 33, runway_days: 37 },
+            isLoading: false,
+            error: null,
+            refetch: vi.fn(),
+          }),
+        },
+      },
+    },
+  };
+});
+
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {

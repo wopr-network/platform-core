@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { AlertTriangleIcon, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageStatus } from "@/hooks/use-image-status";
-import type { FleetInstance, HealthStatus } from "@/lib/api";
-import { getFleetHealth } from "@/lib/api";
+import type { BotStatusResponse, FleetInstance, HealthStatus } from "@/lib/api";
+import { mapBotStatusToFleetInstance } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -113,35 +114,35 @@ function formatUptime(seconds: number | null): string {
 // ---------------------------------------------------------------------------
 
 export function FleetHealth() {
-  const [instances, setInstances] = useState<FleetInstance[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortBy>("status");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getFleetHealth();
-      setInstances(data);
-      setLastUpdated(new Date());
-    } catch {
-      setError("Failed to load fleet health — please try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const {
+    data: rawData,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+    isFetching,
+    dataUpdatedAt,
+  } = trpc.fleet.listInstances.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 30_000);
-    return () => clearInterval(interval);
-  }, [load]);
+    if (dataUpdatedAt > 0) {
+      setLastUpdated(new Date(dataUpdatedAt));
+    }
+  }, [dataUpdatedAt]);
+
+  const instances = useMemo(() => {
+    const bots = (rawData as { bots?: BotStatusResponse[] } | undefined)?.bots;
+    if (!Array.isArray(bots)) return [];
+    return bots.map(mapBotStatusToFleetInstance);
+  }, [rawData]);
+
+  const error = queryError ? "Failed to load fleet health — please try again." : null;
+  const refreshing = isFetching && !loading;
 
   const sorted = sortInstances(instances, sortBy);
 
@@ -165,7 +166,7 @@ export function FleetHealth() {
         <div className="flex items-center gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3">
           <AlertTriangleIcon className="size-5 shrink-0 text-destructive" />
           <p className="flex-1 text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" onClick={load}>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="size-4" />
             Retry
           </Button>
@@ -275,7 +276,7 @@ export function FleetHealth() {
           </SelectContent>
         </Select>
 
-        <Button variant="terminal" size="sm" onClick={load} disabled={refreshing}>
+        <Button variant="terminal" size="sm" onClick={() => refetch()} disabled={refreshing}>
           <RefreshCw className={cn("size-4", refreshing && "animate-spin")} />
           Refresh
         </Button>

@@ -199,7 +199,7 @@ export async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T
 // --- Instance API ---
 
 /** Shape returned by GET /fleet/bots on the backend */
-interface BotStatusResponse {
+export interface BotStatusResponse {
   id: string;
   name: string;
   state: string;
@@ -218,7 +218,7 @@ interface BotStatusResponse {
 }
 
 /** Parse channel IDs from bot env vars (WOPR_PLUGINS_CHANNELS is comma-separated). */
-function parseChannelsFromEnv(env: Record<string, string> | undefined): string[] {
+export function parseChannelsFromEnv(env: Record<string, string> | undefined): string[] {
   const raw = env?.WOPR_PLUGINS_CHANNELS;
   if (!raw) return [];
   return raw
@@ -228,7 +228,7 @@ function parseChannelsFromEnv(env: Record<string, string> | undefined): string[]
 }
 
 /** Parse plugin IDs from bot env vars (WOPR_PLUGINS_OTHER + WOPR_PLUGINS_VOICE are comma-separated). */
-function parsePluginsFromEnv(env: Record<string, string> | undefined): PluginInfo[] {
+export function parsePluginsFromEnv(env: Record<string, string> | undefined): PluginInfo[] {
   if (!env) return [];
   const ids = new Set<string>();
   for (const key of ["WOPR_PLUGINS_OTHER", "WOPR_PLUGINS_VOICE", "WOPR_PLUGINS_PROVIDERS"]) {
@@ -265,13 +265,13 @@ interface FleetClient {
   };
 }
 
-function mapBotState(state: string): InstanceStatus {
+export function mapBotState(state: string): InstanceStatus {
   if (state === "running") return "running";
   if (state === "error" || state === "dead") return "error";
   return "stopped";
 }
 
-function mapBotStatusToFleetInstance(bot: BotStatusResponse): FleetInstance {
+export function mapBotStatusToFleetInstance(bot: BotStatusResponse): FleetInstance {
   const status = mapBotState(bot.state);
 
   let health: HealthStatus;

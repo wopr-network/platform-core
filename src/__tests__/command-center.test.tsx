@@ -63,39 +63,61 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    fleet: {
+      listInstances: {
+        useQuery: vi.fn().mockReturnValue({
+          data: {
+            bots: [
+              {
+                id: "inst-001",
+                name: "prod-assistant",
+                state: "running",
+                health: "healthy",
+                uptime: null,
+                stats: null,
+              },
+              {
+                id: "inst-002",
+                name: "dev-bot",
+                state: "stopped",
+                health: "healthy",
+                uptime: null,
+                stats: null,
+              },
+              {
+                id: "inst-003",
+                name: "community-mod",
+                state: "running",
+                health: "degraded",
+                uptime: null,
+                stats: null,
+              },
+            ],
+          },
+          isLoading: false,
+          error: null,
+          dataUpdatedAt: Date.now(),
+        }),
+      },
+    },
+  },
+}));
+
 vi.mock("@/lib/api", () => ({
-  getFleetHealth: vi.fn().mockResolvedValue([
-    {
-      id: "inst-001",
-      name: "prod-assistant",
-      status: "running",
-      health: "healthy",
-      uptime: 86400,
-      pluginCount: 2,
-      sessionCount: 5,
-      provider: "anthropic",
-    },
-    {
-      id: "inst-002",
-      name: "dev-bot",
-      status: "stopped",
-      health: "healthy",
-      uptime: null,
-      pluginCount: 1,
-      sessionCount: 0,
-      provider: "openai",
-    },
-    {
-      id: "inst-003",
-      name: "community-mod",
-      status: "running",
-      health: "degraded",
-      uptime: 3600,
-      pluginCount: 3,
-      sessionCount: 0,
-      provider: "openai",
-    },
-  ]),
+  mapBotStatusToFleetInstance: vi.fn(
+    (bot: { id: string; name: string; state: string; health: string | null }) => ({
+      id: bot.id,
+      name: bot.name,
+      status: bot.state === "running" ? "running" : "stopped",
+      health: bot.health === "healthy" ? "healthy" : "degraded",
+      uptime: bot.id === "inst-001" ? 86400 : null,
+      pluginCount: bot.id === "inst-001" ? 2 : bot.id === "inst-002" ? 1 : 3,
+      sessionCount: bot.id === "inst-001" ? 5 : 0,
+      provider: bot.id === "inst-001" ? "anthropic" : "openai",
+    }),
+  ),
   getActivityFeed: vi.fn().mockResolvedValue([
     {
       id: "evt-1",

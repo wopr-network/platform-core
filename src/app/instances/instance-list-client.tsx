@@ -2,7 +2,7 @@
 
 import { ArrowDownToLine, Loader2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -39,38 +39,53 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useImageStatus } from "@/hooks/use-image-status";
-import type { Instance, InstanceStatus } from "@/lib/api";
-import { controlInstance, listInstances, pullImageUpdate } from "@/lib/api";
+import type { BotStatusResponse, Instance, InstanceStatus } from "@/lib/api";
+import {
+  controlInstance,
+  mapBotState,
+  parseChannelsFromEnv,
+  parsePluginsFromEnv,
+  pullImageUpdate,
+} from "@/lib/api";
 import { toUserMessage } from "@/lib/errors";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 export function InstanceListClient() {
-  const [instances, setInstances] = useState<Instance[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InstanceStatus | "all">("all");
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [destroyTarget, setDestroyTarget] = useState<Instance | null>(null);
   const [destroyConfirmText, setDestroyConfirmText] = useState("");
   const [destroying, setDestroying] = useState(false);
 
-  const loadInstances = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const data = await listInstances();
-      setInstances(data);
-    } catch (err) {
-      setLoadError(toUserMessage(err, "Failed to load instances"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: rawData,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = trpc.fleet.listInstances.useQuery(undefined, { refetchInterval: 30_000 });
 
-  useEffect(() => {
-    loadInstances();
-  }, [loadInstances]);
+  const instances = useMemo(() => {
+    const bots = (rawData as { bots?: BotStatusResponse[] } | undefined)?.bots;
+    if (!Array.isArray(bots)) return [];
+    return bots.map((bot) => ({
+      id: bot.id,
+      name: bot.name,
+      template: "",
+      status: mapBotState(bot.state),
+      provider: "",
+      channels: parseChannelsFromEnv(bot.env),
+      plugins: parsePluginsFromEnv(bot.env),
+      uptime: (() => {
+        const ms = bot.uptime ? new Date(bot.uptime).getTime() : NaN;
+        return Number.isNaN(ms) ? null : Math.floor((Date.now() - ms) / 1000);
+      })(),
+      createdAt: (bot.createdAt as string | undefined) ?? new Date().toISOString(),
+    }));
+  }, [rawData]);
+
+  const loadError = queryError ? toUserMessage(queryError, "Failed to load instances") : null;
 
   const filtered = useMemo(() => {
     return instances.filter((inst) => {
@@ -87,7 +102,7 @@ export function InstanceListClient() {
     setActionError(null);
     try {
       await controlInstance(id, action);
-      await loadInstances();
+      await refetch();
     } catch (err) {
       setActionError(toUserMessage(err, `Failed to ${action} instance`));
     }
@@ -141,7 +156,7 @@ export function InstanceListClient() {
       {loadError && (
         <div className="flex items-center justify-between rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-500">
           <span>{loadError}</span>
-          <Button variant="ghost" size="sm" onClick={loadInstances}>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}>
             Retry
           </Button>
         </div>
@@ -321,7 +336,7 @@ export function InstanceListClient() {
                   await controlInstance(destroyTarget.id, "destroy");
                   setDestroyTarget(null);
                   setDestroyConfirmText("");
-                  await loadInstances();
+                  await refetch();
                 } catch (err) {
                   setActionError(toUserMessage(err, "Failed to destroy instance"));
                 } finally {

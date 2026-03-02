@@ -3,31 +3,73 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InstanceListClient } from "../app/instances/instance-list-client";
 
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    fleet: {
+      listInstances: {
+        useQuery: vi.fn().mockReturnValue({
+          data: {
+            bots: [
+              {
+                id: "inst-001",
+                name: "test-instance",
+                state: "running",
+                health: "healthy",
+                uptime: null,
+                stats: null,
+                env: { WOPR_PLUGINS_CHANNELS: "discord", WOPR_PLUGINS_OTHER: "p1" },
+                createdAt: "2026-01-01T00:00:00Z",
+              },
+              {
+                id: "inst-002",
+                name: "stopped-bot",
+                state: "stopped",
+                health: null,
+                uptime: null,
+                stats: null,
+                createdAt: "2026-01-02T00:00:00Z",
+              },
+            ],
+          },
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }),
+      },
+    },
+  },
+}));
+
 vi.mock("@/lib/api", () => ({
-  listInstances: vi.fn().mockResolvedValue([
-    {
-      id: "inst-001",
-      name: "test-instance",
-      template: "General Assistant",
-      status: "running",
-      provider: "anthropic",
-      channels: ["discord"],
-      plugins: [{ id: "p1", name: "memory", version: "1.0.0", enabled: true }],
-      uptime: 3600,
-      createdAt: "2026-01-01T00:00:00Z",
-    },
-    {
-      id: "inst-002",
-      name: "stopped-bot",
-      template: "Code Helper",
-      status: "stopped",
-      provider: "openai",
-      channels: [],
-      plugins: [],
-      uptime: null,
-      createdAt: "2026-01-02T00:00:00Z",
-    },
-  ]),
+  mapBotState: vi.fn((state: string) => {
+    if (state === "running") return "running";
+    if (state === "error" || state === "dead") return "error";
+    return "stopped";
+  }),
+  parseChannelsFromEnv: vi.fn((env?: Record<string, string>) => {
+    const raw = env?.WOPR_PLUGINS_CHANNELS;
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }),
+  parsePluginsFromEnv: vi.fn((env?: Record<string, string>) => {
+    if (!env) return [];
+    const ids = new Set<string>();
+    for (const key of ["WOPR_PLUGINS_OTHER", "WOPR_PLUGINS_VOICE", "WOPR_PLUGINS_PROVIDERS"]) {
+      const raw = env[key];
+      if (raw) {
+        for (const id of raw
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)) {
+          ids.add(id);
+        }
+      }
+    }
+    return [...ids].map((id) => ({ id, name: id, version: "", enabled: true }));
+  }),
   controlInstance: vi.fn().mockResolvedValue(undefined),
   getImageStatus: vi.fn().mockResolvedValue({
     currentDigest: "sha256:aaa",
@@ -127,9 +169,14 @@ describe("InstanceListClient", () => {
     });
   });
 
-  it("shows error state with retry button when listInstances fails", async () => {
-    const { listInstances } = await import("@/lib/api");
-    vi.mocked(listInstances).mockRejectedValueOnce(new Error("Network error"));
+  it("shows error state with retry button when fleet query fails", async () => {
+    const { trpc } = await import("@/lib/trpc");
+    vi.mocked(trpc.fleet.listInstances.useQuery).mockReturnValueOnce({
+      data: undefined,
+      isLoading: false,
+      error: new Error("Network error"),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof trpc.fleet.listInstances.useQuery>);
 
     render(<InstanceListClient />);
 
