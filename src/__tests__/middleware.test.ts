@@ -572,13 +572,14 @@ describe("CSP nonce in middleware", () => {
     expect(csp).toContain("https://js.stripe.com");
   });
 
-  it("passes the nonce to downstream via x-nonce request header", async () => {
+  it("does NOT expose the nonce via x-nonce response header", async () => {
     const req = buildRequest("/login");
     const res = await middleware(req);
+    // Nonce must not leak in response headers — it's forwarded via request headers only
+    expect(res.headers.get("x-nonce")).toBeNull();
+    // CSP header must still contain the nonce
     const csp = res.headers.get("content-security-policy") ?? "";
-    const nonceFromCsp = csp.match(/'nonce-([^']+)'/)?.[1];
-    const nonceHeader = res.headers.get("x-nonce");
-    expect(nonceHeader).toBe(nonceFromCsp);
+    expect(csp).toMatch(/'nonce-[A-Za-z0-9+/=_-]+'/);
   });
 
   it("preserves all other CSP directives (default-src, style-src, connect-src, etc.)", async () => {

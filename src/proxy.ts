@@ -133,15 +133,23 @@ export default async function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID();
   const cspHeaderValue = buildCsp(nonce);
 
-  /** Apply CSP, nonce, and cache-busting headers to any response before returning it. */
+  /** Apply CSP and cache-busting headers to any response before returning it. */
   function withCsp(response: NextResponse): NextResponse {
     response.headers.set("Content-Security-Policy", cspHeaderValue);
-    // x-nonce is passed to server components via request headers (see Next.js CSP docs).
-    // It also appears in response headers — this is a known Next.js middleware CSP limitation.
-    // Risk is low: requires existing XSS to exploit. Mitigated by no-store cache control.
-    response.headers.set("x-nonce", nonce);
+    // Nonce is passed to server components via request headers (not response headers).
+    // See nextWithNonce() below — it uses NextResponse.next({ request: { headers } }).
     response.headers.set("Vary", "*");
     return response;
+  }
+
+  /**
+   * Create a NextResponse.next() that forwards the CSP nonce to server components
+   * via request headers, without exposing it in the HTTP response.
+   */
+  function nextWithNonce(): NextResponse {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-nonce", nonce);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // CSRF protection: validate Origin/Referer on state-changing API requests.
@@ -191,7 +199,7 @@ export default async function middleware(request: NextRequest) {
       }
       // Admin confirmed — serve page with anti-cache headers so revocation
       // is detected on the very next navigation (browser must revalidate).
-      const response = NextResponse.next();
+      const response = nextWithNonce();
       response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
       response.headers.set("Pragma", "no-cache");
       response.headers.set("Expires", "0");
@@ -202,12 +210,12 @@ export default async function middleware(request: NextRequest) {
 
   // Allow public paths
   if (publicExactPaths.has(pathname) || publicPaths.some((p) => pathname.startsWith(p))) {
-    return withCsp(NextResponse.next());
+    return withCsp(nextWithNonce());
   }
 
   // Allow static files (but not API paths with dots, e.g. /api/config.json)
   if (pathname.startsWith("/_next") || (pathname.includes(".") && !pathname.startsWith("/api"))) {
-    return withCsp(NextResponse.next());
+    return withCsp(nextWithNonce());
   }
 
   // Check for session cookie (Better Auth uses "better-auth.session_token" by default).
