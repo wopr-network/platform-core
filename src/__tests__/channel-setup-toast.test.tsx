@@ -21,6 +21,7 @@ vi.mock("@/lib/mock-manifests", () => ({
 
 // Mock connectChannel
 vi.mock("@/lib/api", () => ({
+  apiFetch: vi.fn(),
   connectChannel: vi.fn(),
 }));
 

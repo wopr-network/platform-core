@@ -2,7 +2,7 @@
 
 import { Clock } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AutoTopupCard } from "@/components/billing/auto-topup-card";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { BuyCryptoCreditPanel } from "@/components/billing/buy-crypto-credits-panel";
@@ -18,9 +18,10 @@ import { TransactionHistory } from "@/components/billing/transaction-history";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditBalance as CreditBalanceData, DividendWalletStats } from "@/lib/api";
-import { getCreditBalance, getDividendStats } from "@/lib/api";
+import { getDividendStats } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { getOrganization } from "@/lib/org-api";
+import { trpc } from "@/lib/trpc";
 
 function CreditsContent() {
   const searchParams = useSearchParams();
@@ -53,11 +54,8 @@ function CreditsContent() {
   }, [session?.user?.email]);
 
   const [showCryptoPending, setShowCryptoPending] = useState(cryptoPending);
-  const [balance, setBalance] = useState<CreditBalanceData | null>(null);
   const [dividendStats, setDividendStats] = useState<DividendWalletStats | null>(null);
   const [todayDividendCents, setTodayDividendCents] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cryptoPending) {
@@ -66,31 +64,35 @@ function CreditsContent() {
     }
   }, [cryptoPending, pathname, router]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [balanceData, statsData] = await Promise.all([
-        getCreditBalance(),
-        getDividendStats().catch(() => null),
-      ]);
-      setBalance(balanceData);
-      if (statsData) {
-        setDividendStats(statsData);
-        if (statsData.userEligible && statsData.perUserCents > 0) {
-          setTodayDividendCents(statsData.perUserCents);
-        }
+  const {
+    data: rawBalance,
+    isLoading: loading,
+    error: balanceError,
+    refetch,
+  } = trpc.billing.creditsBalance.useQuery({});
+
+  const balance: CreditBalanceData | null = rawBalance
+    ? {
+        balance: ((rawBalance as { balance_cents?: number }).balance_cents ?? 0) / 100,
+        dailyBurn: ((rawBalance as { daily_burn_cents?: number }).daily_burn_cents ?? 0) / 100,
+        runway: (rawBalance as { runway_days?: number | null }).runway_days ?? null,
       }
-    } catch {
-      setError("Failed to load credit balance.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    : null;
+
+  const error = balanceError ? "Failed to load credit balance." : null;
 
   useEffect(() => {
-    load();
-  }, [load]);
+    getDividendStats()
+      .then((statsData) => {
+        if (statsData) {
+          setDividendStats(statsData);
+          if (statsData.userEligible && statsData.perUserCents > 0) {
+            setTodayDividendCents(statsData.perUserCents);
+          }
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   if (!orgChecked) {
     return (
@@ -139,7 +141,7 @@ function CreditsContent() {
     return (
       <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
         <p>{error ?? "Unable to load credits."}</p>
-        <Button variant="ghost" size="sm" onClick={load}>
+        <Button variant="ghost" size="sm" onClick={() => refetch()}>
           Retry
         </Button>
       </div>

@@ -3,16 +3,28 @@
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { Activity, CreditCard, Plus, Puzzle, TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePaginationParams } from "@/hooks/use-pagination-params";
-import type { ActivityEvent, DividendWalletStats, FleetInstance, FleetResources } from "@/lib/api";
-import { getActivityFeed, getDividendStats, getFleetHealth, getFleetResources } from "@/lib/api";
+import type {
+  ActivityEvent,
+  BotStatusResponse,
+  DividendWalletStats,
+  FleetInstance,
+  FleetResources,
+} from "@/lib/api";
+import {
+  getActivityFeed,
+  getDividendStats,
+  getFleetResources,
+  mapBotStatusToFleetInstance,
+} from "@/lib/api";
 import { toUserMessage } from "@/lib/errors";
 import { formatRelativeTime } from "@/lib/format";
 import { formatCreditStandard } from "@/lib/format-credit";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 function computeFleetStats(instances: FleetInstance[], resources: FleetResources | null) {
@@ -127,30 +139,42 @@ const activityItem = {
 // ---------------------------------------------------------------------------
 
 export function CommandCenter() {
-  const [instances, setInstances] = useState<FleetInstance[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [resources, setResources] = useState<FleetResources | null>(null);
   const [dividendStats, setDividendStats] = useState<DividendWalletStats | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setActivityError(null);
-    const [fleetResult, activityResult, resourcesResult, dividendResult] = await Promise.allSettled(
-      [getFleetHealth(), getActivityFeed(), getFleetResources(), getDividendStats()],
-    );
-    // Fleet health is load-bearing — failure blocks the dashboard
-    if (fleetResult.status === "rejected") {
-      const err = fleetResult.reason;
-      setError(toUserMessage(err, "Failed to load fleet data"));
-      setLoading(false);
-      return;
+  const {
+    data: rawFleetData,
+    isLoading: loading,
+    error: fleetError,
+    dataUpdatedAt,
+  } = trpc.fleet.listInstances.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    if (dataUpdatedAt > 0) {
+      setLastRefreshed(dataUpdatedAt);
     }
-    setInstances(fleetResult.value);
+  }, [dataUpdatedAt]);
+
+  const instances = useMemo(() => {
+    const bots = (rawFleetData as { bots?: BotStatusResponse[] } | undefined)?.bots;
+    if (!Array.isArray(bots)) return [];
+    return bots.map(mapBotStatusToFleetInstance);
+  }, [rawFleetData]);
+
+  const error = fleetError ? toUserMessage(fleetError, "Failed to load fleet data") : null;
+
+  const loadNonFleet = useCallback(async () => {
+    setActivityError(null);
+    const [activityResult, resourcesResult, dividendResult] = await Promise.allSettled([
+      getActivityFeed(),
+      getFleetResources(),
+      getDividendStats(),
+    ]);
     // Activity is supplementary — surface inline without killing fleet data
     if (activityResult.status === "fulfilled") {
       setActivity(activityResult.value);
@@ -163,15 +187,13 @@ export function CommandCenter() {
     setResources(resourcesResult.status === "fulfilled" ? resourcesResult.value : null);
     // Dividend stats are supplementary — silent null degradation
     setDividendStats(dividendResult.status === "fulfilled" ? dividendResult.value : null);
-    setLastRefreshed(Date.now());
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 30_000);
+    loadNonFleet();
+    const interval = setInterval(loadNonFleet, 30_000);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [loadNonFleet]);
 
   const FLEET_PAGE_SIZE = 20;
   const { page: fleetPage, setPage: setFleetPage } = usePaginationParams(FLEET_PAGE_SIZE);
@@ -209,7 +231,12 @@ export function CommandCenter() {
           className="flex items-center justify-between rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
         >
           <span>{error}</span>
-          <Button data-onboarding-id="dashboard.retry" variant="ghost" size="sm" onClick={load}>
+          <Button
+            data-onboarding-id="dashboard.retry"
+            variant="ghost"
+            size="sm"
+            onClick={() => loadNonFleet()}
+          >
             Retry
           </Button>
         </div>

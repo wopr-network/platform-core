@@ -55,6 +55,39 @@ type AppRouterRecord = {
   };
   billing: {
     applyCoupon: AnyTRPCMutationProcedure;
+    currentPlan: AnyTRPCQueryProcedure;
+    providerCosts: AnyTRPCQueryProcedure;
+    billingInfo: AnyTRPCQueryProcedure;
+    creditsBalance: AnyTRPCQueryProcedure;
+    creditsHistory: AnyTRPCQueryProcedure;
+    creditsCheckout: AnyTRPCMutationProcedure;
+    creditOptions: AnyTRPCQueryProcedure;
+    inferenceMode: AnyTRPCQueryProcedure;
+    spendingLimits: AnyTRPCQueryProcedure;
+    updateSpendingLimits: AnyTRPCMutationProcedure;
+    hostedUsageSummary: AnyTRPCQueryProcedure;
+    usageSummary: AnyTRPCQueryProcedure;
+    hostedUsageEvents: AnyTRPCQueryProcedure;
+    portalSession: AnyTRPCMutationProcedure;
+    updateBillingEmail: AnyTRPCMutationProcedure;
+    removePaymentMethod: AnyTRPCMutationProcedure;
+    setDefaultPaymentMethod: AnyTRPCMutationProcedure;
+    affiliateStats: AnyTRPCQueryProcedure;
+    affiliateReferrals: AnyTRPCQueryProcedure;
+    cryptoCheckout: AnyTRPCMutationProcedure;
+    autoTopupSettings: AnyTRPCQueryProcedure;
+    updateAutoTopupSettings: AnyTRPCMutationProcedure;
+    accountStatus: AnyTRPCQueryProcedure;
+  };
+  fleet: {
+    listInstances: AnyTRPCQueryProcedure;
+    getInstance: AnyTRPCQueryProcedure;
+    createInstance: AnyTRPCMutationProcedure;
+    controlInstance: AnyTRPCMutationProcedure;
+    getInstanceHealth: AnyTRPCQueryProcedure;
+    getInstanceLogs: AnyTRPCQueryProcedure;
+    getInstanceMetrics: AnyTRPCQueryProcedure;
+    listTemplates: AnyTRPCQueryProcedure;
   };
   settings: {
     notificationPreferences: AnyTRPCQueryProcedure;
