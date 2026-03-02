@@ -150,6 +150,9 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **e2e backend requirement:** Playwright e2e tests require a backend server on port 3001. CI's e2e step does not auto-start the backend — you must start the platform server separately or the e2e step will fail on webServer timeout unrelated to code changes. Local: `pnpm dev` in `wopr-platform` repo while running e2e tests.
 - **tRPC hook mocking:** When migrating API calls to tRPC, mock the tRPC hooks directly (`vi.mock("@/lib/trpc", { trpc: { ... } })`) not the old `@/lib/api` functions — mocking the wrong abstraction causes tests to pass silently without testing anything. Also add `apiFetch: vi.fn()` to any `@/lib/api` mocks to prevent import failures.
 - **Animation/motion mocking:** Components using `framer-motion`, `useImageStatus`, or similar async motion libraries should be mocked in tests to prevent spurious failures unrelated to the feature under test.
+- **Transient wizard phases:** When a wizard phase can auto-skip asynchronously (e.g., conflict resolution), tests checking "Step N of M" text must use `waitFor` + `queryByText(..., { exact: false })` with a regex or negation — the phase may never render visibly. Don't assert on step text that assumes static phase ordering.
+- **Install wizard requires mocked `listInstalledPlugins`:** Tests for the install wizard must mock `listInstalledPlugins` from `@/lib/api` (returns `[]` by default) — without it, the wizard enters an error state instead of showing provider selection. Mock at the test file level if touching wizard logic.
+- **expect.objectContaining with multi-arg matchers:** Always check the actual function signature before writing `expect(fn).toHaveBeenCalledWith(expect.objectContaining({ ... }))` — missing args in the matcher silently pass but mask regressions on called-with assertions.
 
 ## Pre-Commit Checklist
 
