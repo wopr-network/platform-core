@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import CreateOrgWizard from "@/components/settings/create-org-wizard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BillingUsage } from "@/lib/api";
 import { createBillingPortalSession, getBillingUsage } from "@/lib/api";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
 
 export default function AccountPage() {
   const [usage, setUsage] = useState<BillingUsage | null>(null);
@@ -37,6 +39,10 @@ export default function AccountPage() {
     setPortalLoading(true);
     try {
       const { url } = await createBillingPortalSession();
+      if (!isAllowedRedirectUrl(url)) {
+        toast.error("Unexpected billing portal URL.");
+        return;
+      }
       window.location.href = url;
     } catch {
       // If portal session fails, fall back to billing page
