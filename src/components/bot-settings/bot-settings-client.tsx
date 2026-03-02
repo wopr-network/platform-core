@@ -147,7 +147,8 @@ export function BotSettingsClient({ botId }: { botId: string }) {
       } else if (action === "stop") {
         setSettings((prev) => (prev ? { ...prev, status: "stopped" } : prev));
       }
-      // restart: status will update via polling
+      // Refetch full settings to pick up any server-side state changes
+      load();
     } catch {
       setActionError(`Failed to ${action} bot`);
     } finally {
@@ -338,7 +339,7 @@ export function BotSettingsClient({ botId }: { botId: string }) {
         </TabsContent>
 
         <TabsContent value="danger" className="mt-4">
-          <DangerZoneTab settings={settings} botId={botId} />
+          <DangerZoneTab settings={settings} botId={botId} onUpdate={load} />
         </TabsContent>
       </Tabs>
     </div>
@@ -1443,7 +1444,15 @@ function UsageTab({ settings }: { settings: BotSettings }) {
 
 // --- Tab 7: Danger Zone ---
 
-function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: string }) {
+function DangerZoneTab({
+  settings,
+  botId,
+  onUpdate,
+}: {
+  settings: BotSettings;
+  botId: string;
+  onUpdate: () => void;
+}) {
   const router = useRouter();
   const [confirmAction, setConfirmAction] = useState<"stop" | "archive" | "delete" | null>(null);
   const [confirmText, setConfirmText] = useState("");
@@ -1470,6 +1479,7 @@ function DangerZoneTab({ settings, botId }: { settings: BotSettings; botId: stri
       }
       setConfirmAction(null);
       setConfirmText("");
+      onUpdate();
     } catch {
       setActionError(`Failed to ${confirmAction} bot \u2014 please try again.`);
     } finally {

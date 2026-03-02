@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,6 +58,11 @@ vi.mock("../lib/marketplace-data", async () => {
 
 function findManifest(id: string): PluginManifest {
   return findManifestFixture(id) as unknown as PluginManifest;
+}
+
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 function closestButton(el: HTMLElement): HTMLElement {
@@ -230,7 +236,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     // Wait for loading
     expect(await screen.findByText("Discord")).toBeInTheDocument();
@@ -244,7 +250,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     expect(await screen.findByText("Plugin not found.")).toBeInTheDocument();
   });
@@ -254,7 +260,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("A Bot That Never Forgets");
     expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
@@ -267,7 +273,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Fire Your Secretary");
     expect(screen.getByText("Discord (for voice channels)")).toBeInTheDocument();
@@ -279,7 +285,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
     const installButton = screen.getByText("Give my bot this superpower");
@@ -294,7 +300,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Discord");
 
@@ -312,7 +318,7 @@ describe("PluginDetailPage", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Discord");
 

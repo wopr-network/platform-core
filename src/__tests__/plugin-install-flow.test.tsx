@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,6 +56,11 @@ const mockBots = [
   { id: "bot-002", name: "Second Bot", state: "stopped" },
 ];
 
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe("Plugin Install Flow", () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -78,7 +84,7 @@ describe("Plugin Install Flow", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     expect(await screen.findByText("Webhooks")).toBeInTheDocument();
     const installBtn = screen.getByText("Give my bot this superpower");
@@ -92,7 +98,7 @@ describe("Plugin Install Flow", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
     await user.click(screen.getByText("Give my bot this superpower"));
@@ -109,7 +115,7 @@ describe("Plugin Install Flow", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
     await user.click(screen.getByText("Give my bot this superpower"));
@@ -148,7 +154,7 @@ describe("Plugin Install Flow", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
     await user.click(screen.getByText("Give my bot this superpower"));
@@ -175,7 +181,7 @@ describe("Plugin Install Flow", () => {
     const { default: PluginDetailPage } = await import(
       "../app/(dashboard)/marketplace/[plugin]/page"
     );
-    render(<PluginDetailPage />);
+    renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("Webhooks");
     await user.click(screen.getByText("Give my bot this superpower"));

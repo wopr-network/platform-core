@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Download, Terminal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -120,6 +121,7 @@ export default function PluginDetailPage() {
   const router = useRouter();
   const pluginId = params.plugin as string;
 
+  const queryClient = useQueryClient();
   const [plugin, setPlugin] = useState<PluginManifest | null>(null);
   const [content, setContent] = useState<PluginContentResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,6 +165,8 @@ export default function PluginDetailPage() {
         }
       }
       setInstalling(false);
+      // Invalidate all queries so navigation to /plugins shows fresh installed list
+      queryClient.invalidateQueries();
       setShowTerminalLog(true);
     } catch (err) {
       setInstalling(false);

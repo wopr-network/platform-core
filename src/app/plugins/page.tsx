@@ -137,6 +137,9 @@ export default function PluginsPage() {
 
     try {
       await togglePluginEnabled(selectedBotId, pluginId, newEnabled);
+      // Refetch from server to confirm state (handles side effects like dependency enabling)
+      const refreshed = await listInstalledPlugins(selectedBotId);
+      setInstalled(refreshed);
     } catch {
       // Revert on failure
       setInstalled((prev) =>
