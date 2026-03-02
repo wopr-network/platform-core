@@ -46,7 +46,7 @@ src/
     ui/               # Base design system components
   hooks/              # Custom React hooks
   lib/                # Shared utilities, auth config
-  middleware.ts       # Auth middleware (better-auth)
+  proxy.ts            # Auth middleware (better-auth)
 ```
 
 ## Key Libraries
@@ -68,7 +68,7 @@ src/
 ## Auth
 
 - `better-auth` handles sessions. Config in `src/lib/auth.ts`.
-- Middleware at `src/middleware.ts` — protects `(dashboard)` routes.
+- Middleware at `src/proxy.ts` — protects `(dashboard)` routes.
 - OAuth buttons in `src/app/auth/oauth-buttons.tsx`.
 
 ## Issue Tracking
@@ -129,7 +129,7 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 ## Security Rules
 
 - **No tenant ID in localStorage.** Always use the cookie-based tenant context (`src/lib/tenant-context.tsx`).
-- **Validate redirects.** The middleware (`src/middleware.ts`) is the auth gate — it checks session cookies and redirects unauthenticated users to `/login` with a `callbackUrl` param. Never bypass it.
+- **Validate redirects.** The middleware (`src/proxy.ts`) is the auth gate — it checks session cookies and redirects unauthenticated users to `/login` with a `callbackUrl` param. Never bypass it.
 - **CSRF protection** is enforced in middleware for mutation requests (`POST`/`PUT`/`PATCH`/`DELETE`) on `/api` routes (except `/api/auth`). Origin/Referer headers are validated.
 - **CSP headers** are configured in `next.config.ts` — includes script-src, connect-src, frame-src allowlists. Update CSP if adding new external services.
 - **Admin routes** (`/admin/*`) are server-side gated in middleware — only `platform_admin` role can access.
