@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { testChannelConnection } from "@/lib/api";
-import type { ChannelManifest } from "@/lib/mock-manifests";
+import type { ChannelManifest } from "@/lib/channel-manifests";
 import { StepRenderer } from "./step-renderer";
 
 interface WizardProps {

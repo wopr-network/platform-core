@@ -1,5 +1,5 @@
-// Thin derivation layer — the canonical data lives in marketplace-data.ts.
-// This module exists for backward compatibility with channel-wizard imports.
+// Channel-specific manifest types and lookup functions.
+// The canonical plugin data lives in marketplace-data.ts; this module filters for channels.
 
 import {
   type ConfigSchemaField,

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import type { ConfigField } from "@/lib/mock-manifests";
+import type { ConfigField } from "@/lib/channel-manifests";
 import { cn } from "@/lib/utils";
 
 interface FieldInteractiveProps {

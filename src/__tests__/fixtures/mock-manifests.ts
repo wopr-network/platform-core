@@ -1,6 +1,6 @@
 // Typed re-export of shared fixture data. Import this file normally in test files.
 // The raw data lives in mock-manifests-data.js for require()-compatibility inside vi.hoisted().
-import type { ChannelManifest } from "../../lib/mock-manifests";
+import type { ChannelManifest } from "../../lib/channel-manifests";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const data = require("./mock-manifests-data") as {

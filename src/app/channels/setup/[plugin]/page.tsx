@@ -8,8 +8,8 @@ import { Wizard } from "@/components/channel-wizard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { connectChannel } from "@/lib/api";
+import { type ChannelManifest, getManifest } from "@/lib/channel-manifests";
 import { toUserMessage } from "@/lib/errors";
-import { type ChannelManifest, getManifest } from "@/lib/mock-manifests";
 
 export default function ChannelSetupPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);

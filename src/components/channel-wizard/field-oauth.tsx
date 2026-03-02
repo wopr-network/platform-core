@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { initiateChannelOAuth, pollChannelOAuth } from "@/lib/api";
-import type { ConfigField } from "@/lib/mock-manifests";
+import type { ConfigField } from "@/lib/channel-manifests";
 
 interface FieldOAuthProps {
   field: ConfigField;

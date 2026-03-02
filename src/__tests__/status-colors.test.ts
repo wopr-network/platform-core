@@ -71,7 +71,7 @@ describe("PLUGIN_STATUS_STYLES", () => {
   });
 
   it("returns undefined for unknown plugin status", () => {
-    expect(PLUGIN_STATUS_STYLES["nonexistent"]).toBeUndefined();
+    expect(PLUGIN_STATUS_STYLES.nonexistent).toBeUndefined();
   });
 });
 

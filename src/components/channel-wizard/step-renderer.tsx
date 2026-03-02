@@ -1,7 +1,7 @@
 "use client";
 
 import { Banner } from "@/components/ui/banner";
-import type { ConfigField, SetupStep } from "@/lib/mock-manifests";
+import type { ConfigField, SetupStep } from "@/lib/channel-manifests";
 import { FieldInteractive } from "./field-interactive";
 import { FieldOAuth } from "./field-oauth";
 import { FieldPaste } from "./field-paste";

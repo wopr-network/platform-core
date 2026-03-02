@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { pollChannelQr } from "@/lib/api";
-import type { ConfigField } from "@/lib/mock-manifests";
+import type { ConfigField } from "@/lib/channel-manifests";
 
 interface FieldQRProps {
   field: ConfigField;

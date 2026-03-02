@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FieldOAuth } from "@/components/channel-wizard/field-oauth";
-import type { ConfigField } from "@/lib/mock-manifests";
+import type { ConfigField } from "@/lib/channel-manifests";
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ConfigField } from "@/lib/mock-manifests";
+import type { ConfigField } from "@/lib/channel-manifests";
 
 interface FieldPasteProps {
   field: ConfigField;

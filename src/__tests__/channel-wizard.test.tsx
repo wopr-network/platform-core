@@ -4,16 +4,16 @@ import { Wizard } from "@/components/channel-wizard";
 import { FieldInteractive } from "@/components/channel-wizard/field-interactive";
 import { FieldPaste } from "@/components/channel-wizard/field-paste";
 import { StepRenderer } from "@/components/channel-wizard/step-renderer";
-import type { SetupStep } from "@/lib/mock-manifests";
+import type { SetupStep } from "@/lib/channel-manifests";
 import {
   CHANNEL_MANIFESTS_FIXTURE,
   DISCORD_MANIFEST,
   TELEGRAM_MANIFEST,
 } from "./fixtures/mock-manifests";
 
-// Mock @/lib/mock-manifests to use fixture data (sync for Wizard component tests)
-vi.mock("@/lib/mock-manifests", async () => {
-  const actual = await vi.importActual("@/lib/mock-manifests");
+// Mock @/lib/channel-manifests to use fixture data (sync for Wizard component tests)
+vi.mock("@/lib/channel-manifests", async () => {
+  const actual = await vi.importActual("@/lib/channel-manifests");
   return {
     ...actual,
     getChannelManifests: vi.fn().mockResolvedValue(CHANNEL_MANIFESTS_FIXTURE),
@@ -34,28 +34,28 @@ vi.mock("@/lib/api", () => ({
   testChannelConnection: vi.fn(),
 }));
 
-describe("mock-manifests", () => {
+describe("channel-manifests", () => {
   it("provides Discord, Slack, and Telegram manifests via getChannelManifests", async () => {
-    const { getChannelManifests } = await import("@/lib/mock-manifests");
+    const { getChannelManifests } = await import("@/lib/channel-manifests");
     const manifests = await getChannelManifests();
     expect(manifests).toHaveLength(3);
     expect(manifests.map((m) => m.id)).toEqual(["discord", "slack", "telegram"]);
   });
 
   it("getManifest returns correct manifest by id", async () => {
-    const { getManifest } = await import("@/lib/mock-manifests");
+    const { getManifest } = await import("@/lib/channel-manifests");
     const discord = await getManifest("discord");
     expect(discord?.name).toBe("Discord");
   });
 
   it("getManifest returns undefined for unknown id", async () => {
-    const { getManifest } = await import("@/lib/mock-manifests");
+    const { getManifest } = await import("@/lib/channel-manifests");
     const result = await getManifest("unknown");
     expect(result).toBeUndefined();
   });
 
   it("Discord manifest has 4 setup steps", async () => {
-    const { getManifest } = await import("@/lib/mock-manifests");
+    const { getManifest } = await import("@/lib/channel-manifests");
     const discord = await getManifest("discord");
     expect(discord?.setup).toHaveLength(4);
     expect(discord?.setup.map((s) => s.id)).toEqual([
@@ -67,7 +67,7 @@ describe("mock-manifests", () => {
   });
 
   it("Telegram manifest has secret token field with paste flow", async () => {
-    const { getManifest } = await import("@/lib/mock-manifests");
+    const { getManifest } = await import("@/lib/channel-manifests");
     const telegram = await getManifest("telegram");
     const tokenStep = telegram?.setup.find((s) => s.id === "paste-token");
     const tokenField = tokenStep?.fields[0];
@@ -76,7 +76,7 @@ describe("mock-manifests", () => {
   });
 
   it("Slack manifest has oauth flow", async () => {
-    const { getManifest } = await import("@/lib/mock-manifests");
+    const { getManifest } = await import("@/lib/channel-manifests");
     const slack = await getManifest("slack");
     const oauthStep = slack?.setup.find((s) => s.id === "oauth");
     const oauthField = oauthStep?.fields[0];
