@@ -59,3 +59,27 @@ class MockResizeObserver {
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 }
+
+// Polyfill EventSource for SSE hooks (e.g. use-fleet-sse) in test env.
+// jsdom does not provide EventSource natively.
+class MockEventSource {
+  constructor(_url: string, _opts?: { withCredentials?: boolean }) {
+    /* no-op stub */
+  }
+  addEventListener() {
+    /* no-op stub */
+  }
+  removeEventListener() {
+    /* no-op stub */
+  }
+  close() {
+    /* no-op stub */
+  }
+  onmessage: ((e: MessageEvent) => void) | null = null;
+  onerror: ((e: Event) => void) | null = null;
+  onopen: ((e: Event) => void) | null = null;
+}
+
+if (typeof globalThis.EventSource === "undefined") {
+  globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+}
