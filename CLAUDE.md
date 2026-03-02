@@ -144,6 +144,7 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 ## Gotchas
 
 - **Import order:** Biome's `organizeImports` rule sorts `toast` imports (from `sonner`) before `@/` imports. If your imports fail biome check despite being alphabetical, move toast to the top of your import block.
+- **Middleware utilities must not override response headers:** Helper functions like `withCsp()` should never unconditionally set headers that route handlers might need to customize (e.g., `Cache-Control`). Routes (especially admin routes) should set their own headers _before_ calling middleware utilities.
 
 ## Pre-Commit Checklist
 
