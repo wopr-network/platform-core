@@ -2,14 +2,21 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCreditOptions, mockCreateCreditCheckout } = vi.hoisted(() => ({
-  mockGetCreditOptions: vi.fn(),
-  mockCreateCreditCheckout: vi.fn(),
-}));
+const { mockGetCreditOptions, mockCreateCreditCheckout, mockIsAllowedRedirectUrl } = vi.hoisted(
+  () => ({
+    mockGetCreditOptions: vi.fn(),
+    mockCreateCreditCheckout: vi.fn(),
+    mockIsAllowedRedirectUrl: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/api", () => ({
   getCreditOptions: (...args: unknown[]) => mockGetCreditOptions(...args),
   createCreditCheckout: (...args: unknown[]) => mockCreateCreditCheckout(...args),
+}));
+
+vi.mock("@/lib/validate-redirect-url", () => ({
+  isAllowedRedirectUrl: (...args: unknown[]) => mockIsAllowedRedirectUrl(...args),
 }));
 
 vi.mock("framer-motion", () => ({
@@ -152,6 +159,7 @@ describe("BuyCreditsPanel", () => {
     mockCreateCreditCheckout.mockResolvedValue({
       checkoutUrl: "https://checkout.stripe.com/session123",
     });
+    mockIsAllowedRedirectUrl.mockReturnValue(true);
 
     const user = userEvent.setup();
     const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
@@ -164,7 +172,28 @@ describe("BuyCreditsPanel", () => {
     await user.click(buyBtn);
 
     expect(mockCreateCreditCheckout).toHaveBeenCalledWith("price_20");
+    expect(mockIsAllowedRedirectUrl).toHaveBeenCalledWith("https://checkout.stripe.com/session123");
     expect(hrefSetter).toHaveBeenCalledWith("https://checkout.stripe.com/session123");
+  });
+
+  it("shows error when checkout URL is not allowed", async () => {
+    mockGetCreditOptions.mockResolvedValue(MOCK_TIERS);
+    mockCreateCreditCheckout.mockResolvedValue({
+      checkoutUrl: "https://evil.com/steal",
+    });
+    mockIsAllowedRedirectUrl.mockReturnValue(false);
+
+    const user = userEvent.setup();
+    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
+    render(<BuyCreditsPanel />);
+
+    const tierBtn = await screen.findByText("$5");
+    await user.click(tierBtn);
+
+    const buyBtn = screen.getByRole("button", { name: "Buy credits" });
+    await user.click(buyBtn);
+
+    expect(await screen.findByText("Unexpected checkout URL.")).toBeInTheDocument();
   });
 
   it("shows Redirecting... while checkout is in progress", async () => {

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditOption } from "@/lib/api";
 import { createCreditCheckout, getCreditOptions } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
 
 export function BuyCreditsPanel() {
   const [tiers, setTiers] = useState<CreditOption[]>([]);
@@ -35,6 +36,11 @@ export function BuyCreditsPanel() {
     setError(null);
     try {
       const { checkoutUrl } = await createCreditCheckout(selected);
+      if (!isAllowedRedirectUrl(checkoutUrl)) {
+        setError("Unexpected checkout URL.");
+        setLoading(false);
+        return;
+      }
       window.location.href = checkoutUrl;
     } catch {
       setError("Checkout failed. Please try again.");
