@@ -175,6 +175,12 @@ export function useChat(): UseChatReturn {
       // POST to chat API
       sendChatMessage(sessionId.current, trimmed).catch(() => {
         setIsTyping(false);
+        addMessage({
+          id: crypto.randomUUID(),
+          role: "bot",
+          content: "Sorry, your message could not be sent. Please try again.",
+          timestamp: Date.now(),
+        });
       });
     },
     [addMessage],

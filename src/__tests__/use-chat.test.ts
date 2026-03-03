@@ -196,7 +196,7 @@ describe("useChat", () => {
       sse.close();
     });
 
-    it("sets isTyping back to false when sendChatMessage fails", async () => {
+    it("sets isTyping back to false and shows error when sendChatMessage fails", async () => {
       const sse = createMockSSEStream();
       mockOpenChatStream.mockResolvedValueOnce(sse.response);
       mockSendChatMessage.mockRejectedValueOnce(new Error("API error"));
@@ -216,6 +216,15 @@ describe("useChat", () => {
       await waitFor(() => {
         expect(result.current.isTyping).toBe(false);
       });
+
+      // User message + error message
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[0].role).toBe("user");
+      expect(result.current.messages[0].content).toBe("test");
+      expect(result.current.messages[1].role).toBe("bot");
+      expect(result.current.messages[1].content).toBe(
+        "Sorry, your message could not be sent. Please try again.",
+      );
 
       sse.close();
     });
