@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useFleetSSE } from "@/hooks/use-fleet-sse";
 import { useSaveQueue } from "@/hooks/use-save-queue";
 import type { InstanceHealth } from "@/lib/api";
 import { getInstanceHealth } from "@/lib/api";
@@ -93,28 +94,46 @@ export function BotSettingsClient({ botId }: { botId: string }) {
 
   const settingsLoaded = settings !== null;
 
-  // Poll bot status and health data every 10 seconds (combined to reduce requests)
+  // Fetch status and health once on mount (after settings loaded)
   useEffect(() => {
     if (!settingsLoaded) return;
     let cancelled = false;
-    async function fetchStatusAndHealth() {
-      try {
-        const [{ status }, h] = await Promise.all([getBotStatus(botId), getInstanceHealth(botId)]);
+    Promise.all([getBotStatus(botId), getInstanceHealth(botId)])
+      .then(([{ status }, h]) => {
         if (!cancelled) {
           setSettings((prev) => (prev ? { ...prev, status } : prev));
           setHealth(h);
         }
-      } catch {
-        // Silently ignore polling errors
-      }
-    }
-    fetchStatusAndHealth();
-    const interval = setInterval(fetchStatusAndHealth, 10_000);
+      })
+      .catch((_err) => {
+        // Silently ignore — same as old polling behavior
+      });
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, [botId, settingsLoaded]);
+
+  // Real-time bot status via SSE — re-fetch on events for this bot
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  useFleetSSE((event) => {
+    if (event.botId !== botId) return;
+    Promise.all([getBotStatus(botId), getInstanceHealth(botId)])
+      .then(([{ status }, h]) => {
+        if (mountedRef.current) {
+          setSettings((prev) => (prev ? { ...prev, status } : prev));
+          setHealth(h);
+        }
+      })
+      .catch((_err) => {
+        // Silently ignore — same as old polling behavior
+      });
+  });
 
   // Detect status changes for badge glow animation
   useEffect(() => {

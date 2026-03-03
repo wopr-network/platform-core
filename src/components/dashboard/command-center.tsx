@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFleetSSE } from "@/hooks/use-fleet-sse";
 import { usePaginationParams } from "@/hooks/use-pagination-params";
 import type {
   ActivityEvent,
@@ -150,8 +151,11 @@ export function CommandCenter() {
     isLoading: loading,
     error: fleetError,
     dataUpdatedAt,
-  } = trpc.fleet.listInstances.useQuery(undefined, {
-    refetchInterval: 30_000,
+  } = trpc.fleet.listInstances.useQuery(undefined);
+
+  const utils = trpc.useUtils();
+  useFleetSSE(() => {
+    utils.fleet.listInstances.invalidate();
   });
 
   useEffect(() => {

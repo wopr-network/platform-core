@@ -65,6 +65,9 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    useUtils: () => ({
+      fleet: { listInstances: { invalidate: vi.fn() } },
+    }),
     fleet: {
       listInstances: {
         useQuery: vi.fn().mockReturnValue({
