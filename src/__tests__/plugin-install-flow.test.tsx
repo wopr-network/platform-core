@@ -45,6 +45,42 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/hooks/use-capability-meta", () => ({
+  useCapabilityMeta: () => ({
+    meta: [
+      {
+        capability: "llm",
+        label: "WOPR Hosted LLM",
+        description: "Managed LLM.",
+        pricing: "Pay-per-token",
+        hostedProvider: "OpenRouter",
+        icon: "bot",
+        sortOrder: 0,
+      },
+      {
+        capability: "stt",
+        label: "WOPR Hosted STT",
+        description: "Managed STT.",
+        pricing: "Pay-per-minute",
+        hostedProvider: "Whisper",
+        icon: "mic",
+        sortOrder: 1,
+      },
+    ],
+    loading: false,
+    error: false,
+    getMeta: (cap: string) => ({
+      capability: cap,
+      label: cap.toUpperCase(),
+      description: "",
+      pricing: "",
+      hostedProvider: "",
+      icon: "sparkles",
+      sortOrder: 999,
+    }),
+  }),
+}));
+
 vi.mock("../lib/marketplace-data", async () => {
   const actual = await vi.importActual("../lib/marketplace-data");
   return {
@@ -224,9 +260,6 @@ describe("Plugin Toggle (Enable/Disable)", () => {
   });
 
   it("RequirementsCheck shows 'No additional dependencies required' when plugin.requires is empty", async () => {
-    const { RequirementsCheck } = (await import("../components/marketplace/install-wizard")) as {
-      RequirementsCheck?: React.ComponentType<{ plugin: PluginManifest; botId: string }>;
-    };
     // RequirementsCheck is not exported — test via InstallWizard with a plugin that has requires: []
     // and manually reach the requirements phase
     // Since requires=[] the requirements phase is skipped in the wizard, so we test the component

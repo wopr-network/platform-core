@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
+import { CapabilityProviderPicker } from "@/components/capability/CapabilityResolver";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,19 +26,18 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useCapabilityMeta } from "@/hooks/use-capability-meta";
 import { toUserMessage } from "@/lib/errors";
 import type {
   BotSummary,
   CapabilityConflict,
   ConfigSchemaField,
-  HostedAdapter,
   PluginManifest,
   SetupStep,
 } from "@/lib/marketplace-data";
 import {
   detectCapabilityConflictsClient,
   getCapabilityColor,
-  getHostedAdaptersForCapabilities,
   listBots,
   listInstalledPlugins,
   listMarketplacePlugins,
@@ -54,9 +54,11 @@ interface InstallWizardProps {
 }
 
 export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardProps) {
-  const hostedAdapters = getHostedAdaptersForCapabilities(plugin.capabilities);
+  const { meta: capabilityMeta } = useCapabilityMeta();
   const hasRequirements = plugin.requires.length > 0;
-  const hasHosted = hostedAdapters.length > 0;
+  const hasHosted = plugin.capabilities.some((cap) =>
+    capabilityMeta.some((m) => m.capability === cap && !!m.hostedProvider),
+  );
 
   // Determine phases — bot-select is always first
   // conflicts phase is always included; it auto-skips if no conflicts detected
@@ -342,8 +344,8 @@ export function InstallWizard({ plugin, onComplete, onCancel }: InstallWizardPro
           />
         )}
         {currentPhase === "providers" && (
-          <ProviderSelector
-            adapters={hostedAdapters}
+          <CapabilityProviderPicker
+            capabilities={plugin.capabilities}
             choices={providerChoices}
             onChoose={(cap, choice) => setProviderChoices((prev) => ({ ...prev, [cap]: choice }))}
           />
@@ -568,58 +570,6 @@ function RequirementsCheck({ plugin, botId }: { plugin: PluginManifest; botId: s
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-function ProviderSelector({
-  adapters,
-  choices,
-  onChoose,
-}: {
-  adapters: HostedAdapter[];
-  choices: Record<string, "byok" | "hosted">;
-  onChoose: (capability: string, choice: "byok" | "hosted") => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Some capabilities can be provided by WOPR Hosted services. Choose for each:
-      </p>
-      {adapters.map((adapter) => {
-        const choice = choices[adapter.capability] ?? "hosted";
-        return (
-          <div key={adapter.capability} className="rounded-sm border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{adapter.label}</p>
-                <p className="text-xs text-muted-foreground">{adapter.description}</p>
-              </div>
-              <Badge variant="outline" className="text-[10px]">
-                {adapter.pricing}
-              </Badge>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button
-                data-onboarding-id={`marketplace.wizard.provider.hosted.${adapter.capability}`}
-                variant={choice === "hosted" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onChoose(adapter.capability, "hosted")}
-              >
-                WOPR Hosted
-              </Button>
-              <Button
-                data-onboarding-id={`marketplace.wizard.provider.byok.${adapter.capability}`}
-                variant={choice === "byok" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onChoose(adapter.capability, "byok")}
-              >
-                Use your key
-              </Button>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }

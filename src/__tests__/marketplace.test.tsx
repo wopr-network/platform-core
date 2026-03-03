@@ -44,6 +44,78 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// --- Mock useCapabilityMeta so CapabilityProviderPicker resolves stt/llm to hosted entries ---
+vi.mock("@/hooks/use-capability-meta", () => ({
+  useCapabilityMeta: () => ({
+    meta: [
+      {
+        capability: "llm",
+        label: "LLM",
+        description: "200+ models via OpenRouter.",
+        pricing: "$0.002/1K tokens",
+        hostedProvider: "OpenRouter",
+        icon: "bot",
+        sortOrder: 0,
+      },
+      {
+        capability: "stt",
+        label: "STT",
+        description: "Speech-to-text powered by Deepgram.",
+        pricing: "$0.005/min",
+        hostedProvider: "Deepgram",
+        icon: "mic",
+        sortOrder: 1,
+      },
+    ],
+    loading: false,
+    error: false,
+    getMeta: (cap: string) => {
+      const entries: Record<
+        string,
+        {
+          capability: string;
+          label: string;
+          description: string;
+          pricing: string;
+          hostedProvider: string;
+          icon: string;
+          sortOrder: number;
+        }
+      > = {
+        llm: {
+          capability: "llm",
+          label: "LLM",
+          description: "200+ models via OpenRouter.",
+          pricing: "$0.002/1K tokens",
+          hostedProvider: "OpenRouter",
+          icon: "bot",
+          sortOrder: 0,
+        },
+        stt: {
+          capability: "stt",
+          label: "STT",
+          description: "Speech-to-text powered by Deepgram.",
+          pricing: "$0.005/min",
+          hostedProvider: "Deepgram",
+          icon: "mic",
+          sortOrder: 1,
+        },
+      };
+      return (
+        entries[cap] ?? {
+          capability: cap,
+          label: cap.replace(/[-_]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          description: "",
+          pricing: "",
+          hostedProvider: "",
+          icon: "sparkles",
+          sortOrder: 999,
+        }
+      );
+    },
+  }),
+}));
+
 // --- Mock marketplace-data API functions ---
 vi.mock("../lib/marketplace-data", async () => {
   const actual = await vi.importActual("../lib/marketplace-data");
@@ -402,9 +474,13 @@ describe("InstallWizard", () => {
     await user.click(screen.getByText("Continue"));
 
     // Should now show provider selector
-    expect(screen.getByText("Choose provider for each capability")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted LLM")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted STT")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Some capabilities can be provided by WOPR Hosted services. Choose for each:",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("LLM")).toBeInTheDocument();
+    expect(screen.getByText("STT")).toBeInTheDocument();
   });
 
   it("calls onCancel when cancel button is clicked", async () => {
