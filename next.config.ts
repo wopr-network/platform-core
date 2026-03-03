@@ -10,7 +10,6 @@ const apiOrigin = process.env.NEXT_PUBLIC_API_URL
 const isSecureOrigin = apiOrigin.startsWith("https://");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   headers: async () => [
     {
       source: "/:path*",

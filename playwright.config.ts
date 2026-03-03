@@ -22,11 +22,7 @@ export default defineConfig({
     // http://localhost:3001 into the CSP connect-src header (headers() in next.config.ts
     // is evaluated during `next build`, not at server startup). The CI workflow
     // sets this env var on the Build step. Locally, set it before running `pnpm build`.
-    //
-    // next.config.ts uses `output: "standalone"` so `next start` is not supported.
-    // Next.js 16 nests the standalone output under the package name:
-    // .next/standalone/<package-name>/server.js
-    command: "node .next/standalone/wopr-platform-ui/server.js",
+    command: "pnpm start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
