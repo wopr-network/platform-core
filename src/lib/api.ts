@@ -831,6 +831,28 @@ export async function updateProfile(
   });
 }
 
+export async function uploadAvatar(file: File): Promise<UserProfile> {
+  const tenantId = getActiveTenantId();
+  const form = new FormData();
+  form.append("avatar", file);
+  const res = await fetch(`${API_BASE_URL}/settings/profile/avatar`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+    },
+    body: form,
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, res.statusText, (body as { error?: string }).error ?? undefined);
+  }
+  return res.json() as Promise<UserProfile>;
+}
+
 export async function changePassword(data: {
   currentPassword: string;
   newPassword: string;

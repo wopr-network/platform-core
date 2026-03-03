@@ -226,6 +226,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
       dailyBurn: 0.33,
       runway: 15,
     } satisfies CreditBalance),
+    uploadAvatar: vi.fn().mockResolvedValue(MOCK_PROFILE),
   };
 });
 
@@ -820,5 +821,59 @@ describe("Notifications page - no team language", () => {
 
     expect(screen.queryByText("Team invitations")).not.toBeInTheDocument();
     expect(screen.getByText("Invitations")).toBeInTheDocument();
+  });
+});
+
+describe("Avatar upload", () => {
+  it("renders avatar upload area on profile page", async () => {
+    const { default: ProfilePage } = await import("../app/(dashboard)/settings/profile/page");
+    render(<ProfilePage />);
+
+    expect(await screen.findByText("Profile")).toBeInTheDocument();
+    expect(screen.getByLabelText("Change avatar")).toBeInTheDocument();
+  });
+
+  it("shows initials when no avatar URL", async () => {
+    const { default: ProfilePage } = await import("../app/(dashboard)/settings/profile/page");
+    render(<ProfilePage />);
+
+    await screen.findByText("Profile");
+    expect(screen.getByText("A")).toBeInTheDocument();
+  });
+
+  it("calls uploadAvatar and updates profile on file select", async () => {
+    const api = await import("@/lib/api");
+    const updatedProfile = { ...MOCK_PROFILE, avatarUrl: "https://cdn.example.com/avatar.png" };
+    vi.mocked(api.uploadAvatar).mockResolvedValueOnce(updatedProfile);
+
+    const user = userEvent.setup();
+    const { default: ProfilePage } = await import("../app/(dashboard)/settings/profile/page");
+    render(<ProfilePage />);
+
+    await screen.findByText("Profile");
+
+    const file = new File(["fake-image"], "avatar.png", { type: "image/png" });
+    const input = screen.getByLabelText("Change avatar") as HTMLInputElement;
+    await user.upload(input, file);
+
+    await waitFor(() => {
+      expect(api.uploadAvatar).toHaveBeenCalledWith(file);
+    });
+  });
+
+  it("shows error when file exceeds 2MB", async () => {
+    const user = userEvent.setup();
+    const { default: ProfilePage } = await import("../app/(dashboard)/settings/profile/page");
+    render(<ProfilePage />);
+
+    await screen.findByText("Profile");
+
+    const largeFile = new File([new ArrayBuffer(3 * 1024 * 1024)], "big.png", {
+      type: "image/png",
+    });
+    const input = screen.getByLabelText("Change avatar") as HTMLInputElement;
+    await user.upload(input, largeFile);
+
+    expect(await screen.findByText(/file size must be under 2MB/i)).toBeInTheDocument();
   });
 });

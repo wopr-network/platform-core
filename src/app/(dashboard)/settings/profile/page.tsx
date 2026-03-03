@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon } from "lucide-react";
+import { CameraIcon, CheckIcon } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UserProfile } from "@/lib/api";
-import { changePassword, deleteAccount, getProfile, updateProfile } from "@/lib/api";
+import { changePassword, deleteAccount, getProfile, updateProfile, uploadAvatar } from "@/lib/api";
 import { linkSocial, listAccounts, unlinkAccount } from "@/lib/auth-client";
 
 export default function ProfilePage() {
@@ -45,6 +45,8 @@ export default function ProfilePage() {
   const [changingPw, setChangingPw] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pwSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -85,6 +87,26 @@ export default function ProfilePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("File size must be under 2MB");
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const updated = await uploadAvatar(file);
+      setProfile(updated);
+    } catch {
+      setError("Failed to upload avatar. Please try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSaveProfile(e: FormEvent) {
     e.preventDefault();
@@ -223,6 +245,49 @@ export default function ProfilePage() {
           <CardDescription>Update your display name and email address</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              type="button"
+              className="relative size-16 rounded-full bg-muted flex items-center justify-center overflow-hidden group"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-semibold text-muted-foreground">
+                  {profile.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <CameraIcon className="size-5 text-white" />
+              </div>
+            </button>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                aria-label="Change avatar"
+                className="sr-only"
+                onChange={handleAvatarChange}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Change avatar"}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF. Max 2MB.</p>
+            </div>
+          </div>
           <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="profile-name">Display name</Label>
