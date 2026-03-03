@@ -30,7 +30,7 @@ const PRESET_ACCENT_COLORS: Record<string, string> = {
 };
 
 export function CreateInstanceClient() {
-  const { providerOptions, channelOptions, pluginOptions, presets } = usePluginRegistry();
+  const { providerOptions, channelOptions, pluginOptions, presets, loading } = usePluginRegistry();
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("anthropic");
@@ -149,6 +149,14 @@ export function CreateInstanceClient() {
             <Link href="/instances">Back to Instances</Link>
           </Button>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <p className="animate-pulse text-sm text-muted-foreground">Loading plugins...</p>
       </div>
     );
   }

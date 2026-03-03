@@ -72,22 +72,25 @@ beforeEach(() => {
 });
 
 describe("usePluginRegistry", () => {
-  it("returns all expected plugin categories", () => {
+  it("returns all expected plugin categories", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.categoriesLoaded).toBe(true));
     const categoryIds = result.current.categories.map((c) => c.id);
     expect(categoryIds).toEqual(["memory", "voice", "integration", "ui"]);
   });
 
-  it("returns channel plugins (onboarding-only: signal, whatsapp, msteams; discord/slack/telegram are marketplace-sourced)", () => {
+  it("returns channel plugins (onboarding-only: signal, whatsapp, msteams; discord/slack/telegram are marketplace-sourced)", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.channelsLoaded).toBe(true));
     const channelIds = result.current.channels.map((c) => c.id);
     expect(channelIds).toContain("signal");
     expect(channelIds).toContain("whatsapp");
     expect(channelIds).toContain("msteams");
   });
 
-  it("returns provider plugins", () => {
+  it("returns provider plugins", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.providersLoaded).toBe(true));
     const providerIds = result.current.providers.map((p) => p.id);
     expect(providerIds).toContain("anthropic");
     expect(providerIds).toContain("openai");
@@ -138,8 +141,9 @@ describe("usePluginRegistry", () => {
     expect(byokIds).toContain("openrouter");
   });
 
-  it("data shape matches what onboarding expects: channels have configFields", () => {
+  it("data shape matches what onboarding expects: channels have configFields", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.channelsLoaded).toBe(true));
     for (const channel of result.current.channels) {
       expect(channel).toHaveProperty("id");
       expect(channel).toHaveProperty("name");
@@ -163,8 +167,9 @@ describe("usePluginRegistry", () => {
     }
   });
 
-  it("provides derived providerOptions as simple {value, label} list", () => {
+  it("provides derived providerOptions as simple {value, label} list", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.providersLoaded).toBe(true));
     expect(result.current.providerOptions.length).toBe(result.current.providers.length);
     for (const opt of result.current.providerOptions) {
       expect(opt).toHaveProperty("value");
@@ -174,8 +179,9 @@ describe("usePluginRegistry", () => {
     }
   });
 
-  it("provides derived channelOptions as simple {value, label} list", () => {
+  it("provides derived channelOptions as simple {value, label} list", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.channelsLoaded).toBe(true));
     expect(result.current.channelOptions.length).toBe(result.current.channels.length);
     for (const opt of result.current.channelOptions) {
       expect(opt).toHaveProperty("value");
@@ -183,8 +189,9 @@ describe("usePluginRegistry", () => {
     }
   });
 
-  it("provides derived pluginOptions from all categories", () => {
+  it("provides derived pluginOptions from all categories", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.categoriesLoaded).toBe(true));
     const totalCategoryPlugins = result.current.categories.reduce(
       (sum, cat) => sum + cat.plugins.length,
       0,
@@ -201,8 +208,9 @@ describe("usePluginRegistry", () => {
     expect(typeof result.current.validateField).toBe("function");
   });
 
-  it("getAllPlugins returns combined channels, providers, and category plugins", () => {
+  it("getAllPlugins returns combined channels, providers, and category plugins", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.loading).toBe(false));
     const all = result.current.getAllPlugins();
     // signal is an onboarding-only channel in the static list; discord is marketplace-sourced
     expect(all.map((p) => p.id)).toContain("signal");
@@ -210,8 +218,9 @@ describe("usePluginRegistry", () => {
     expect(all.map((p) => p.id)).toContain("semantic-memory");
   });
 
-  it("getPluginById finds plugins from any source", () => {
+  it("getPluginById finds plugins from any source", async () => {
     const { result } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.getPluginById("signal")?.name).toBe("Signal");
     expect(result.current.getPluginById("anthropic")?.name).toBe("Anthropic");
     expect(result.current.getPluginById("nonexistent")).toBeUndefined();
@@ -228,8 +237,9 @@ describe("usePluginRegistry", () => {
     expect(result.current.validateField(field, "valid")).toBeNull();
   });
 
-  it("returns stable references across re-renders", () => {
+  it("returns stable references across re-renders", async () => {
     const { result, rerender } = renderHook(() => usePluginRegistry());
+    await waitFor(() => expect(result.current.loading).toBe(false));
     const first = result.current;
     rerender();
     const second = result.current;
@@ -237,10 +247,26 @@ describe("usePluginRegistry", () => {
     expect(first).toBe(second);
   });
 
+  it("starts with loading=true and transitions to loading=false after API resolves", async () => {
+    const { result } = renderHook(() => usePluginRegistry());
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it("starts with empty channels/providers/pluginOptions before API resolves", () => {
+    const { result } = renderHook(() => usePluginRegistry());
+    // Before API resolves, lists are empty (no stale static data)
+    expect(result.current.channels).toHaveLength(0);
+    expect(result.current.providers).toHaveLength(0);
+    expect(result.current.pluginOptions).toHaveLength(0);
+  });
+
   it("fetches channels from marketplace API on mount and includes them", async () => {
     const { result } = renderHook(() => usePluginRegistry());
-    // Initially has static fallback (onboarding-only channels)
-    expect(result.current.channels.map((c) => c.id)).toContain("signal");
+    // Initially empty before API resolves
+    expect(result.current.channels).toHaveLength(0);
 
     await waitFor(() => {
       const ids = result.current.channels.map((c) => c.id);

@@ -73,6 +73,12 @@ export interface PluginRegistry {
   modelCount: string;
   /** Whether marketplace channels have been loaded (or failed with fallback) */
   channelsLoaded: boolean;
+  /** Whether marketplace providers have been loaded (or failed with fallback) */
+  providersLoaded: boolean;
+  /** Whether marketplace categories have been loaded (or failed with fallback) */
+  categoriesLoaded: boolean;
+  /** Whether any data source is still loading */
+  loading: boolean;
 
   // --- Derived simple lists for create-instance and similar pages ---
 
@@ -112,10 +118,12 @@ export interface PluginRegistry {
  * Future: can fetch from an API and fall back to static data.
  */
 export function usePluginRegistry(): PluginRegistry {
-  const [channels, setChannels] = useState<PluginOption[]>(channelPlugins);
+  const [channels, setChannels] = useState<PluginOption[]>([]);
   const [channelsLoaded, setChannelsLoaded] = useState(false);
-  const [providers, setProviders] = useState<PluginOption[]>(providerPlugins);
-  const [categories, setCategories] = useState<PluginCategory[]>(pluginCategories);
+  const [providers, setProviders] = useState<PluginOption[]>([]);
+  const [providersLoaded, setProvidersLoaded] = useState(false);
+  const [categories, setCategories] = useState<PluginCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +136,7 @@ export function usePluginRegistry(): PluginRegistry {
       })
       .catch(() => {
         if (!cancelled) {
+          setChannels(channelPlugins);
           setChannelsLoaded(true);
         }
       });
@@ -140,10 +149,16 @@ export function usePluginRegistry(): PluginRegistry {
     let cancelled = false;
     getProviderPlugins()
       .then((result) => {
-        if (!cancelled) setProviders(result);
+        if (!cancelled) {
+          setProviders(result);
+          setProvidersLoaded(true);
+        }
       })
       .catch(() => {
-        // fall back to static providerPlugins on API failure
+        if (!cancelled) {
+          setProviders(providerPlugins);
+          setProvidersLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -154,10 +169,16 @@ export function usePluginRegistry(): PluginRegistry {
     let cancelled = false;
     getOptionalPlugins()
       .then((result) => {
-        if (!cancelled) setCategories(result);
+        if (!cancelled) {
+          setCategories(result);
+          setCategoriesLoaded(true);
+        }
       })
       .catch(() => {
-        // fall back to static pluginCategories on API failure
+        if (!cancelled) {
+          setCategories(pluginCategories);
+          setCategoriesLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -179,6 +200,8 @@ export function usePluginRegistry(): PluginRegistry {
     [categories],
   );
 
+  const loading = !channelsLoaded || !providersLoaded || !categoriesLoaded;
+
   return useMemo<PluginRegistry>(
     () => ({
       channels,
@@ -193,6 +216,9 @@ export function usePluginRegistry(): PluginRegistry {
       byokProviders,
       modelCount: MODEL_COUNT,
       channelsLoaded,
+      providersLoaded,
+      categoriesLoaded,
+      loading,
       providerOptions,
       channelOptions,
       pluginOptions,
@@ -208,6 +234,9 @@ export function usePluginRegistry(): PluginRegistry {
     [
       channels,
       channelsLoaded,
+      providersLoaded,
+      categoriesLoaded,
+      loading,
       providers,
       categories,
       providerOptions,
