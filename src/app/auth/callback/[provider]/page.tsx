@@ -32,7 +32,7 @@ function OAuthCallbackContent() {
 
     // Better Auth handles the token exchange server-side.
     // If we reach this page without an error, redirect to home.
-    const callbackUrl = sanitizeRedirectUrl(searchParams.get("callbackUrl"));
+    const callbackUrl = sanitizeRedirectUrl(searchParams.get("callbackUrl")) || "/onboarding";
     const timer = setTimeout(() => {
       router.push(callbackUrl);
     }, 1000);

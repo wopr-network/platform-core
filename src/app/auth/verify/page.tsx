@@ -26,7 +26,7 @@ function SuccessContent() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          router.push("/");
+          router.push("/onboarding");
           return 0;
         }
         return prev - 1;
@@ -60,17 +60,16 @@ function SuccessContent() {
           to your account.
         </p>
         <p className="text-sm text-center text-muted-foreground">
-          Redirecting to dashboard in{" "}
-          <span className="text-terminal font-medium tabular-nums">{countdown}</span>
+          Redirecting in <span className="text-terminal font-medium tabular-nums">{countdown}</span>
           <span className="inline-block h-4 w-1.5 animate-pulse bg-terminal ml-0.5 align-middle" />
         </p>
       </CardContent>
       <CardFooter className="justify-center">
         <Link
-          href="/"
+          href="/onboarding"
           className="text-sm text-terminal-dim underline underline-offset-4 hover:text-terminal"
         >
-          Continue to dashboard
+          Continue to setup
         </Link>
       </CardFooter>
     </Card>

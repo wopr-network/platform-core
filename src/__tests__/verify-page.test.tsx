@@ -51,9 +51,9 @@ describe("VerifyPage", () => {
     expect(screen.getByText("Email verified")).toBeInTheDocument();
     expect(screen.getByText(/verified successfully/)).toBeInTheDocument();
     expect(screen.getByText(/\$5 signup credit/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Continue to dashboard/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Continue to setup/ })).toHaveAttribute(
       "href",
-      "/",
+      "/onboarding",
     );
   });
 
@@ -67,7 +67,7 @@ describe("VerifyPage", () => {
       vi.advanceTimersByTime(3000);
     });
 
-    expect(mockPush).toHaveBeenCalledWith("/");
+    expect(mockPush).toHaveBeenCalledWith("/onboarding");
   });
 
   it("renders token-expired error with resend button when email param present", async () => {
