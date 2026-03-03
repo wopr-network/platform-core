@@ -1,27 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import NotFound from "../app/not-found";
+import DashboardNotFound from "@/app/(dashboard)/not-found";
 
-describe("NotFound (404 page)", () => {
-  it("renders the 404 heading", () => {
-    render(<NotFound />);
+describe("DashboardNotFound", () => {
+  it("renders the 404 error code", () => {
+    render(<DashboardNotFound />);
     expect(screen.getByText("404")).toBeInTheDocument();
   });
 
-  it("renders a descriptive message", () => {
-    render(<NotFound />);
-    expect(screen.getByText(/page.*not.*found|doesn.*exist|couldn.*find/i)).toBeInTheDocument();
+  it("renders the error message", () => {
+    render(<DashboardNotFound />);
+    expect(screen.getByText(/route not found/i)).toBeInTheDocument();
   });
 
-  it("renders a link back to the dashboard", () => {
-    render(<NotFound />);
-    const link = screen.getByRole("link", { name: /dashboard|home|go back/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/");
+  it("renders a link to the dashboard", () => {
+    render(<DashboardNotFound />);
+    const links = screen.getAllByRole("link");
+    expect(links.some((link) => link.getAttribute("href") === "/dashboard")).toBe(true);
   });
 
-  it("shows WOPR branding", () => {
-    render(<NotFound />);
-    expect(screen.getByText("WOPR")).toBeInTheDocument();
+  it("renders the terminal icon and system error label", () => {
+    render(<DashboardNotFound />);
+    expect(screen.getByText(/system error/i)).toBeInTheDocument();
   });
 });
