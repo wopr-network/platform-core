@@ -13,8 +13,11 @@ import { SuperpowerCard } from "@/components/marketplace/superpower-card";
 import { TerminalSearch } from "@/components/marketplace/terminal-search";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { BotStatusResponse } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { toUserMessage } from "@/lib/errors";
 import {
+  listInstalledPlugins,
   listMarketplacePlugins,
   type MarketplaceTab,
   type PluginCategory,
@@ -31,6 +34,7 @@ export default function MarketplacePage() {
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("superpower");
   const [showFirstVisit, setShowFirstVisit] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<PluginCategory | null>(null);
+  const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
 
   const searchParams = useSearchParams();
 
@@ -38,8 +42,20 @@ export default function MarketplacePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listMarketplacePlugins();
+      const [data, bots] = await Promise.all([
+        listMarketplacePlugins(),
+        apiFetch<BotStatusResponse[]>("/fleet/bots").catch(() => [] as BotStatusResponse[]),
+      ]);
       setPlugins(data);
+      const activeBotId = bots[0]?.id;
+      if (activeBotId) {
+        try {
+          const installed = await listInstalledPlugins(activeBotId);
+          setInstalledIds(new Set(installed.map((p) => p.pluginId)));
+        } catch {
+          setInstalledIds(new Set());
+        }
+      }
     } catch (err) {
       setError(toUserMessage(err, "Failed to load marketplace plugins"));
     } finally {
@@ -227,9 +243,19 @@ export default function MarketplacePage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((plugin, i) =>
               activeTab === "superpower" ? (
-                <SuperpowerCard key={plugin.id} plugin={plugin} index={i} />
+                <SuperpowerCard
+                  key={plugin.id}
+                  plugin={plugin}
+                  index={i}
+                  installed={installedIds.has(plugin.id)}
+                />
               ) : (
-                <PluginCard key={plugin.id} plugin={plugin} index={i} />
+                <PluginCard
+                  key={plugin.id}
+                  plugin={plugin}
+                  index={i}
+                  installed={installedIds.has(plugin.id)}
+                />
               ),
             )}
           </div>

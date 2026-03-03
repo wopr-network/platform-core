@@ -3,15 +3,17 @@
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { PluginManifest } from "@/lib/marketplace-data";
 
 interface SuperpowerCardProps {
   plugin: PluginManifest;
   index?: number;
+  installed?: boolean;
 }
 
-export function SuperpowerCard({ plugin, index = 0 }: SuperpowerCardProps) {
+export function SuperpowerCard({ plugin, index = 0, installed = false }: SuperpowerCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const rotateX = useMotionValue(0);
@@ -70,6 +72,12 @@ export function SuperpowerCard({ plugin, index = 0 }: SuperpowerCardProps) {
               {plugin.name[0]}
             </div>
 
+            {installed && (
+              <Badge variant="secondary" className="mb-2 text-[10px]">
+                Installed
+              </Badge>
+            )}
+
             {/* Headline -- outcome copy, not tech name */}
             <h3 className="text-base font-bold">{plugin.superpowerHeadline ?? plugin.name}</h3>
 
@@ -86,7 +94,7 @@ export function SuperpowerCard({ plugin, index = 0 }: SuperpowerCardProps) {
               className="mt-4 hover:border-primary/40"
               tabIndex={-1}
             >
-              Give my bot this superpower
+              {installed ? "Manage superpower" : "Give my bot this superpower"}
             </Button>
           </div>
         </motion.div>
