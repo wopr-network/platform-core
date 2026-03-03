@@ -1,9 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SetupChatPanel } from "@/components/plugin-setup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePluginSetupChat } from "@/hooks/use-plugin-setup-chat";
 import {
   type BotSummary,
   formatInstallCount,
@@ -72,11 +75,25 @@ export default function PluginsPage() {
   const [search, setSearch] = useState("");
   const [bots, setBots] = useState<BotSummary[]>([]);
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
+  const selectedBotIdRef = useRef<string | null>(null);
   const [botsLoading, setBotsLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [installedPage, setInstalledPage] = useState(1);
   const [catalogPage, setCatalogPage] = useState(1);
+
+  const handleSetupComplete = useCallback((_pluginId: string) => {
+    const botId = selectedBotIdRef.current;
+    if (botId) {
+      listInstalledPlugins(botId)
+        .then(setInstalled)
+        .catch(() => {
+          // Refresh failure is silent — installed state retains last known value
+        });
+    }
+  }, []);
+
+  const setupChat = usePluginSetupChat(handleSetupComplete);
 
   // Load bots on mount
   useEffect(() => {
@@ -85,6 +102,7 @@ export default function PluginsPage() {
         setBots(data);
         if (data.length > 0) {
           setSelectedBotId(data[0].id);
+          selectedBotIdRef.current = data[0].id;
         }
         setBotsLoading(false);
       })
@@ -241,7 +259,13 @@ export default function PluginsPage() {
           <label htmlFor="bot-select" className="text-sm font-medium text-muted-foreground">
             Bot:
           </label>
-          <Select value={selectedBotId ?? undefined} onValueChange={setSelectedBotId}>
+          <Select
+            value={selectedBotId ?? undefined}
+            onValueChange={(v) => {
+              setSelectedBotId(v);
+              selectedBotIdRef.current = v;
+            }}
+          >
             <SelectTrigger id="bot-select" className="w-64 bg-black/50 border-terminal/30">
               <SelectValue placeholder="Select a bot" />
             </SelectTrigger>
@@ -337,13 +361,30 @@ export default function PluginsPage() {
                       <CardContent>
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-muted-foreground">v{manifest.version}</p>
-                          <Switch
-                            checked={item.enabled}
-                            onCheckedChange={() => togglePlugin(item.pluginId)}
-                            disabled={toggling === item.pluginId}
-                            aria-label={`Toggle ${manifest.name}`}
-                            className="data-[state=checked]:bg-terminal"
-                          />
+                          <div className="flex items-center gap-2">
+                            {manifest.configSchema && manifest.configSchema.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs font-mono uppercase tracking-wider text-terminal hover:bg-terminal/10"
+                                disabled={!selectedBotId}
+                                onClick={() =>
+                                  selectedBotId &&
+                                  setupChat.openSetup(item.pluginId, manifest.name, selectedBotId)
+                                }
+                              >
+                                <Settings className="mr-1 h-3 w-3" />
+                                Set up
+                              </Button>
+                            )}
+                            <Switch
+                              checked={item.enabled}
+                              onCheckedChange={() => togglePlugin(item.pluginId)}
+                              disabled={toggling === item.pluginId}
+                              aria-label={`Toggle ${manifest.name}`}
+                              className="data-[state=checked]:bg-terminal"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -496,6 +537,17 @@ export default function PluginsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <SetupChatPanel
+        isOpen={setupChat.state.isOpen}
+        pluginName={setupChat.state.pluginName}
+        messages={setupChat.state.messages}
+        isConnected={setupChat.state.isConnected}
+        isTyping={setupChat.state.isTyping}
+        isComplete={setupChat.state.isComplete}
+        onSend={setupChat.sendMessage}
+        onClose={setupChat.closeSetup}
+      />
     </div>
   );
 }

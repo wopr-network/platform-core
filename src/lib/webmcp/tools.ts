@@ -324,5 +324,101 @@ export function getChatWebMCPTools(): ModelContextTool[] {
         return { ok: true };
       },
     },
+    {
+      name: "setup.begin",
+      description:
+        "Begin conversational setup for a plugin. Bot receives plugin ID and config schema.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pluginId: { type: "string", description: "The plugin to configure" },
+          botId: { type: "string", description: "The bot instance to configure for" },
+        },
+        required: ["pluginId", "botId"],
+      },
+      handler: async (params) => {
+        dispatch("setup.begin", { pluginId: params.pluginId, botId: params.botId });
+        return { ok: true };
+      },
+    },
+    {
+      name: "setup.ask",
+      description: "Bot asks the user a setup question (rendered as a chat message).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "The question to display" },
+          fieldName: { type: "string", description: "Config field being collected" },
+        },
+        required: ["question"],
+      },
+      handler: async (params) => {
+        dispatch("setup.ask", { question: params.question, fieldName: params.fieldName });
+        return { ok: true };
+      },
+    },
+    {
+      name: "setup.validateKey",
+      description: "Validate an API key or credential entered by the user.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          fieldName: { type: "string", description: "The config field name" },
+          value: { type: "string", description: "The value to validate" },
+        },
+        required: ["fieldName", "value"],
+      },
+      handler: async (params) => {
+        dispatch("setup.validateKey", { fieldName: params.fieldName, value: params.value });
+        return { ok: true };
+      },
+    },
+    {
+      name: "setup.saveConfig",
+      description: "Save a configuration value for the plugin.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pluginId: { type: "string", description: "The plugin ID" },
+          config: { type: "object", description: "Key-value config to save" },
+        },
+        required: ["pluginId", "config"],
+      },
+      handler: async (params) => {
+        dispatch("setup.saveConfig", { pluginId: params.pluginId, config: params.config });
+        return { ok: true };
+      },
+    },
+    {
+      name: "setup.complete",
+      description: "Mark plugin setup as complete. Closes the setup chat panel.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pluginId: { type: "string", description: "The plugin ID" },
+        },
+        required: ["pluginId"],
+      },
+      handler: async (params) => {
+        dispatch("setup.complete", { pluginId: params.pluginId });
+        return { ok: true };
+      },
+    },
+    {
+      name: "setup.rollback",
+      description: "Roll back a failed setup attempt. Shows error in chat.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pluginId: { type: "string", description: "The plugin ID" },
+          reason: { type: "string", description: "Why the setup failed" },
+        },
+        required: ["pluginId", "reason"],
+      },
+      handler: async (params) => {
+        dispatch("setup.rollback", { pluginId: params.pluginId, reason: params.reason });
+        return { ok: true };
+      },
+    },
   ];
 }
