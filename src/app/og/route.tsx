@@ -1,31 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const dynamic = "force-dynamic";
-
-const LAUNCH_DATE = new Date(process.env.NEXT_PUBLIC_LAUNCH_DATE ?? "2026-04-01T00:00:00Z");
-
 export async function GET() {
-  const isPrelaunch = new Date() < LAUNCH_DATE;
-
-  if (isPrelaunch) {
-    return new ImageResponse(
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-          height: "100%",
-          backgroundColor: "#000000",
-        }}
-      >
-        <div style={{ fontSize: "48px", color: "#00CC33" }}>wopr.bot</div>
-      </div>,
-      { width: 1200, height: 630 },
-    );
-  }
-
   return new ImageResponse(
     <div
       style={{
