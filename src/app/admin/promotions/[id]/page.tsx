@@ -29,23 +29,7 @@ import type { Promotion, Redemption } from "@/lib/promotions-types";
 import { trpcVanilla } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Typed client
-// ---------------------------------------------------------------------------
-
-interface PromotionDetailProcedures {
-  promotions: {
-    get: { query(input: { id: string }): Promise<Promotion | null> };
-    listRedemptions: {
-      query(input: { promotionId: string; limit?: number }): Promise<Redemption[]>;
-    };
-    generateCouponBatch: {
-      mutate(input: { promotionId: string; count: number }): Promise<{ generated: number }>;
-    };
-  };
-}
-
-const client = trpcVanilla as unknown as PromotionDetailProcedures;
+const client = trpcVanilla;
 
 // ---------------------------------------------------------------------------
 // Helpers

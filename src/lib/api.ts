@@ -245,26 +245,6 @@ export function parsePluginsFromEnv(env: Record<string, string> | undefined): Pl
   return [...ids].map((id) => ({ id, name: id, version: "", enabled: true }));
 }
 
-// Typed stub for the fleet portion of the tRPC vanilla client.
-// AppRouter is currently an empty placeholder — real types come when @wopr-network/sdk ships.
-interface FleetClient {
-  fleet: {
-    listInstances: { query(): Promise<unknown> };
-    getInstance: { query(input: { id: string }): Promise<unknown> };
-    createInstance: { mutate(input: Record<string, unknown>): Promise<unknown> };
-    controlInstance: {
-      mutate(input: {
-        id: string;
-        action: "start" | "stop" | "restart" | "destroy";
-      }): Promise<unknown>;
-    };
-    getInstanceHealth: { query(input: { id: string }): Promise<unknown> };
-    getInstanceLogs: { query(input: { id: string; tail?: number }): Promise<unknown> };
-    getInstanceMetrics: { query(input: { id: string }): Promise<unknown> };
-    listTemplates: { query(): Promise<unknown> };
-  };
-}
-
 export function mapBotState(state: string): InstanceStatus {
   if (state === "running") return "running";
   if (state === "error" || state === "dead") return "error";
@@ -303,7 +283,7 @@ export function mapBotStatusToFleetInstance(bot: BotStatusResponse): FleetInstan
 }
 
 export async function listInstances(): Promise<Instance[]> {
-  const data = await (trpcVanilla as unknown as FleetClient).fleet.listInstances.query();
+  const data = await trpcVanilla.fleet.listInstances.query(undefined);
   const raw = (data as { bots?: BotStatusResponse[] | null }).bots;
   const bots = Array.isArray(raw) ? raw : [];
   return bots.map((bot) => ({
@@ -323,7 +303,7 @@ export async function listInstances(): Promise<Instance[]> {
 }
 
 export async function getInstance(id: string): Promise<InstanceDetail> {
-  const bot = (await (trpcVanilla as unknown as FleetClient).fleet.getInstance.query({
+  const bot = (await trpcVanilla.fleet.getInstance.query({
     id,
   })) as BotStatusResponse;
   const uptimeMs = bot.uptime ? new Date(bot.uptime).getTime() : NaN;
@@ -354,7 +334,7 @@ export async function createInstance(data: {
   channels: string[];
   plugins: string[];
 }): Promise<Instance> {
-  const result = await (trpcVanilla as unknown as FleetClient).fleet.createInstance.mutate(data);
+  const result = await trpcVanilla.fleet.createInstance.mutate(data);
   const profile = result as Record<string, unknown>;
   return {
     id: (profile.id as string) ?? "",
@@ -387,7 +367,7 @@ export async function deployInstance(payload: DeployBotPayload): Promise<Instanc
     description: payload.description ?? "",
     env: payload.env ?? {},
   };
-  const result = await (trpcVanilla as unknown as FleetClient).fleet.createInstance.mutate(input);
+  const result = await trpcVanilla.fleet.createInstance.mutate(input);
   const profile = result as Record<string, unknown>;
   return {
     id: (profile.id as string) ?? "",
@@ -462,7 +442,7 @@ export async function controlInstance(
   id: string,
   action: "start" | "stop" | "restart" | "destroy",
 ): Promise<void> {
-  await (trpcVanilla as unknown as FleetClient).fleet.controlInstance.mutate({ id, action });
+  await trpcVanilla.fleet.controlInstance.mutate({ id, action });
 }
 
 /** PATCH /fleet/bots/:id — Update bot env config. */
@@ -630,7 +610,7 @@ export interface FleetResources {
 // --- Observability API ---
 
 export async function getInstanceHealth(id: string): Promise<InstanceHealth> {
-  const data = await (trpcVanilla as unknown as FleetClient).fleet.getInstanceHealth.query({ id });
+  const data = await trpcVanilla.fleet.getInstanceHealth.query({ id });
   const res = data as {
     id: string;
     state: string;
@@ -667,7 +647,7 @@ export async function getInstanceLogs(
   id: string,
   params?: { level?: LogLevel; source?: string; search?: string },
 ): Promise<LogEntry[]> {
-  const data = await (trpcVanilla as unknown as FleetClient).fleet.getInstanceLogs.query({
+  const data = await trpcVanilla.fleet.getInstanceLogs.query({
     id,
     tail: 100,
   });
@@ -712,7 +692,7 @@ export async function getInstanceLogs(
 }
 
 export async function getInstanceMetrics(id: string): Promise<InstanceMetrics> {
-  const data = await (trpcVanilla as unknown as FleetClient).fleet.getInstanceMetrics.query({ id });
+  const data = await trpcVanilla.fleet.getInstanceMetrics.query({ id });
   const res = data as {
     id: string;
     stats: {
@@ -742,7 +722,7 @@ export async function getInstanceMetrics(id: string): Promise<InstanceMetrics> {
 }
 
 export async function getFleetHealth(): Promise<FleetInstance[]> {
-  const data = await (trpcVanilla as unknown as FleetClient).fleet.listInstances.query();
+  const data = await trpcVanilla.fleet.listInstances.query(undefined);
   const raw = (data as { bots?: BotStatusResponse[] | null }).bots;
   const bots = Array.isArray(raw) ? raw : [];
   return bots.map(mapBotStatusToFleetInstance);
@@ -1060,124 +1040,10 @@ export interface AutoTopupSettings {
   paymentMethodBrand: string | null;
 }
 
-// --- Billing client (typed stub until @wopr-network/sdk ships) ---
-
-interface BillingProcedures {
-  currentPlan: { query(input?: Record<never, never>): Promise<{ tier: string }> };
-  providerCosts: { query(input?: Record<never, never>): Promise<ProviderCost[]> };
-  billingInfo: { query(input?: Record<never, never>): Promise<BillingInfo> };
-  updateBillingEmail: { mutate(input: { email: string }): Promise<{ email: string }> };
-  removePaymentMethod: { mutate(input: { id: string }): Promise<{ removed: boolean }> };
-  setDefaultPaymentMethod: { mutate(input: { id: string }): Promise<{ ok: boolean }> };
-  portalSession: {
-    mutate(input: { tenant?: string; returnUrl: string }): Promise<{ url: string }>;
-  };
-  creditsBalance: {
-    query(input: { tenant?: string }): Promise<{
-      tenant: string;
-      balance_cents: number;
-      daily_burn_cents: number;
-      runway_days: number | null;
-    }>;
-  };
-  creditsHistory: {
-    query(input: {
-      tenant?: string;
-      type?: string;
-      from?: number;
-      to?: number;
-      limit?: number;
-      offset?: number;
-    }): Promise<{
-      entries: Array<{
-        id: string;
-        tenant: string;
-        type: string;
-        amount_cents: number;
-        reason: string;
-        admin_user: string;
-        reference_ids: string | null;
-        created_at: number;
-      }>;
-      total: number;
-    }>;
-  };
-  creditsCheckout: {
-    mutate(input: {
-      tenant?: string;
-      priceId: string;
-      successUrl: string;
-      cancelUrl: string;
-    }): Promise<{ url: string | null; sessionId: string }>;
-  };
-  inferenceMode: { query(input?: Record<never, never>): Promise<{ mode: InferenceMode }> };
-  updateSpendingLimits: { mutate(input: SpendingLimits): Promise<SpendingLimits> };
-  creditOptions: {
-    query(input?: Record<never, never>): Promise<CreditOption[]>;
-  };
-  spendingLimits: { query(input?: Record<never, never>): Promise<SpendingLimits> };
-  hostedUsageSummary: { query(input?: Record<never, never>): Promise<HostedUsageSummary> };
-  usageSummary: {
-    query(input?: Record<never, never>): Promise<{
-      period_start: string;
-      period_end: string;
-      total_spend_cents: number;
-      included_credit_cents: number;
-      amount_due_cents: number;
-      plan_name: string;
-    }>;
-  };
-  hostedUsageEvents: {
-    query(input?: { capability?: string; from?: string; to?: string }): Promise<HostedUsageEvent[]>;
-  };
-  affiliateStats: {
-    query(input?: Record<never, never>): Promise<{
-      referral_code: string;
-      referral_url: string;
-      total_referred: number;
-      total_converted: number;
-      total_earned_cents: number;
-    }>;
-  };
-  affiliateReferrals: {
-    query(input?: { limit?: number; offset?: number }): Promise<{
-      referrals: Array<{
-        id: string;
-        masked_email: string;
-        joined_at: string;
-        status: "pending" | "matched";
-        match_amount_cents: number | null;
-      }>;
-      total: number;
-    }>;
-  };
-  cryptoCheckout: {
-    mutate(input: { amountUsd: number }): Promise<{ url: string; referenceId: string }>;
-  };
-  autoTopupSettings: {
-    query(input?: Record<never, never>): Promise<AutoTopupSettings>;
-  };
-  updateAutoTopupSettings: {
-    mutate(input: {
-      usageBased?: { enabled: boolean; thresholdCents: number; topupAmountCents: number };
-      scheduled?: { enabled: boolean; amountCents: number; interval: AutoTopupInterval };
-    }): Promise<AutoTopupSettings>;
-  };
-  accountStatus: {
-    query(input?: Record<never, never>): Promise<{
-      status: string;
-      status_reason: string | null;
-      grace_deadline: string | null;
-    }>;
-  };
-}
-
-const billingClient = (trpcVanilla as unknown as { billing: BillingProcedures }).billing;
-
 // --- Billing API (tRPC) ---
 
 export async function getCurrentPlan(): Promise<string> {
-  const res = await billingClient.currentPlan.query();
+  const res = await trpcVanilla.billing.currentPlan.query(undefined);
   return res.tier;
 }
 
@@ -1198,7 +1064,7 @@ export async function getBillingUsage(): Promise<BillingUsage> {
 }
 
 export async function getProviderCosts(): Promise<ProviderCost[]> {
-  return billingClient.providerCosts.query();
+  return trpcVanilla.billing.providerCosts.query(undefined);
 }
 
 export async function getUsageHistory(_days?: number): Promise<UsageDataPoint[]> {
@@ -1207,19 +1073,19 @@ export async function getUsageHistory(_days?: number): Promise<UsageDataPoint[]>
 }
 
 export async function getBillingInfo(): Promise<BillingInfo> {
-  return billingClient.billingInfo.query();
+  return trpcVanilla.billing.billingInfo.query(undefined);
 }
 
 export async function updateBillingEmail(email: string): Promise<void> {
-  await billingClient.updateBillingEmail.mutate({ email });
+  await trpcVanilla.billing.updateBillingEmail.mutate({ email });
 }
 
 export async function removePaymentMethod(id: string): Promise<void> {
-  await billingClient.removePaymentMethod.mutate({ id });
+  await trpcVanilla.billing.removePaymentMethod.mutate({ id });
 }
 
 export async function setDefaultPaymentMethod(id: string): Promise<void> {
-  await billingClient.setDefaultPaymentMethod.mutate({ id });
+  await trpcVanilla.billing.setDefaultPaymentMethod.mutate({ id });
 }
 
 export async function createSetupIntent(): Promise<{ clientSecret: string }> {
@@ -1227,7 +1093,7 @@ export async function createSetupIntent(): Promise<{ clientSecret: string }> {
 }
 
 export async function createBillingPortalSession(): Promise<{ url: string }> {
-  return billingClient.portalSession.mutate({
+  return trpcVanilla.billing.portalSession.mutate({
     returnUrl: typeof window !== "undefined" ? window.location.href : "",
   });
 }
@@ -1321,7 +1187,7 @@ export interface CheckoutResponse {
 // --- Credits API (tRPC) ---
 
 export async function getCreditBalance(): Promise<CreditBalance> {
-  const res = await billingClient.creditsBalance.query({});
+  const res = await trpcVanilla.billing.creditsBalance.query({});
   return {
     balance: (res?.balance_cents ?? 0) / 100,
     dailyBurn: (res?.daily_burn_cents ?? 0) / 100,
@@ -1340,10 +1206,18 @@ function mapTransactionType(backendType: string): CreditTransactionType {
 }
 
 export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryResponse> {
-  const res = await billingClient.creditsHistory.query({});
+  const res = await trpcVanilla.billing.creditsHistory.query({});
   const entries = Array.isArray(res?.entries) ? res.entries : [];
   return {
-    transactions: entries.map((e) => ({
+    transactions: (
+      entries as Array<{
+        id?: string;
+        type?: string;
+        reason?: string;
+        amount_cents?: number;
+        created_at?: number;
+      }>
+    ).map((e) => ({
       id: e.id ?? "",
       type: mapTransactionType(e.type ?? ""),
       description: e.reason ?? "",
@@ -1357,11 +1231,11 @@ export async function getCreditHistory(_cursor?: string): Promise<CreditHistoryR
 }
 
 export async function getCreditOptions(): Promise<CreditOption[]> {
-  return billingClient.creditOptions.query();
+  return trpcVanilla.billing.creditOptions.query(undefined);
 }
 
 export async function createCreditCheckout(priceId: string): Promise<CheckoutResponse> {
-  const res = await billingClient.creditsCheckout.mutate({
+  const res = await trpcVanilla.billing.creditsCheckout.mutate({
     priceId,
     successUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=success`,
     cancelUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/billing/credits?checkout=cancel`,
@@ -1374,7 +1248,7 @@ export async function createCreditCheckout(priceId: string): Promise<CheckoutRes
 export async function createCryptoCheckout(
   amountUsd: number,
 ): Promise<{ url: string; referenceId: string }> {
-  return billingClient.cryptoCheckout.mutate({ amountUsd });
+  return trpcVanilla.billing.cryptoCheckout.mutate({ amountUsd });
 }
 
 // --- Dividend types ---
@@ -1455,16 +1329,16 @@ export async function getDividendLifetime(): Promise<DividendLifetime> {
 // --- Hosted usage API (tRPC) ---
 
 export async function getInferenceMode(): Promise<InferenceMode> {
-  const res = await billingClient.inferenceMode.query();
+  const res = await trpcVanilla.billing.inferenceMode.query(undefined);
   return res.mode;
 }
 
 export async function getHostedUsageSummary(): Promise<HostedUsageSummary> {
-  return billingClient.hostedUsageSummary.query();
+  return trpcVanilla.billing.hostedUsageSummary.query(undefined);
 }
 
 export async function getBillingUsageSummary(): Promise<BillingUsageSummary> {
-  const res = await billingClient.usageSummary.query();
+  const res = await trpcVanilla.billing.usageSummary.query(undefined);
   return {
     periodStart: res?.period_start ?? "",
     periodEnd: res?.period_end ?? "",
@@ -1480,21 +1354,21 @@ export async function getHostedUsageEvents(params?: {
   from?: string;
   to?: string;
 }): Promise<HostedUsageEvent[]> {
-  return billingClient.hostedUsageEvents.query(params ?? {});
+  return trpcVanilla.billing.hostedUsageEvents.query(params ?? {});
 }
 
 export async function getSpendingLimits(): Promise<SpendingLimits> {
-  return billingClient.spendingLimits.query();
+  return trpcVanilla.billing.spendingLimits.query(undefined);
 }
 
 export async function updateSpendingLimits(limits: SpendingLimits): Promise<void> {
-  await billingClient.updateSpendingLimits.mutate({ ...limits });
+  await trpcVanilla.billing.updateSpendingLimits.mutate({ ...limits });
 }
 
 // --- Affiliate API (tRPC) ---
 
 export async function getAffiliateStats(): Promise<AffiliateStats> {
-  const res = await billingClient.affiliateStats.query();
+  const res = await trpcVanilla.billing.affiliateStats.query(undefined);
   return {
     referralCode: res?.referral_code ?? "",
     referralUrl: res?.referral_url ?? "",
@@ -1508,13 +1382,21 @@ export async function getAffiliateReferrals(params?: {
   limit?: number;
   offset?: number;
 }): Promise<AffiliateReferralsResponse> {
-  const res = await billingClient.affiliateReferrals.query({
+  const res = await trpcVanilla.billing.affiliateReferrals.query({
     limit: params?.limit ?? 20,
     offset: params?.offset ?? 0,
   });
   const referrals = Array.isArray(res?.referrals) ? res.referrals : [];
   return {
-    referrals: referrals.map((r) => ({
+    referrals: (
+      referrals as Array<{
+        id?: string;
+        masked_email?: string;
+        joined_at?: string;
+        status?: string;
+        match_amount_cents?: number | null;
+      }>
+    ).map((r) => ({
       id: r.id ?? "",
       maskedEmail: r.masked_email ?? "",
       joinedAt: r.joined_at ? new Date(r.joined_at).toISOString() : "",
@@ -1528,14 +1410,14 @@ export async function getAffiliateReferrals(params?: {
 // --- Auto-topup API (tRPC) ---
 
 export async function getAutoTopupSettings(): Promise<AutoTopupSettings> {
-  return billingClient.autoTopupSettings.query();
+  return trpcVanilla.billing.autoTopupSettings.query(undefined);
 }
 
 export async function updateAutoTopupSettings(update: {
   usageBased?: { enabled: boolean; thresholdCents: number; topupAmountCents: number };
   scheduled?: { enabled: boolean; amountCents: number; interval: AutoTopupInterval };
 }): Promise<AutoTopupSettings> {
-  return billingClient.updateAutoTopupSettings.mutate(update);
+  return trpcVanilla.billing.updateAutoTopupSettings.mutate(update);
 }
 
 // --- Account status types ---
@@ -1550,7 +1432,7 @@ export interface AccountStatus {
 
 export async function getAccountStatus(): Promise<AccountStatus | null> {
   try {
-    const res = await billingClient.accountStatus.query();
+    const res = await trpcVanilla.billing.accountStatus.query(undefined);
     return {
       status: (res?.status as AccountStatusValue) ?? "active",
       statusReason: res?.status_reason ?? null,

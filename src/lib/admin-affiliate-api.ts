@@ -24,50 +24,28 @@ export interface FingerprintCluster {
   tenantIds: string[];
 }
 
-// ---- Typed admin client stub ----
-
-interface AffiliateAdminProcedures {
-  affiliateSuppressions: {
-    query(input: { limit: number; offset: number }): Promise<{
-      events: SuppressionEvent[];
-      total: number;
-    }>;
-  };
-  affiliateVelocity: {
-    query(input: { capReferrals: number; capCredits: number }): Promise<VelocityReferrer[]>;
-  };
-  affiliateFingerprintClusters: {
-    query(): Promise<FingerprintCluster[]>;
-  };
-  affiliateBlockFingerprint: {
-    mutate(input: { fingerprint: string }): Promise<{ success: boolean }>;
-  };
-}
-
-const adminClient = (trpcVanilla as unknown as { admin: AffiliateAdminProcedures }).admin;
-
 // ---- API calls ----
 
 export async function getAffiliateSuppressions(
   limit = 50,
   offset = 0,
 ): Promise<{ events: SuppressionEvent[]; total: number }> {
-  return adminClient.affiliateSuppressions.query({ limit, offset });
+  return trpcVanilla.admin.affiliateSuppressions.query({ limit, offset });
 }
 
 export async function getAffiliateVelocity(
   capReferrals = 20,
   capCredits = 20000,
 ): Promise<VelocityReferrer[]> {
-  return adminClient.affiliateVelocity.query({ capReferrals, capCredits });
+  return trpcVanilla.admin.affiliateVelocity.query({ capReferrals, capCredits });
 }
 
 export async function getAffiliateFingerprintClusters(): Promise<FingerprintCluster[]> {
-  return adminClient.affiliateFingerprintClusters.query();
+  return trpcVanilla.admin.affiliateFingerprintClusters.query(undefined);
 }
 
 export async function blockAffiliateFingerprint(
   fingerprint: string,
 ): Promise<{ success: boolean }> {
-  return adminClient.affiliateBlockFingerprint.mutate({ fingerprint });
+  return trpcVanilla.admin.affiliateBlockFingerprint.mutate({ fingerprint });
 }

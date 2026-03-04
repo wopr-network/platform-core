@@ -58,14 +58,6 @@ export async function updateCapability(
   });
 }
 
-interface CapabilityMetaProcedures {
-  listCapabilityMeta: {
-    query(): Promise<CapabilityMetaEntry[]>;
-  };
-}
-
 export async function fetchCapabilityMeta(): Promise<CapabilityMetaEntry[]> {
-  return (
-    trpcVanilla.capabilities as unknown as CapabilityMetaProcedures
-  ).listCapabilityMeta.query();
+  return trpcVanilla.capabilities.listCapabilityMeta.query(undefined);
 }

@@ -7,13 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Promotion } from "@/lib/promotions-types";
 import { trpcVanilla } from "@/lib/trpc";
 
-interface EditProcedures {
-  promotions: {
-    get: { query(input: { id: string }): Promise<Promotion | null> };
-  };
-}
-
-const client = trpcVanilla as unknown as EditProcedures;
+const client = trpcVanilla;
 
 export default function EditPromotionPage() {
   const { id } = useParams<{ id: string }>();

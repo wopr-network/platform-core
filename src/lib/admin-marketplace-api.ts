@@ -46,10 +46,9 @@ export interface UpdatePluginRequest {
  * Returns true when the admin marketplace tRPC procedures are not yet live.
  * Mock mode is ONLY allowed in development. In production, API failures propagate.
  *
- * To switch to live mode once the backend procedures exist:
- *   1. Add `adminMarketplace` to AppRouterRecord in src/lib/trpc-types.ts
- *   2. Set NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE=true in .env
- *   3. Remove MOCK_ADMIN_PLUGINS and this function
+ * To disable mock mode once the backend procedures are live:
+ *   1. Set NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE=true in .env
+ *   2. Remove MOCK_ADMIN_PLUGINS and this function
  */
 export function isMockMode(): boolean {
   return process.env.NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE !== "true";
@@ -172,23 +171,11 @@ const MOCK_ADMIN_PLUGINS: AdminPlugin[] = [
 
 const getMockPlugins = (): AdminPlugin[] => structuredClone(MOCK_ADMIN_PLUGINS);
 
-// ---- Typed admin client stub ----
-
-interface AdminMarketplaceProcedures {
-  listPlugins: { query(): Promise<AdminPlugin[]> };
-  updatePlugin: { mutate(input: UpdatePluginRequest): Promise<AdminPlugin> };
-  addPlugin: { mutate(input: AddPluginRequest): Promise<AdminPlugin> };
-}
-
-const marketplaceClient = (
-  trpcVanilla as unknown as { adminMarketplace: AdminMarketplaceProcedures }
-).adminMarketplace;
-
 // ---- API calls with mock fallback ----
 
 export async function getDiscoveryQueue(): Promise<AdminPlugin[]> {
   try {
-    const all = await marketplaceClient.listPlugins.query();
+    const all = (await trpcVanilla.adminMarketplace.listPlugins.query(undefined)) as AdminPlugin[];
     return all.filter((p) => !p.reviewed);
   } catch (e) {
     if (!isMockMode()) throw e;
@@ -199,7 +186,7 @@ export async function getDiscoveryQueue(): Promise<AdminPlugin[]> {
 
 export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
   try {
-    const all = await marketplaceClient.listPlugins.query();
+    const all = (await trpcVanilla.adminMarketplace.listPlugins.query(undefined)) as AdminPlugin[];
     return all.filter((p) => p.enabled && p.reviewed).sort((a, b) => a.sort_order - b.sort_order);
   } catch (e) {
     if (!isMockMode()) throw e;
@@ -212,7 +199,7 @@ export async function getEnabledPlugins(): Promise<AdminPlugin[]> {
 
 export async function getAllPlugins(): Promise<AdminPlugin[]> {
   try {
-    return await marketplaceClient.listPlugins.query();
+    return (await trpcVanilla.adminMarketplace.listPlugins.query(undefined)) as AdminPlugin[];
   } catch (e) {
     if (!isMockMode()) throw e;
     log.warn("[MOCK MODE] Failed to fetch all plugins, using mock data", e);
@@ -222,7 +209,7 @@ export async function getAllPlugins(): Promise<AdminPlugin[]> {
 
 export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugin> {
   try {
-    return await marketplaceClient.updatePlugin.mutate(req);
+    return (await trpcVanilla.adminMarketplace.updatePlugin.mutate(req)) as AdminPlugin;
   } catch (e) {
     if (!isMockMode()) throw e;
     log.warn("[MOCK MODE] Failed to update plugin, using mock fallback", e);
@@ -242,7 +229,7 @@ export async function updatePlugin(req: UpdatePluginRequest): Promise<AdminPlugi
 
 export async function addPluginByNpm(req: AddPluginRequest): Promise<AdminPlugin> {
   try {
-    return await marketplaceClient.addPlugin.mutate(req);
+    return (await trpcVanilla.adminMarketplace.addPlugin.mutate(req)) as AdminPlugin;
   } catch (e) {
     if (!isMockMode()) throw e;
     log.warn("[MOCK MODE] Failed to add plugin via API, using mock fallback", e);
@@ -271,7 +258,9 @@ export async function addPluginByNpm(req: AddPluginRequest): Promise<AdminPlugin
 export async function reorderPlugins(orderedIds: string[]): Promise<void> {
   try {
     await Promise.all(
-      orderedIds.map((id, i) => marketplaceClient.updatePlugin.mutate({ id, sort_order: i })),
+      orderedIds.map((id, i) =>
+        trpcVanilla.adminMarketplace.updatePlugin.mutate({ id, sort_order: i }),
+      ),
     );
   } catch (e) {
     if (!isMockMode()) throw e;

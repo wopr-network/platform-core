@@ -79,103 +79,34 @@ export interface BotInstance {
   updatedAt: string;
 }
 
-// ---- Typed admin client stub ----
-// AppRouter is a placeholder until @wopr-network/sdk publishes the full types.
-// We define the shape we need here to avoid raw fetch boilerplate while keeping
-// the call sites type-checked against our own interface declarations.
-
-interface AdminProcedures {
-  tenantDetail: { query(input: { tenantId: string }): Promise<TenantDetailResponse> };
-  tenantAgents: { query(input: { tenantId: string }): Promise<{ agents: BotInstance[] }> };
-  notesList: { query(input: { tenantId: string }): Promise<{ notes: AdminNote[] }> };
-  notesCreate: { mutate(input: { tenantId: string; content: string }): Promise<AdminNote> };
-  suspendTenant: { mutate(input: { tenantId: string; reason: string }): Promise<void> };
-  reactivateTenant: { mutate(input: { tenantId: string }): Promise<void> };
-  creditsGrant: {
-    mutate(input: { tenantId: string; amount_cents: number; reason: string }): Promise<void>;
-  };
-  creditsRefund: {
-    mutate(input: { tenantId: string; amount_cents: number; reason: string }): Promise<void>;
-  };
-  tenantChangeRole: {
-    mutate(input: { userId: string; tenantId: string; role: string }): Promise<void>;
-  };
-  banTenant: {
-    mutate(input: {
-      tenantId: string;
-      reason: string;
-      tosReference: string;
-      confirmName: string;
-    }): Promise<void>;
-  };
-  creditsTransactionsExport: { query(input: { tenantId: string }): Promise<{ csv: string }> };
-  creditsTransactions: {
-    query(input: {
-      tenantId: string;
-      type?: string;
-      from?: number;
-      to?: number;
-      limit?: number;
-      offset?: number;
-    }): Promise<{ entries: CreditAdjustment[]; total: number }>;
-  };
-  tenantUsageByCapability: {
-    query(input: { tenantId: string; days: number }): Promise<{ usage: UsageSummary[] }>;
-  };
-  usersList: {
-    query(input: {
-      search?: string;
-      limit?: number;
-      offset?: number;
-    }): Promise<{ users: AdminUserSummary[]; total: number }>;
-  };
-  bulkGrant: {
-    mutate(input: { tenantIds: string[]; amountCents: number; reason: string }): Promise<unknown>;
-  };
-  bulkSuspend: {
-    mutate(input: {
-      tenantIds: string[];
-      reason: string;
-      notifyByEmail?: boolean;
-    }): Promise<unknown>;
-  };
-  bulkReactivate: {
-    mutate(input: { tenantIds: string[] }): Promise<unknown>;
-  };
-}
-
-// Cast via unknown to avoid @typescript/no-explicit-any while bridging the
-// placeholder AppRouter gap. Remove once @wopr-network/sdk ships real types.
-const adminClient = (trpcVanilla as unknown as { admin: AdminProcedures }).admin;
-
 // ---- API calls ----
 
 export async function getTenantDetail(tenantId: string): Promise<TenantDetailResponse> {
-  return adminClient.tenantDetail.query({ tenantId });
+  return trpcVanilla.admin.tenantDetail.query({ tenantId });
 }
 
 export async function getTenantAgents(tenantId: string): Promise<BotInstance[]> {
-  const result = await adminClient.tenantAgents.query({ tenantId });
+  const result = await trpcVanilla.admin.tenantAgents.query({ tenantId });
   return result.agents;
 }
 
 export async function getTenantNotes(tenantId: string): Promise<AdminNote[]> {
   // Backend procedure is notesList, not tenantNotes
-  const result = await adminClient.notesList.query({ tenantId });
+  const result = await trpcVanilla.admin.notesList.query({ tenantId });
   return result.notes;
 }
 
 export async function addTenantNote(tenantId: string, content: string): Promise<AdminNote> {
   // Backend procedure is notesCreate, not tenantNoteAdd
-  return adminClient.notesCreate.mutate({ tenantId, content });
+  return trpcVanilla.admin.notesCreate.mutate({ tenantId, content });
 }
 
 export async function suspendTenant(tenantId: string, reason: string): Promise<void> {
-  await adminClient.suspendTenant.mutate({ tenantId, reason });
+  await trpcVanilla.admin.suspendTenant.mutate({ tenantId, reason });
 }
 
 export async function reactivateTenant(tenantId: string): Promise<void> {
-  await adminClient.reactivateTenant.mutate({ tenantId });
+  await trpcVanilla.admin.reactivateTenant.mutate({ tenantId });
 }
 
 export async function grantCredits(
@@ -183,7 +114,7 @@ export async function grantCredits(
   amount_cents: number,
   reason: string,
 ): Promise<void> {
-  await adminClient.creditsGrant.mutate({ tenantId, amount_cents, reason });
+  await trpcVanilla.admin.creditsGrant.mutate({ tenantId, amount_cents, reason });
 }
 
 export async function refundCredits(
@@ -191,11 +122,11 @@ export async function refundCredits(
   amount_cents: number,
   reason: string,
 ): Promise<void> {
-  await adminClient.creditsRefund.mutate({ tenantId, amount_cents, reason });
+  await trpcVanilla.admin.creditsRefund.mutate({ tenantId, amount_cents, reason });
 }
 
 export async function changeRole(userId: string, tenantId: string, role: string): Promise<void> {
-  await adminClient.tenantChangeRole.mutate({ userId, tenantId, role });
+  await trpcVanilla.admin.tenantChangeRole.mutate({ userId, tenantId, role });
 }
 
 export async function banTenant(
@@ -204,11 +135,11 @@ export async function banTenant(
   tosReference: string,
   confirmName: string,
 ): Promise<void> {
-  await adminClient.banTenant.mutate({ tenantId, reason, tosReference, confirmName });
+  await trpcVanilla.admin.banTenant.mutate({ tenantId, reason, tosReference, confirmName });
 }
 
 export async function getTransactionsCsv(tenantId: string): Promise<string> {
-  const result = await adminClient.creditsTransactionsExport.query({ tenantId });
+  const result = await trpcVanilla.admin.creditsTransactionsExport.query({ tenantId });
   return result.csv;
 }
 
@@ -222,14 +153,14 @@ export async function getTransactions(
     offset?: number;
   },
 ): Promise<{ entries: CreditAdjustment[]; total: number }> {
-  return adminClient.creditsTransactions.query({ tenantId, ...filters });
+  return trpcVanilla.admin.creditsTransactions.query({ tenantId, ...filters });
 }
 
 export async function getTenantUsageByCapability(
   tenantId: string,
   days = 30,
 ): Promise<UsageSummary[]> {
-  const result = await adminClient.tenantUsageByCapability.query({ tenantId, days });
+  const result = await trpcVanilla.admin.tenantUsageByCapability.query({ tenantId, days });
   return result.usage;
 }
 
@@ -238,7 +169,7 @@ export async function getUsersList(params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ users: AdminUserSummary[]; total: number }> {
-  return adminClient.usersList.query(params ?? {});
+  return trpcVanilla.admin.usersList.query(params ?? {});
 }
 
 export async function bulkGrantCredits(
@@ -246,13 +177,13 @@ export async function bulkGrantCredits(
   amountCents: number,
   reason: string,
 ): Promise<void> {
-  await adminClient.bulkGrant.mutate({ tenantIds, amountCents, reason });
+  await trpcVanilla.admin.bulkGrant.mutate({ tenantIds, amountCents, reason });
 }
 
 export async function bulkSuspendTenants(tenantIds: string[], reason: string): Promise<void> {
-  await adminClient.bulkSuspend.mutate({ tenantIds, reason });
+  await trpcVanilla.admin.bulkSuspend.mutate({ tenantIds, reason });
 }
 
 export async function bulkReactivateTenants(tenantIds: string[]): Promise<void> {
-  await adminClient.bulkReactivate.mutate({ tenantIds });
+  await trpcVanilla.admin.bulkReactivate.mutate({ tenantIds });
 }

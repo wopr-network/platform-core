@@ -28,32 +28,20 @@ export interface SessionCostSummary {
   avgCostPerSession: number;
 }
 
-// ---- Typed admin inference client stub ----
-
-interface InferenceAdminProcedures {
-  dailyCost: { query(input: { since: number }): Promise<DailyCostAggregate[]> };
-  pageCost: { query(input: { since: number }): Promise<PageCostAggregate[]> };
-  cacheHitRate: { query(input: { since: number }): Promise<CacheStats> };
-  sessionCost: { query(input: { since: number }): Promise<SessionCostSummary> };
-}
-
-const inferenceClient = (trpcVanilla.admin as unknown as { inference: InferenceAdminProcedures })
-  .inference;
-
 // ---- API calls ----
 
 export async function getDailyCost(since: number): Promise<DailyCostAggregate[]> {
-  return inferenceClient.dailyCost.query({ since });
+  return trpcVanilla.admin.inference.dailyCost.query({ since });
 }
 
 export async function getPageCost(since: number): Promise<PageCostAggregate[]> {
-  return inferenceClient.pageCost.query({ since });
+  return trpcVanilla.admin.inference.pageCost.query({ since });
 }
 
 export async function getCacheStats(since: number): Promise<CacheStats> {
-  return inferenceClient.cacheHitRate.query({ since });
+  return trpcVanilla.admin.inference.cacheHitRate.query({ since });
 }
 
 export async function getSessionCost(since: number): Promise<SessionCostSummary> {
-  return inferenceClient.sessionCost.query({ since });
+  return trpcVanilla.admin.inference.sessionCost.query({ since });
 }

@@ -36,6 +36,27 @@ type AppRouterRecord = {
       sessionCost: AnyTRPCQueryProcedure;
     };
     billingHealth: AnyTRPCQueryProcedure;
+    tenantDetail: AnyTRPCQueryProcedure;
+    tenantAgents: AnyTRPCQueryProcedure;
+    notesList: AnyTRPCQueryProcedure;
+    notesCreate: AnyTRPCMutationProcedure;
+    suspendTenant: AnyTRPCMutationProcedure;
+    reactivateTenant: AnyTRPCMutationProcedure;
+    creditsGrant: AnyTRPCMutationProcedure;
+    creditsRefund: AnyTRPCMutationProcedure;
+    tenantChangeRole: AnyTRPCMutationProcedure;
+    banTenant: AnyTRPCMutationProcedure;
+    creditsTransactionsExport: AnyTRPCQueryProcedure;
+    creditsTransactions: AnyTRPCQueryProcedure;
+    tenantUsageByCapability: AnyTRPCQueryProcedure;
+    usersList: AnyTRPCQueryProcedure;
+    bulkGrant: AnyTRPCMutationProcedure;
+    bulkSuspend: AnyTRPCMutationProcedure;
+    bulkReactivate: AnyTRPCMutationProcedure;
+    affiliateSuppressions: AnyTRPCQueryProcedure;
+    affiliateVelocity: AnyTRPCQueryProcedure;
+    affiliateFingerprintClusters: AnyTRPCQueryProcedure;
+    affiliateBlockFingerprint: AnyTRPCMutationProcedure;
   };
   promotions: {
     list: AnyTRPCQueryProcedure;
@@ -102,6 +123,27 @@ type AppRouterRecord = {
   };
   authSocial: {
     enabledSocialProviders: AnyTRPCQueryProcedure;
+  };
+  org: {
+    getOrganization: AnyTRPCQueryProcedure;
+    createOrganization: AnyTRPCMutationProcedure;
+    updateOrganization: AnyTRPCMutationProcedure;
+    inviteMember: AnyTRPCMutationProcedure;
+    revokeInvite: AnyTRPCMutationProcedure;
+    changeRole: AnyTRPCMutationProcedure;
+    removeMember: AnyTRPCMutationProcedure;
+    transferOwnership: AnyTRPCMutationProcedure;
+    deleteOrganization: AnyTRPCMutationProcedure;
+    listMyOrganizations: AnyTRPCQueryProcedure;
+    orgBillingBalance: AnyTRPCQueryProcedure;
+    orgMemberUsage: AnyTRPCQueryProcedure;
+    orgBillingInfo: AnyTRPCQueryProcedure;
+    orgTopupCheckout: AnyTRPCMutationProcedure;
+  };
+  adminMarketplace: {
+    listPlugins: AnyTRPCQueryProcedure;
+    updatePlugin: AnyTRPCMutationProcedure;
+    addPlugin: AnyTRPCMutationProcedure;
   };
 };
 

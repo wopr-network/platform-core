@@ -20,25 +20,7 @@ import { toUserMessage } from "@/lib/errors";
 import type { Promotion, PromotionType, UserSegment, ValueType } from "@/lib/promotions-types";
 import { trpcVanilla } from "@/lib/trpc";
 
-// ---------------------------------------------------------------------------
-// Typed client
-// ---------------------------------------------------------------------------
-
-interface PromotionFormProcedures {
-  promotions: {
-    create: {
-      mutate(input: Record<string, unknown>): Promise<{ id: string }>;
-    };
-    update: {
-      mutate(input: Record<string, unknown>): Promise<void>;
-    };
-    activate: {
-      mutate(input: { id: string }): Promise<void>;
-    };
-  };
-}
-
-const client = trpcVanilla as unknown as PromotionFormProcedures;
+const client = trpcVanilla;
 
 // ---------------------------------------------------------------------------
 // Component

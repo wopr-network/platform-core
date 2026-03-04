@@ -42,12 +42,6 @@ export interface TenantContextValue {
 
 const TenantContext = createContext<TenantContextValue | null>(null);
 
-interface OrgListProcedures {
-  listMyOrganizations: {
-    query(): Promise<Array<{ id: string; name: string; image?: string | null }>>;
-  };
-}
-
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending: sessionPending } = useSession();
   const queryClient = useQueryClient();
@@ -66,8 +60,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const orgClient = trpcVanilla as unknown as { org: OrgListProcedures };
-        const result = await orgClient.org.listMyOrganizations.query();
+        const result = await trpcVanilla.org.listMyOrganizations.query(undefined);
         if (!cancelled) setOrgs(result);
       } catch {
         // Endpoint may not exist yet (WOP-1000). Gracefully degrade.
