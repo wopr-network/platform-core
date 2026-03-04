@@ -40,13 +40,6 @@ describe("admin-marketplace-api", () => {
     vi.clearAllMocks();
   });
 
-  describe("isMockMode", () => {
-    it("returns true when NEXT_PUBLIC_ADMIN_MARKETPLACE_LIVE is not set", async () => {
-      const { isMockMode } = await import("../lib/admin-marketplace-api");
-      expect(isMockMode()).toBe(true);
-    });
-  });
-
   describe("getDiscoveryQueue", () => {
     it("returns only unreviewed plugins when tRPC succeeds", async () => {
       const { getDiscoveryQueue } = await import("../lib/admin-marketplace-api");
@@ -64,16 +57,11 @@ describe("admin-marketplace-api", () => {
       expect(queue[0].reviewed).toBe(false);
     });
 
-    it("returns mock data in mock mode when tRPC throws", async () => {
+    it("throws when tRPC fails", async () => {
       const { getDiscoveryQueue } = await import("../lib/admin-marketplace-api");
       mockListPlugins.mockRejectedValue(new Error("tRPC unavailable"));
 
-      const queue = await getDiscoveryQueue();
-
-      expect(Array.isArray(queue)).toBe(true);
-      for (const p of queue) {
-        expect(p.reviewed).toBe(false);
-      }
+      await expect(getDiscoveryQueue()).rejects.toThrow("tRPC unavailable");
     });
   });
 
@@ -101,16 +89,11 @@ describe("admin-marketplace-api", () => {
       }
     });
 
-    it("returns mock data in mock mode when tRPC throws", async () => {
+    it("throws when tRPC fails", async () => {
       const { getEnabledPlugins } = await import("../lib/admin-marketplace-api");
       mockListPlugins.mockRejectedValue(new Error("tRPC unavailable"));
 
-      const result = await getEnabledPlugins();
-
-      expect(Array.isArray(result)).toBe(true);
-      for (const p of result) {
-        expect(p.enabled).toBe(true);
-      }
+      await expect(getEnabledPlugins()).rejects.toThrow("tRPC unavailable");
     });
   });
 
@@ -126,14 +109,13 @@ describe("admin-marketplace-api", () => {
       expect(result.notes).toBe("test note");
     });
 
-    it("returns mock update in mock mode when tRPC throws", async () => {
+    it("throws when tRPC fails", async () => {
       const { updatePlugin } = await import("../lib/admin-marketplace-api");
       mockUpdatePlugin.mockRejectedValue(new Error("tRPC unavailable"));
 
-      // "discord" is a known id in the module-level mock data
-      const result = await updatePlugin({ id: "discord", notes: "fallback note" });
-
-      expect(result.notes).toBe("fallback note");
+      await expect(updatePlugin({ id: "discord", notes: "fallback note" })).rejects.toThrow(
+        "tRPC unavailable",
+      );
     });
   });
 
@@ -157,15 +139,13 @@ describe("admin-marketplace-api", () => {
       expect(result.enabled).toBe(false);
     });
 
-    it("returns mock plugin in mock mode when tRPC throws", async () => {
+    it("throws when tRPC fails", async () => {
       const { addPluginByNpm } = await import("../lib/admin-marketplace-api");
       mockAddPlugin.mockRejectedValue(new Error("tRPC unavailable"));
 
-      const result = await addPluginByNpm({ npm_package: "@wopr-network/plugin-test" });
-
-      expect(result.npm_package).toBe("@wopr-network/plugin-test");
-      expect(result.reviewed).toBe(false);
-      expect(result.enabled).toBe(false);
+      await expect(addPluginByNpm({ npm_package: "@wopr-network/plugin-test" })).rejects.toThrow(
+        "tRPC unavailable",
+      );
     });
   });
 });

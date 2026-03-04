@@ -32,7 +32,6 @@ import {
   addPluginByNpm,
   getDiscoveryQueue,
   getEnabledPlugins,
-  isMockMode,
   reorderPlugins,
   updatePlugin,
 } from "@/lib/admin-marketplace-api";
@@ -143,6 +142,8 @@ export function MarketplaceAdmin() {
       setAddPackage("");
       setAddOpen(false);
       await load();
+    } catch (err) {
+      toast.error(`Failed to add plugin: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setAddLoading(false);
     }
@@ -215,14 +216,6 @@ export function MarketplaceAdmin() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Mock data warning */}
-      {isMockMode() && (
-        <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-center">
-          <span className="text-xs font-mono text-amber-400 uppercase tracking-wider">
-            [MOCK DATA] Admin marketplace backend is not connected — showing sample data
-          </span>
-        </div>
-      )}
       <div className="flex flex-1 min-h-0">
         {/* ---- Left Panel ---- */}
         <div className="flex-1 overflow-auto border-r border-border p-6 space-y-6">
