@@ -605,7 +605,7 @@ describe("CSP nonce in middleware", () => {
     const res = await middleware(req);
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toMatch(/style-src-elem 'self' 'nonce-[A-Za-z0-9+/=_-]+'/);
     expect(csp).toContain("img-src 'self' data: blob:");
     expect(csp).toContain("frame-src https://js.stripe.com");
     expect(csp).toContain("frame-ancestors 'none'");
@@ -646,15 +646,16 @@ describe("CSP nonce in middleware", () => {
 // CSP style-src directive
 // ---------------------------------------------------------------------------
 describe("CSP style-src directive", () => {
-  it("uses unsafe-inline for style-src by default (NONCE_STYLES_ENABLED = false)", async () => {
+  it("uses nonce-based style-src (NONCE_STYLES_ENABLED = true)", async () => {
     const req = buildRequest("/login", {
       cookies: { "better-auth.session_token": "tok" },
     });
     const res = await middleware(req);
     const csp = res.headers.get("content-security-policy") ?? "";
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
-    // Must NOT contain a nonce in style-src while flag is off
-    expect(csp).not.toMatch(/style-src[^;]*'nonce-/);
+    // Must contain nonce in style-src-elem (split from style-src for finer-grained control)
+    expect(csp).toMatch(/style-src-elem 'self' 'nonce-[A-Za-z0-9+/=_-]+'/);
+    // Must NOT contain unsafe-inline in style-src-elem
+    expect(csp).not.toContain("style-src-elem 'self' 'unsafe-inline'");
   });
 });
 

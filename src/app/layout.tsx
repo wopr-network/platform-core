@@ -1,3 +1,4 @@
+import { MotionConfig } from "framer-motion";
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
@@ -57,12 +58,20 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>{nonce && <meta property="csp-nonce" content={nonce} />}</head>
       <body className={`${jetbrainsMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <TRPCProvider>
-            {children}
-            <Toaster theme="dark" richColors />
-          </TRPCProvider>
-        </ThemeProvider>
+        <MotionConfig nonce={nonce}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+            nonce={nonce}
+          >
+            <TRPCProvider>
+              {children}
+              <Toaster theme="dark" richColors />
+            </TRPCProvider>
+          </ThemeProvider>
+        </MotionConfig>
       </body>
     </html>
   );
