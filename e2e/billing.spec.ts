@@ -54,6 +54,7 @@ const BILLING_TRPC_MOCKS: Record<string, unknown> = {
     usageBased: { enabled: false, thresholdCents: 500, topupAmountCents: 1000 },
     scheduled: { enabled: false, amountCents: 1000, interval: "monthly" },
   },
+  "billing.accountStatus": { status: "active", status_reason: null, grace_deadline: null },
   "billing.usageSummary": {
     period_start: "",
     period_end: "",

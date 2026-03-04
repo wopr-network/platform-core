@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Building2, Download, Trash2 } from "lucide-react";
+import { Building2, Download } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { CreditBalance } from "@/components/billing/credit-balance";
@@ -58,8 +58,6 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentActionMsg, setPaymentActionMsg] = useState<string | null>(null);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -83,16 +81,6 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
   useEffect(() => {
     load();
   }, [load]);
-
-  function handleDeletePaymentMethod(id: string) {
-    // No backend procedure yet — show informational message
-    setPaymentActionMsg(`Delete for card ${id} is not yet available.`);
-  }
-
-  function handleAddPaymentMethod() {
-    // No backend procedure yet — show informational message
-    setPaymentActionMsg("Adding org payment methods is not yet available.");
-  }
 
   if (loading) {
     return (
@@ -270,28 +258,23 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
                         </Badge>
                       )}
                     </p>
+                    {/* Wire to org.orgRemovePaymentMethod tRPC procedure when backend adds it
                     {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeletePaymentMethod(pm.id)}
-                      >
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeletePaymentMethod(pm.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    )}
+                    )} */}
                   </div>
                 ))}
               </div>
             )}
-            {paymentActionMsg && (
-              <p className="text-sm text-muted-foreground">{paymentActionMsg}</p>
-            )}
+            {/* Wire to org.orgSetupIntent + AddPaymentMethodDialog when backend adds org-scoped setup intent
             {isAdmin && (
               <Button variant="outline" className="mt-4" onClick={handleAddPaymentMethod}>
                 Add payment method
               </Button>
-            )}
+            )} */}
           </CardContent>
         </Card>
       </motion.div>

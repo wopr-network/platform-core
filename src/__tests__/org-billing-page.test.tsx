@@ -38,7 +38,19 @@ vi.mock("@/lib/org-billing-api", () => ({
       },
     ],
   }),
-  getOrgBillingInfo: vi.fn().mockResolvedValue({ paymentMethods: [], invoices: [] }),
+  getOrgBillingInfo: vi.fn().mockResolvedValue({
+    paymentMethods: [
+      {
+        id: "pm-1",
+        brand: "visa",
+        last4: "4242",
+        expiryMonth: 12,
+        expiryYear: 2027,
+        isDefault: true,
+      },
+    ],
+    invoices: [],
+  }),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -85,5 +97,28 @@ describe("OrgBillingPage", () => {
     expect(await screen.findByText("Org Credits")).toBeInTheDocument();
     const buyCredits = screen.queryByText("Buy Credits");
     expect(buyCredits).not.toBeInTheDocument();
+  });
+
+  it("delete button is disabled with no click handler when backend is not ready", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    const card = await screen.findByText("**** 4242");
+    expect(card).toBeInTheDocument();
+    const buttons = screen.queryAllByRole("button");
+    const trashButtons = buttons.filter((b) => b.querySelector("svg.lucide-trash-2"));
+    expect(trashButtons).toHaveLength(0);
+  });
+
+  it("add payment method button is disabled when backend is not ready", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    await screen.findByText("Org Payment Methods");
+    const addBtn = screen.queryByRole("button", { name: /add payment method/i });
+    expect(addBtn).not.toBeInTheDocument();
+  });
+
+  it("non-admin does not see add or delete buttons", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={false} />);
+    await screen.findByText("Org Payment Methods");
+    const addBtn = screen.queryByRole("button", { name: /add payment method/i });
+    expect(addBtn).not.toBeInTheDocument();
   });
 });
