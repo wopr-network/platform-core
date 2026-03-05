@@ -9,6 +9,16 @@ import { HealthOverview } from "@/components/observability/health-overview";
 import { LogsViewer } from "@/components/observability/logs-viewer";
 import { MetricsDashboard } from "@/components/observability/metrics-dashboard";
 import { StatusBadge } from "@/components/status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +89,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [destroying, setDestroying] = useState(false);
   const { updateAvailable } = useImageStatus(instanceId);
   const [pulling, setPulling] = useState(false);
+  const [confirmPull, setConfirmPull] = useState(false);
   const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
   const [secretKeys, setSecretKeys] = useState<string[]>([]);
   const [secretValues, setSecretValues] = useState<Record<string, string>>({});
@@ -114,7 +125,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   }
 
   async function handlePullUpdate() {
-    if (!window.confirm("This will pull the latest image and restart the bot. Continue?")) return;
+    setConfirmPull(false);
     setPulling(true);
     try {
       await pullImageUpdate(instanceId);
@@ -379,7 +390,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               size="sm"
               variant="outline"
               className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/50 focus-visible:ring-amber-500/30 transition-colors duration-150"
-              onClick={handlePullUpdate}
+              onClick={() => setConfirmPull(true)}
               disabled={pulling}
             >
               {pulling ? (
@@ -1016,6 +1027,23 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmPull} onOpenChange={setConfirmPull}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pull Update</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will pull the latest image and restart the bot. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={pulling} onClick={handlePullUpdate}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

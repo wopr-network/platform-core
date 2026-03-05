@@ -322,9 +322,8 @@ describe("InstanceDetailClient", () => {
     });
   });
 
-  it("calls pullImageUpdate when Pull Update button is clicked and confirmed", async () => {
+  it("calls pullImageUpdate when Pull Update button is clicked and confirmed via AlertDialog", async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const { pullImageUpdate } = await import("@/lib/api");
 
     render(<InstanceDetailClient instanceId="inst-001" />);
@@ -334,13 +333,19 @@ describe("InstanceDetailClient", () => {
     });
 
     await user.click(screen.getByText("Pull Update"));
-    expect(window.confirm).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("This will pull the latest image and restart the bot. Continue?"),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(pullImageUpdate).toHaveBeenCalledWith("inst-001");
   });
 
-  it("does not call pullImageUpdate when user cancels confirm", async () => {
+  it("does not call pullImageUpdate when user cancels AlertDialog", async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     const { pullImageUpdate } = await import("@/lib/api");
     vi.mocked(pullImageUpdate).mockClear();
 
@@ -351,6 +356,14 @@ describe("InstanceDetailClient", () => {
     });
 
     await user.click(screen.getByText("Pull Update"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("This will pull the latest image and restart the bot. Continue?"),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(pullImageUpdate).not.toHaveBeenCalled();
   });
 

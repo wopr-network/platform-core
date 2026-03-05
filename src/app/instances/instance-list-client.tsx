@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -353,7 +363,7 @@ export function InstanceListClient() {
   );
 }
 
-function InstanceRowActions({
+export function InstanceRowActions({
   inst,
   onAction,
   onDestroy,
@@ -365,9 +375,10 @@ function InstanceRowActions({
   const [open, setOpen] = useState(false);
   const { updateAvailable } = useImageStatus(open ? inst.id : null);
   const [pulling, setPulling] = useState(false);
+  const [confirmPull, setConfirmPull] = useState(false);
 
   async function handlePull() {
-    if (!window.confirm("This will pull the latest image and restart the bot. Continue?")) return;
+    setConfirmPull(false);
     setPulling(true);
     try {
       await pullImageUpdate(inst.id);
@@ -380,47 +391,69 @@ function InstanceRowActions({
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-xs">
-          <span className="sr-only">Actions</span>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/instances/${inst.id}`}>View details</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {updateAvailable && (
-          <DropdownMenuItem className="text-amber-500" onClick={handlePull} disabled={pulling}>
-            {pulling ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <ArrowDownToLine className="mr-2 size-4" />
-            )}
-            {pulling ? "Pulling..." : "Pull Update"}
+    <>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-xs">
+            <span className="sr-only">Actions</span>
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/instances/${inst.id}`}>View details</Link>
           </DropdownMenuItem>
-        )}
-        {inst.status === "stopped" && (
-          <DropdownMenuItem onClick={() => onAction(inst.id, "start")}>Start</DropdownMenuItem>
-        )}
-        {(inst.status === "running" || inst.status === "degraded") && (
-          <>
-            <DropdownMenuItem onClick={() => onAction(inst.id, "stop")}>Stop</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAction(inst.id, "restart")}>
-              Restart
+          <DropdownMenuSeparator />
+          {updateAvailable && (
+            <DropdownMenuItem
+              className="text-amber-500"
+              onClick={() => setConfirmPull(true)}
+              disabled={pulling}
+            >
+              {pulling ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <ArrowDownToLine className="mr-2 size-4" />
+              )}
+              {pulling ? "Pulling..." : "Pull Update"}
             </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-          onClick={() => onDestroy(inst)}
-        >
-          Destroy
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          )}
+          {inst.status === "stopped" && (
+            <DropdownMenuItem onClick={() => onAction(inst.id, "start")}>Start</DropdownMenuItem>
+          )}
+          {(inst.status === "running" || inst.status === "degraded") && (
+            <>
+              <DropdownMenuItem onClick={() => onAction(inst.id, "stop")}>Stop</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAction(inst.id, "restart")}>
+                Restart
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            onClick={() => onDestroy(inst)}
+          >
+            Destroy
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AlertDialog open={confirmPull} onOpenChange={setConfirmPull}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pull Update</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will pull the latest image and restart the bot. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={pulling} onClick={handlePull}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
