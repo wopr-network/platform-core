@@ -7,7 +7,7 @@ const apiOrigin = process.env.NEXT_PUBLIC_API_URL
   ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
   : "";
 
-const isSecureOrigin = apiOrigin.startsWith("https://");
+const isSecureOrigin = process.env.NODE_ENV === "production";
 
 /**
  * Nonce-based style-src toggle.

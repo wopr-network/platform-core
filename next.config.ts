@@ -1,15 +1,10 @@
 import type { NextConfig } from "next";
 
-const apiOrigin = process.env.NEXT_PUBLIC_API_URL
-  ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
-  : "";
-
-// Only use upgrade-insecure-requests when the API origin itself is HTTPS.
-// This prevents Chrome from upgrading http://localhost → https://localhost
-// during e2e tests, which would break cookie injection.
-const isSecureOrigin = apiOrigin.startsWith("https://");
+const isSecureOrigin =
+  (process.env.NEXT_PUBLIC_API_URL ?? "").startsWith("https://");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   headers: async () => [
     {
       source: "/:path*",
@@ -42,8 +37,6 @@ const nextConfig: NextConfig = {
           key: "Permissions-Policy",
           value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
         },
-        // Content-Security-Policy is set per-request by the middleware (src/proxy.ts)
-        // with a unique nonce. No static CSP here to avoid overwriting the nonce-based header.
       ],
     },
   ],

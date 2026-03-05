@@ -624,6 +624,7 @@ describe("CSP nonce in middleware", () => {
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'self'");
     expect(csp).toMatch(/style-src-elem 'self' 'nonce-[A-Za-z0-9+/=_-]+'/);
+
     expect(csp).toContain("img-src 'self' data: blob:");
     expect(csp).toContain("frame-src https://js.stripe.com");
     expect(csp).toContain("frame-ancestors 'none'");
