@@ -133,6 +133,29 @@ export async function mockAuthAPI(page: Page) {
 		});
 	});
 
+	// Mock reset-password endpoint (submit new password with token)
+	await page.route(`${PLATFORM_BASE_URL}/api/auth/reset-password`, async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: "application/json",
+			body: JSON.stringify({ status: true }),
+		});
+	});
+
+	// Mock OAuth social sign-in redirect
+	await page.route(`${PLATFORM_BASE_URL}/api/auth/sign-in/social`, async (route) => {
+		const body = route.request().postDataJSON();
+		const provider = body?.provider ?? "github";
+		await route.fulfill({
+			status: 200,
+			contentType: "application/json",
+			body: JSON.stringify({
+				url: `https://${provider}.example.com/oauth/authorize?client_id=test&redirect_uri=${encodeURIComponent(`http://localhost:3000/auth/callback/${provider}`)}`,
+				redirect: true,
+			}),
+		});
+	});
+
 	// Mock send-verification-email endpoint
 	await page.route(
 		`${PLATFORM_BASE_URL}/api/auth/send-verification-email`,
@@ -161,6 +184,7 @@ export async function mockAuthAPI(page: Page) {
 		"org.getOrganization": mockOrg,
 		"org.listMyOrganizations": [mockOrg],
 		"pageContext.update": null,
+		"authSocial.enabledSocialProviders": ["github", "google", "discord"],
 	};
 	await page.route(
 		(url) =>
