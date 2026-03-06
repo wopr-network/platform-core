@@ -10,7 +10,7 @@ import {
   TabletIcon,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +130,36 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
       ))}
     </div>
   );
+}
+
+// ---------- 2FA error boundary ----------
+
+class TwoFactorErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Two-Factor Authentication</CardTitle>
+            <CardDescription>Add an extra layer of security to your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Unable to load two-factor authentication status. Please refresh the page.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ---------- 2FA section ----------
@@ -1101,7 +1131,9 @@ export default function SecurityPage() {
         <p className="text-sm text-muted-foreground">Manage your account security settings</p>
       </div>
 
-      <TwoFactorSection />
+      <TwoFactorErrorBoundary>
+        <TwoFactorSection />
+      </TwoFactorErrorBoundary>
       <SessionsSection />
       <LoginHistorySection />
     </div>
