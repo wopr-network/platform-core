@@ -107,6 +107,7 @@ export async function mockAuthAPI(page: Page) {
 								name: "E2E Test User",
 								email: "e2e@wopr.test",
 								emailVerified: true,
+								twoFactorEnabled: false,
 								createdAt: new Date().toISOString(),
 								updatedAt: new Date().toISOString(),
 							},

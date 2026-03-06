@@ -36,7 +36,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LoginAttempt, LoginHistoryResponse } from "@/lib/api";
 import { fetchLoginHistory } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 
 // ---------- helpers ----------
 
@@ -135,6 +135,8 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
 // ---------- 2FA section ----------
 
 function TwoFactorSection() {
+  const { data: sessionData, isPending: sessionPending } = useSession();
+  const sessionUser = sessionData?.user as { twoFactorEnabled?: boolean } | undefined;
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [codesRemaining, setCodesRemaining] = useState(8);
@@ -176,23 +178,11 @@ function TwoFactorSection() {
   }, []);
 
   useEffect(() => {
-    async function check() {
-      setLoading(true);
-      try {
-        // Check if 2FA is enabled by attempting to get status
-        // better-auth stores this on the user session
-        const session = await authClient.getSession();
-        const user = session?.data?.user as { twoFactorEnabled?: boolean } | undefined;
-        setEnabled(!!user?.twoFactorEnabled);
-      } catch {
-        // If the method doesn't exist, 2FA is not set up
-        setEnabled(false);
-      } finally {
-        setLoading(false);
-      }
+    if (!sessionPending) {
+      setEnabled(!!sessionUser?.twoFactorEnabled);
+      setLoading(false);
     }
-    check();
-  }, []);
+  }, [sessionPending, sessionUser?.twoFactorEnabled]);
 
   function handleStartEnable() {
     setEnableStep(-1);
