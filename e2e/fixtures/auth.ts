@@ -1,7 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
-const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const PLATFORM_BASE_URL = process.env.BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 /**
  * Intercept Better Auth API calls and return mock success responses.

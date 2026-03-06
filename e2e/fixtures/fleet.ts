@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const PLATFORM_BASE_URL = process.env.BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const API_BASE_URL = `${PLATFORM_BASE_URL}/api`;
 
 /** Stateful mock — POST handlers mutate state so subsequent GETs reflect changes. */

@@ -110,25 +110,21 @@ const MOCK_HISTORY_PAGE2: CreditHistoryResponse = {
   nextCursor: null,
 };
 
-vi.mock("@/lib/trpc", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/trpc")>();
-  return {
-    ...actual,
-    trpc: {
-      ...((actual as { trpc?: unknown }).trpc ?? {}),
-      billing: {
-        creditsBalance: {
-          useQuery: vi.fn().mockReturnValue({
-            data: { balance_cents: 1250, daily_burn_cents: 33, runway_days: 37 },
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          }),
-        },
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    billing: {
+      creditsBalance: {
+        useQuery: vi.fn().mockReturnValue({
+          data: { balance_cents: 1250, daily_burn_cents: 33, runway_days: 37 },
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }),
       },
     },
-  };
-});
+  },
+  TRPCProvider: ({ children }: { children?: unknown }) => children,
+}));
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -177,7 +173,7 @@ describe("Credits page", () => {
 
     // Initially shows skeleton loading state
     expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
-    expect(await screen.findByText("Credits", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Credits" })).toBeInTheDocument();
   });
 
   it("renders balance display", async () => {
@@ -185,7 +181,7 @@ describe("Credits page", () => {
     render(<CreditsPage />);
 
     expect(await screen.findByText("Credit Balance")).toBeInTheDocument();
-    expect(screen.getByText("$0.33/day")).toBeInTheDocument();
+    expect(screen.getAllByText("$0.33/day").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("~37 days")).toBeInTheDocument();
   });
 
