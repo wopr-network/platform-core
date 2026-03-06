@@ -30,6 +30,7 @@ export default function OnboardingPage() {
   const [botName, setBotName] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: router.push is stable; using [router] causes infinite re-renders
   useEffect(() => {
     if (isOnboardingComplete()) {
       router.push("/marketplace");
@@ -49,7 +50,6 @@ export default function OnboardingPage() {
     } catch {
       // ignore — storage may be blocked
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: router.push is stable; using [router] causes infinite re-renders
   }, [router.push]);
 
   useEffect(() => {

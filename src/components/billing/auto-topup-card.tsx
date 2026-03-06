@@ -219,7 +219,9 @@ export function AutoTopupCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Auto-topup</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Auto-topup
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -242,7 +244,9 @@ export function AutoTopupCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Auto-topup</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Auto-topup
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-20 flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -265,7 +269,9 @@ export function AutoTopupCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Auto-topup</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Auto-topup
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -287,7 +293,9 @@ export function AutoTopupCard() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Auto-topup</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Auto-topup
+            </CardTitle>
             {saving && <Loader2Icon className="size-4 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
