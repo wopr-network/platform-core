@@ -33,6 +33,7 @@ describe("ChatWidget", () => {
       addEventMarker: vi.fn(),
       showTyping: vi.fn(),
       notify: vi.fn(),
+      clearHistory: vi.fn(),
     };
   });
 

@@ -53,6 +53,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         addEventMarker: chat.addEventMarker,
         showTyping: chat.showTyping,
         notify: chat.notify,
+        clearHistory: chat.clearHistory,
       }}
     >
       {children}

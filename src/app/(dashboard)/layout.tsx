@@ -106,7 +106,7 @@ export default function DashboardLayout({
           </motion.main>
         </AnimatePresence>
       </div>
-      <ChatWidget />
+      {!pathname.startsWith("/chat") && <ChatWidget />}
     </ChatProvider>
   );
 }

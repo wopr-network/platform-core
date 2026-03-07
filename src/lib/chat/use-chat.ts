@@ -214,6 +214,8 @@ export function useChat(): UseChatReturn {
 
   const clearHistoryFn = useCallback(() => {
     setMessages([]);
+    setIsTyping(false);
+    pendingBotMsgRef.current = null;
     clearChatHistory();
   }, []);
 

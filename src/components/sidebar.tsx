@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Chat", href: "/chat" },
   { label: "Marketplace", href: "/marketplace" },
   { label: "Channels", href: "/channels" },
   { label: "Plugins", href: "/plugins" },

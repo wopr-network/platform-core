@@ -31,4 +31,5 @@ export interface ChatActions {
   addEventMarker: (text: string) => void;
   showTyping: () => void;
   notify: (text: string) => void;
+  clearHistory: () => void;
 }
