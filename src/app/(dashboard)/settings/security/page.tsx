@@ -10,7 +10,7 @@ import {
   TabletIcon,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LoginAttempt, LoginHistoryResponse } from "@/lib/api";
 import { fetchLoginHistory } from "@/lib/api";
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
+import { trpc } from "@/lib/trpc";
 
 // ---------- helpers ----------
 
@@ -132,43 +133,18 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
   );
 }
 
-// ---------- 2FA error boundary ----------
-
-class TwoFactorErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Two-Factor Authentication</CardTitle>
-            <CardDescription>Add an extra layer of security to your account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Unable to load two-factor authentication status. Please refresh the page.
-            </p>
-          </CardContent>
-        </Card>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 // ---------- 2FA section ----------
 
 function TwoFactorSection() {
-  const { data: sessionData, isPending: sessionPending } = useSession();
-  const sessionUser = sessionData?.user as { twoFactorEnabled?: boolean } | undefined;
+  const {
+    data: profileData,
+    error: profileError,
+    isPending: profilePending,
+  } = trpc.profile.getProfile.useQuery(undefined, {
+    retry: false,
+  });
+  const utils = trpc.useUtils();
   const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [codesRemaining, setCodesRemaining] = useState(8);
   const [error, setError] = useState<string | null>(null);
 
@@ -208,11 +184,10 @@ function TwoFactorSection() {
   }, []);
 
   useEffect(() => {
-    if (!sessionPending) {
-      setEnabled(!!sessionUser?.twoFactorEnabled);
-      setLoading(false);
-    }
-  }, [sessionPending, sessionUser?.twoFactorEnabled]);
+    setEnabled(
+      Boolean((profileData as { twoFactorEnabled?: boolean } | undefined)?.twoFactorEnabled),
+    );
+  }, [profileData]);
 
   function handleStartEnable() {
     setEnableStep(-1);
@@ -252,6 +227,7 @@ function TwoFactorSection() {
     setVerifyError(null);
     try {
       await authClient.twoFactor.verifyTotp({ code: verifyCode });
+      await utils.profile.getProfile.invalidate();
       setEnableStep(2);
       setEnabled(true);
     } catch {
@@ -266,6 +242,7 @@ function TwoFactorSection() {
     setDisableError(null);
     try {
       await authClient.twoFactor.disable({ password: disableCode });
+      await utils.profile.getProfile.invalidate();
       setEnabled(false);
       setDisableOpen(false);
       setDisableCode("");
@@ -313,16 +290,32 @@ function TwoFactorSection() {
     URL.revokeObjectURL(url);
   }
 
-  if (loading) {
+  if (profilePending) {
     return (
       <Card>
         <CardHeader>
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-64" />
+          <CardTitle>Two-Factor Authentication</CardTitle>
+          <CardDescription>Add an extra layer of security to your account</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-56" />
-          <Skeleton className="h-9 w-28" />
+        <CardContent>
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-9 w-28" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Two-Factor Authentication</CardTitle>
+          <CardDescription>Add an extra layer of security to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive text-sm">Failed to load security settings</p>
         </CardContent>
       </Card>
     );
@@ -1131,9 +1124,7 @@ export default function SecurityPage() {
         <p className="text-sm text-muted-foreground">Manage your account security settings</p>
       </div>
 
-      <TwoFactorErrorBoundary>
-        <TwoFactorSection />
-      </TwoFactorErrorBoundary>
+      <TwoFactorSection />
       <SessionsSection />
       <LoginHistorySection />
     </div>

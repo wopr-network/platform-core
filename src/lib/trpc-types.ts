@@ -129,6 +129,11 @@ type AppRouterRecord = {
   authSocial: {
     enabledSocialProviders: AnyTRPCQueryProcedure;
   };
+  profile: {
+    getProfile: AnyTRPCQueryProcedure;
+    updateProfile: AnyTRPCMutationProcedure;
+    changePassword: AnyTRPCMutationProcedure;
+  };
   org: {
     getOrganization: AnyTRPCQueryProcedure;
     createOrganization: AnyTRPCMutationProcedure;

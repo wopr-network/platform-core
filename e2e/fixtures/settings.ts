@@ -181,7 +181,11 @@ export function createSettingsMockState(): SettingsMockState {
   };
 }
 
-export async function mockSettingsAPI(page: Page, state: SettingsMockState) {
+export async function mockSettingsAPI(
+  page: Page,
+  state: SettingsMockState,
+  overrides?: { twoFactorEnabled?: boolean },
+) {
   // --- REST endpoints ---
 
   // Profile: avatar upload
@@ -278,24 +282,24 @@ export async function mockSettingsAPI(page: Page, state: SettingsMockState) {
   });
 
   // better-auth: list-sessions
+  // The server returns the sessions array directly (not wrapped in { data: [...] }).
+  // The better-auth client wraps it as res.data = responseBody, so res.data is the array.
   await page.route(`${PLATFORM_BASE_URL}/api/auth/list-sessions`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        data: [
-          {
-            id: "sess-1",
-            token: "e2e-token-current",
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
-            userAgent: "Mozilla/5.0 (Macintosh) Chrome/120.0",
-            ipAddress: "127.0.0.1",
-            current: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      }),
+      body: JSON.stringify([
+        {
+          id: "sess-1",
+          token: "e2e-token-current",
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+          userAgent: "Mozilla/5.0 (Macintosh) Chrome/120.0",
+          ipAddress: "127.0.0.1",
+          current: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]),
     });
   });
 
@@ -678,6 +682,25 @@ export async function mockSettingsAPI(page: Page, state: SettingsMockState) {
 
     // Account status (for DegradedStateBanner in dashboard layout)
     "billing.accountStatus": { status: "active", status_reason: null, grace_deadline: null },
+
+    // Usage summary (for SuspensionBanner in dashboard layout)
+    "billing.usageSummary": {
+      period_start: "",
+      period_end: "",
+      total_spend_cents: 0,
+      included_credit_cents: 0,
+      amount_due_cents: 0,
+      plan_name: "Free",
+    },
+
+    // Profile (for TwoFactorSection — replaces useSession)
+    "profile.getProfile": {
+      id: state.profile.id,
+      name: state.profile.name,
+      email: state.profile.email,
+      image: null,
+      twoFactorEnabled: overrides?.twoFactorEnabled ?? false,
+    },
 
     // Page context
     "pageContext.update": null,

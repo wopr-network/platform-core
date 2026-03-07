@@ -106,13 +106,56 @@ test.describe("Settings: Account", () => {
 });
 
 test.describe("Settings: Security", () => {
-  test("page loads", async ({ authedPage: page }) => {
+  test("page loads and shows 2FA section", async ({ authedPage: page }) => {
     const state = createSettingsMockState();
     await mockSettingsAPI(page, state);
 
     await page.goto("/settings/security");
 
     await expect(page.getByRole("heading", { name: "Security" }).first()).toBeVisible({ timeout: 10000 });
+
+    // 2FA section renders with disabled state
+    await expect(page.getByText("Two-Factor Authentication").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Two-factor authentication is not enabled").first()).toBeVisible({ timeout: 10000 });
+    // Wait for network to settle before checking the button (profile tRPC query may still be in-flight)
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("button", { name: "Enable 2FA" }).first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows 2FA enabled state when twoFactorEnabled is true", async ({ authedPage: page }) => {
+    const state = createSettingsMockState();
+    await mockSettingsAPI(page, state, { twoFactorEnabled: true });
+
+    await page.goto("/settings/security");
+
+    await page.waitForLoadState("networkidle");
+    await expect(
+      page.getByText("Two-factor authentication is active").first(),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("button", { name: "Disable 2FA" }).first()).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("shows active sessions section", async ({ authedPage: page }) => {
+    const state = createSettingsMockState();
+    await mockSettingsAPI(page, state);
+
+    await page.goto("/settings/security");
+
+    await expect(page.getByText("Active Sessions").first()).toBeVisible({ timeout: 10000 });
+    // Current session should be shown (wait for async session fetch to complete)
+    await expect(page.getByText("Current").first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows login history section", async ({ authedPage: page }) => {
+    const state = createSettingsMockState();
+    await mockSettingsAPI(page, state);
+
+    await page.goto("/settings/security");
+
+    await expect(page.getByText("Login History").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("1 total events").first()).toBeVisible({ timeout: 10000 });
   });
 });
 
