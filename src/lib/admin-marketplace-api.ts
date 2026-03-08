@@ -1,3 +1,4 @@
+import { apiFetch } from "./api";
 import { trpcVanilla } from "./trpc";
 
 // ---- Types ----
@@ -35,6 +36,13 @@ export interface UpdatePluginRequest {
   sort_order?: number;
   notes?: string;
   reviewed?: boolean;
+  category?: string;
+}
+
+export interface InstallStatus {
+  status: "pending" | "installed" | "failed";
+  installedAt?: string;
+  installError?: string;
 }
 
 // ---- API calls ----
@@ -67,4 +75,18 @@ export async function reorderPlugins(orderedIds: string[]): Promise<void> {
       trpcVanilla.adminMarketplace.updatePlugin.mutate({ id, sort_order: i }),
     ),
   );
+}
+
+export async function deletePlugin(id: string): Promise<void> {
+  await apiFetch<void>(`/admin/marketplace/plugins/${id}`, { method: "DELETE" });
+}
+
+export async function triggerDiscovery(): Promise<{ discovered: number; alreadyKnown: number }> {
+  return apiFetch<{ discovered: number; alreadyKnown: number }>("/admin/marketplace/discover", {
+    method: "POST",
+  });
+}
+
+export async function getInstallStatus(id: string): Promise<InstallStatus> {
+  return apiFetch<InstallStatus>(`/admin/marketplace/plugins/${id}/install-status`);
 }
