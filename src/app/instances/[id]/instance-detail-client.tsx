@@ -1,6 +1,16 @@
 "use client";
 
-import { ArrowDownToLine, ArrowLeft, Loader2, Lock, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowLeft,
+  Check,
+  Loader2,
+  Lock,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -54,6 +64,7 @@ import {
   getInstanceSecretKeys,
   listSnapshots,
   pullImageUpdate,
+  renameInstance,
   restoreSnapshot,
   toggleInstancePlugin,
   updateInstanceConfig,
@@ -102,6 +113,9 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
     [],
   );
   const secretsLoaded = useRef(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
 
   async function handleTogglePlugin(pluginId: string, enabled: boolean) {
     if (!instance) return;
@@ -121,6 +135,26 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       setActionError(toUserMessage(err, "Failed to toggle plugin"));
     } finally {
       setTogglingPlugin(null);
+    }
+  }
+
+  async function handleRename() {
+    if (!instance || !renameValue.trim() || renameValue.trim() === instance.name) {
+      setRenaming(false);
+      return;
+    }
+    setRenameSaving(true);
+    const previousName = instance.name;
+    setInstance((prev) => (prev ? { ...prev, name: renameValue.trim() } : prev));
+    try {
+      await renameInstance(instanceId, renameValue.trim());
+      setRenaming(false);
+    } catch (err) {
+      setInstance((prev) => (prev ? { ...prev, name: previousName } : prev));
+      setActionError(toUserMessage(err, "Failed to rename instance"));
+      setRenaming(false);
+    } finally {
+      setRenameSaving(false);
     }
   }
 
@@ -349,19 +383,68 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               </Link>
             </Button>
           </div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            {instance.name}
-            <span
-              className={cn("size-2 rounded-full", {
-                "bg-emerald-500 animate-[pulse-dot_2s_ease-in-out_infinite]":
-                  instance.status === "running",
-                "bg-zinc-400": instance.status === "stopped",
-                "bg-yellow-500": instance.status === "degraded",
-                "bg-red-500 animate-[pulse-dot_0.8s_ease-in-out_infinite]":
-                  instance.status === "error",
-              })}
-            />
-          </h1>
+          {renaming ? (
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename();
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+                className="h-9 w-64 text-lg font-bold"
+                disabled={renameSaving}
+              />
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleRename}
+                disabled={renameSaving}
+                aria-label="Confirm rename"
+              >
+                {renameSaving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setRenaming(false)}
+                disabled={renameSaving}
+                aria-label="Cancel rename"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+              {instance.name}
+              <span
+                className={cn("size-2 rounded-full", {
+                  "bg-emerald-500 animate-[pulse-dot_2s_ease-in-out_infinite]":
+                    instance.status === "running",
+                  "bg-zinc-400": instance.status === "stopped",
+                  "bg-yellow-500": instance.status === "degraded",
+                  "bg-red-500 animate-[pulse-dot_0.8s_ease-in-out_infinite]":
+                    instance.status === "error",
+                })}
+              />
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => {
+                  setRenameValue(instance.name);
+                  setRenaming(true);
+                }}
+                aria-label="Rename"
+              >
+                <Pencil className="size-3.5 text-muted-foreground" />
+              </Button>
+            </h1>
+          )}
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <StatusBadge status={instance.status} />
             {updateAvailable && (

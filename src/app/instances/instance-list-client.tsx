@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, Loader2, MoreHorizontal } from "lucide-react";
+import { ArrowDownToLine, Loader2, MoreHorizontal, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -56,6 +56,7 @@ import {
   parseChannelsFromEnv,
   parsePluginsFromEnv,
   pullImageUpdate,
+  renameInstance,
 } from "@/lib/api";
 import { toUserMessage } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
@@ -68,6 +69,9 @@ export function InstanceListClient() {
   const [destroyTarget, setDestroyTarget] = useState<Instance | null>(null);
   const [destroyConfirmText, setDestroyConfirmText] = useState("");
   const [destroying, setDestroying] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Instance | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
 
   const {
     data: rawData,
@@ -115,6 +119,22 @@ export function InstanceListClient() {
       await refetch();
     } catch (err) {
       setActionError(toUserMessage(err, `Failed to ${action} instance`));
+    }
+  }
+
+  async function handleRename() {
+    if (!renameTarget || !renameValue.trim()) return;
+    setRenameLoading(true);
+    setActionError(null);
+    try {
+      await renameInstance(renameTarget.id, renameValue.trim());
+      setRenameTarget(null);
+      setRenameValue("");
+      await refetch();
+    } catch (err) {
+      setActionError(toUserMessage(err, "Failed to rename instance"));
+    } finally {
+      setRenameLoading(false);
     }
   }
 
@@ -285,6 +305,10 @@ export function InstanceListClient() {
                       inst={inst}
                       onAction={handleAction}
                       onDestroy={setDestroyTarget}
+                      onRename={(inst) => {
+                        setRenameTarget(inst);
+                        setRenameValue(inst.name);
+                      }}
                     />
                   </TableCell>
                 </TableRow>
@@ -359,6 +383,65 @@ export function InstanceListClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameTarget(null);
+            setRenameValue("");
+            setActionError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename instance</DialogTitle>
+            <DialogDescription>
+              Enter a new name for <strong className="text-foreground">{renameTarget?.name}</strong>
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="New name"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                renameValue.trim() &&
+                renameValue.trim() !== renameTarget?.name
+              )
+                handleRename();
+            }}
+            disabled={renameLoading}
+          />
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRenameTarget(null);
+                setRenameValue("");
+                setActionError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                renameLoading || !renameValue.trim() || renameValue.trim() === renameTarget?.name
+              }
+              onClick={handleRename}
+              aria-label="Save"
+            >
+              {renameLoading ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -367,10 +450,12 @@ export function InstanceRowActions({
   inst,
   onAction,
   onDestroy,
+  onRename,
 }: {
   inst: Instance;
   onAction: (id: string, action: "start" | "stop" | "restart") => void;
   onDestroy: (inst: Instance) => void;
+  onRename: (inst: Instance) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { updateAvailable } = useImageStatus(open ? inst.id : null);
@@ -402,6 +487,10 @@ export function InstanceRowActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <Link href={`/instances/${inst.id}`}>View details</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onRename(inst)}>
+            <Pencil className="mr-2 size-4" />
+            Rename
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {updateAvailable && (

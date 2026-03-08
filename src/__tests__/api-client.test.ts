@@ -204,6 +204,7 @@ describe("fleetFetch", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: { get: vi.fn().mockReturnValue(null) },
       json: () => Promise.resolve(payload),
     });
 
@@ -216,6 +217,7 @@ describe("fleetFetch", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: { get: vi.fn().mockReturnValue(null) },
       json: () => Promise.resolve({}),
     });
 
@@ -230,6 +232,7 @@ describe("fleetFetch", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: { get: vi.fn().mockReturnValue(null) },
       json: () => Promise.resolve({}),
     });
 
@@ -244,6 +247,7 @@ describe("fleetFetch", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: { get: vi.fn().mockReturnValue(null) },
       json: () => Promise.resolve({}),
     });
 

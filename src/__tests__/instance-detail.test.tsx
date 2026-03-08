@@ -87,6 +87,7 @@ vi.mock("@/lib/api", () => ({
   deleteSnapshot: vi.fn().mockResolvedValue(undefined),
   getInstanceSecretKeys: vi.fn().mockResolvedValue(["DISCORD_TOKEN", "OPENAI_API_KEY"]),
   updateInstanceSecrets: vi.fn().mockResolvedValue(undefined),
+  renameInstance: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("InstanceDetailClient", () => {
@@ -423,5 +424,49 @@ describe("InstanceDetailClient", () => {
     await user.click(screen.getByRole("button", { name: "Add Secret" }));
 
     expect(screen.getByPlaceholderText("SECRET_KEY_NAME")).toBeInTheDocument();
+  });
+
+  it("clicking Rename opens inline edit, submitting calls renameInstance", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const renameBtn = screen.getByRole("button", { name: /rename/i });
+    await user.click(renameBtn);
+
+    const input = screen.getByDisplayValue("test-instance");
+    expect(input).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, "renamed-bot");
+
+    const confirmBtn = screen.getByRole("button", { name: /confirm rename/i });
+    await user.click(confirmBtn);
+
+    const { renameInstance } = await import("@/lib/api");
+    expect(renameInstance).toHaveBeenCalledWith("inst-001", "renamed-bot");
+  });
+
+  it("rename cancel restores original name", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const renameBtn = screen.getByRole("button", { name: /rename/i });
+    await user.click(renameBtn);
+
+    const input = screen.getByDisplayValue("test-instance");
+    await user.clear(input);
+    await user.type(input, "something-else");
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByText("test-instance")).toBeInTheDocument();
   });
 });

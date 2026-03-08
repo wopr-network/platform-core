@@ -193,6 +193,9 @@ export async function fleetFetch<T>(path: string, init?: RequestInit): Promise<T
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, res.statusText, (body as { error?: string }).error ?? undefined);
   }
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
   return res.json() as Promise<T>;
 }
 
@@ -450,6 +453,14 @@ export async function updateInstanceConfig(id: string, env: Record<string, strin
   await fleetFetch(`/bots/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ env }),
+  });
+}
+
+/** PATCH /fleet/bots/:id — Rename a bot instance. */
+export async function renameInstance(id: string, name: string): Promise<void> {
+  await fleetFetch(`/bots/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
   });
 }
 

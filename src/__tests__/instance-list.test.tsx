@@ -77,6 +77,7 @@ vi.mock("@/lib/api", () => ({
     updateAvailable: true,
   }),
   pullImageUpdate: vi.fn().mockResolvedValue(undefined),
+  renameInstance: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("InstanceListClient", () => {
@@ -184,5 +185,36 @@ describe("InstanceListClient", () => {
       expect(screen.getByText("Network error")).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("shows Rename in row actions and calls renameInstance on save", async () => {
+    const user = userEvent.setup();
+    render(<InstanceListClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    // Open the first row's actions menu
+    const actionsBtns = screen.getAllByRole("button", { name: /actions/i });
+    await user.click(actionsBtns[0]);
+
+    // Click Rename
+    const renameItem = screen.getByText("Rename");
+    await user.click(renameItem);
+
+    // Dialog should appear with input pre-filled
+    const input = screen.getByDisplayValue("test-instance");
+    expect(input).toBeInTheDocument();
+
+    // Type new name and submit
+    await user.clear(input);
+    await user.type(input, "RenamedBot");
+
+    const saveBtn = screen.getByRole("button", { name: /save/i });
+    await user.click(saveBtn);
+
+    const { renameInstance } = await import("@/lib/api");
+    expect(renameInstance).toHaveBeenCalledWith("inst-001", "RenamedBot");
   });
 });

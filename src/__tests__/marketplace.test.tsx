@@ -415,6 +415,8 @@ describe("InstallWizard", () => {
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: { get: vi.fn().mockReturnValue(null) },
         json: async () => ({ bots: mockBots }),
       }),
     );

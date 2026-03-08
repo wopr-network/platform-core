@@ -4,7 +4,7 @@ const mockFetch = vi.fn().mockResolvedValue({
   ok: true,
   status: 200,
   headers: { get: vi.fn().mockReturnValue(null) },
-  json: () => Promise.resolve({ id: "bot-1", name: "test-bot" }),
+  json: () => Promise.resolve({}),
 });
 vi.stubGlobal("fetch", mockFetch);
 
@@ -29,19 +29,19 @@ vi.mock("@/lib/api-config", () => ({
   PLATFORM_BASE_URL: "https://api.test",
 }));
 
-describe("updateInstanceConfig", () => {
+describe("renameInstance", () => {
   afterEach(() => mockFetch.mockClear());
 
-  it("sends PATCH /fleet/bots/:id with env payload", async () => {
-    const { updateInstanceConfig } = await import("@/lib/api");
-    await updateInstanceConfig("bot-1", { MODEL: "claude-sonnet", MAX_TOKENS: "4096" });
+  it("sends PATCH /fleet/bots/:id with name payload", async () => {
+    const { renameInstance } = await import("@/lib/api");
+    await renameInstance("bot-1", "NewName");
 
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.test/fleet/bots/bot-1",
       expect.objectContaining({
         method: "PATCH",
         credentials: "include",
-        body: JSON.stringify({ env: { MODEL: "claude-sonnet", MAX_TOKENS: "4096" } }),
+        body: JSON.stringify({ name: "NewName" }),
       }),
     );
   });
@@ -51,10 +51,10 @@ describe("updateInstanceConfig", () => {
       ok: false,
       status: 400,
       statusText: "Bad Request",
-      json: () => Promise.resolve({ error: "Validation failed" }),
+      json: () => Promise.resolve({ error: "Name too short" }),
     });
 
-    const { updateInstanceConfig } = await import("@/lib/api");
-    await expect(updateInstanceConfig("bot-1", { BAD: "" })).rejects.toThrow("Validation failed");
+    const { renameInstance } = await import("@/lib/api");
+    await expect(renameInstance("bot-1", "")).rejects.toThrow("Name too short");
   });
 });
