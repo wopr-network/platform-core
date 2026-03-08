@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { ApiError, apiFetch, apiFetchRaw } from "./api";
 import { trpcVanilla } from "./trpc";
 
 // ---- Types ----
@@ -78,7 +78,12 @@ export async function reorderPlugins(orderedIds: string[]): Promise<void> {
 }
 
 export async function deletePlugin(id: string): Promise<void> {
-  await apiFetch<void>(`/admin/marketplace/plugins/${id}`, { method: "DELETE" });
+  const res = await apiFetchRaw(`/admin/marketplace/plugins/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, res.statusText, (body as { error?: string }).error ?? undefined);
+  }
+  // 204 No Content — no body to parse
 }
 
 export async function triggerDiscovery(): Promise<{ discovered: number; alreadyKnown: number }> {
