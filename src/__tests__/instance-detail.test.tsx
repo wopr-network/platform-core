@@ -450,6 +450,105 @@ describe("InstanceDetailClient", () => {
     expect(renameInstance).toHaveBeenCalledWith("inst-001", "renamed-bot");
   });
 
+  it("shows invalid JSON indicator in real-time as user types", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const configTab = screen.getByRole("tab", { name: "Config" });
+    await user.click(configTab);
+
+    const editor = await screen.findByRole("textbox", { name: /instance configuration/i });
+
+    await user.clear(editor);
+    await user.type(editor, "{{} not valid json");
+
+    await waitFor(() => {
+      expect(screen.getByText("Invalid JSON")).toBeInTheDocument();
+    });
+  });
+
+  it("clears invalid JSON indicator when user fixes the JSON", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const configTab = screen.getByRole("tab", { name: "Config" });
+    await user.click(configTab);
+
+    const editor = await screen.findByRole("textbox", { name: /instance configuration/i });
+
+    await user.clear(editor);
+    await user.type(editor, "{{} broken");
+
+    await waitFor(() => {
+      expect(screen.getByText("Invalid JSON")).toBeInTheDocument();
+    });
+
+    await user.clear(editor);
+    await user.type(editor, '{{"model": "claude"}');
+
+    await waitFor(() => {
+      expect(screen.queryByText("Invalid JSON")).not.toBeInTheDocument();
+    });
+  });
+
+  it("disables save button when JSON is invalid", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const configTab = screen.getByRole("tab", { name: "Config" });
+    await user.click(configTab);
+
+    const editor = await screen.findByRole("textbox", { name: /instance configuration/i });
+
+    await user.clear(editor);
+    await user.type(editor, "not json");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save config/i })).toBeDisabled();
+    });
+  });
+
+  it("shows invalid JSON indicator after a successful save when user edits to invalid JSON", async () => {
+    const user = userEvent.setup();
+    render(<InstanceDetailClient instanceId="inst-001" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test-instance")).toBeInTheDocument();
+    });
+
+    const configTab = screen.getByRole("tab", { name: "Config" });
+    await user.click(configTab);
+
+    // Save the config successfully first
+    const saveBtn = screen.getByText("Save Config");
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Config saved")).toBeInTheDocument();
+    });
+
+    // Now edit to invalid JSON — the indicator must appear immediately
+    const editor = await screen.findByRole("textbox", { name: /instance configuration/i });
+    await user.clear(editor);
+    await user.type(editor, "not valid json {{");
+
+    await waitFor(() => {
+      expect(screen.getByText("Invalid JSON")).toBeInTheDocument();
+    });
+  });
+
   it("rename cancel restores original name", async () => {
     const user = userEvent.setup();
     render(<InstanceDetailClient instanceId="inst-001" />);

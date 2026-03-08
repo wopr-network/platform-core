@@ -117,6 +117,16 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [renameValue, setRenameValue] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
 
+  useEffect(() => {
+    if (!configText.trim()) return;
+    try {
+      JSON.parse(configText);
+      setConfigStatus((prev) => (prev === "invalid" ? "idle" : prev));
+    } catch {
+      setConfigStatus("invalid");
+    }
+  }, [configText]);
+
   async function handleTogglePlugin(pluginId: string, enabled: boolean) {
     if (!instance) return;
     setActionError(null);
@@ -844,7 +854,12 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             <label htmlFor="config-editor" className="text-sm font-medium">
               Instance Configuration (JSON)
             </label>
-            <div className="relative rounded-md border border-border bg-black/80 overflow-hidden">
+            <div
+              className={cn(
+                "relative rounded-md border bg-black/80 overflow-hidden",
+                configStatus === "invalid" ? "border-red-500" : "border-border",
+              )}
+            >
               <div className="flex items-center gap-2 border-b border-border/50 px-3 py-1.5 text-xs text-muted-foreground">
                 <span className="inline-block h-2 w-2 rounded-full bg-terminal" />
                 <span>CONFIG EDITOR</span>
@@ -870,7 +885,7 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               <span className="text-sm text-red-500">{configError}</span>
             )}
             <Button
-              disabled={saving}
+              disabled={saving || configStatus === "invalid"}
               onClick={async () => {
                 setConfigError(null);
                 let parsed: unknown;
