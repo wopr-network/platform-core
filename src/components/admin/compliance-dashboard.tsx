@@ -1,7 +1,7 @@
 "use client";
 
-import { Download, FileText, Search, Shield, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Download, FileText, Pencil, Search, Shield, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -40,6 +42,7 @@ import {
   getExportRequests,
   triggerDeletion,
   triggerExport,
+  updateRetentionPolicy,
 } from "@/lib/admin-compliance-api";
 import type { AuditLogResponse } from "@/lib/api";
 import { fetchAuditLog } from "@/lib/api";
@@ -1047,10 +1050,97 @@ function ComplianceAuditTab() {
 // TAB 4: Retention Policies
 // ============================================================
 
+function EditRetentionPolicyDialog({
+  policy,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  policy: RetentionPolicy;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: (updated: RetentionPolicy) => void;
+}) {
+  const [retentionDaysInput, setRetentionDaysInput] = useState(String(policy.retentionDays));
+  const [autoDelete, setAutoDelete] = useState(policy.autoDelete);
+  const [saving, setSaving] = useState(false);
+
+  const retentionDaysParsed = parseInt(retentionDaysInput, 10);
+  const retentionDaysValid =
+    !Number.isNaN(retentionDaysParsed) && retentionDaysParsed >= 1 && retentionDaysParsed <= 3650;
+
+  useEffect(() => {
+    if (open) {
+      setRetentionDaysInput(String(policy.retentionDays));
+      setAutoDelete(policy.autoDelete);
+    }
+  }, [open, policy.retentionDays, policy.autoDelete]);
+
+  const handleSave = async () => {
+    if (!retentionDaysValid) return;
+    setSaving(true);
+    try {
+      const updated = await updateRetentionPolicy(policy.dataType, {
+        retentionDays: retentionDaysParsed,
+        autoDelete,
+      });
+      onSaved(updated);
+      onOpenChange(false);
+      toast.success(`Updated retention policy for ${policy.dataType}`);
+    } catch (err) {
+      toast.error(toUserMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold uppercase tracking-wider">
+            Edit Retention Policy
+          </DialogTitle>
+          <DialogDescription>Update retention settings for {policy.dataType}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="retentionDays">Retention period (days)</Label>
+            <Input
+              id="retentionDays"
+              type="number"
+              step={1}
+              min={1}
+              max={3650}
+              value={retentionDaysInput}
+              onChange={(e) => setRetentionDaysInput(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="autoDelete">Auto-delete</Label>
+            <Switch id="autoDelete" checked={autoDelete} onCheckedChange={setAutoDelete} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !retentionDaysValid}>
+            {saving ? "Saving\u2026" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RetentionPoliciesTab() {
   const [policies, setPolicies] = useState<RetentionPolicy[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState<RetentionPolicy | null>(null);
+  const lastEditingPolicyRef = useRef<RetentionPolicy | null>(null);
+  if (editingPolicy !== null) lastEditingPolicyRef.current = editingPolicy;
 
   useEffect(() => {
     let cancelled = false;
@@ -1165,8 +1255,29 @@ function RetentionPoliciesTab() {
               <dd>{policy.recordsAffected.toLocaleString()}</dd>
             </div>
           </dl>
+          <div className="mt-3 flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setEditingPolicy(policy)}>
+              <Pencil className="mr-1.5 size-3" />
+              Edit
+            </Button>
+          </div>
         </div>
       ))}
+      {lastEditingPolicyRef.current && (
+        <EditRetentionPolicyDialog
+          policy={lastEditingPolicyRef.current}
+          open={editingPolicy !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditingPolicy(null);
+          }}
+          onSaved={(updated) => {
+            setPolicies((prev) =>
+              prev ? prev.map((p) => (p.dataType === updated.dataType ? updated : p)) : prev,
+            );
+            setEditingPolicy(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -114,3 +114,14 @@ export async function triggerExport(tenantId: string, reason: string): Promise<E
 export async function cancelDeletion(requestId: string): Promise<DeletionRequest> {
   return trpcVanilla.admin.complianceCancelDeletion.mutate({ requestId });
 }
+
+export async function updateRetentionPolicy(
+  dataType: string,
+  updates: { retentionDays?: number; autoDelete?: boolean },
+): Promise<RetentionPolicy> {
+  return apiFetch<RetentionPolicy>(`/admin/compliance/retention/${encodeURIComponent(dataType)}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+    headers: { "Content-Type": "application/json" },
+  });
+}
