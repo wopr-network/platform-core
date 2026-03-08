@@ -83,6 +83,14 @@ describe("VpsInfoPanel", () => {
     });
   });
 
+  it("renders error message when getVpsInfo rejects", async () => {
+    mockGetVpsInfo.mockRejectedValue(new Error("Network error"));
+    render(<VpsInfoPanel botId="bot-1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load VPS info/i)).toBeInTheDocument();
+    });
+  });
+
   it("shows Canceled badge for canceled status", async () => {
     mockGetVpsInfo.mockResolvedValue({
       botId: "bot-1",

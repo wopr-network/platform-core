@@ -15,16 +15,34 @@ interface VpsPanelProps {
 export function VpsInfoPanel({ botId }: VpsPanelProps) {
   const [vps, setVps] = useState<VpsInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    setError(false);
+    setLoading(true);
+    setVps(null);
     getVpsInfo(botId)
       .then((data) => setVps(data))
-      .catch(() => setVps(null))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [botId]);
 
-  if (loading || !vps) return null;
+  if (loading) return null;
+
+  if (!vps) {
+    if (!error) return null;
+    return (
+      <Card className="border-destructive/30">
+        <CardContent className="flex items-center gap-2 py-4">
+          <Server className="size-5 text-destructive" />
+          <p className="text-sm text-destructive">
+            Failed to load VPS info. Please try again later.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   async function handleCopy() {
     if (!vps?.sshConnectionString) return;
