@@ -110,7 +110,7 @@ exports[`Layout snapshots > BillingLayout renders billing nav sidebar + content 
           </a>
         </li>
         <li
-          class="invisible"
+          class="hidden"
         >
           <a
             class="block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground"
