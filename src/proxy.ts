@@ -55,6 +55,7 @@ const publicExactPaths = new Set([
   "/terms",
   "/privacy",
   "/pricing",
+  "/status",
   // Health endpoint must be publicly accessible for infra probes (uptime monitors,
   // Kubernetes liveness/readiness, load balancers) that do not carry session cookies.
   "/api/health",
