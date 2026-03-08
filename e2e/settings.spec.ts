@@ -392,6 +392,6 @@ test.describe("Settings: Activity", () => {
 
     // Only profile event should be visible
     await expect(page.getByText("Profile Update").first()).toBeVisible();
-    await expect(page.getByText("Api Key Create")).not.toBeVisible();
+    await expect(page.getByText("Api Key Create").first()).not.toBeVisible();
   });
 });

@@ -517,12 +517,22 @@ export async function mockSettingsAPI(
 
   // Audit log
   await page.route(`${API_BASE_URL}/audit*`, async (route) => {
+    const url = new URL(route.request().url());
+    const search = url.searchParams.get("search")?.toLowerCase().trim() ?? "";
+    const filtered = search
+      ? state.auditEvents.filter(
+          (evt) =>
+            evt.action.toLowerCase().includes(search) ||
+            (evt.resourceName ?? "").toLowerCase().includes(search) ||
+            (evt.details ?? "").toLowerCase().includes(search),
+        )
+      : state.auditEvents;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        events: state.auditEvents,
-        total: state.auditEvents.length,
+        events: filtered,
+        total: filtered.length,
         hasMore: false,
       }),
     });

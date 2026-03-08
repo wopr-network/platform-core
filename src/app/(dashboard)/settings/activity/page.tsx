@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -65,11 +65,21 @@ export default function ActivityPage() {
   const [dateRange, setDateRange] = useState("30");
   const [actionFilter, setActionFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const load = useCallback(
     async (newOffset: number) => {
       setLoading(true);
       setLoadError(false);
+      const reqId = ++requestIdRef.current;
       try {
         const since =
           dateRange === "all"
@@ -80,34 +90,26 @@ export default function ActivityPage() {
           offset: newOffset,
           since,
           action: actionFilter === "all" ? undefined : actionFilter,
+          search: debouncedSearch?.trim() || undefined,
         });
+        if (reqId !== requestIdRef.current) return;
         setData(result);
         setOffset(newOffset);
       } catch {
+        if (reqId !== requestIdRef.current) return;
         setLoadError(true);
-      } finally {
-        setLoading(false);
       }
+      if (reqId !== requestIdRef.current) return;
+      setLoading(false);
     },
-    [dateRange, actionFilter],
+    [dateRange, actionFilter, debouncedSearch],
   );
 
   useEffect(() => {
     load(0);
   }, [load]);
 
-  const filteredEvents = useMemo(() => {
-    if (!data) return [];
-    if (!search.trim()) return data.events;
-    const q = search.toLowerCase();
-    return data.events.filter(
-      (e) =>
-        e.action.toLowerCase().includes(q) ||
-        e.resourceType.toLowerCase().includes(q) ||
-        (e.resourceName ?? e.resourceId).toLowerCase().includes(q) ||
-        (e.details ?? "").toLowerCase().includes(q),
-    );
-  }, [data, search]);
+  const events = data?.events ?? [];
 
   if (loadError) {
     return (
@@ -183,9 +185,11 @@ export default function ActivityPage() {
                 </div>
               ))}
             </div>
-          ) : filteredEvents.length === 0 ? (
+          ) : events.length === 0 ? (
             <div className="flex h-32 items-center justify-center">
-              <p className="text-sm text-muted-foreground">No activity yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {debouncedSearch?.trim() ? "No events match your search." : "No activity yet."}
+              </p>
             </div>
           ) : (
             <>
@@ -208,7 +212,7 @@ export default function ActivityPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEvents.map((event) => (
+                    {events.map((event) => (
                       <TableRow
                         key={event.id}
                         className="hover:bg-accent/50 transition-colors duration-150"

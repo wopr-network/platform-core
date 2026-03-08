@@ -101,17 +101,31 @@ describe("ActivityPage", () => {
     expect(screen.queryByText("Action")).not.toBeInTheDocument();
   });
 
-  it("filters events client-side by search text", async () => {
+  it("sends search param to fetchAuditLog after debounce", async () => {
     mockFetchAuditLog.mockResolvedValueOnce(MOCK_AUDIT_RESPONSE);
     const user = userEvent.setup();
     render(<ActivityPage />);
 
     await screen.findByText("Bot Create");
+
+    mockFetchAuditLog.mockResolvedValueOnce({
+      events: [MOCK_AUDIT_RESPONSE.events[1]],
+      total: 1,
+      hasMore: false,
+    });
+
     const searchInput = screen.getByPlaceholderText("Search...");
     await user.type(searchInput, "billing");
 
-    expect(screen.queryByText("Bot Create")).not.toBeInTheDocument();
-    expect(screen.getByText("Billing Credit Purchase")).toBeInTheDocument();
+    // Wait for debounce (300ms) + API call
+    await vi.waitFor(
+      () => {
+        expect(mockFetchAuditLog).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "billing", offset: 0 }),
+        );
+      },
+      { timeout: 1000 },
+    );
   });
 
   it("shows pagination when total exceeds page size", async () => {

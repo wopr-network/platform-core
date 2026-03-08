@@ -1882,6 +1882,7 @@ export async function fetchAuditLog(params: {
   since?: string;
   until?: string;
   action?: string;
+  search?: string;
 }): Promise<AuditLogResponse> {
   const query = new URLSearchParams();
   if (params.limit != null) query.set("limit", String(params.limit));
@@ -1889,6 +1890,7 @@ export async function fetchAuditLog(params: {
   if (params.since) query.set("since", params.since);
   if (params.until) query.set("until", params.until);
   if (params.action) query.set("action", params.action);
+  if (params.search) query.set("search", params.search);
   const qs = query.toString();
   return apiFetch<AuditLogResponse>(`/audit${qs ? `?${qs}` : ""}`);
 }
