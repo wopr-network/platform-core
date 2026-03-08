@@ -543,6 +543,60 @@ describe("API Keys page", () => {
     expect(screen.getByText("read-only")).toBeInTheDocument();
     expect(screen.getByText("instances")).toBeInTheDocument();
   });
+
+  it("re-fetches keys from server on revoke failure instead of restoring stale snapshot", async () => {
+    const api = await import("@/lib/api");
+    const user = userEvent.setup();
+
+    const key1: PlatformApiKey = {
+      id: "k1",
+      name: "Key One",
+      prefix: "wopr_k1",
+      scope: "full",
+      createdAt: "2026-01-01T00:00:00Z",
+      lastUsedAt: null,
+      expiresAt: null,
+    };
+    const key2: PlatformApiKey = {
+      id: "k2",
+      name: "Key Two",
+      prefix: "wopr_k2",
+      scope: "full",
+      createdAt: "2026-01-01T00:00:00Z",
+      lastUsedAt: null,
+      expiresAt: null,
+    };
+
+    // First load returns both keys; after failed revoke, server returns only key2
+    vi.mocked(api.listApiKeys).mockResolvedValueOnce([key1, key2]).mockResolvedValueOnce([key2]);
+
+    // Revoke fails
+    vi.mocked(api.revokeApiKey).mockRejectedValueOnce(new Error("Server error"));
+
+    const { default: ApiKeysPage } = await import("../app/(dashboard)/settings/api-keys/page");
+    render(<ApiKeysPage />);
+
+    // Wait for initial render with both keys
+    await waitFor(() => {
+      expect(screen.getByText("Key One")).toBeInTheDocument();
+      expect(screen.getByText("Key Two")).toBeInTheDocument();
+    });
+
+    // Click revoke for Key Two (second button)
+    const revokeButtons = screen.getAllByText("Revoke");
+    await user.click(revokeButtons[1]);
+    const confirmButton = screen.getByRole("button", { name: "Revoke key" });
+    await user.click(confirmButton);
+
+    // After failure, load() re-fetches — server returns only key2
+    // Old behavior: would restore [key1, key2] (stale snapshot)
+    // New behavior: calls load() which returns [key2]
+    await waitFor(() => {
+      expect(screen.queryByText("Key One")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Key Two")).toBeInTheDocument();
+  });
 });
 
 describe("Organization page", () => {
