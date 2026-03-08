@@ -27,6 +27,7 @@ const navItems = [
   { label: "Channels", href: "/channels" },
   { label: "Plugins", href: "/plugins" },
   { label: "Instances", href: "/instances" },
+  { label: "Network", href: "/dashboard/network" },
   { label: "Fleet Health", href: "/fleet/health" },
   { label: "Credits", href: "/billing/credits" },
   { label: "Billing", href: "/billing/plans" },
