@@ -1,24 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCreditOptions, mockCreateCreditCheckout, mockIsAllowedRedirectUrl } = vi.hoisted(
-  () => ({
-    mockGetCreditOptions: vi.fn(),
-    mockCreateCreditCheckout: vi.fn(),
-    mockIsAllowedRedirectUrl: vi.fn(),
-  }),
-);
-
-vi.mock("@/lib/api", () => ({
-  getCreditOptions: (...args: unknown[]) => mockGetCreditOptions(...args),
-  createCreditCheckout: (...args: unknown[]) => mockCreateCreditCheckout(...args),
-}));
-
-vi.mock("@/lib/validate-redirect-url", () => ({
-  isAllowedRedirectUrl: (...args: unknown[]) => mockIsAllowedRedirectUrl(...args),
-}));
-
+// Mock framer-motion to avoid animation issues
 vi.mock("framer-motion", () => ({
   motion: {
     button: ({
@@ -37,6 +21,21 @@ vi.mock("framer-motion", () => ({
     ),
     div: ({ children }: React.PropsWithChildren<Record<string, unknown>>) => <div>{children}</div>,
   },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+const mockGetCreditOptions = vi.fn();
+const mockCreateCreditCheckout = vi.fn();
+const mockIsAllowedRedirectUrl = vi.fn();
+
+vi.mock("@/lib/api", () => ({
+  getCreditOptions: (...args: unknown[]) => mockGetCreditOptions(...args),
+  createCreditCheckout: (...args: unknown[]) => mockCreateCreditCheckout(...args),
+  apiFetch: vi.fn(),
+}));
+
+vi.mock("@/lib/validate-redirect-url", () => ({
+  isAllowedRedirectUrl: (...args: unknown[]) => mockIsAllowedRedirectUrl(...args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -51,17 +50,20 @@ vi.mock("better-auth/react", () => ({
   }),
 }));
 
+import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
+
 const MOCK_TIERS = [
   { priceId: "price_5", label: "$5", amountCents: 500, creditCents: 500, bonusPercent: 0 },
   { priceId: "price_20", label: "$20", amountCents: 2000, creditCents: 2200, bonusPercent: 10 },
   { priceId: "price_50", label: "$50", amountCents: 5000, creditCents: 6000, bonusPercent: 20 },
 ];
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe("BuyCreditsPanel", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
   it("shows loading skeletons while fetching credit options", async () => {
     // Never resolve so we stay in loading state
     mockGetCreditOptions.mockReturnValue(
@@ -69,7 +71,6 @@ describe("BuyCreditsPanel", () => {
         /* intentionally pending */
       }),
     );
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     expect(screen.getByText("Buy Credits")).toBeInTheDocument();
@@ -78,7 +79,6 @@ describe("BuyCreditsPanel", () => {
 
   it("renders credit tiers with correct labels after loading", async () => {
     mockGetCreditOptions.mockResolvedValue(MOCK_TIERS);
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     expect(await screen.findByText("$5")).toBeInTheDocument();
@@ -88,7 +88,6 @@ describe("BuyCreditsPanel", () => {
 
   it("renders bonus badge for tiers with bonusPercent > 0", async () => {
     mockGetCreditOptions.mockResolvedValue(MOCK_TIERS);
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     expect(await screen.findByText("+10%")).toBeInTheDocument();
@@ -99,30 +98,48 @@ describe("BuyCreditsPanel", () => {
 
   it("shows unavailable message when no credit options returned", async () => {
     mockGetCreditOptions.mockResolvedValue([]);
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     expect(
       await screen.findByText("Credit purchases are not available at this time."),
     ).toBeInTheDocument();
+    // Should NOT show retry button for intentionally empty tiers
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 
-  it("shows unavailable message when getCreditOptions fails", async () => {
-    // When getCreditOptions rejects, tiers stays empty, so the "unavailable" branch renders.
-    // The error message set in state is only visible in the main branch (when tiers.length > 0),
-    // so on fetch failure the user sees the empty-tiers fallback.
-    mockGetCreditOptions.mockRejectedValue(new Error("Network error"));
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
+  it("shows error message with retry button when API fails", async () => {
+    mockGetCreditOptions.mockRejectedValueOnce(new Error("Network error"));
+
     render(<BuyCreditsPanel />);
 
-    expect(
-      await screen.findByText("Credit purchases are not available at this time."),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load credit packages.")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("retries loading when retry button is clicked", async () => {
+    const user = userEvent.setup();
+    mockGetCreditOptions
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce([{ priceId: "price_1", label: "$10", bonusPercent: 0 }]);
+
+    render(<BuyCreditsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load credit packages.")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("$10")).toBeInTheDocument();
+    });
+    expect(mockGetCreditOptions).toHaveBeenCalledTimes(2);
   });
 
   it("Buy button is disabled when no tier is selected", async () => {
     mockGetCreditOptions.mockResolvedValue(MOCK_TIERS);
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const buyBtn = await screen.findByRole("button", { name: "Buy credits" });
@@ -132,7 +149,6 @@ describe("BuyCreditsPanel", () => {
   it("Buy button is enabled after selecting a tier", async () => {
     mockGetCreditOptions.mockResolvedValue(MOCK_TIERS);
     const user = userEvent.setup();
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const tierBtn = await screen.findByText("$20");
@@ -162,7 +178,6 @@ describe("BuyCreditsPanel", () => {
     mockIsAllowedRedirectUrl.mockReturnValue(true);
 
     const user = userEvent.setup();
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const tierBtn = await screen.findByText("$20");
@@ -184,7 +199,6 @@ describe("BuyCreditsPanel", () => {
     mockIsAllowedRedirectUrl.mockReturnValue(false);
 
     const user = userEvent.setup();
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const tierBtn = await screen.findByText("$5");
@@ -206,7 +220,6 @@ describe("BuyCreditsPanel", () => {
     );
 
     const user = userEvent.setup();
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const tierBtn = await screen.findByText("$5");
@@ -223,7 +236,6 @@ describe("BuyCreditsPanel", () => {
     mockCreateCreditCheckout.mockRejectedValue(new Error("Stripe error"));
 
     const user = userEvent.setup();
-    const { BuyCreditsPanel } = await import("../components/billing/buy-credits-panel");
     render(<BuyCreditsPanel />);
 
     const tierBtn = await screen.findByText("$5");

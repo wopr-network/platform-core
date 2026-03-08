@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,20 +14,47 @@ import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
 export function BuyCreditsPanel() {
   const [tiers, setTiers] = useState<CreditOption[]>([]);
   const [tiersLoading, setTiersLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadTiers = useCallback(() => {
+    setTiersLoading(true);
+    setLoadError(false);
     getCreditOptions()
       .then((options) => {
         setTiers(options);
         setTiersLoading(false);
       })
-      .catch(() => {
-        setError("Failed to load credit options.");
+      .catch((err) => {
+        console.error("Failed to load credit options:", err);
+        setLoadError(true);
         setTiersLoading(false);
       });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTiersLoading(true);
+    setLoadError(false);
+    getCreditOptions()
+      .then((options) => {
+        if (!cancelled) {
+          setTiers(options);
+          setTiersLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("Failed to load credit options:", err);
+          setLoadError(true);
+          setTiersLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleCheckout() {
@@ -63,6 +90,25 @@ export function BuyCreditsPanel() {
               <Skeleton key={id} className="h-16 w-full rounded-md" />
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Buy Credits</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Every purchase resets your 7-day dividend window
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-destructive">Failed to load credit packages.</p>
+          <Button variant="outline" onClick={loadTiers}>
+            Try again
+          </Button>
         </CardContent>
       </Card>
     );
