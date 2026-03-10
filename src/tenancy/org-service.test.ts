@@ -2,9 +2,9 @@ import type { PGlite } from "@electric-sql/pglite";
 import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformDb } from "../db/index.js";
-import { DrizzleOrgMemberRepository } from "./org-member-repository.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
 import { DrizzleOrgRepository } from "./drizzle-org-repository.js";
+import { DrizzleOrgMemberRepository } from "./org-member-repository.js";
 import { OrgService } from "./org-service.js";
 
 async function setup(db: PlatformDb) {

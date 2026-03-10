@@ -11,10 +11,10 @@
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import type { Pool } from "pg";
-import type { PlatformDb } from "../db/index.js";
 import { RoleStore } from "../admin/role-store.js";
 import { logger } from "../config/logger.js";
 import { initTwoFactorSchema } from "../db/auth-user-repository.js";
+import type { PlatformDb } from "../db/index.js";
 import { getEmailClient } from "../email/client.js";
 import { passwordResetEmailTemplate, verifyEmailTemplate } from "../email/templates.js";
 import { generateVerificationToken, initVerificationSchema, PgEmailVerifier } from "../email/verification.js";

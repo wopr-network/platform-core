@@ -2,9 +2,9 @@ import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformDb } from "../db/index.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
-import { Credit } from "./credit.js";
 import { DrizzleAutoTopupSettingsRepository } from "./auto-topup-settings-repository.js";
 import { maybeTriggerUsageTopup, type UsageTopupDeps } from "./auto-topup-usage.js";
+import { Credit } from "./credit.js";
 import { CreditLedger } from "./credit-ledger.js";
 
 describe("maybeTriggerUsageTopup", () => {

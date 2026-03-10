@@ -1,59 +1,64 @@
-export type { EncryptedPayload, Provider, ValidateKeyRequest, ValidateKeyResponse, WriteSecretsRequest, ProviderEndpoint } from "./types.js";
-export { providerSchema, validateKeyRequestSchema, writeSecretsRequestSchema } from "./types.js";
-export { deriveInstanceKey, generateInstanceKey, encrypt, decrypt } from "./encryption.js";
-export { validateNodeHost } from "./host-validation.js";
-export { assertSafeRedirectUrl } from "./redirect-allowlist.js";
-export type { KeyLeakMatch } from "./key-audit.js";
-export { scanForKeyLeaks } from "./key-audit.js";
-export { writeEncryptedSeed, forwardSecretsToInstance } from "./key-injection.js";
-export { PROVIDER_ENDPOINTS, validateProviderKey } from "./key-validation.js";
-
 // Credential vault
 export {
-  type SecretAuditEvent,
-  type ISecretAuditRepository,
-  DrizzleSecretAuditRepository,
+  type AuthType,
+  auditCredentialEncryption,
+  type CreateCredentialInput,
   type CredentialRow,
+  type CredentialSummary,
   type CredentialSummaryRow,
-  type InsertCredentialRow,
-  type ICredentialMigrationAccess,
-  type ICredentialRepository,
-  type IMigrationTenantKeyAccess,
+  CredentialVaultStore,
+  type DecryptedCredential,
   DrizzleCredentialRepository,
   DrizzleMigrationTenantKeyAccess,
-  type RotationResult,
-  reEncryptAllCredentials,
+  DrizzleSecretAuditRepository,
+  getVaultEncryptionKey,
+  type ICredentialMigrationAccess,
+  type ICredentialRepository,
+  type ICredentialVaultStore,
+  type IMigrationTenantKeyAccess,
+  type InsertCredentialRow,
+  type ISecretAuditRepository,
   type MigrationResult,
   migratePlaintextCredentials,
   type PlaintextFinding,
-  auditCredentialEncryption,
-  type AuthType,
-  type CreateCredentialInput,
-  type CredentialSummary,
-  type DecryptedCredential,
-  type ICredentialVaultStore,
   type RotateCredentialInput,
-  CredentialVaultStore,
-  getVaultEncryptionKey,
+  type RotationResult,
+  reEncryptAllCredentials,
+  type SecretAuditEvent,
 } from "./credential-vault/index.js";
-
+export { decrypt, deriveInstanceKey, encrypt, generateInstanceKey } from "./encryption.js";
+export { validateNodeHost } from "./host-validation.js";
+export type { KeyLeakMatch } from "./key-audit.js";
+export { scanForKeyLeaks } from "./key-audit.js";
+export { forwardSecretsToInstance, writeEncryptedSeed } from "./key-injection.js";
+export { PROVIDER_ENDPOINTS, validateProviderKey } from "./key-validation.js";
+export { assertSafeRedirectUrl } from "./redirect-allowlist.js";
 // Tenant keys
 export {
-  type IKeyResolutionRepository,
+  ALL_CAPABILITIES,
+  buildPooledKeysMap,
+  type CapabilityName,
+  CapabilitySettingsStore,
   DrizzleKeyResolutionRepository,
+  DrizzleOrgMembershipRepository,
+  type ICapabilitySettingsRepository,
+  type IKeyResolutionRepository,
+  type IOrgMembershipRepository,
+  type ITenantKeyRepository,
+  type OrgResolvedKey,
   type ResolvedKey,
   resolveApiKey,
-  buildPooledKeysMap,
-  type TenantApiKey,
-  type ITenantKeyRepository,
-  TenantKeyRepository,
-  type CapabilityName,
-  type TenantCapabilitySetting,
-  type ICapabilitySettingsRepository,
-  ALL_CAPABILITIES,
-  CapabilitySettingsStore,
-  type IOrgMembershipRepository,
-  type OrgResolvedKey,
-  DrizzleOrgMembershipRepository,
   resolveApiKeyWithOrgFallback,
+  type TenantApiKey,
+  type TenantCapabilitySetting,
+  TenantKeyRepository,
 } from "./tenant-keys/index.js";
+export type {
+  EncryptedPayload,
+  Provider,
+  ProviderEndpoint,
+  ValidateKeyRequest,
+  ValidateKeyResponse,
+  WriteSecretsRequest,
+} from "./types.js";
+export { providerSchema, validateKeyRequestSchema, writeSecretsRequestSchema } from "./types.js";

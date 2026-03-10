@@ -1,7 +1,7 @@
 import { and, eq, lt } from "drizzle-orm";
+import type { WebhookSeenEvent } from "../credits/repository-types.js";
 import type { PlatformDb } from "../db/index.js";
 import { webhookSeenEvents } from "../db/schema/index.js";
-import type { WebhookSeenEvent } from "../credits/repository-types.js";
 import type { IWebhookSeenRepository } from "./webhook-seen-repository.js";
 
 export class DrizzleWebhookSeenRepository implements IWebhookSeenRepository {

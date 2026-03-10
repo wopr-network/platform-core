@@ -1,14 +1,14 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IOrgMemberRepository } from "../tenancy/org-member-repository.js";
 import {
-  router,
-  createCallerFactory,
-  publicProcedure,
-  protectedProcedure,
   adminProcedure,
-  tenantProcedure,
+  createCallerFactory,
   orgMemberProcedure,
+  protectedProcedure,
+  publicProcedure,
+  router,
   setTrpcOrgMemberRepo,
+  tenantProcedure,
 } from "./init.js";
 
 // ---------------------------------------------------------------------------
@@ -41,9 +41,7 @@ const appRouter = router({
   protectedHello: protectedProcedure.query(() => "protected-ok"),
   adminHello: adminProcedure.query(() => "admin-ok"),
   tenantHello: tenantProcedure.query(() => "tenant-ok"),
-  orgAction: orgMemberProcedure
-    .input((v: unknown) => v as { orgId: string })
-    .mutation(() => "org-ok"),
+  orgAction: orgMemberProcedure.input((v: unknown) => v as { orgId: string }).mutation(() => "org-ok"),
 });
 
 const createCaller = createCallerFactory(appRouter);
@@ -172,7 +170,7 @@ describe("tRPC procedure builders", () => {
 
     it("rejects when orgId is missing from input", async () => {
       const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
-      await expect(caller.orgAction({} as any)).rejects.toThrow("orgId is required");
+      await expect(caller.orgAction({} as unknown as { orgId: string })).rejects.toThrow("orgId is required");
     });
 
     it("rejects non-members", async () => {

@@ -1,36 +1,32 @@
 // Database
-export type { PlatformDb, PlatformSchema } from "./db/index.js";
-export { createDb, schema } from "./db/index.js";
 
 // Admin
 export * from "./admin/index.js";
-
 // Auth
 export * from "./auth/index.js";
-
 // Billing (selective — ITenantCustomerRepository/TenantCustomerRow also in credits)
 export {
-  PaymentMethodOwnershipError,
-  noOpReplayGuard,
-  DrizzleWebhookSeenRepository,
-  type SavedPaymentMethod,
-  type CheckoutOpts,
-  type CheckoutSession,
   type ChargeOpts,
   type ChargeResult,
-  type SetupResult,
-  type PortalOpts,
-  type WebhookResult,
-  type IPaymentProcessor,
+  type CheckoutOpts,
+  type CheckoutSession,
+  DrizzleWebhookSeenRepository,
   type Invoice,
+  type IPaymentProcessor,
   type IWebhookSeenRepository,
+  noOpReplayGuard,
+  PaymentMethodOwnershipError,
+  type PortalOpts,
+  type SavedPaymentMethod,
+  type SetupResult,
+  type WebhookResult,
 } from "./billing/index.js";
-
 // Config
-export { config, billingConfigSchema, type PlatformConfig } from "./config/index.js";
-
+export { billingConfigSchema, config, type PlatformConfig } from "./config/index.js";
 // Credits
 export * from "./credits/index.js";
+export type { PlatformDb, PlatformSchema } from "./db/index.js";
+export { createDb, schema } from "./db/index.js";
 
 // Email
 export * from "./email/index.js";

@@ -1,12 +1,12 @@
-export type { SecretAuditEvent, ISecretAuditRepository } from "./audit-repository.js";
+export type { ISecretAuditRepository, SecretAuditEvent } from "./audit-repository.js";
 export { DrizzleSecretAuditRepository } from "./audit-repository.js";
 export type {
   CredentialRow,
   CredentialSummaryRow,
-  InsertCredentialRow,
   ICredentialMigrationAccess,
   ICredentialRepository,
   IMigrationTenantKeyAccess,
+  InsertCredentialRow,
 } from "./credential-repository.js";
 export { DrizzleCredentialRepository, DrizzleMigrationTenantKeyAccess } from "./credential-repository.js";
 export type { RotationResult } from "./key-rotation.js";

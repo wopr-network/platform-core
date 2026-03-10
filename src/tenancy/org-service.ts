@@ -10,8 +10,8 @@ import { eq } from "drizzle-orm";
 import { logger } from "../config/logger.js";
 import type { PlatformDb } from "../db/index.js";
 import { organizationInvites, organizationMembers, tenants } from "../db/schema/index.js";
-import type { IOrgMemberRepository, OrgInviteRow } from "./org-member-repository.js";
 import type { IOrgRepository, Tenant } from "./drizzle-org-repository.js";
+import type { IOrgMemberRepository, OrgInviteRow } from "./org-member-repository.js";
 
 // ---------------------------------------------------------------------------
 // Types
