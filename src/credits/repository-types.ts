@@ -25,3 +25,9 @@ export interface DividendHistoryEntry {
   pool: Credit;
   activeUsers: number;
 }
+
+export interface WebhookSeenEvent {
+  eventId: string;
+  source: string;
+  seenAt: number;
+}
