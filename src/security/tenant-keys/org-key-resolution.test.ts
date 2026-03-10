@@ -3,12 +3,11 @@ import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PlatformDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
-import { DrizzleOrgMembershipRepository } from "./org-key-resolution.js";
 import { encrypt, generateInstanceKey } from "../encryption.js";
 import type { EncryptedPayload, Provider } from "../types.js";
 import { resolveApiKey } from "./key-resolution.js";
 import { DrizzleKeyResolutionRepository } from "./key-resolution-repository.js";
-import { resolveApiKeyWithOrgFallback } from "./org-key-resolution.js";
+import { DrizzleOrgMembershipRepository, resolveApiKeyWithOrgFallback } from "./org-key-resolution.js";
 
 async function insertTenantKey(
   pool: PGlite,

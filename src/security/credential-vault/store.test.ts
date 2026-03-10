@@ -33,11 +33,9 @@ describe("CredentialVaultStore", () => {
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
-    await (pool);
   });
 
   afterAll(async () => {
-    await (pool);
     await pool.close();
   });
 
@@ -484,11 +482,9 @@ describe("Tenant isolation (tenant_api_keys)", () => {
 
   beforeAll(async () => {
     ({ db: tenantDb, pool: tenantPool } = await createTestDb());
-    await (tenantPool);
   });
 
   afterAll(async () => {
-    await (tenantPool);
     await tenantPool.close();
   });
 

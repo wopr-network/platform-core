@@ -19,11 +19,9 @@ async function insertKey(tenantId: string, provider: Provider, encryptedKey: str
 
 beforeAll(async () => {
   ({ db, pool } = await createTestDb());
-  await (pool);
 });
 
 afterAll(async () => {
-  await (pool);
   await pool.close();
 });
 

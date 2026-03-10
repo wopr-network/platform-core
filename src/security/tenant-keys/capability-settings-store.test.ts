@@ -11,11 +11,9 @@ describe("CapabilitySettingsStore", () => {
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
-    await (pool);
   });
 
   afterAll(async () => {
-    await (pool);
     await pool.close();
   });
 
