@@ -10,6 +10,7 @@
     "./auth": "./dist/auth/index.js",
     "./billing": "./dist/billing/index.js",
     "./credits": "./dist/credits/index.js",
+    "./credits/*": "./dist/credits/*.js",
     "./metering": "./dist/metering/index.js",
     "./email": "./dist/email/index.js",
     "./security": "./dist/security/index.js",
