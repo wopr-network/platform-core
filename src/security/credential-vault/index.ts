@@ -1,6 +1,9 @@
+export type { SecretAuditEvent, ISecretAuditRepository } from "./audit-repository.js";
+export { DrizzleSecretAuditRepository } from "./audit-repository.js";
 export type {
   CredentialRow,
   CredentialSummaryRow,
+  InsertCredentialRow,
   ICredentialMigrationAccess,
   ICredentialRepository,
   IMigrationTenantKeyAccess,

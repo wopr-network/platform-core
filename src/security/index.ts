@@ -10,8 +10,12 @@ export { PROVIDER_ENDPOINTS, validateProviderKey } from "./key-validation.js";
 
 // Credential vault
 export {
+  type SecretAuditEvent,
+  type ISecretAuditRepository,
+  DrizzleSecretAuditRepository,
   type CredentialRow,
   type CredentialSummaryRow,
+  type InsertCredentialRow,
   type ICredentialMigrationAccess,
   type ICredentialRepository,
   type IMigrationTenantKeyAccess,

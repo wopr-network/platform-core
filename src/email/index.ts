@@ -19,14 +19,22 @@ export type { INotificationPreferencesRepository } from "./notification-preferen
 export { DrizzleNotificationPreferencesStore } from "./notification-preferences-store.js";
 export type { INotificationQueueRepository } from "./notification-queue-store.js";
 export { DrizzleNotificationQueueStore } from "./notification-queue-store.js";
-export type { NotificationPrefs, NotificationStatus, QueuedNotification } from "./notification-repository-types.js";
+export type {
+  NotificationPrefs,
+  NotificationStatus,
+  QueuedNotification,
+  NotificationEmailType,
+  NotificationInput,
+  NotificationRow,
+} from "./notification-repository-types.js";
 export { NotificationService } from "./notification-service.js";
 export type { TemplateName as NotificationTemplateName } from "./notification-templates.js";
 export { renderNotificationTemplate } from "./notification-templates.js";
 export { NotificationWorker } from "./notification-worker.js";
+export type { IEmailVerifier } from "./require-verified.js";
 export { requireEmailVerified } from "./require-verified.js";
 export type { EmailOptions } from "./resend-adapter.js";
-export { escapeHtml, sendEmail } from "./resend-adapter.js";
+export { escapeHtml, passwordResetTemplate, passwordResetText, sendEmail } from "./resend-adapter.js";
 export type { TemplateName, TemplateResult } from "./templates.js";
 export {
   botDestructionTemplate,
@@ -44,5 +52,6 @@ export {
   getUserEmail,
   initVerificationSchema,
   isEmailVerified,
+  PgEmailVerifier,
   verifyToken,
 } from "./verification.js";
