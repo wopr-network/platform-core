@@ -9,3 +9,4 @@ export {
   type RateLimitRule,
 } from "./rate-limit.js";
 export { getClientIpFromContext } from "./get-client-ip.js";
+export { csrfProtection, validateCsrfOrigin, type CsrfOptions } from "./csrf.js";
