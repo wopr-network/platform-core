@@ -20,16 +20,75 @@ import { passwordResetEmailTemplate, verifyEmailTemplate } from "../email/templa
 import { generateVerificationToken, initVerificationSchema, PgEmailVerifier } from "../email/verification.js";
 import { createUserCreator, type IUserCreator } from "./user-creator.js";
 
+/** OAuth provider credentials. */
+export interface OAuthProvider {
+  clientId: string;
+  clientSecret: string;
+}
+
+/** Rate limit rule for a specific auth endpoint. */
+export interface AuthRateLimitRule {
+  window: number;
+  max: number;
+}
+
 /** Configuration for initializing Better Auth in platform-core. */
 export interface BetterAuthConfig {
   pool: Pool;
   db: PlatformDb;
+
+  // --- Required ---
+  /** HMAC secret for session tokens. Falls back to BETTER_AUTH_SECRET env var. */
+  secret?: string;
+  /** Base URL for OAuth callbacks. Falls back to BETTER_AUTH_URL env var. */
+  baseURL?: string;
+
+  // --- Auth features ---
+  /** Route prefix. Default: "/api/auth" */
+  basePath?: string;
+  /** Email+password config. Default: enabled with 12-char min. */
+  emailAndPassword?: { enabled: boolean; minPasswordLength?: number };
+  /** OAuth providers. Default: reads GITHUB/DISCORD/GOOGLE env vars. */
+  socialProviders?: {
+    github?: OAuthProvider;
+    discord?: OAuthProvider;
+    google?: OAuthProvider;
+  };
+  /** Trusted providers for account linking. Default: ["github", "google"] */
+  trustedProviders?: string[];
+  /** Enable 2FA plugin. Default: true */
+  twoFactor?: boolean;
+
+  // --- Session & cookies ---
+  /** Cookie cache max age in seconds. Default: 300 (5 min) */
+  sessionCacheMaxAge?: number;
+  /** Cookie prefix. Default: "better-auth" */
+  cookiePrefix?: string;
+  /** Cookie domain (e.g., ".wopr.bot"). Falls back to COOKIE_DOMAIN env var. */
+  cookieDomain?: string;
+
+  // --- Rate limiting ---
+  /** Global rate limit window in seconds. Default: 60 */
+  rateLimitWindow?: number;
+  /** Global rate limit max requests. Default: 100 */
+  rateLimitMax?: number;
+  /** Per-endpoint rate limit overrides. Default: sign-in/sign-up/reset limits. */
+  rateLimitRules?: Record<string, AuthRateLimitRule>;
+
+  // --- Origins ---
+  /** Trusted origins for CORS. Falls back to UI_ORIGIN env var. */
+  trustedOrigins?: string[];
+
+  // --- Lifecycle hooks ---
   /** Called after a new user signs up (e.g., create personal tenant). */
   onUserCreated?: (userId: string, userName: string, email: string) => Promise<void>;
 }
 
-const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || "";
-const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || "http://localhost:3100";
+const DEFAULT_RATE_LIMIT_RULES: Record<string, AuthRateLimitRule> = {
+  "/sign-in/email": { window: 900, max: 5 },
+  "/sign-up/email": { window: 3600, max: 10 },
+  "/request-password-reset": { window: 3600, max: 3 },
+};
 
 let _config: BetterAuthConfig | null = null;
 let _userCreator: IUserCreator | null = null;
@@ -47,32 +106,59 @@ async function getUserCreator(): Promise<IUserCreator> {
   return _userCreatorPromise;
 }
 
-function authOptions(pool: Pool): BetterAuthOptions {
+/** Resolve OAuth providers from config or env vars. */
+function resolveSocialProviders(cfg: BetterAuthConfig): BetterAuthOptions["socialProviders"] {
+  if (cfg.socialProviders) return cfg.socialProviders;
+  return {
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+      ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
+      : {}),
+    ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
+      ? { discord: { clientId: process.env.DISCORD_CLIENT_ID, clientSecret: process.env.DISCORD_CLIENT_SECRET } }
+      : {}),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? { google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } }
+      : {}),
+  };
+}
+
+function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
+  const pool = cfg.pool;
+  const secret = cfg.secret || process.env.BETTER_AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("BETTER_AUTH_SECRET is required in production");
+    }
+    logger.warn("BetterAuth secret not configured — sessions may be insecure");
+  }
+  const baseURL = cfg.baseURL || process.env.BETTER_AUTH_URL || "http://localhost:3100";
+  const basePath = cfg.basePath || "/api/auth";
+  const cookieDomain = cfg.cookieDomain || process.env.COOKIE_DOMAIN;
+  const trustedOrigins =
+    cfg.trustedOrigins ||
+    (process.env.UI_ORIGIN || "http://localhost:3001")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+  // Default minPasswordLength: 12 — caller must explicitly override, not accidentally omit
+  const emailAndPassword = cfg.emailAndPassword
+    ? { minPasswordLength: 12, ...cfg.emailAndPassword }
+    : { enabled: true, minPasswordLength: 12 };
+
   return {
     database: pool,
-    secret: BETTER_AUTH_SECRET,
-    baseURL: BETTER_AUTH_URL,
-    basePath: "/api/auth",
-    socialProviders: {
-      ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-        ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
-        : {}),
-      ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
-        ? { discord: { clientId: process.env.DISCORD_CLIENT_ID, clientSecret: process.env.DISCORD_CLIENT_SECRET } }
-        : {}),
-      ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-        ? { google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } }
-        : {}),
-    },
+    secret: secret || "",
+    baseURL,
+    basePath,
+    socialProviders: resolveSocialProviders(cfg),
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["github", "google"],
+        trustedProviders: cfg.trustedProviders ?? ["github", "google"],
       },
     },
     emailAndPassword: {
-      enabled: true,
-      minPasswordLength: 12,
+      ...emailAndPassword,
       sendResetPassword: async ({ user, url }) => {
         try {
           const emailClient = getEmailClient();
@@ -99,12 +185,20 @@ function authOptions(pool: Pool): BetterAuthOptions {
               logger.error("Failed to run user creator:", error);
             }
 
+            if (cfg.onUserCreated) {
+              try {
+                await cfg.onUserCreated(user.id, user.name || user.email, user.email);
+              } catch (error) {
+                logger.error("Failed to run onUserCreated callback:", error);
+              }
+            }
+
             if (user.emailVerified) return;
 
             try {
               await initVerificationSchema(pool);
               const { token } = await generateVerificationToken(pool, user.id);
-              const verifyUrl = `${BETTER_AUTH_URL}/auth/verify?token=${token}`;
+              const verifyUrl = `${baseURL}${basePath}/verify?token=${token}`;
               const emailClient = getEmailClient();
               const template = verifyEmailTemplate(verifyUrl, user.email);
               await emailClient.send({
@@ -116,45 +210,30 @@ function authOptions(pool: Pool): BetterAuthOptions {
             } catch (error) {
               logger.error("Failed to send verification email:", error);
             }
-
-            // Delegate personal tenant creation to the consumer
-            if (_config?.onUserCreated) {
-              try {
-                await _config.onUserCreated(user.id, user.name || user.email, user.email);
-              } catch (error) {
-                logger.error("Failed to run onUserCreated callback:", error);
-              }
-            }
           },
         },
       },
     },
     session: {
-      cookieCache: { enabled: true, maxAge: 5 * 60 },
+      cookieCache: { enabled: true, maxAge: cfg.sessionCacheMaxAge ?? 300 },
     },
     advanced: {
-      cookiePrefix: "better-auth",
+      cookiePrefix: cfg.cookiePrefix || "better-auth",
       cookies: {
         session_token: {
-          attributes: {
-            domain: process.env.COOKIE_DOMAIN || ".wopr.bot",
-          },
+          attributes: cookieDomain ? { domain: cookieDomain } : {},
         },
       },
     },
-    plugins: [twoFactor()],
+    plugins: cfg.twoFactor !== false ? [twoFactor()] : [],
     rateLimit: {
       enabled: true,
-      window: 60,
-      max: 100,
-      customRules: {
-        "/sign-in/email": { window: 900, max: 5 },
-        "/sign-up/email": { window: 3600, max: 10 },
-        "/request-password-reset": { window: 3600, max: 3 },
-      },
+      window: cfg.rateLimitWindow ?? 60,
+      max: cfg.rateLimitMax ?? 100,
+      customRules: { ...DEFAULT_RATE_LIMIT_RULES, ...cfg.rateLimitRules },
       storage: "memory",
     },
-    trustedOrigins: (process.env.UI_ORIGIN || "http://localhost:3001").split(","),
+    trustedOrigins,
   };
 }
 
@@ -174,9 +253,11 @@ export async function runAuthMigrations(): Promise<void> {
   if (!_config) throw new Error("BetterAuth not initialized — call initBetterAuth() first");
   type DbModule = { getMigrations: (opts: BetterAuthOptions) => Promise<{ runMigrations: () => Promise<void> }> };
   const { getMigrations } = (await import("better-auth/db")) as unknown as DbModule;
-  const { runMigrations } = await getMigrations(authOptions(_config.pool));
+  const { runMigrations } = await getMigrations(authOptions(_config));
   await runMigrations();
-  await initTwoFactorSchema(_config.pool);
+  if (_config.twoFactor !== false) {
+    await initTwoFactorSchema(_config.pool);
+  }
 }
 
 let _auth: Auth | null = null;
@@ -188,7 +269,7 @@ let _auth: Auth | null = null;
 export function getAuth(): Auth {
   if (!_auth) {
     if (!_config) throw new Error("BetterAuth not initialized — call initBetterAuth() first");
-    _auth = betterAuth(authOptions(_config.pool));
+    _auth = betterAuth(authOptions(_config));
   }
   return _auth;
 }
