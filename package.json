@@ -45,6 +45,7 @@
     "@trpc/server": "^11.12.0",
     "@types/node": "^25.4.0",
     "@types/pg": "^8.18.0",
+    "@wopr-network/semantic-release-config": "^1.0.0",
     "better-auth": "^1.5.4",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
@@ -59,6 +60,13 @@
     "vitest": "^4.0.18",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
+  },
+  "release": {
+    "extends": "@wopr-network/semantic-release-config"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wopr-network/platform-core.git"
   },
   "packageManager": "pnpm@10.31.0"
 }
