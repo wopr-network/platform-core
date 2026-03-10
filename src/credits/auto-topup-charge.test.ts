@@ -5,11 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { PlatformDb } from "../db/index.js";
 import { creditAutoTopup } from "../db/schema/credit-auto-topup.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
-import { Credit } from "./credit.js";
-import type { ITenantCustomerRepository } from "./tenant-customer-repository.js";
 import { type AutoTopupChargeDeps, chargeAutoTopup, MAX_CONSECUTIVE_FAILURES } from "./auto-topup-charge.js";
 import { DrizzleAutoTopupEventLogRepository } from "./auto-topup-event-log-repository.js";
+import { Credit } from "./credit.js";
 import { CreditLedger } from "./credit-ledger.js";
+import type { ITenantCustomerRepository } from "./tenant-customer-repository.js";
 
 function mockStripe(overrides?: {
   paymentIntentId?: string;

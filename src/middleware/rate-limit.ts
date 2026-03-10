@@ -10,8 +10,8 @@
  */
 
 import type { Context, MiddlewareHandler, Next } from "hono";
-import type { IRateLimitRepository } from "./rate-limit-repository.js";
 import { getClientIpFromContext } from "./get-client-ip.js";
+import type { IRateLimitRepository } from "./rate-limit-repository.js";
 
 export { getClientIp, parseTrustedProxies } from "./get-client-ip.js";
 

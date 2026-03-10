@@ -2,8 +2,8 @@ import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PlatformDb } from "../db/index.js";
 import { beginTestTransaction, createTestDb, endTestTransaction, rollbackTestTransaction } from "../test/db.js";
-import { Credit } from "./credit.js";
 import { DrizzleAutoTopupSettingsRepository } from "./auto-topup-settings-repository.js";
+import { Credit } from "./credit.js";
 
 describe("DrizzleAutoTopupSettingsRepository", () => {
   let pool: PGlite;

@@ -20,12 +20,12 @@ export { DrizzleNotificationPreferencesStore } from "./notification-preferences-
 export type { INotificationQueueRepository } from "./notification-queue-store.js";
 export { DrizzleNotificationQueueStore } from "./notification-queue-store.js";
 export type {
-  NotificationPrefs,
-  NotificationStatus,
-  QueuedNotification,
   NotificationEmailType,
   NotificationInput,
+  NotificationPrefs,
   NotificationRow,
+  NotificationStatus,
+  QueuedNotification,
 } from "./notification-repository-types.js";
 export { NotificationService } from "./notification-service.js";
 export type { TemplateName as NotificationTemplateName } from "./notification-templates.js";

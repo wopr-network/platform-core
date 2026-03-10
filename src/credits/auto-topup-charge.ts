@@ -1,9 +1,9 @@
 import Stripe from "stripe";
 import { logger } from "../config/logger.js";
-import type { Credit } from "./credit.js";
-import type { ITenantCustomerRepository } from "./tenant-customer-repository.js";
 import type { IAutoTopupEventLogRepository } from "./auto-topup-event-log-repository.js";
+import type { Credit } from "./credit.js";
 import type { ICreditLedger } from "./credit-ledger.js";
+import type { ITenantCustomerRepository } from "./tenant-customer-repository.js";
 
 /** After this many consecutive Stripe failures, the auto-topup mode is disabled. */
 export const MAX_CONSECUTIVE_FAILURES = 3;

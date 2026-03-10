@@ -10,7 +10,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { PlatformDb } from "../db/index.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
 import { DrizzleRateLimitRepository } from "./drizzle-rate-limit-repository.js";
-import type { IRateLimitRepository } from "./rate-limit-repository.js";
 import {
   getClientIp,
   parseTrustedProxies,
@@ -19,6 +18,7 @@ import {
   rateLimit,
   rateLimitByRoute,
 } from "./rate-limit.js";
+import type { IRateLimitRepository } from "./rate-limit-repository.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

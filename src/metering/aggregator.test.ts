@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Credit } from "../credits/credit.js";
 import type { PlatformDb } from "../db/index.js";
 import { meterEvents, usageSummaries } from "../db/schema/meter-events.js";
 import { createTestDb } from "../test/db.js";
-import { Credit } from "../credits/credit.js";
 import { DrizzleMeterAggregator } from "./aggregator.js";
 import { DrizzleUsageSummaryRepository } from "./drizzle-usage-summary-repository.js";
 

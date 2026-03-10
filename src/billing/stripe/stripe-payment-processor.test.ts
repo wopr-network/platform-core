@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Credit } from "../../credits/credit.js";
 import type { IAutoTopupEventLogRepository } from "../../credits/auto-topup-event-log-repository.js";
+import { Credit } from "../../credits/credit.js";
 import type { CreditTransaction, ICreditLedger } from "../../credits/credit-ledger.js";
 import { PaymentMethodOwnershipError } from "../payment-processor.js";
 import type { CreditPriceMap } from "./credit-prices.js";
@@ -309,7 +309,6 @@ describe("StripePaymentProcessor", () => {
         tenantRepo: mocks.tenantRepo,
         webhookSecret: "whsec_test",
         creditLedger: mocks.creditLedger,
-  
       });
 
       await expect(
@@ -447,7 +446,7 @@ describe("StripePaymentProcessor", () => {
         tenantRepo: mocks.tenantRepo,
         webhookSecret: "whsec_test",
         creditLedger: mocks.creditLedger,
-  
+
         priceMap,
       });
 

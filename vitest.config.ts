@@ -4,5 +4,9 @@ export default defineConfig({
   test: {
     testTimeout: 30000,
     include: ["src/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary", "json"],
+    },
   },
 });

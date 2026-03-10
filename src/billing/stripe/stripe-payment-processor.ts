@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
-import { Credit } from "../../credits/credit.js";
 import { chargeAutoTopup } from "../../credits/auto-topup-charge.js";
 import type { IAutoTopupEventLogRepository } from "../../credits/auto-topup-event-log-repository.js";
+import { Credit } from "../../credits/credit.js";
 import type { ICreditLedger } from "../../credits/credit-ledger.js";
 import {
   type ChargeOpts,

@@ -9,6 +9,7 @@ export {
   computeNextScheduleAt,
   DrizzleAutoTopupSettingsRepository,
 } from "./auto-topup-settings-repository.js";
+export { Credit } from "./credit.js";
 export type { CreditExpiryCronConfig, CreditExpiryCronResult } from "./credit-expiry-cron.js";
 export { runCreditExpiryCron } from "./credit-expiry-cron.js";
 export type {
@@ -21,5 +22,4 @@ export type {
 } from "./credit-ledger.js";
 export { CreditLedger, DrizzleCreditLedger, InsufficientBalanceError } from "./credit-ledger.js";
 export { grantSignupCredits, SIGNUP_GRANT } from "./signup-grant.js";
-export { Credit } from "./credit.js";
 export type { ITenantCustomerRepository, TenantCustomerRow } from "./tenant-customer-repository.js";

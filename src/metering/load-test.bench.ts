@@ -1,9 +1,9 @@
 import { unlinkSync } from "node:fs";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, bench, describe } from "vitest";
+import { Credit } from "../credits/credit.js";
 import type { PlatformDb } from "../db/index.js";
 import { createTestDb } from "../test/db.js";
-import { Credit } from "../credits/credit.js";
 import { MeterAggregator } from "./aggregator.js";
 import { DrizzleUsageSummaryRepository } from "./drizzle-usage-summary-repository.js";
 import { MeterEmitter } from "./emitter.js";
