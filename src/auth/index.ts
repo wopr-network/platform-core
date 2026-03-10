@@ -518,3 +518,34 @@ export async function validateTenantAccess(
   const member = await orgMemberRepo.findMember(requestedTenantId, userId);
   return member !== null;
 }
+
+// ---------------------------------------------------------------------------
+// Re-exports — Better Auth factory, middleware, and repositories
+// ---------------------------------------------------------------------------
+
+export type { IApiKeyRepository } from "./api-key-repository.js";
+export { DrizzleApiKeyRepository } from "./api-key-repository.js";
+export type {
+  Auth,
+  AuthRateLimitRule,
+  BetterAuthConfig,
+  OAuthProvider,
+} from "./better-auth.js";
+// Test utilities — do not call in production code
+export {
+  getAuth,
+  getEmailVerifier,
+  initBetterAuth,
+  resetAuth,
+  resetUserCreator,
+  runAuthMigrations,
+  setAuth,
+} from "./better-auth.js";
+export type { ILoginHistoryRepository, LoginHistoryEntry } from "./login-history-repository.js";
+export { BetterAuthLoginHistoryRepository } from "./login-history-repository.js";
+export type { SessionAuthEnv } from "./middleware.js";
+export { dualAuth, sessionAuth } from "./middleware.js";
+export type { IUserCreator } from "./user-creator.js";
+export { createUserCreator } from "./user-creator.js";
+export type { IUserRoleRepository } from "./user-role-repository.js";
+export { DrizzleUserRoleRepository } from "./user-role-repository.js";
