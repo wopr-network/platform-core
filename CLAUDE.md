@@ -22,6 +22,7 @@ src/
   app/
     (auth)/           # Login, register, OAuth
     (dashboard)/      # Main app shell (authenticated)
+      changesets/     # Changeset list (/changesets) and detail (/changesets/[id]) pages
     auth/             # Auth API routes
     channels/         # Channel management pages
     fleet/            # Multi-bot fleet view
@@ -45,7 +46,7 @@ src/
     sidebar.tsx       # App sidebar
     ui/               # Base design system components
   hooks/              # Custom React hooks
-  lib/                # Shared utilities, auth config
+  lib/                # Shared utilities, auth config, feature API modules (e.g. changeset-api.ts, changeset-types.ts)
   proxy.ts            # Auth middleware (better-auth)
 ```
 
@@ -139,8 +140,9 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **Error hierarchy:** `AppError` (base) > `ApiError` (HTTP errors), `ValidationError` (form/input), `NetworkError` (fetch failures). All in `src/lib/errors.ts`. Use `toUserMessage(err)` in catch blocks to extract display text.
 - **401 handling:** `src/lib/fetch-utils.ts` exports `handleUnauthorized()` — redirects to `/login?reason=expired&callbackUrl=...` and throws `UnauthorizedError`.
 - **CapabilityResolver:** Never build per-capability bespoke UI. Plugins declare abstract capabilities and the platform resolves them generically. See `src/__tests__/capability-resolver.test.tsx` for the pattern.
-- **Error boundaries:** Use React error boundaries for route-level crash isolation. See `src/__tests__/error-boundaries.test.ts` for existing coverage.
+- **Error boundaries:** Use React error boundaries for route-level crash isolation. **Mandatory colocated `error.tsx`** for every major route segment (e.g., `/changesets`, `/billing`, `/marketplace`, `/settings`). A missing error boundary causes crashes to bubble to the parent boundary. See `src/__tests__/error-boundaries.test.ts` for existing coverage.
 - **Compile-time type assertions:** `src/__tests__/trpc-types.test.ts` uses `Assert<T extends true>` types so that `tsc --noEmit` catches missing router namespaces/procedures at compile time. The `expect(true).toBe(true)` calls are intentionally trivial — the real gate is the type checker, not the runtime assertion. Do not remove or "fix" these.
+- **Next.js 15/16 dynamic route params:** Dynamic route params are typed as `Promise<{ ... }>` and must be awaited at the top of server components: `const { id } = await params;`. This is the correct Next.js 15/16 pattern; older linters may flag it incorrectly as a violation.
 
 ## Gotchas
 
@@ -148,6 +150,7 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **Middleware utilities must not override response headers:** Helper functions like `withCsp()` should never unconditionally set headers that route handlers might need to customize (e.g., `Cache-Control`). Routes (especially admin routes) should set their own headers _before_ calling middleware utilities.
 - **Fetch cache options:** Use `next: { revalidate: 60 }` (ISR) instead of `cache: 'no-store'` for dynamic data fetches — `no-store` disables static rendering and causes e2e webserver startup timeouts. Apply ISR to pricing, pricing checks, and other infrequently-changing data.
 - **Testing:** Components using `useQueryClient()` must be wrapped in `QueryClientProvider` in tests — use a `renderWithQueryClient` helper, never bare `render()`. **Wrap ALL renders in the test file consistently** — missed wraps cause intermittent failures.
+- **Detail page inline sub-components:** When building detail pages with multiple status badge variants and content blocks (e.g., diff rendering), define inline helper components within the main client component file, separated by clear section comments (`/* --- ... ---*/`). This avoids premature abstraction while keeping related logic co-located and easy to test as a unit.
 - **e2e backend requirement:** Playwright e2e tests require a backend server on port 3001. CI's e2e step does not auto-start the backend — you must start the platform server separately or the e2e step will fail on webServer timeout unrelated to code changes. Local: `pnpm dev` in `wopr-platform` repo while running e2e tests.
 - **tRPC hook mocking:** When migrating API calls to tRPC, mock the tRPC hooks directly (`vi.mock("@/lib/trpc", { trpc: { ... } })`) not the old `@/lib/api` functions — mocking the wrong abstraction causes tests to pass silently without testing anything. Also add `apiFetch: vi.fn()` to any `@/lib/api` mocks to prevent import failures.
 - **Animation/motion mocking:** Components using `framer-motion`, `useImageStatus`, or similar async motion libraries should be mocked in tests to prevent spurious failures unrelated to the feature under test.
@@ -157,6 +160,8 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **No `motion.tr`:** Framer Motion height animations don't work on `<tr>` elements (browser layout limitation). Use `motion.div` inside a `<td colSpan={...}>` wrapper instead.
 - **Revealed secrets above error guards:** Any "show once" revealed value (e.g., API keys) must render ABOVE `loadError`/early-return guards — otherwise a transient list reload failure permanently hides the secret the user just created.
 - **Optimistic delete rollback:** On rollback in a catch block, call `load()` to re-fetch fresh state instead of restoring a stale pre-delete snapshot — the snapshot may already be outdated.
+- **Null-safe API response fields:** When API responses have nullable fields (e.g., `patch: string | null` for binary files), render an explicit user-facing fallback (e.g., "No diff available" or "Binary file") rather than crashing or silently omitting content. This is especially important for list/detail views where the absence of data should not break the UI.
+- **Next.js App Router stale request safety:** Dynamic route segments that receive IDs from server components naturally prevent stale request bugs during navigation. When the route changes, React remounts the component with the new ID, making request tracking via ref counters unnecessary in this architecture. This differs from SPA patterns where the same component instance persists across navigations.
 
 ## Pre-Commit Checklist
 
