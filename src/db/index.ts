@@ -18,3 +18,4 @@ export function createDb(pool: Pool): PlatformDb {
 }
 
 export { schema };
+export { creditColumn } from "./credit-column.js";

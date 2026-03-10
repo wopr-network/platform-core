@@ -5,6 +5,7 @@ export * from "./admin-users.js";
 export * from "./affiliate.js";
 export * from "./affiliate-fraud.js";
 export * from "./coupon-codes.js";
+export * from "./credits.js";
 export * from "./credit-auto-topup.js";
 export * from "./credit-auto-topup-settings.js";
 export * from "./dividend-distributions.js";
