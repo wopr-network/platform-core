@@ -85,6 +85,39 @@ describe("tRPC procedure builders", () => {
       const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
       expect(await caller.protectedHello()).toBe("protected-ok");
     });
+
+    it("rejects session users with forged tenantId (not a member)", async () => {
+      const repo = makeMockRepo({ findMember: vi.fn().mockResolvedValue(null) });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: "org-evil" });
+      await expect(caller.protectedHello()).rejects.toThrow("Not authorized for this tenant");
+    });
+
+    it("allows session users with valid tenantId (personal tenant)", async () => {
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: "u1" });
+      expect(await caller.protectedHello()).toBe("protected-ok");
+    });
+
+    it("allows session users with valid tenantId (org member)", async () => {
+      const repo = makeMockRepo({
+        findMember: vi.fn().mockResolvedValue({ id: "m1", orgId: "org-1", userId: "u1", role: "member", joinedAt: 0 }),
+      });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: "org-1" });
+      expect(await caller.protectedHello()).toBe("protected-ok");
+    });
+
+    it("allows bearer-token users with any tenantId without org check", async () => {
+      const caller = createCaller({ user: { id: "token:admin", roles: ["admin"] }, tenantId: "any-tenant" });
+      expect(await caller.protectedHello()).toBe("protected-ok");
+    });
+
+    it("allows authenticated requests without tenantId", async () => {
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
+      expect(await caller.protectedHello()).toBe("protected-ok");
+    });
   });
 
   // -----------------------------------------------------------------------
