@@ -18,4 +18,6 @@ export function createDb(pool: Pool): PlatformDb {
 }
 
 export { schema };
+export type { AuthUser, IAuthUserRepository } from "./auth-user-repository.js";
+export { BetterAuthUserRepository } from "./auth-user-repository.js";
 export { creditColumn } from "./credit-column.js";

@@ -631,4 +631,88 @@ describe("OrgService", () => {
       await expect(svc.removeMember(org.id, owner, admin)).resolves.not.toThrow();
     });
   });
+
+  describe("buildOrgWithMembers member resolution", () => {
+    it("resolves member name and email from userRepo when provided", async () => {
+      await pool.query(
+        `CREATE TABLE IF NOT EXISTS "user" (id TEXT PRIMARY KEY, name TEXT, email TEXT, image TEXT, "twoFactorEnabled" BOOLEAN DEFAULT false)`,
+      );
+      await pool.query(
+        `INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name = $2, email = $3`,
+        ["resolve-user-1", "Alice Smith", "alice@example.com"],
+      );
+
+      const { orgRepo, memberRepo } = await setup(db);
+      const userRepo = {
+        getUser: async (userId: string) => {
+          const { rows } = await pool.query<{
+            id: string;
+            name: string;
+            email: string;
+            image: string | null;
+            twoFactorEnabled: boolean;
+          }>(`SELECT id, name, email, image, "twoFactorEnabled" FROM "user" WHERE id = $1`, [userId]);
+          return rows[0] ?? null;
+        },
+        updateUser: vi.fn(),
+        changePassword: vi.fn(),
+        listAccounts: vi.fn(),
+        unlinkAccount: vi.fn(),
+      };
+      const svc = new OrgService(orgRepo, memberRepo, db, { userRepo });
+      const org = await orgRepo.createOrg("resolve-user-1", "Resolve Org", "resolve-org");
+      await memberRepo.addMember({
+        id: "m-resolve-1",
+        orgId: org.id,
+        userId: "resolve-user-1",
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const result = await svc.getOrg(org.id);
+      expect(result.members[0].name).toBe("Alice Smith");
+      expect(result.members[0].email).toBe("alice@example.com");
+    });
+
+    it("falls back to userId/empty when userRepo returns null (deleted user)", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const userRepo = {
+        getUser: async () => null,
+        updateUser: vi.fn(),
+        changePassword: vi.fn(),
+        listAccounts: vi.fn(),
+        unlinkAccount: vi.fn(),
+      };
+      const svc = new OrgService(orgRepo, memberRepo, db, { userRepo });
+      const org = await orgRepo.createOrg("ghost-user", "Ghost Org", "ghost-org");
+      await memberRepo.addMember({
+        id: "m-ghost-1",
+        orgId: org.id,
+        userId: "ghost-user",
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const result = await svc.getOrg(org.id);
+      expect(result.members[0].name).toBe("ghost-user");
+      expect(result.members[0].email).toBe("");
+    });
+
+    it("falls back to userId/empty when no userRepo is provided (backward compat)", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db); // no userRepo
+      const org = await orgRepo.createOrg("compat-user", "Compat Org", "compat-org");
+      await memberRepo.addMember({
+        id: "m-compat-1",
+        orgId: org.id,
+        userId: "compat-user",
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const result = await svc.getOrg(org.id);
+      expect(result.members[0].name).toBe("compat-user");
+      expect(result.members[0].email).toBe("");
+    });
+  });
 });
