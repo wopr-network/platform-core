@@ -46,6 +46,47 @@ describe("assertSafeRedirectUrl", () => {
     expect(() => assertSafeRedirectUrl("")).toThrow("Invalid redirect URL");
   });
 
+  it("rejects https://example.com", () => {
+    expect(() => assertSafeRedirectUrl("https://example.com/callback")).toThrow("Invalid redirect URL");
+  });
+
+  describe("EXTRA_ALLOWED_REDIRECT_ORIGINS env-driven entries", () => {
+    beforeEach(() => {
+      vi.resetModules();
+    });
+
+    afterEach(() => {
+      delete process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS;
+      vi.resetModules();
+    });
+
+    it("allows origins listed in EXTRA_ALLOWED_REDIRECT_ORIGINS", async () => {
+      process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS = "https://staging.wopr.bot";
+      const { assertSafeRedirectUrl: assertSafe } = await import("./redirect-allowlist.js");
+      expect(() => assertSafe("https://staging.wopr.bot/billing")).not.toThrow();
+    });
+
+    it("allows multiple comma-separated origins", async () => {
+      process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS = "https://staging.wopr.bot,https://preview.wopr.bot";
+      const { assertSafeRedirectUrl: assertSafe } = await import("./redirect-allowlist.js");
+      expect(() => assertSafe("https://staging.wopr.bot/billing")).not.toThrow();
+      expect(() => assertSafe("https://preview.wopr.bot/dashboard")).not.toThrow();
+    });
+
+    it("ignores empty/whitespace entries in comma-separated list", async () => {
+      process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS = "https://staging.wopr.bot, , ,";
+      const { assertSafeRedirectUrl: assertSafe } = await import("./redirect-allowlist.js");
+      expect(() => assertSafe("https://staging.wopr.bot/billing")).not.toThrow();
+      expect(() => assertSafe("https://evil.com/phishing")).toThrow("Invalid redirect URL");
+    });
+
+    it("defaults to empty when env var is unset", async () => {
+      delete process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS;
+      const { assertSafeRedirectUrl: assertSafe } = await import("./redirect-allowlist.js");
+      expect(() => assertSafe("https://random.example.org")).toThrow("Invalid redirect URL");
+    });
+  });
+
   describe("PLATFORM_UI_URL env-driven entry", () => {
     beforeEach(() => {
       process.env.PLATFORM_UI_URL = "https://platform.example.com";
