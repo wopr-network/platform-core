@@ -8,6 +8,7 @@
  * at module import time (which breaks tests).
  */
 
+import { randomBytes } from "node:crypto";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import type { Pool } from "pg";
@@ -136,6 +137,7 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
     }
     logger.warn("BetterAuth secret not configured — sessions may be insecure");
   }
+  const effectiveSecret = secret || randomBytes(32).toString("hex");
   const baseURL = cfg.baseURL || process.env.BETTER_AUTH_URL || "http://localhost:3100";
   const basePath = cfg.basePath || "/api/auth";
   const cookieDomain = cfg.cookieDomain || process.env.COOKIE_DOMAIN;
@@ -152,7 +154,7 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
 
   return {
     database: pool,
-    secret: secret || "",
+    secret: effectiveSecret,
     baseURL,
     basePath,
     socialProviders: resolveSocialProviders(cfg),
