@@ -40,19 +40,23 @@ export class MeterWAL {
   }
 
   /**
-   * Append an event to the WAL. appendFileSync is atomic on POSIX (O_APPEND),
-   * so no mutex is needed here. Returns the event with a generated ID.
+   * Append an event to the WAL. Mutex-guarded to prevent TOCTOU races
+   * with remove(), which does a read-filter-rewrite that would clobber
+   * concurrent appends. Uses appendFileSync inside the lock for
+   * fail-closed crash safety (POSIX O_APPEND atomic write).
    */
-  append(event: MeterEvent & { id?: string }): MeterEvent & { id: string } {
-    const eventWithId = {
-      ...event,
-      id: event.id ?? crypto.randomUUID(),
-    };
+  async append(event: MeterEvent & { id?: string }): Promise<MeterEvent & { id: string }> {
+    return this.withLock(() => {
+      const eventWithId = {
+        ...event,
+        id: event.id ?? crypto.randomUUID(),
+      };
 
-    const line = `${JSON.stringify(eventWithId)}\n`;
-    appendFileSync(this.walPath, line, { encoding: "utf8", flag: "a" });
+      const line = `${JSON.stringify(eventWithId)}\n`;
+      appendFileSync(this.walPath, line, { encoding: "utf8", flag: "a" });
 
-    return eventWithId;
+      return eventWithId;
+    });
   }
 
   /**

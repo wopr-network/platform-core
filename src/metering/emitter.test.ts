@@ -65,7 +65,7 @@ describe("DrizzleMeterEmitter — happy path", () => {
   });
 
   it("writes a meter event to the database after flush", async () => {
-    emitter.emit(makeEvent({ tenant: "t1", capability: "voice" }));
+    await emitter.emit(makeEvent({ tenant: "t1", capability: "voice" }));
     expect(emitter.pending).toBe(1);
 
     const flushed = await emitter.flush();
@@ -81,9 +81,9 @@ describe("DrizzleMeterEmitter — happy path", () => {
   });
 
   it("persists multiple events in one flush", async () => {
-    emitter.emit(makeEvent({ tenant: "t1" }));
-    emitter.emit(makeEvent({ tenant: "t1" }));
-    emitter.emit(makeEvent({ tenant: "t2" }));
+    await emitter.emit(makeEvent({ tenant: "t1" }));
+    await emitter.emit(makeEvent({ tenant: "t1" }));
+    await emitter.emit(makeEvent({ tenant: "t2" }));
 
     const flushed = await emitter.flush();
     expect(flushed).toBe(3);
@@ -106,7 +106,7 @@ describe("DrizzleMeterEmitter — happy path", () => {
   });
 
   it("persists sessionId, duration, usage, tier, and metadata", async () => {
-    emitter.emit(
+    await emitter.emit(
       makeEvent({
         sessionId: "sess-1",
         duration: 5000,
@@ -142,7 +142,7 @@ describe("DrizzleMeterEmitter — DLQ failure paths", () => {
     });
     await em.ready;
 
-    em.emit(makeEvent());
+    await em.emit(makeEvent());
 
     // Drop the table so flush fails
     await failPool.query("DROP TABLE meter_events CASCADE");
@@ -176,7 +176,7 @@ describe("DrizzleMeterEmitter — DLQ failure paths", () => {
     });
     await em.ready;
 
-    em.emit(makeEvent());
+    await em.emit(makeEvent());
 
     // First flush fails
     await failPool.query("DROP TABLE meter_events CASCADE");

@@ -10,7 +10,7 @@ const DEFAULT_DLQ_PATH = process.env.METER_DLQ_PATH ?? "./data/meter-dlq.jsonl";
 const DEFAULT_MAX_RETRIES = config.billing.meterMaxRetries;
 
 export interface IMeterEmitter {
-  emit(event: MeterEvent): void;
+  emit(event: MeterEvent): void | Promise<void>;
   flush(): Promise<number>;
   readonly pending: number;
   close(): void;
@@ -123,13 +123,13 @@ export class DrizzleMeterEmitter implements IMeterEmitter {
   }
 
   /** Emit a meter event. Non-blocking -- buffers in memory after WAL write. */
-  emit(event: MeterEvent): void {
+  async emit(event: MeterEvent): Promise<void> {
     if (this.closed) return;
 
     // FAIL-CLOSED: Write to WAL first, then buffer.
-    // append() is synchronous (appendFileSync), so the WAL write completes
-    // before buffer.push() — crash safety is guaranteed.
-    const eventWithId = this.wal.append(event);
+    // append() is mutex-guarded to prevent TOCTOU races with remove().
+    // appendFileSync is still used inside the lock for crash safety.
+    const eventWithId = await this.wal.append(event);
     this.buffer.push(eventWithId);
 
     if (this.buffer.length >= this.batchSize) {
