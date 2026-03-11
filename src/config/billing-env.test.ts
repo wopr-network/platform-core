@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // Instead we test the schema shape by importing and re-parsing.
 
 describe("billing env validation", () => {
-  it("uses correct defaults when no env vars set", async () => {
+  it("uses correct defaults with affiliateBaseUrl provided", async () => {
     // Dynamic import to test schema defaults
     const { billingConfigSchema } = await import("./index.js");
     const result = billingConfigSchema.parse({ affiliateBaseUrl: "https://example.com/join?ref=" });
