@@ -1,11 +1,20 @@
 const STATIC_ORIGINS: string[] = ["https://app.wopr.bot", "https://wopr.network"];
 
+function parseExtraOrigins(): string[] {
+  const raw = process.env.EXTRA_ALLOWED_REDIRECT_ORIGINS;
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function getAllowedOrigins(): string[] {
   return [
     ...STATIC_ORIGINS,
     ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:3001"] : []),
     ...(process.env.PLATFORM_UI_URL ? [process.env.PLATFORM_UI_URL] : []),
-    ...(process.env.NODE_ENV !== "production" ? ["https://example.com"] : []),
+    ...parseExtraOrigins(),
   ];
 }
 
