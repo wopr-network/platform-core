@@ -104,7 +104,7 @@ describe("rateLimit", () => {
 
     expect(res.headers.get("X-RateLimit-Limit")).toBe("5");
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("4");
-    expect(res.headers.get("X-RateLimit-Reset")).toBeTruthy();
+    expect(res.headers.get("X-RateLimit-Reset")).toMatch(/^\d+$/);
   });
 
   it("sets Retry-After header on 429", async () => {
@@ -115,7 +115,7 @@ describe("rateLimit", () => {
 
     expect(res.status).toBe(429);
     const retryAfter = res.headers.get("Retry-After");
-    expect(retryAfter).toBeTruthy();
+    expect(retryAfter).toEqual(expect.any(String));
     expect(Number(retryAfter)).toBeGreaterThan(0);
   });
 

@@ -8,9 +8,9 @@ describe("renderNotificationTemplate", () => {
         email: "user@example.com",
         creditsUrl: "https://app.wopr.bot/billing/credits",
       });
-      expect(result.subject).toBeTruthy();
+      expect(result.subject).toMatch(/.+/);
       expect(result.html).toContain("<!DOCTYPE html>");
-      expect(result.text).toBeTruthy();
+      expect(result.text).toMatch(/.+/);
     });
   });
 

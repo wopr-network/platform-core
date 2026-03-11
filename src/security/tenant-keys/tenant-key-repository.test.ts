@@ -69,7 +69,7 @@ describe("TenantKeyRepository", () => {
     it("returns the full record including encrypted_key", async () => {
       await store.upsert("t1", "anthropic", fakeEncrypted);
       const record = await store.get("t1", "anthropic");
-      expect(record?.encrypted_key).toBeTruthy();
+      expect(record?.encrypted_key).toEqual(expect.any(String));
       const parsed = JSON.parse(record?.encrypted_key ?? "{}");
       expect(parsed.iv).toBe(fakeEncrypted.iv);
       expect(parsed.authTag).toBe(fakeEncrypted.authTag);

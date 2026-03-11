@@ -64,7 +64,7 @@ describe("DrizzleOrgRepository", () => {
   describe("listByUser", () => {
     it("returns orgs where user has a role (via userIds)", async () => {
       const org = await repo.createOrg("user-1", "Org A", "org-a");
-      expect(await repo.getById(org.id)).toBeTruthy();
+      expect(await repo.getById(org.id)).not.toBeNull();
     });
   });
 
