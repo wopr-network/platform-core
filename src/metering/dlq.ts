@@ -49,11 +49,21 @@ export class MeterDLQ {
       dlq_retries: number;
     }
   > {
-    if (!existsSync(this.dlqPath)) {
-      return [];
+    let content: string;
+    try {
+      content = readFileSync(this.dlqPath, "utf8");
+    } catch (err: unknown) {
+      if (
+        err !== null &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        return [];
+      }
+      throw err;
     }
 
-    const content = readFileSync(this.dlqPath, "utf8");
     if (!content.trim()) {
       return [];
     }
