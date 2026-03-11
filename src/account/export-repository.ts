@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountExportRequests } from "../db/schema/index.js";
 import type { ExportRequestRow, InsertExportRequest } from "./repository-types.js";
@@ -15,7 +15,7 @@ export interface IExportRepository {
   listByTenant(tenantId: string): Promise<ExportRequestRow[]>;
   markProcessing(id: string): Promise<boolean>;
   markCompleted(id: string, downloadUrl: string): Promise<boolean>;
-  markFailed(id: string, reason: string): Promise<boolean>;
+  markFailed(id: string): Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ export class DrizzleExportRepository implements IExportRepository {
       .update(accountExportRequests)
       .set({
         status: "processing",
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(accountExportRequests.id, id), eq(accountExportRequests.status, "pending")))
       .returning({ id: accountExportRequests.id });
@@ -63,19 +63,19 @@ export class DrizzleExportRepository implements IExportRepository {
       .set({
         status: "completed",
         downloadUrl,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(accountExportRequests.id, id), eq(accountExportRequests.status, "processing")))
       .returning({ id: accountExportRequests.id });
     return result.length > 0;
   }
 
-  async markFailed(id: string, _reason: string): Promise<boolean> {
+  async markFailed(id: string): Promise<boolean> {
     const result = await this.db
       .update(accountExportRequests)
       .set({
         status: "failed",
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(accountExportRequests.id, id), eq(accountExportRequests.status, "processing")))
       .returning({ id: accountExportRequests.id });
