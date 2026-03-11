@@ -8,6 +8,7 @@
  * at module import time (which breaks tests).
  */
 
+import { randomBytes } from "node:crypto";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import type { Pool } from "pg";
@@ -94,6 +95,10 @@ let _config: BetterAuthConfig | null = null;
 let _userCreator: IUserCreator | null = null;
 let _userCreatorPromise: Promise<IUserCreator> | null = null;
 
+// Ephemeral secret: generated once per process, reused across authOptions() calls.
+// Hoisted to module scope so resetAuth() (which nulls _auth) does not invalidate sessions.
+let _ephemeralSecret: string | null = null;
+
 export async function getUserCreator(): Promise<IUserCreator> {
   if (_userCreator) return _userCreator;
   if (!_userCreatorPromise) {
@@ -134,8 +139,10 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
     if (process.env.NODE_ENV === "production") {
       throw new Error("BETTER_AUTH_SECRET is required in production");
     }
-    logger.warn("BetterAuth secret not configured — sessions may be insecure");
+    logger.warn("BetterAuth secret not configured — sessions will be invalidated on restart");
   }
+  _ephemeralSecret ??= randomBytes(32).toString("hex");
+  const effectiveSecret = secret || _ephemeralSecret;
   const baseURL = cfg.baseURL || process.env.BETTER_AUTH_URL || "http://localhost:3100";
   const basePath = cfg.basePath || "/api/auth";
   const cookieDomain = cfg.cookieDomain || process.env.COOKIE_DOMAIN;
@@ -152,7 +159,7 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
 
   return {
     database: pool,
-    secret: secret || "",
+    secret: effectiveSecret,
     baseURL,
     basePath,
     socialProviders: resolveSocialProviders(cfg),
