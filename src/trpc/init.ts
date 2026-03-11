@@ -28,6 +28,9 @@ export interface TRPCContext {
 
 const t = initTRPC.context<TRPCContext>().create();
 
+/** Prefix used on user IDs for bearer-token-authenticated requests. */
+const BEARER_TOKEN_ID_PREFIX = "token:";
+
 // ---------------------------------------------------------------------------
 // Org member repo injection (for tenant access validation)
 // ---------------------------------------------------------------------------
@@ -47,10 +50,27 @@ export const publicProcedure = t.procedure;
  * Middleware that enforces authentication.
  * Narrows context so downstream resolvers get a non-optional `user`.
  */
-const isAuthed = t.middleware(({ ctx, next }) => {
+const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
   }
+
+  // Validate tenant access for session-cookie users when tenantId is present.
+  // Bearer token users (id starts with BEARER_TOKEN_ID_PREFIX) and platform_admin users
+  // have server-assigned or unrestricted tenantId — skip check.
+  if (ctx.tenantId && !ctx.user.id.startsWith(BEARER_TOKEN_ID_PREFIX) && !ctx.user.roles.includes("platform_admin")) {
+    if (!_orgMemberRepo) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Server misconfiguration: org member repository not wired",
+      });
+    }
+    const allowed = await validateTenantAccess(ctx.user.id, ctx.tenantId, _orgMemberRepo);
+    if (!allowed) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this tenant" });
+    }
+  }
+
   return next({ ctx: { user: ctx.user, tenantId: ctx.tenantId } });
 });
 
@@ -87,8 +107,9 @@ const isAuthedWithTenant = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant context required" });
   }
 
-  // Validate tenant access for session-cookie users (bearer token users have server-assigned tenantId).
-  if (!ctx.user.id.startsWith("token:")) {
+  // Validate tenant access for session-cookie users (bearer token users have server-assigned tenantId;
+  // platform_admin users have access to all tenants).
+  if (!ctx.user.id.startsWith(BEARER_TOKEN_ID_PREFIX) && !ctx.user.roles.includes("platform_admin")) {
     if (!_orgMemberRepo) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
