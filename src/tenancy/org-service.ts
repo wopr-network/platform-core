@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { logger } from "../config/logger.js";
+import type { IAuthUserRepository } from "../db/auth-user-repository.js";
 import type { PlatformDb } from "../db/index.js";
 import { organizationInvites, organizationMembers, tenants } from "../db/schema/index.js";
 import type { IOrgRepository, Tenant } from "./drizzle-org-repository.js";
@@ -47,10 +48,13 @@ export interface OrgInvitePublic {
 export interface OrgServiceOptions {
   /** Hook called inside deleteOrg transaction before members/invites/tenant rows are deleted. */
   onBeforeDeleteOrg?: (orgId: string, tx: PlatformDb) => Promise<void>;
+  /** Optional user profile resolver for populating member name/email. */
+  userRepo?: IAuthUserRepository;
 }
 
 export class OrgService {
   private readonly onBeforeDeleteOrg?: (orgId: string, tx: PlatformDb) => Promise<void>;
+  private readonly userRepo?: IAuthUserRepository;
 
   constructor(
     private readonly orgRepo: IOrgRepository,
@@ -59,6 +63,7 @@ export class OrgService {
     options?: OrgServiceOptions,
   ) {
     this.onBeforeDeleteOrg = options?.onBeforeDeleteOrg;
+    this.userRepo = options?.userRepo;
   }
 
   /**
@@ -254,16 +259,34 @@ export class OrgService {
   private async buildOrgWithMembers(tenant: Tenant): Promise<OrgWithMembers> {
     const members = await this.memberRepo.listMembers(tenant.id);
     const invites = await this.memberRepo.listInvites(tenant.id);
+
+    // Batch-resolve user profiles when a userRepo is available.
+    let profileMap: Map<string, { name: string; email: string }> | undefined;
+    const userRepo = this.userRepo;
+    if (userRepo) {
+      const results = await Promise.allSettled(members.map((m) => userRepo.getUser(m.userId)));
+      profileMap = new Map();
+      for (let i = 0; i < members.length; i++) {
+        const result = results[i];
+        if (result.status === "fulfilled" && result.value) {
+          profileMap.set(members[i].userId, { name: result.value.name, email: result.value.email });
+        }
+      }
+    }
+
     return {
       ...tenant,
-      members: members.map((m) => ({
-        id: m.id,
-        userId: m.userId,
-        name: m.userId, // name resolved from user context (placeholder until user profile lookup wired)
-        email: "", // email resolved from user context (placeholder)
-        role: m.role,
-        joinedAt: new Date(m.joinedAt).toISOString(),
-      })),
+      members: members.map((m) => {
+        const resolved = profileMap?.get(m.userId);
+        return {
+          id: m.id,
+          userId: m.userId,
+          name: resolved?.name ?? m.userId,
+          email: resolved?.email ?? "",
+          role: m.role,
+          joinedAt: new Date(m.joinedAt).toISOString(),
+        };
+      }),
       invites: invites.map((i) => ({
         id: i.id,
         email: i.email,
