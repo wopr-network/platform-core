@@ -161,6 +161,32 @@ describe("MeterWAL", () => {
     expect(tenants).not.toContain("t-2");
     expect(events).toHaveLength(2);
   });
+
+  it("concurrent appends and remove are serialized without data loss", async () => {
+    // Seed 2 events to remove
+    const e1 = await wal.append(makeEvent({ tenant: "seed-1" }));
+    const e2 = await wal.append(makeEvent({ tenant: "seed-2" }));
+
+    // Fire remove + 3 concurrent appends
+    const removePromise = wal.remove(new Set([e1.id, e2.id]));
+    const a1 = wal.append(makeEvent({ tenant: "new-1" }));
+    const a2 = wal.append(makeEvent({ tenant: "new-2" }));
+    const a3 = wal.append(makeEvent({ tenant: "new-3" }));
+
+    await Promise.all([removePromise, a1, a2, a3]);
+
+    const events = wal.readAll();
+    const tenants = events.map((e) => e.tenant);
+
+    // Seeded events must be gone
+    expect(tenants).not.toContain("seed-1");
+    expect(tenants).not.toContain("seed-2");
+    // All 3 new appends must survive
+    expect(tenants).toContain("new-1");
+    expect(tenants).toContain("new-2");
+    expect(tenants).toContain("new-3");
+    expect(events).toHaveLength(3);
+  });
 });
 
 describe("MeterDLQ", () => {
