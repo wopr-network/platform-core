@@ -262,13 +262,14 @@ export class OrgService {
 
     // Batch-resolve user profiles when a userRepo is available.
     let profileMap: Map<string, { name: string; email: string }> | undefined;
-    if (this.userRepo) {
-      const profiles = await Promise.all(members.map((m) => this.userRepo?.getUser(m.userId)));
+    const userRepo = this.userRepo;
+    if (userRepo) {
+      const results = await Promise.allSettled(members.map((m) => userRepo.getUser(m.userId)));
       profileMap = new Map();
       for (let i = 0; i < members.length; i++) {
-        const profile = profiles[i];
-        if (profile) {
-          profileMap.set(members[i].userId, { name: profile.name, email: profile.email });
+        const result = results[i];
+        if (result.status === "fulfilled" && result.value) {
+          profileMap.set(members[i].userId, { name: result.value.name, email: result.value.email });
         }
       }
     }
