@@ -27,6 +27,9 @@ export async function reEncryptAllCredentials(
   oldSecret: string,
   newSecret: string,
 ): Promise<RotationResult> {
+  assertNotPlaceholder(oldSecret);
+  assertNotPlaceholder(newSecret);
+
   const result: RotationResult = {
     providerCredentials: { migrated: 0, errors: [] },
     tenantKeys: { migrated: 0, errors: [] },

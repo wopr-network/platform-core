@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { getVaultEncryptionKey } from "./credential-vault/store.js";
 import { decrypt, deriveInstanceKey, encrypt, generateInstanceKey } from "./encryption.js";
 
 describe("encryption", () => {
@@ -37,7 +38,17 @@ describe("encryption", () => {
     });
 
     it("throws for REPLACE_ME sentinel", () => {
-      expect(() => deriveInstanceKey("instance-1", "REPLACE_ME")).toThrow("platform secret is a placeholder");
+      expect(() => deriveInstanceKey("instance-1", "REPLACE_ME")).toThrow(
+        "PLATFORM_ENCRYPTION_SECRET is a placeholder",
+      );
+    });
+
+    it("throws for empty string", () => {
+      expect(() => deriveInstanceKey("instance-1", "")).toThrow("PLATFORM_ENCRYPTION_SECRET is a placeholder");
+    });
+
+    it("throws for whitespace-only string", () => {
+      expect(() => deriveInstanceKey("instance-1", "   ")).toThrow("PLATFORM_ENCRYPTION_SECRET is a placeholder");
     });
 
     it("throws for placeholder sentinels (case-insensitive, trimmed)", () => {
@@ -52,7 +63,7 @@ describe("encryption", () => {
         "password",
       ];
       for (const s of sentinels) {
-        expect(() => deriveInstanceKey("instance-1", s)).toThrow("platform secret is a placeholder");
+        expect(() => deriveInstanceKey("instance-1", s)).toThrow("PLATFORM_ENCRYPTION_SECRET is a placeholder");
       }
     });
 
@@ -64,6 +75,30 @@ describe("encryption", () => {
       const a = deriveInstanceKey("instance-1", "secret-a");
       const b = deriveInstanceKey("instance-1", "secret-b");
       expect(a.equals(b)).toBe(false);
+    });
+  });
+
+  describe("getVaultEncryptionKey", () => {
+    it("throws for REPLACE_ME sentinel", () => {
+      expect(() => getVaultEncryptionKey("REPLACE_ME")).toThrow("PLATFORM_ENCRYPTION_SECRET is a placeholder");
+    });
+
+    it("throws for known placeholder sentinels", () => {
+      for (const s of ["changeme", "secret", "password", "todo"]) {
+        expect(() => getVaultEncryptionKey(s)).toThrow("PLATFORM_ENCRYPTION_SECRET is a placeholder");
+      }
+    });
+
+    it("returns a 32-byte buffer for a real secret", () => {
+      const key = getVaultEncryptionKey("my-real-production-secret");
+      expect(key).toBeInstanceOf(Buffer);
+      expect(key.length).toBe(32);
+    });
+
+    it("generates a random key when no secret is provided", () => {
+      const key = getVaultEncryptionKey();
+      expect(key).toBeInstanceOf(Buffer);
+      expect(key.length).toBe(32);
     });
   });
 

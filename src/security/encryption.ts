@@ -22,10 +22,9 @@ const PLACEHOLDER_SECRETS = [
 ];
 
 export function assertNotPlaceholder(secret: string): void {
-  if (PLACEHOLDER_SECRETS.includes(secret.trim().toLowerCase())) {
-    throw new Error(
-      `Refusing to derive key: platform secret is a placeholder ("${secret.trim()}"). Set a real secret.`,
-    );
+  const trimmed = secret.trim();
+  if (!trimmed || PLACEHOLDER_SECRETS.includes(trimmed.toLowerCase())) {
+    throw new Error("Refusing to derive key: PLATFORM_ENCRYPTION_SECRET is a placeholder value — set a real secret.");
   }
 }
 
