@@ -6,7 +6,16 @@ function parseExtraOrigins(): string[] {
   return raw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((entry) => {
+      try {
+        new URL(entry);
+        return true;
+      } catch {
+        console.warn(`[redirect-allowlist] Malformed entry in EXTRA_ALLOWED_REDIRECT_ORIGINS, skipping: ${entry}`);
+        return false;
+      }
+    });
 }
 
 function getAllowedOrigins(): string[] {
@@ -14,7 +23,7 @@ function getAllowedOrigins(): string[] {
     ...STATIC_ORIGINS,
     ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:3001"] : []),
     ...(process.env.PLATFORM_UI_URL ? [process.env.PLATFORM_UI_URL] : []),
-    ...parseExtraOrigins(),
+    ...(process.env.NODE_ENV !== "production" ? parseExtraOrigins() : []),
   ];
 }
 
