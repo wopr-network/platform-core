@@ -5,12 +5,37 @@ const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 16;
 const KEY_BYTES = 32;
 
+const PLACEHOLDER_SECRETS = [
+  "replace_me",
+  "changeme",
+  "secret",
+  "placeholder",
+  "your-key-here",
+  "your_key_here",
+  "xxx",
+  "todo",
+  "fixme",
+  "test",
+  "example",
+  "default",
+  "password",
+];
+
+export function assertNotPlaceholder(secret: string): void {
+  if (PLACEHOLDER_SECRETS.includes(secret.trim().toLowerCase())) {
+    throw new Error(
+      `Refusing to derive key: platform secret is a placeholder ("${secret.trim()}"). Set a real secret.`,
+    );
+  }
+}
+
 /**
  * Derive a per-instance encryption key from the instance ID and a platform secret.
  * Uses HMAC-SHA256 so the platform never stores the raw key — it's deterministic
  * from (instanceId + platformSecret) but the secret lives only in Docker secrets.
  */
 export function deriveInstanceKey(instanceId: string, platformSecret: string): Buffer {
+  assertNotPlaceholder(platformSecret);
   return createHmac("sha256", platformSecret).update(instanceId).digest();
 }
 

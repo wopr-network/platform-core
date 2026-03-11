@@ -1,11 +1,12 @@
 import { createHmac } from "node:crypto";
-import { decrypt, encrypt } from "../encryption.js";
+import { assertNotPlaceholder, decrypt, encrypt } from "../encryption.js";
 import type { EncryptedPayload } from "../types.js";
 import type { ICredentialMigrationAccess, IMigrationTenantKeyAccess } from "./credential-repository.js";
 import { getVaultEncryptionKey } from "./store.js";
 
 /** Derive a per-tenant encryption key (duplicated from tenant-keys route to avoid circular deps). */
 function deriveTenantKey(tenantId: string, platformSecret: string): Buffer {
+  assertNotPlaceholder(platformSecret);
   return createHmac("sha256", platformSecret).update(`tenant:${tenantId}`).digest();
 }
 

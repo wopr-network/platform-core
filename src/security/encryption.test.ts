@@ -25,15 +25,39 @@ describe("encryption", () => {
     });
 
     it("is deterministic for the same inputs", () => {
-      const a = deriveInstanceKey("instance-123", "secret");
-      const b = deriveInstanceKey("instance-123", "secret");
+      const a = deriveInstanceKey("instance-123", "test-secret-key");
+      const b = deriveInstanceKey("instance-123", "test-secret-key");
       expect(a.equals(b)).toBe(true);
     });
 
     it("differs for different instance IDs", () => {
-      const a = deriveInstanceKey("instance-1", "secret");
-      const b = deriveInstanceKey("instance-2", "secret");
+      const a = deriveInstanceKey("instance-1", "test-secret-key");
+      const b = deriveInstanceKey("instance-2", "test-secret-key");
       expect(a.equals(b)).toBe(false);
+    });
+
+    it("throws for REPLACE_ME sentinel", () => {
+      expect(() => deriveInstanceKey("instance-1", "REPLACE_ME")).toThrow("platform secret is a placeholder");
+    });
+
+    it("throws for placeholder sentinels (case-insensitive, trimmed)", () => {
+      const sentinels = [
+        "changeme",
+        "secret",
+        "placeholder",
+        "your-key-here",
+        " SECRET ",
+        "CHANGEME",
+        "todo",
+        "password",
+      ];
+      for (const s of sentinels) {
+        expect(() => deriveInstanceKey("instance-1", s)).toThrow("platform secret is a placeholder");
+      }
+    });
+
+    it("allows non-sentinel secrets", () => {
+      expect(() => deriveInstanceKey("instance-1", "my-real-production-key")).not.toThrow();
     });
 
     it("differs for different secrets", () => {
