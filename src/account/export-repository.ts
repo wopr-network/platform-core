@@ -15,7 +15,7 @@ export interface IExportRepository {
   listByTenant(tenantId: string): Promise<ExportRequestRow[]>;
   markProcessing(id: string): Promise<boolean>;
   markCompleted(id: string, downloadUrl: string): Promise<boolean>;
-  markFailed(id: string): Promise<boolean>;
+  markFailed(id: string, errorMessage?: string): Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ export class DrizzleExportRepository implements IExportRepository {
     return result.length > 0;
   }
 
-  async markFailed(id: string): Promise<boolean> {
+  async markFailed(id: string, _errorMessage?: string): Promise<boolean> {
     const result = await this.db
       .update(accountExportRequests)
       .set({
