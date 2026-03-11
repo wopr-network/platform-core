@@ -116,11 +116,12 @@ export class CredentialVaultStore implements ICredentialVaultStore {
       ip: ip ?? null,
     };
     // Fire-and-forget — audit must never break primary operations
-    this.secretAuditRepo.insert(event).catch((err) => {
+    this.secretAuditRepo.insert(event).catch((err: unknown) => {
       logger.error("Failed to insert secret audit log entry", {
-        error: err,
+        error: err instanceof Error ? err.message : String(err),
         credentialId,
         action,
+        accessedBy,
       });
     });
   }
