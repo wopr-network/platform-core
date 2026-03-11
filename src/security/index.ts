@@ -26,7 +26,7 @@ export {
   reEncryptAllCredentials,
   type SecretAuditEvent,
 } from "./credential-vault/index.js";
-export { decrypt, deriveInstanceKey, encrypt, generateInstanceKey } from "./encryption.js";
+export { assertNotPlaceholder, decrypt, deriveInstanceKey, encrypt, generateInstanceKey } from "./encryption.js";
 export { validateNodeHost } from "./host-validation.js";
 export type { KeyLeakMatch } from "./key-audit.js";
 export { scanForKeyLeaks } from "./key-audit.js";

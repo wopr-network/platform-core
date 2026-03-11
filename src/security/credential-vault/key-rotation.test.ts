@@ -103,6 +103,22 @@ describe("reEncryptAllCredentials", () => {
     expect(result.providerCredentials.errors[0]).toContain("cred-2");
   });
 
+  it("throws immediately when oldSecret is a sentinel", async () => {
+    const credAccess = new DrizzleCredentialRepository(db);
+    const tenantKeyAccess = new DrizzleMigrationTenantKeyAccess(db);
+    await expect(reEncryptAllCredentials(credAccess, tenantKeyAccess, "REPLACE_ME", NEW_SECRET)).rejects.toThrow(
+      "PLATFORM_ENCRYPTION_SECRET is a placeholder",
+    );
+  });
+
+  it("throws immediately when newSecret is a sentinel", async () => {
+    const credAccess = new DrizzleCredentialRepository(db);
+    const tenantKeyAccess = new DrizzleMigrationTenantKeyAccess(db);
+    await expect(reEncryptAllCredentials(credAccess, tenantKeyAccess, OLD_SECRET, "changeme")).rejects.toThrow(
+      "PLATFORM_ENCRYPTION_SECRET is a placeholder",
+    );
+  });
+
   it("returns zero counts when tables are empty", async () => {
     const credAccess = new DrizzleCredentialRepository(db);
     const tenantKeyAccess = new DrizzleMigrationTenantKeyAccess(db);

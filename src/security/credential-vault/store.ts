@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { AdminAuditLog } from "../../admin/audit-log.js";
 import { logger } from "../../config/logger.js";
-import { decrypt, encrypt, generateInstanceKey } from "../encryption.js";
+import { assertNotPlaceholder, decrypt, encrypt, generateInstanceKey } from "../encryption.js";
 import type { EncryptedPayload } from "../types.js";
 import type { ISecretAuditRepository, SecretAuditEvent } from "./audit-repository.js";
 import type { ICredentialRepository } from "./credential-repository.js";
@@ -286,6 +286,7 @@ export class CredentialVaultStore implements ICredentialVaultStore {
  */
 export function getVaultEncryptionKey(platformSecret?: string): Buffer {
   if (platformSecret) {
+    assertNotPlaceholder(platformSecret);
     return createHmac("sha256", platformSecret).update("credential-vault").digest();
   }
   return generateInstanceKey();
