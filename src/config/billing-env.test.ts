@@ -8,8 +8,9 @@ describe("billing env validation", () => {
   it("uses correct defaults when no env vars set", async () => {
     // Dynamic import to test schema defaults
     const { billingConfigSchema } = await import("./index.js");
-    const result = billingConfigSchema.parse({});
+    const result = billingConfigSchema.parse({ affiliateBaseUrl: "https://example.com/join?ref=" });
     expect(result).toEqual({
+      affiliateBaseUrl: "https://example.com/join?ref=",
       affiliateMatchRate: 1.0,
       affiliateMaxReferrals30d: 20,
       affiliateMaxMatchCredits30d: 20000,
@@ -19,9 +20,21 @@ describe("billing env validation", () => {
     });
   });
 
+  it("allows missing AFFILIATE_BASE_URL (server still boots without it)", async () => {
+    const { billingConfigSchema } = await import("./index.js");
+    const result = billingConfigSchema.parse({});
+    expect(result.affiliateBaseUrl).toBeUndefined();
+  });
+
+  it("rejects empty AFFILIATE_BASE_URL", async () => {
+    const { billingConfigSchema } = await import("./index.js");
+    expect(() => billingConfigSchema.parse({ affiliateBaseUrl: "" })).toThrow();
+  });
+
   it("coerces valid string values to numbers", async () => {
     const { billingConfigSchema } = await import("./index.js");
     const result = billingConfigSchema.parse({
+      affiliateBaseUrl: "https://example.com/join?ref=",
       affiliateMatchRate: "0.5",
       affiliateMaxReferrals30d: "10",
       affiliateMaxMatchCredits30d: "5000",
