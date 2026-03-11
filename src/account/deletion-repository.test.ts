@@ -2,6 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PlatformDb } from "../db/index.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
+import { DrizzleDeletionExecutorRepository } from "./deletion-executor-repository.js";
 import type { InsertDeletionRequest } from "./deletion-repository.js";
 import { DrizzleDeletionRepository } from "./deletion-repository.js";
 
@@ -20,6 +21,7 @@ describe("DrizzleDeletionRepository", () => {
   let pool: PGlite;
   let db: PlatformDb;
   let repo: DrizzleDeletionRepository;
+  let executorRepo: DrizzleDeletionExecutorRepository;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -32,6 +34,7 @@ describe("DrizzleDeletionRepository", () => {
   beforeEach(async () => {
     await truncateAllTables(pool);
     repo = new DrizzleDeletionRepository(db);
+    executorRepo = new DrizzleDeletionExecutorRepository(db);
   });
 
   describe("insert + getById", () => {
@@ -87,7 +90,7 @@ describe("DrizzleDeletionRepository", () => {
 
     it("returns false when request is already completed", async () => {
       await repo.insert(makeRow({ id: "c2" }));
-      await pool.query(`UPDATE account_deletion_requests SET status = 'completed' WHERE id = 'c2'`);
+      await executorRepo.markCompleted("c2", "{}");
       expect(await repo.cancel("c2", "Too late")).toBe(false);
     });
 

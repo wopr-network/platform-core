@@ -1,32 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountDeletionRequests } from "../db/schema/index.js";
+import type { DeletionRequestRow, InsertDeletionRequest } from "./repository-types.js";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface DeletionRequestRow {
-  id: string;
-  tenantId: string;
-  requestedBy: string;
-  status: string;
-  deleteAfter: string;
-  reason: string | null;
-  cancelReason: string | null;
-  completedAt: string | null;
-  deletionSummary: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface InsertDeletionRequest {
-  id: string;
-  tenantId: string;
-  requestedBy: string;
-  deleteAfter: string;
-  reason?: string;
-}
+export type { DeletionRequestRow, InsertDeletionRequest };
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -76,7 +53,7 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
       .set({
         status: "cancelled",
         cancelReason,
-        updatedAt: new Date().toISOString(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(accountDeletionRequests.id, id), eq(accountDeletionRequests.status, "pending")))
       .returning({ id: accountDeletionRequests.id });
@@ -88,12 +65,12 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
 // Row mapper
 // ---------------------------------------------------------------------------
 
-function toRow(row: typeof accountDeletionRequests.$inferSelect): DeletionRequestRow {
+export function toRow(row: typeof accountDeletionRequests.$inferSelect): DeletionRequestRow {
   return {
     id: row.id,
     tenantId: row.tenantId,
     requestedBy: row.requestedBy,
-    status: row.status,
+    status: row.status as DeletionRequestRow["status"],
     deleteAfter: row.deleteAfter,
     reason: row.reason,
     cancelReason: row.cancelReason,

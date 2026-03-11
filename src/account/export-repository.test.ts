@@ -117,7 +117,7 @@ describe("DrizzleExportRepository", () => {
     it("transitions processing to failed", async () => {
       await repo.insert(makeRow({ id: "mf-1" }));
       await repo.markProcessing("mf-1");
-      expect(await repo.markFailed("mf-1")).toBe(true);
+      expect(await repo.markFailed("mf-1", "export worker crashed")).toBe(true);
 
       const row = await repo.getById("mf-1");
       expect(row?.status).toBe("failed");
@@ -125,11 +125,11 @@ describe("DrizzleExportRepository", () => {
 
     it("returns false when not in processing state", async () => {
       await repo.insert(makeRow({ id: "mf-2" }));
-      expect(await repo.markFailed("mf-2")).toBe(false);
+      expect(await repo.markFailed("mf-2", "export worker crashed")).toBe(false);
     });
 
     it("returns false for non-existent ID", async () => {
-      expect(await repo.markFailed("missing")).toBe(false);
+      expect(await repo.markFailed("missing", "export worker crashed")).toBe(false);
     });
   });
 });

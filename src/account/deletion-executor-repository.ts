@@ -1,7 +1,8 @@
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountDeletionRequests } from "../db/schema/index.js";
-import type { DeletionRequestRow } from "./deletion-repository.js";
+import { toRow } from "./deletion-repository.js";
+import type { DeletionRequestRow } from "./repository-types.js";
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -36,9 +37,9 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
       .update(accountDeletionRequests)
       .set({
         status: "completed",
-        completedAt: new Date().toISOString(),
+        completedAt: sql`now()`,
         deletionSummary,
-        updatedAt: new Date().toISOString(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(accountDeletionRequests.id, id), eq(accountDeletionRequests.status, "pending")))
       .returning({ id: accountDeletionRequests.id });
@@ -54,24 +55,4 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
     const row = rows[0];
     return row ? toRow(row) : null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Row mapper (reuses DeletionRequestRow type from deletion-repository)
-// ---------------------------------------------------------------------------
-
-function toRow(row: typeof accountDeletionRequests.$inferSelect): DeletionRequestRow {
-  return {
-    id: row.id,
-    tenantId: row.tenantId,
-    requestedBy: row.requestedBy,
-    status: row.status,
-    deleteAfter: row.deleteAfter,
-    reason: row.reason,
-    cancelReason: row.cancelReason,
-    completedAt: row.completedAt,
-    deletionSummary: row.deletionSummary,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
 }

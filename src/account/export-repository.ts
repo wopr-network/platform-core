@@ -1,28 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountExportRequests } from "../db/schema/index.js";
+import type { ExportRequestRow, InsertExportRequest } from "./repository-types.js";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface ExportRequestRow {
-  id: string;
-  tenantId: string;
-  requestedBy: string;
-  status: string;
-  format: string;
-  downloadUrl: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface InsertExportRequest {
-  id: string;
-  tenantId: string;
-  requestedBy: string;
-  format?: string;
-}
+export type { ExportRequestRow, InsertExportRequest };
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -34,7 +15,7 @@ export interface IExportRepository {
   listByTenant(tenantId: string): Promise<ExportRequestRow[]>;
   markProcessing(id: string): Promise<boolean>;
   markCompleted(id: string, downloadUrl: string): Promise<boolean>;
-  markFailed(id: string): Promise<boolean>;
+  markFailed(id: string, reason: string): Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +70,7 @@ export class DrizzleExportRepository implements IExportRepository {
     return result.length > 0;
   }
 
-  async markFailed(id: string): Promise<boolean> {
+  async markFailed(id: string, _reason: string): Promise<boolean> {
     const result = await this.db
       .update(accountExportRequests)
       .set({
@@ -111,7 +92,7 @@ function toRow(row: typeof accountExportRequests.$inferSelect): ExportRequestRow
     id: row.id,
     tenantId: row.tenantId,
     requestedBy: row.requestedBy,
-    status: row.status,
+    status: row.status as ExportRequestRow["status"],
     format: row.format,
     downloadUrl: row.downloadUrl,
     createdAt: row.createdAt,
