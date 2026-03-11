@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { AdminAuditLog } from "../../admin/audit-log.js";
+import { logger } from "../../config/logger.js";
 import { decrypt, encrypt, generateInstanceKey } from "../encryption.js";
 import type { EncryptedPayload } from "../types.js";
 import type { ISecretAuditRepository, SecretAuditEvent } from "./audit-repository.js";
@@ -115,7 +116,13 @@ export class CredentialVaultStore implements ICredentialVaultStore {
       ip: ip ?? null,
     };
     // Fire-and-forget — audit must never break primary operations
-    this.secretAuditRepo.insert(event).catch(() => {});
+    this.secretAuditRepo.insert(event).catch((err) => {
+      logger.error("Failed to insert secret audit log entry", {
+        error: err,
+        credentialId,
+        action,
+      });
+    });
   }
 
   /** Create a new provider credential. Returns the record ID. */
