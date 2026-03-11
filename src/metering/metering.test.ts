@@ -210,10 +210,10 @@ describe("MeterEmitter", () => {
 
   it("auto-flushes when batch size is reached", async () => {
     const smallBatch = makeEmitter(db, { flushIntervalMs: 60_000, batchSize: 3 });
-    smallBatch.emit(makeEvent());
-    smallBatch.emit(makeEvent());
+    await smallBatch.emit(makeEvent());
+    await smallBatch.emit(makeEvent());
     // Third event triggers auto-flush.
-    smallBatch.emit(makeEvent());
+    await smallBatch.emit(makeEvent());
 
     const rows = (await db.select({ cnt: sql<number>`COUNT(*)` }).from(meterEvents))[0];
     expect(rows?.cnt).toBe(3);
@@ -1064,7 +1064,7 @@ describe("MeterEmitter - fail-closed policy", () => {
   });
 
   it("writes events to WAL before buffering", async () => {
-    emitter.emit(makeEvent({ tenant: "t-1" }));
+    await emitter.emit(makeEvent({ tenant: "t-1" }));
 
     // WAL should exist immediately.
     expect(existsSync(TEST_WAL_PATH)).toBe(true);
@@ -1079,7 +1079,7 @@ describe("MeterEmitter - fail-closed policy", () => {
   });
 
   it("clears WAL after successful flush", async () => {
-    emitter.emit(makeEvent({ tenant: "t-1" }));
+    await emitter.emit(makeEvent({ tenant: "t-1" }));
     expect(existsSync(TEST_WAL_PATH)).toBe(true);
 
     await emitter.flush();
@@ -1305,7 +1305,7 @@ describe("MeterEmitter - fail-closed policy", () => {
         tier: "wopr",
         metadata: { foo: "bar" },
       });
-      emitter.emit(event);
+      await emitter.emit(event);
       // WAL should persist new fields
       const walContent = readFileSync(TEST_WAL_PATH, "utf8");
       const walEvent = JSON.parse(walContent.trim());
