@@ -72,9 +72,9 @@ test.describe("Auth critical path", () => {
 		});
 
 		// Expect the "Transmission sent" verification interstitial (no redirect — stays on /signup)
-		await expect(page.getByText("Transmission sent")).toBeVisible();
-		await expect(page.getByText("We sent a verification link to")).toBeVisible();
-		await expect(page.getByText(email)).toBeVisible();
+		await expect(page.getByText("Transmission sent").first()).toBeVisible();
+		await expect(page.getByText("We sent a verification link to").first()).toBeVisible();
+		await expect(page.getByText(email).first()).toBeVisible();
 	});
 
 	test("login — fill form, submit, arrive at marketplace", async ({ page }) => {
@@ -85,8 +85,8 @@ test.describe("Auth critical path", () => {
 		await bypassOnboarding(page);
 
 		// Fill login form
-		await page.getByLabel("Email").fill("e2e@wopr.test");
-		await page.getByLabel("Password").fill("TestPassword123!");
+		await page.getByLabel("Email").first().fill("e2e@wopr.test");
+		await page.getByLabel("Password").first().fill("TestPassword123!");
 
 		// Submit
 		await page.getByRole("button", { name: "Sign in" }).click();
@@ -121,14 +121,14 @@ test.describe("Auth critical path", () => {
 		await page.goto("/forgot-password");
 
 		// Fill the email
-		await page.getByLabel("Email").fill(email);
+		await page.getByLabel("Email").first().fill(email);
 
 		// Submit
 		await page.getByRole("button", { name: "Send reset link" }).click();
 
 		// Expect the "Transmission sent" confirmation
-		await expect(page.getByText("Transmission sent")).toBeVisible();
-		await expect(page.getByText("We sent a password reset link to")).toBeVisible();
-		await expect(page.getByText(email)).toBeVisible();
+		await expect(page.getByText("Transmission sent").first()).toBeVisible();
+		await expect(page.getByText("We sent a password reset link to").first()).toBeVisible();
+		await expect(page.getByText(email).first()).toBeVisible();
 	});
 });

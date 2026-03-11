@@ -7,8 +7,8 @@ test.describe("Auth flows", () => {
 		await bypassOnboarding(page);
 
 		// Fill login form
-		await page.getByLabel("Email").fill("e2e@wopr.test");
-		await page.getByLabel("Password").fill("TestPassword123!");
+		await page.getByLabel("Email").first().fill("e2e@wopr.test");
+		await page.getByLabel("Password").first().fill("TestPassword123!");
 
 		// Submit
 		await page.getByRole("button", { name: "Sign in" }).click();
@@ -35,26 +35,26 @@ test.describe("Auth flows", () => {
 		await page.goto("/forgot-password");
 
 		// 2. Submit email
-		await page.getByLabel("Email").fill(email);
+		await page.getByLabel("Email").first().fill(email);
 		await page.getByRole("button", { name: "Send reset link" }).click();
 
 		// 3. Verify "Transmission sent" interstitial
-		await expect(page.getByText("Transmission sent")).toBeVisible();
-		await expect(page.getByText("We sent a password reset link to")).toBeVisible();
-		await expect(page.getByText(email)).toBeVisible();
+		await expect(page.getByText("Transmission sent").first()).toBeVisible();
+		await expect(page.getByText("We sent a password reset link to").first()).toBeVisible();
+		await expect(page.getByText(email).first()).toBeVisible();
 
 		// 4. Navigate to reset-password with a mock token
 		await page.goto("/reset-password?token=mock-reset-token-123");
 
 		// 5. Verify the reset form renders (not "Access denied")
-		await expect(page.getByText("Set new credentials")).toBeVisible();
-		await expect(page.getByLabel("New password")).toBeVisible();
-		await expect(page.getByLabel("Confirm password")).toBeVisible();
+		await expect(page.getByText("Set new credentials").first()).toBeVisible();
+		await expect(page.getByLabel("New password").first()).toBeVisible();
+		await expect(page.getByLabel("Confirm password").first()).toBeVisible();
 
 		// 6. Submit new password
 		const newPassword = "NewStr0ngP@ssword!";
-		await page.getByLabel("New password").fill(newPassword);
-		await page.getByLabel("Confirm password").fill(newPassword);
+		await page.getByLabel("New password").first().fill(newPassword);
+		await page.getByLabel("Confirm password").first().fill(newPassword);
 		await page.getByRole("button", { name: "Reset password" }).click();
 
 		// 7. Verify redirect to login
@@ -77,7 +77,7 @@ test.describe("Auth flows", () => {
 		await page.goto("/login");
 
 		// 1. Verify OAuth buttons render (requires enabledSocialProviders mock)
-		await expect(page.getByText("or continue with")).toBeVisible();
+		await expect(page.getByText("or continue with").first()).toBeVisible();
 		await expect(page.getByRole("button", { name: "Continue with GitHub" })).toBeVisible();
 
 		// 2. Click GitHub OAuth button and intercept the redirect
@@ -117,7 +117,7 @@ test.describe("Auth flows", () => {
 		// 5. Verify the callback page shows spinner then redirects to an authenticated page.
 		// After OAuth, the app redirects to /onboarding for new users or /marketplace for
 		// users whose onboarding is already complete (localStorage flag or org exists).
-		await expect(page.getByText("Completing sign in with github")).toBeVisible();
+		await expect(page.getByText("Completing sign in with github").first()).toBeVisible();
 		await page.waitForURL(/\/(onboarding|marketplace)/, { timeout: 5000 });
 		await expect(page).toHaveURL(/\/(onboarding|marketplace)/);
 	});
@@ -129,8 +129,8 @@ test.describe("Auth flows", () => {
 		await page.goto("/auth/callback/github?error=access_denied");
 
 		// Verify error UI renders
-		await expect(page.getByText("Authentication failed")).toBeVisible();
-		await expect(page.getByText("Could not sign in with github")).toBeVisible();
+		await expect(page.getByText("Authentication failed").first()).toBeVisible();
+		await expect(page.getByText("Could not sign in with github").first()).toBeVisible();
 
 		// Verify "Back to sign in" link
 		await expect(page.getByRole("link", { name: "Back to sign in" })).toBeVisible();
@@ -155,14 +155,14 @@ test.describe("Auth flows", () => {
 		await page.goto("/auth/verify?status=success");
 
 		// Verify success UI
-		await expect(page.getByText("Email verified")).toBeVisible();
-		await expect(page.getByText("Your email has been verified successfully.")).toBeVisible();
+		await expect(page.getByText("Email verified").first()).toBeVisible();
+		await expect(page.getByText("Your email has been verified successfully.").first()).toBeVisible();
 
 		// Verify $5 signup credit message
-		await expect(page.getByText("$5 signup credit")).toBeVisible();
+		await expect(page.getByText("$5 signup credit").first()).toBeVisible();
 
 		// Verify countdown text is visible
-		await expect(page.getByText(/Redirecting in/)).toBeVisible();
+		await expect(page.getByText(/Redirecting in/).first()).toBeVisible();
 
 		// Verify "Continue to setup" link exists as fallback
 		await expect(page.getByRole("link", { name: "Continue to setup" })).toBeVisible();
@@ -178,8 +178,8 @@ test.describe("Auth flows", () => {
 		await page.goto("/auth/verify?status=error&reason=token-expired&email=test@wopr.test");
 
 		// Verify error UI
-		await expect(page.getByText("Link expired")).toBeVisible();
-		await expect(page.getByText("This verification link has expired.")).toBeVisible();
+		await expect(page.getByText("Link expired").first()).toBeVisible();
+		await expect(page.getByText("This verification link has expired.").first()).toBeVisible();
 
 		// Verify resend button is shown (since email param is provided)
 		await expect(page.getByRole("button", { name: /resend/i })).toBeVisible();
@@ -190,7 +190,7 @@ test.describe("Auth flows", () => {
 
 		await page.goto("/auth/verify?status=error&reason=invalid-token");
 
-		await expect(page.getByText("Invalid link")).toBeVisible();
-		await expect(page.getByText("This verification link is invalid or malformed.")).toBeVisible();
+		await expect(page.getByText("Invalid link").first()).toBeVisible();
+		await expect(page.getByText("This verification link is invalid or malformed.").first()).toBeVisible();
 	});
 });

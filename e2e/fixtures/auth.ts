@@ -237,8 +237,8 @@ export const test = base.extend<{ authedPage: Page }>({
 		await bypassOnboarding(page);
 
 		// Perform login via the form
-		await page.getByLabel("Email").fill("e2e@wopr.test");
-		await page.getByLabel("Password").fill("TestPassword123!");
+		await page.getByLabel("Email").first().fill("e2e@wopr.test");
+		await page.getByLabel("Password").first().fill("TestPassword123!");
 		await page.getByRole("button", { name: "Sign in" }).click();
 
 		// Wait for redirect to complete (middleware redirects / -> /marketplace)
