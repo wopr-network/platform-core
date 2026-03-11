@@ -28,6 +28,9 @@ export interface TRPCContext {
 
 const t = initTRPC.context<TRPCContext>().create();
 
+/** Prefix used on user IDs for bearer-token-authenticated requests. */
+const BEARER_TOKEN_ID_PREFIX = "token:";
+
 // ---------------------------------------------------------------------------
 // Org member repo injection (for tenant access validation)
 // ---------------------------------------------------------------------------
@@ -53,8 +56,9 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
   }
 
   // Validate tenant access for session-cookie users when tenantId is present.
-  // Bearer token users (id starts with "token:") have server-assigned tenantId — skip check.
-  if (ctx.tenantId && !ctx.user.id.startsWith("token:")) {
+  // Bearer token users (id starts with BEARER_TOKEN_ID_PREFIX) and platform_admin users
+  // have server-assigned or unrestricted tenantId — skip check.
+  if (ctx.tenantId && !ctx.user.id.startsWith(BEARER_TOKEN_ID_PREFIX) && !ctx.user.roles.includes("platform_admin")) {
     if (!_orgMemberRepo) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -103,8 +107,9 @@ const isAuthedWithTenant = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant context required" });
   }
 
-  // Validate tenant access for session-cookie users (bearer token users have server-assigned tenantId).
-  if (!ctx.user.id.startsWith("token:")) {
+  // Validate tenant access for session-cookie users (bearer token users have server-assigned tenantId;
+  // platform_admin users have access to all tenants).
+  if (!ctx.user.id.startsWith(BEARER_TOKEN_ID_PREFIX) && !ctx.user.roles.includes("platform_admin")) {
     if (!_orgMemberRepo) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",

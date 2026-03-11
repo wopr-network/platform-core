@@ -118,6 +118,14 @@ describe("tRPC procedure builders", () => {
       const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
       expect(await caller.protectedHello()).toBe("protected-ok");
     });
+
+    it("allows platform_admin users with any tenantId without org check", async () => {
+      const repo = makeMockRepo({ findMember: vi.fn().mockResolvedValue(null) });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "admin1", roles: ["platform_admin"] }, tenantId: "any-tenant" });
+      expect(await caller.protectedHello()).toBe("protected-ok");
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -188,6 +196,14 @@ describe("tRPC procedure builders", () => {
 
       const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: "org-other" });
       await expect(caller.tenantHello()).rejects.toThrow("Not authorized for this tenant");
+    });
+
+    it("allows platform_admin users to access any tenant without org check", async () => {
+      const repo = makeMockRepo({ findMember: vi.fn().mockResolvedValue(null) });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "admin1", roles: ["platform_admin"] }, tenantId: "any-tenant" });
+      expect(await caller.tenantHello()).toBe("tenant-ok");
     });
   });
 
