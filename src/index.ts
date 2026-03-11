@@ -1,5 +1,8 @@
 // Database
 
+// Account (GDPR)
+export * from "./account/index.js";
+
 // Admin
 export * from "./admin/index.js";
 // Auth
