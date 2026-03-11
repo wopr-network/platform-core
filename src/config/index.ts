@@ -8,6 +8,7 @@ const platformConfigSchema = z.object({
   /** Billing / affiliate / metering numeric env vars — validated at startup. */
   billing: z
     .object({
+      affiliateBaseUrl: z.string().trim().url().optional(),
       affiliateMatchRate: z.coerce.number().min(0).max(10).default(1.0),
       affiliateMaxReferrals30d: z.coerce.number().int().min(0).default(20),
       affiliateMaxMatchCredits30d: z.coerce.number().int().min(0).default(20000),
@@ -32,6 +33,7 @@ export const config = platformConfigSchema.parse({
   nodeEnv: process.env.NODE_ENV,
   logLevel: process.env.LOG_LEVEL,
   billing: {
+    affiliateBaseUrl: process.env.AFFILIATE_BASE_URL,
     affiliateMatchRate: process.env.AFFILIATE_MATCH_RATE,
     affiliateMaxReferrals30d: process.env.AFFILIATE_MAX_REFERRALS_30D,
     affiliateMaxMatchCredits30d: process.env.AFFILIATE_MAX_MATCH_CREDITS_30D,
