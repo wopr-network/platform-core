@@ -94,14 +94,19 @@ let _config: BetterAuthConfig | null = null;
 let _userCreator: IUserCreator | null = null;
 let _userCreatorPromise: Promise<IUserCreator> | null = null;
 
-async function getUserCreator(): Promise<IUserCreator> {
+export async function getUserCreator(): Promise<IUserCreator> {
   if (_userCreator) return _userCreator;
   if (!_userCreatorPromise) {
     if (!_config) throw new Error("BetterAuth not initialized — call initBetterAuth() first");
-    _userCreatorPromise = createUserCreator(new RoleStore(_config.db)).then((creator) => {
-      _userCreator = creator;
-      return creator;
-    });
+    _userCreatorPromise = createUserCreator(new RoleStore(_config.db))
+      .then((creator) => {
+        _userCreator = creator;
+        return creator;
+      })
+      .catch((err) => {
+        _userCreatorPromise = null;
+        throw err;
+      });
   }
   return _userCreatorPromise;
 }

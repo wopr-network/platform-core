@@ -535,6 +535,7 @@ export type {
 export {
   getAuth,
   getEmailVerifier,
+  getUserCreator,
   initBetterAuth,
   resetAuth,
   resetUserCreator,
