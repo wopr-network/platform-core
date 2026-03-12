@@ -85,7 +85,7 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
       .update(accountDeletionRequests)
       .set({
         status: "completed",
-        completedAt: sql`now()`,
+        completedAt: sql`now()::text`,
         deletionSummary: summary,
         updatedAt: sql`now()`,
       })
@@ -96,7 +96,9 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
     const rows = await this.db
       .select()
       .from(accountDeletionRequests)
-      .where(and(eq(accountDeletionRequests.status, "pending"), lte(accountDeletionRequests.deleteAfter, sql`now()`)));
+      .where(
+        and(eq(accountDeletionRequests.status, "pending"), lte(accountDeletionRequests.deleteAfter, sql`now()::text`)),
+      );
     return rows.map(toRow);
   }
 

@@ -93,7 +93,7 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
       .update(accountDeletionRequests)
       .set({
         status: "completed",
-        completedAt: sql`now()`,
+        completedAt: sql`now()::text`,
         deletionSummary,
         updatedAt: sql`now()`,
       })
