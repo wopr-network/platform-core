@@ -1,23 +1,23 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MeterDLQ } from "./dlq.js";
 
 describe("MeterDLQ", () => {
+  let parentDir: string;
   let tmpDir: string;
   let dlqPath: string;
 
   beforeEach(() => {
-    tmpDir = path.join(os.tmpdir(), `wopr-dlq-test-${Date.now()}`);
+    parentDir = mkdtempSync(path.join(tmpdir(), "wopr-dlq-test-"));
+    tmpDir = path.join(parentDir, "dlq");
     dlqPath = path.join(tmpDir, "meter-dlq.jsonl");
   });
 
   afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
+    rmSync(parentDir, { recursive: true, force: true });
   });
 
   it("creates the directory when it does not exist", () => {

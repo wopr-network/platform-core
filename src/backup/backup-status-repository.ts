@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { count as countFn, desc, eq, sql } from "drizzle-orm";
 import type { DrizzleDb } from "../db/index.js";
 import { backupStatus } from "../db/schema/backup-status.js";
 import type { BackupStatusRow, IBackupStatusRepository } from "./repository-types.js";
@@ -71,8 +71,8 @@ export class DrizzleBackupStatusRepository implements IBackupStatusRepository {
   }
 
   async count(): Promise<number> {
-    const rows = await this.db.select().from(backupStatus);
-    return rows.length;
+    const rows = await this.db.select({ value: countFn() }).from(backupStatus);
+    return Number(rows[0].value);
   }
 }
 

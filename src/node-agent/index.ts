@@ -162,10 +162,12 @@ export class NodeAgent {
       node_secret: string;
     };
 
-    // Persist credentials to disk so agent survives restarts
-    this.config.nodeId = result.node_id;
-    this.config.nodeSecret = result.node_secret;
-    await this.saveCredentials(result.node_id, result.node_secret);
+    const nodeId = sanitizeCredentialField(result.node_id, "node_id");
+    const nodeSecret = sanitizeCredentialField(result.node_secret, "node_secret");
+
+    this.config.nodeId = nodeId;
+    this.config.nodeSecret = nodeSecret;
+    await this.saveCredentials(nodeId, nodeSecret);
 
     logger.info(`Registered as ${result.node_id}, credentials saved`);
   }
@@ -388,6 +390,20 @@ export class NodeAgent {
       this.ws.send(JSON.stringify(payload));
     }
   }
+}
+
+/** Validate a credential field received from the network. */
+function sanitizeCredentialField(value: unknown, name: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${name}: expected non-empty string`);
+  }
+  if (value.includes("..") || value.includes("/") || value.includes("\\") || value.includes("\0")) {
+    throw new Error(`Invalid ${name}: contains forbidden characters`);
+  }
+  if (value.length > 1024) {
+    throw new Error(`Invalid ${name}: exceeds maximum length`);
+  }
+  return value;
 }
 
 /** Get the first non-loopback IPv4 address. */

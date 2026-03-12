@@ -337,8 +337,10 @@ export class SnapshotManager {
 
 /** Extract the last path segment (works with or without trailing slash) */
 function getBasename(p: string): string {
-  const segments = p.replace(/\/+$/, "").split("/");
-  return segments[segments.length - 1];
+  let end = p.length;
+  while (end > 0 && p[end - 1] === "/") end--;
+  const lastSlash = p.lastIndexOf("/", end - 1);
+  return p.slice(lastSlash + 1, end);
 }
 
 export class SnapshotNotFoundError extends Error {

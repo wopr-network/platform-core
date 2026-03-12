@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
@@ -18,8 +18,7 @@ import { createTestDb, truncateAllTables } from "../../test/db.js";
 
 // Each test file gets its own temp directory to prevent cross-file WAL interference
 // when vitest runs test files in parallel.
-const FILE_TEMP_DIR = join(tmpdir(), `meter-test-mon-${process.pid}-${Date.now()}`);
-mkdirSync(FILE_TEMP_DIR, { recursive: true });
+const FILE_TEMP_DIR = mkdtempSync(join(tmpdir(), "meter-test-mon-"));
 let walCounter = 0;
 
 function makeEmitter(db: DrizzleDb, opts: ConstructorParameters<typeof MeterEmitter>[1] = {}): MeterEmitter {
@@ -102,8 +101,8 @@ describe("MeterEmitter", () => {
   let db: DrizzleDb;
   let pool: PGlite;
   let emitter: MeterEmitter;
-  const TEST_WAL_PATH = `/tmp/wopr-test-wal-${Date.now()}.jsonl`;
-  const TEST_DLQ_PATH = `/tmp/wopr-test-dlq-${Date.now()}.jsonl`;
+  const TEST_WAL_PATH = join(FILE_TEMP_DIR, `wal-emitter-${Date.now()}.jsonl`);
+  const TEST_DLQ_PATH = join(FILE_TEMP_DIR, `dlq-emitter-${Date.now()}.jsonl`);
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());

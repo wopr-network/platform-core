@@ -1,5 +1,4 @@
 const NODE_ID_PATTERN = /^[\w-]+$/;
-const URL_PATTERN = /^https?:\/\/[\w./:]+$/;
 const SECRET_PATTERN = /^[\w._~-]+$/;
 const MODEL_NAME_PATTERN = /^[\w./-]+$/;
 
@@ -22,7 +21,13 @@ export function generateGpuCloudInit(params: GpuCloudInitParams): string {
   if (!NODE_ID_PATTERN.test(params.nodeId)) {
     throw new Error(`Invalid nodeId: ${params.nodeId}`);
   }
-  if (!URL_PATTERN.test(params.platformUrl)) {
+  try {
+    const parsed = new URL(params.platformUrl);
+    if (parsed.protocol !== "https:") {
+      throw new Error(`platformUrl must use https: ${params.platformUrl}`);
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("platformUrl must use https:")) throw e;
     throw new Error(`Invalid platformUrl: ${params.platformUrl}`);
   }
   if (!SECRET_PATTERN.test(params.gpuNodeSecret)) {

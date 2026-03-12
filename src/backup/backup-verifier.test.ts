@@ -1,5 +1,6 @@
-import { createWriteStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { createWriteStream, mkdtempSync, rmSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -12,7 +13,7 @@ vi.mock("../config/logger.js", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
 }));
 
-const TEST_DIR = "/tmp/backup-verifier-test";
+let TEST_DIR: string;
 
 function makeSpacesClient(opts: {
   list?: () => Promise<Array<{ path: string; size: number; date: string }>>;
@@ -46,12 +47,12 @@ async function writeInvalidFile(localPath: string): Promise<void> {
 }
 
 describe("BackupVerifier", () => {
-  beforeEach(async () => {
-    await mkdir(TEST_DIR, { recursive: true });
+  beforeEach(() => {
+    TEST_DIR = mkdtempSync(join(tmpdir(), "backup-verifier-test-"));
   });
 
-  afterEach(async () => {
-    await rm(TEST_DIR, { recursive: true, force: true });
+  afterEach(() => {
+    rmSync(TEST_DIR, { recursive: true, force: true });
   });
 
   it("returns empty report when prefix list fails", async () => {

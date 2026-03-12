@@ -10,31 +10,20 @@ export class DrizzleRateLimitRepository implements IRateLimitRepository {
   async increment(key: string, scope: string, windowMs: number): Promise<RateLimitEntry> {
     const now = Date.now();
 
-    // Check if existing entry is within the current window
-    const rows = await this.db
-      .select()
-      .from(rateLimitEntries)
-      .where(and(eq(rateLimitEntries.key, key), eq(rateLimitEntries.scope, scope)));
-    const existing = rows[0];
-
-    if (existing && now - existing.windowStart < windowMs) {
-      // Within window: increment
-      await this.db
-        .update(rateLimitEntries)
-        .set({ count: sql`${rateLimitEntries.count} + 1` })
-        .where(and(eq(rateLimitEntries.key, key), eq(rateLimitEntries.scope, scope)));
-      return { key, scope, count: existing.count + 1, windowStart: existing.windowStart };
-    }
-
-    // New window (or first request): upsert with count = 1
-    await this.db
+    const result = await this.db
       .insert(rateLimitEntries)
       .values({ key, scope, count: 1, windowStart: now })
       .onConflictDoUpdate({
         target: [rateLimitEntries.key, rateLimitEntries.scope],
-        set: { count: 1, windowStart: now },
-      });
-    return { key, scope, count: 1, windowStart: now };
+        set: {
+          count: sql`CASE WHEN ${now} - ${rateLimitEntries.windowStart} < ${windowMs} THEN ${rateLimitEntries.count} + 1 ELSE 1 END`,
+          windowStart: sql`CASE WHEN ${now} - ${rateLimitEntries.windowStart} < ${windowMs} THEN ${rateLimitEntries.windowStart} ELSE ${now} END`,
+        },
+      })
+      .returning();
+
+    const row = result[0];
+    return { key: row.key, scope: row.scope, count: row.count, windowStart: row.windowStart };
   }
 
   async get(key: string, scope: string): Promise<RateLimitEntry | null> {

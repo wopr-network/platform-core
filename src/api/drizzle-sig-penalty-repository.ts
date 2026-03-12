@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type { DrizzleDb } from "../db/index.js";
 import { webhookSigPenalties } from "../db/schema/index.js";
 import type { SigPenalty } from "./repository-types.js";
@@ -19,20 +19,28 @@ export class DrizzleSigPenaltyRepository implements ISigPenaltyRepository {
 
   async recordFailure(ip: string, source: string): Promise<SigPenalty> {
     const now = Date.now();
-    const existing = await this.get(ip, source);
-    const failures = (existing?.failures ?? 0) + 1;
-    const backoffMs = Math.min(1000 * 2 ** failures, MAX_BACKOFF_MS);
-    const blockedUntil = now + backoffMs;
 
-    await this.db
+    const result = await this.db
       .insert(webhookSigPenalties)
-      .values({ ip, source, failures, blockedUntil, updatedAt: now })
+      .values({ ip, source, failures: 1, blockedUntil: now + Math.min(1000 * 2 ** 1, MAX_BACKOFF_MS), updatedAt: now })
       .onConflictDoUpdate({
         target: [webhookSigPenalties.ip, webhookSigPenalties.source],
-        set: { failures, blockedUntil, updatedAt: now },
-      });
+        set: {
+          failures: sql`${webhookSigPenalties.failures} + 1`,
+          blockedUntil: sql`${now} + LEAST(1000 * POWER(2, ${webhookSigPenalties.failures} + 1), ${MAX_BACKOFF_MS})`,
+          updatedAt: sql`${now}`,
+        },
+      })
+      .returning();
 
-    return { ip, source, failures, blockedUntil, updatedAt: now };
+    const row = result[0];
+    return {
+      ip: row.ip,
+      source: row.source,
+      failures: row.failures,
+      blockedUntil: row.blockedUntil,
+      updatedAt: row.updatedAt,
+    };
   }
 
   async clear(ip: string, source: string): Promise<void> {

@@ -1,6 +1,7 @@
-import os from "node:os";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDate, NightlyBackup } from "./nightly-backup.js";
 
 describe("formatDate", () => {
@@ -18,7 +19,15 @@ describe("formatDate", () => {
 });
 
 describe("NightlyBackup.run", () => {
-  const backupDir = path.join(os.tmpdir(), "wopr-nightly-test");
+  let backupDir: string;
+
+  beforeEach(() => {
+    backupDir = mkdtempSync(path.join(tmpdir(), "wopr-nightly-test-"));
+  });
+
+  afterEach(() => {
+    rmSync(backupDir, { recursive: true, force: true });
+  });
 
   function makeDocker(containers: Array<{ Names: string[] }>, exportFn?: (name: string) => Promise<void>) {
     return {

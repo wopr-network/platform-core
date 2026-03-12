@@ -1,21 +1,22 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { ProfileStore } from "./profile-store.js";
 import type { BotProfile } from "./types.js";
 
 describe("ProfileStore Path Traversal Protection", () => {
-  const testDataDir = join(process.cwd(), "test-data-profile-store");
+  let testDataDir: string;
   let store: ProfileStore;
 
   beforeEach(async () => {
-    await mkdir(testDataDir, { recursive: true });
+    testDataDir = mkdtempSync(join(tmpdir(), "profile-store-test-"));
     store = new ProfileStore(testDataDir);
     await store.init();
   });
 
-  afterEach(async () => {
-    await rm(testDataDir, { recursive: true, force: true });
+  afterEach(() => {
+    rmSync(testDataDir, { recursive: true, force: true });
   });
 
   describe("Valid UUIDs", () => {

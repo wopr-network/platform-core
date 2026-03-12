@@ -1,5 +1,5 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { MeterEvent } from "@wopr-network/platform-core/metering";
 
 /**
@@ -94,19 +94,21 @@ export class MeterWAL {
       const filtered = events.filter((e) => !eventIds.has(e.id));
 
       if (filtered.length === 0) {
-        // All events removed — delete the WAL file.
         this._clear();
       } else {
-        // Rewrite the WAL with remaining events.
         const content = `${filtered.map((e) => JSON.stringify(e)).join("\n")}\n`;
-        writeFileSync(this.walPath, content, { encoding: "utf8" });
+        const tmpPath = join(dirname(this.walPath), `.wal-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
+        writeFileSync(tmpPath, content, { encoding: "utf8" });
+        renameSync(tmpPath, this.walPath);
       }
     });
   }
 
   private _clear(): void {
-    if (existsSync(this.walPath)) {
+    try {
       unlinkSync(this.walPath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     }
   }
 

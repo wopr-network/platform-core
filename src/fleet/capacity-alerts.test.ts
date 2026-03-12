@@ -68,7 +68,7 @@ describe("checkCapacityAlerts", () => {
     expect(fleetAlert?.message).toContain("add a node NOW");
   });
 
-  it("does not include draining nodes in fleet-level check", () => {
+  it("excludes draining nodes so fleet alert fires when all active nodes above 90%", () => {
     const nodes = [
       makeNode({ id: "node-1", usedMb: 7500, capacityMb: 8192, status: "active" }), // ~91.5%
       makeNode({ id: "node-2", usedMb: 7600, capacityMb: 8192, status: "draining" }), // excluded

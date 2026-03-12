@@ -29,7 +29,7 @@ export class HeartbeatWatchdog {
   private readonly OFFLINE_THRESHOLD_S: number;
   private readonly CHECK_INTERVAL_MS: number;
 
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     nodeRepo: INodeRepository,
@@ -63,19 +63,25 @@ export class HeartbeatWatchdog {
       checkIntervalMs: this.CHECK_INTERVAL_MS,
     });
 
-    this.timer = setInterval(() => {
-      this.check().catch((err) => {
+    const loop = async () => {
+      try {
+        await this.check();
+      } catch (err) {
         logger.error("Heartbeat watchdog check failed", { err });
-      });
-    }, this.CHECK_INTERVAL_MS);
+      }
+      if (this.timer !== null) {
+        this.timer = setTimeout(loop, this.CHECK_INTERVAL_MS);
+      }
+    };
+    this.timer = setTimeout(loop, this.CHECK_INTERVAL_MS);
   }
 
   /**
    * Stop the watchdog timer
    */
   stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
       this.timer = null;
       logger.info("Heartbeat watchdog stopped");
     }

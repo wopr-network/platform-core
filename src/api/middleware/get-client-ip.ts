@@ -25,8 +25,8 @@ const trustedProxies = parseTrustedProxies(process.env.TRUSTED_PROXY_IPS);
 /**
  * Determine the real client IP.
  *
- * - If `socketAddr` matches a trusted proxy, use the **last** (rightmost)
- *   value from `X-Forwarded-For` (closest hop to the trusted proxy).
+ * - If `socketAddr` matches a trusted proxy, use the **first** (leftmost)
+ *   value from `X-Forwarded-For` (the original client IP).
  * - Otherwise, use `socketAddr` directly (XFF is untrusted).
  * - Falls back to `"unknown"` if neither is available.
  */
@@ -38,10 +38,9 @@ export function getClientIp(
   const normalizedSocket = socketAddr ? normalizeIp(socketAddr) : undefined;
 
   if (xffHeader && normalizedSocket && trusted.has(normalizedSocket)) {
-    // Trust XFF — take the rightmost (last) value
     const parts = xffHeader.split(",");
-    const last = parts[parts.length - 1]?.trim();
-    if (last) return last;
+    const first = parts[0]?.trim();
+    if (first) return first;
   }
 
   if (socketAddr) return socketAddr;

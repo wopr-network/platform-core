@@ -10,7 +10,8 @@
  * rather than doing a full restore (which would require a real Docker host).
  */
 
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
+import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createGunzip } from "node:zlib";
 import { logger } from "../config/logger.js";
@@ -99,23 +100,23 @@ export class BackupVerifier {
 
   private async verifyOne(remotePath: string, remoteSize: number): Promise<BackupVerificationResult> {
     const filename = remotePath.replace(/\//g, "_");
-    const localPath = join(this.tempDir, filename);
+    const tmpDir = mkdtempSync(join(this.tempDir, "verify-"));
+    const localPath = join(tmpDir, filename);
     const verifiedAt = new Date().toISOString();
 
     try {
       await this.spaces.download(remotePath, localPath);
 
-      const info = await stat(localPath);
-      const sizeMb = Math.round((info.size / (1024 * 1024)) * 100) / 100;
-
-      if (info.size < MIN_VALID_SIZE_BYTES) {
-        return { key: remotePath, valid: false, sizeMb, error: "Archive too small — likely corrupt", verifiedAt };
-      }
-
-      // Validate gzip magic bytes
-      const { open } = await import("node:fs/promises");
+      let sizeMb = 0;
       const fh = await open(localPath, "r");
       try {
+        const info = await fh.stat();
+        sizeMb = Math.round((info.size / (1024 * 1024)) * 100) / 100;
+
+        if (info.size < MIN_VALID_SIZE_BYTES) {
+          return { key: remotePath, valid: false, sizeMb, error: "Archive too small — likely corrupt", verifiedAt };
+        }
+
         const buf = Buffer.alloc(2);
         await fh.read(buf, 0, 2, 0);
         if (buf[0] !== GZIP_MAGIC_1 || buf[1] !== GZIP_MAGIC_2) {
@@ -131,7 +132,6 @@ export class BackupVerifier {
         await fh.close();
       }
 
-      // Attempt to decompress (read-only stream, no write) to verify decompressibility
       await this.validateDecompressible(localPath);
 
       logger.debug(`BackupVerifier: ${remotePath} OK (${sizeMb}MB)`);
@@ -141,7 +141,7 @@ export class BackupVerifier {
       logger.warn(`BackupVerifier: ${remotePath} failed`, { err: message });
       return { key: remotePath, valid: false, sizeMb: remoteSize / (1024 * 1024), error: message, verifiedAt };
     } finally {
-      await rm(localPath, { force: true }).catch(() => {});
+      await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
