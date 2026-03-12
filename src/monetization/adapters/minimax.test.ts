@@ -2,6 +2,7 @@ import { Credit } from "@wopr-network/platform-core/credits";
 import { describe, expect, it, vi } from "vitest";
 import type { FetchFn, MiniMaxAdapterConfig } from "./minimax.js";
 import { createMiniMaxAdapter } from "./minimax.js";
+import type { TextGenerationInput } from "./types.js";
 import { withMargin } from "./types.js";
 
 /** Helper to create a mock Response with headers */
@@ -87,7 +88,7 @@ describe("createMiniMaxAdapter", () => {
     });
 
     it("supports model override via input", async () => {
-      const response = chatCompletionResponse();
+      const response = chatCompletionResponse({ model: "minimax-m2.5" });
       const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
 
       const adapter = createMiniMaxAdapter(makeConfig(), fetchFn);
@@ -279,6 +280,26 @@ describe("createMiniMaxAdapter", () => {
       const result = await adapter.generateText({ prompt: "What is the answer?" });
 
       expect(result.result.text).toBe("The answer is 42.");
+    });
+
+    it("returns response model from API, not request model", async () => {
+      const response = chatCompletionResponse({ model: "minimax-m2-20260301" });
+      const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
+
+      const adapter = createMiniMaxAdapter(makeConfig(), fetchFn);
+      const result = await adapter.generateText({ prompt: "test", model: "minimax-m2" });
+
+      expect(result.result.model).toBe("minimax-m2-20260301");
+    });
+
+    it("throws when neither messages nor prompt provided", async () => {
+      const fetchFn = vi.fn<FetchFn>();
+      const adapter = createMiniMaxAdapter(makeConfig(), fetchFn);
+
+      await expect(adapter.generateText({} as TextGenerationInput)).rejects.toThrow(
+        "MiniMax adapter requires either 'messages' or 'prompt'",
+      );
+      expect(fetchFn).not.toHaveBeenCalled();
     });
   });
 });

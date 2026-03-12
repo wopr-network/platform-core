@@ -81,6 +81,10 @@ export function createMiniMaxAdapter(
     async generateText(input: TextGenerationInput): Promise<AdapterResult<TextGenerationOutput>> {
       const model = input.model ?? defaultModel;
 
+      if (!input.messages && !input.prompt) {
+        throw new Error("MiniMax adapter requires either 'messages' or 'prompt'");
+      }
+
       const body: Record<string, unknown> = {
         model,
         messages: input.messages ?? [{ role: "user", content: input.prompt }],
@@ -129,7 +133,7 @@ export function createMiniMaxAdapter(
       return {
         result: {
           text,
-          model,
+          model: data.model ?? model,
           usage: { inputTokens, outputTokens },
         },
         cost,
