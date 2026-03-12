@@ -69,7 +69,7 @@ function buildTestConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig 
 
   return {
     meter: meter as unknown as import("@wopr-network/platform-core/metering").MeterEmitter,
-    budgetChecker: budgetChecker as unknown as import("../monetization/budget/budget-checker.js").BudgetChecker,
+    budgetChecker,
     creditLedger,
     providers: { openrouter: { apiKey: "or-test-key" } },
     fetchFn,

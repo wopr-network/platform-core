@@ -8,7 +8,7 @@
 import type { Credit, ICreditLedger } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { IRateLimitRepository } from "../../api/rate-limit-repository.js";
-import type { BudgetChecker } from "../../monetization/budget/budget-checker.js";
+import type { IBudgetChecker } from "../../monetization/budget/budget-checker.js";
 import type { CapabilityRateLimitConfig } from "../capability-rate-limit.js";
 import type { CircuitBreakerConfig } from "../circuit-breaker.js";
 import type { ICircuitBreakerRepository } from "../circuit-breaker-repository.js";
@@ -17,7 +17,7 @@ import type { FetchFn, GatewayTenant, ProviderConfig } from "../types.js";
 
 export interface ProtocolDeps {
   meter: MeterEmitter;
-  budgetChecker: BudgetChecker;
+  budgetChecker: IBudgetChecker;
   creditLedger?: ICreditLedger;
   topUpUrl: string;
   graceBufferCents?: number;
