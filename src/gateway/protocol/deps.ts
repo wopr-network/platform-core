@@ -24,7 +24,7 @@ export interface ProtocolDeps {
   providers: ProviderConfig;
   defaultMargin: number;
   fetchFn: FetchFn;
-  resolveServiceKey: (key: string) => GatewayTenant | null;
+  resolveServiceKey: (key: string) => GatewayTenant | null | Promise<GatewayTenant | null>;
   /** Apply margin to a cost. Defaults to withMargin from adapters/types. */
   withMarginFn: (cost: Credit, margin: number) => Credit;
   rateLookupFn?: SellRateLookupFn;
