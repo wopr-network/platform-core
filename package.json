@@ -7,18 +7,36 @@
   "exports": {
     ".": "./dist/index.js",
     "./admin": "./dist/admin/index.js",
+    "./account": "./dist/account/index.js",
+    "./audit": "./dist/audit/index.js",
     "./auth": "./dist/auth/index.js",
+    "./backup": "./dist/backup/index.js",
     "./billing": "./dist/billing/index.js",
+    "./compliance": "./dist/compliance/index.js",
+    "./config": "./dist/config/index.js",
     "./credits": "./dist/credits/index.js",
     "./credits/*": "./dist/credits/*.js",
-    "./metering": "./dist/metering/index.js",
-    "./email": "./dist/email/index.js",
-    "./security": "./dist/security/index.js",
-    "./tenancy": "./dist/tenancy/index.js",
     "./db": "./dist/db/index.js",
+    "./dht": "./dist/dht/index.js",
+    "./discovery": "./dist/discovery/index.js",
+    "./email": "./dist/email/index.js",
+    "./fleet": "./dist/fleet/index.js",
+    "./gateway": "./dist/gateway/index.js",
+    "./inference": "./dist/inference/index.js",
+    "./marketplace": "./dist/marketplace/index.js",
+    "./metering": "./dist/metering/index.js",
     "./middleware": "./dist/middleware/index.js",
-    "./trpc": "./dist/trpc/index.js",
-    "./config": "./dist/config/index.js"
+    "./monetization": "./dist/monetization/index.js",
+    "./monitoring": "./dist/monitoring/index.js",
+    "./network": "./dist/network/index.js",
+    "./node-agent": "./dist/node-agent/index.js",
+    "./observability": "./dist/observability/index.js",
+    "./onboarding": "./dist/onboarding/index.js",
+    "./proxy": "./dist/proxy/index.js",
+    "./security": "./dist/security/index.js",
+    "./setup": "./dist/setup/index.js",
+    "./tenancy": "./dist/tenancy/index.js",
+    "./trpc": "./dist/trpc/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -31,20 +49,26 @@
   "peerDependencies": {
     "@trpc/server": ">=11",
     "better-auth": ">=1.5",
+    "dockerode": ">=4",
     "drizzle-orm": ">=0.45",
     "hono": ">=4",
     "payram": ">=1",
     "pg": ">=8",
     "resend": ">=4",
     "stripe": ">=17",
+    "ws": ">=8",
     "zod": ">=3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
     "@electric-sql/pglite": "^0.3.16",
+    "@sentry/node": "^10.43.0",
     "@trpc/server": "^11.12.0",
+    "@types/dockerode": "^4.0.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.4.0",
     "@types/pg": "^8.18.0",
+    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@wopr-network/semantic-release-config": "^1.0.0",
     "better-auth": "^1.5.4",
@@ -69,5 +93,9 @@
     "type": "git",
     "url": "https://github.com/wopr-network/platform-core.git"
   },
-  "packageManager": "pnpm@10.31.0"
+  "packageManager": "pnpm@10.31.0",
+  "dependencies": {
+    "js-yaml": "^4.1.1",
+    "yaml": "^2.8.2"
+  }
 }
