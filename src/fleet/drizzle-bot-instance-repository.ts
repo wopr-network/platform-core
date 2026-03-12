@@ -153,11 +153,11 @@ export class DrizzleBotInstanceRepository implements IBotInstanceRepository {
   async countActiveByTenant(tenantId: string): Promise<number> {
     const row = (
       await this.db
-        .select({ count: sql<number>`count(*)` })
+        .select({ count: sql<number>`count(*)::integer` })
         .from(botInstances)
         .where(and(eq(botInstances.tenantId, tenantId), eq(botInstances.billingState, "active")))
     )[0];
-    return row?.count ?? 0;
+    return Number(row?.count ?? 0);
   }
 
   async listActiveIdsByTenant(tenantId: string): Promise<string[]> {

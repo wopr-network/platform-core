@@ -142,8 +142,9 @@ export class NightlyBackup {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`Backup failed: ${name}`, { err: message });
 
-      // Clean up on failure
+      // Clean up on failure — both plaintext and encrypted files
       await rm(localPath, { force: true }).catch(() => {});
+      await rm(`${localPath}.enc`, { force: true }).catch(() => {});
 
       return { container: name, success: false, error: message };
     }

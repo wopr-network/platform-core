@@ -40,6 +40,7 @@ export class DrizzleVpsRepository implements IVpsRepository {
       stripeSubscriptionId: sub.stripeSubscriptionId,
       stripeCustomerId: sub.stripeCustomerId,
       hostname: sub.hostname,
+      diskSizeGb: sub.diskSizeGb,
     });
   }
 

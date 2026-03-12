@@ -87,6 +87,9 @@ export class RestoreService {
     // Track whether we've crossed the point of no return (container removed).
     // If true and a later step fails, we must attempt recovery from preRestoreKey.
     let containerRemoved = false;
+    // Track whether the pre-restore snapshot was uploaded to Spaces, so
+    // the error handler can preserve the reference in the restore log.
+    let preRestoreUploaded = false;
 
     try {
       // 1. Take pre-restore safety snapshot (export current container)
@@ -102,6 +105,7 @@ export class RestoreService {
         type: "backup.upload",
         payload: { filename: `${containerName}.tar.gz`, destination: preRestoreKey },
       });
+      preRestoreUploaded = true;
 
       // 3. Stop current container
       logger.info(`Stopping container ${containerName}`);
@@ -198,11 +202,14 @@ export class RestoreService {
         }
       }
 
-      // Still log the failed attempt
+      // Preserve preRestoreKey in the log if it was successfully uploaded,
+      // so operators can find the safety snapshot for manual recovery.
+      const loggedPreRestoreKey = preRestoreUploaded ? preRestoreKey : null;
+
       const logEntry = await this.restoreLog.record({
         tenant: params.tenantId,
         snapshotKey: params.snapshotKey,
-        preRestoreKey: null,
+        preRestoreKey: loggedPreRestoreKey,
         restoredBy: params.restoredBy,
         reason: `FAILED: ${errorMessage}`,
       });
@@ -210,7 +217,7 @@ export class RestoreService {
       return {
         success: false,
         restoreLogId: logEntry.id,
-        preRestoreKey: null,
+        preRestoreKey: loggedPreRestoreKey,
         snapshotKey: params.snapshotKey,
         downtimeMs: Date.now() - startTime,
         error: errorMessage,

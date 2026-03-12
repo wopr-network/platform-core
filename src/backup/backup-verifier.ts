@@ -163,7 +163,15 @@ export class BackupVerifier {
         if (settled) return;
         settled = true;
         if (err) {
-          reject(err);
+          // When we truncate the stream at 1 MB, gzip will see an unexpected
+          // end-of-stream. This is expected — we only want to verify the
+          // archive header and initial data are decompressible, not the entire file.
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === "Z_BUF_ERROR" || err.message.includes("unexpected end of file")) {
+            resolve();
+          } else {
+            reject(err);
+          }
         } else {
           resolve();
         }

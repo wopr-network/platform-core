@@ -26,16 +26,22 @@ export class DrizzleCircuitBreakerRepository implements ICircuitBreakerRepositor
     const existing = rows[0];
 
     if (existing && now - existing.windowStart < windowMs) {
-      // Within window: increment
-      await this.db
+      // Within window: increment atomically and return the actual new count
+      const updated = await this.db
         .update(circuitBreakerStates)
         .set({ count: sql`${circuitBreakerStates.count} + 1` })
-        .where(eq(circuitBreakerStates.instanceId, instanceId));
+        .where(eq(circuitBreakerStates.instanceId, instanceId))
+        .returning({
+          count: circuitBreakerStates.count,
+          windowStart: circuitBreakerStates.windowStart,
+          trippedAt: circuitBreakerStates.trippedAt,
+        });
+      const row = updated[0];
       return {
         instanceId,
-        count: existing.count + 1,
-        windowStart: existing.windowStart,
-        trippedAt: existing.trippedAt ?? null,
+        count: row?.count ?? existing.count + 1,
+        windowStart: row?.windowStart ?? existing.windowStart,
+        trippedAt: row?.trippedAt ?? existing.trippedAt ?? null,
       };
     }
 

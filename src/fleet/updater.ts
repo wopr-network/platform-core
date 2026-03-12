@@ -231,10 +231,13 @@ export class ContainerUpdater {
     previousDigest: string | null,
     wasRunning: boolean,
   ): Promise<UpdateResult> {
-    logger.info(`Rolling back bot ${botId} to ${previousImage}`);
+    // Use digest-pinned image reference when available to prevent rollback
+    // from pulling a newer image that was pushed between the update and rollback.
+    const rollbackImage = previousDigest ? `${previousImage.split(":")[0]}@${previousDigest}` : previousImage;
+    logger.info(`Rolling back bot ${botId} to ${rollbackImage}`);
 
     try {
-      await this.fleet.update(botId, { image: previousImage });
+      await this.fleet.update(botId, { image: rollbackImage });
 
       // Only start on rollback if the container was running before the update
       if (wasRunning) {

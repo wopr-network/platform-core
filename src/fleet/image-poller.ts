@@ -202,9 +202,15 @@ export class ImagePoller {
     const existing = this.timers.get(profile.id);
     if (existing) clearInterval(existing);
 
-    // Run initial check, then schedule recurring
+    // Run initial check, then schedule recurring.
+    // Re-read profile from store on each tick to pick up image/channel changes.
+    const botId = profile.id;
     void this.checkBot(profile);
-    const timer = setInterval(() => void this.checkBot(profile), interval);
+    const timer = setInterval(() => {
+      void this.store.get(botId).then((fresh) => {
+        if (fresh) void this.checkBot(fresh);
+      });
+    }, interval);
     this.timers.set(profile.id, timer);
   }
 
@@ -302,13 +308,15 @@ export class ImagePoller {
   }
 
   /**
-   * Check if we're within the nightly update window (03:00-03:05 UTC).
+   * Check if we're within the nightly update window (03:00-03:30 UTC).
+   * Window must be wider than the longest poll interval (30min for stable)
+   * to guarantee at least one check falls within it.
    */
   private isNightlyWindow(): boolean {
     const now = new Date();
     const hour = now.getUTCHours();
     const minute = now.getUTCMinutes();
-    return hour === 3 && minute < 5;
+    return hour === 3 && minute < 30;
   }
 
   /** Expose poll intervals for testing */

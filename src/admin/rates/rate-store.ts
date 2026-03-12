@@ -115,18 +115,20 @@ export class RateStore {
       throw new Error(`Sell rate with id '${id}' not found`);
     }
 
-    // Check NULL-model uniqueness if changing model to NULL
+    // Check NULL-model uniqueness if changing model to NULL.
+    // Use the updated capability (if being changed) rather than the existing one.
     if ("model" in input && !input.model) {
+      const effectiveCapability = input.capability ?? existing.capability;
       const duplicate = (
         await this.db
           .select({ id: sellRates.id })
           .from(sellRates)
           .where(
-            and(eq(sellRates.capability, existing.capability), isNull(sellRates.model), sql`${sellRates.id} != ${id}`),
+            and(eq(sellRates.capability, effectiveCapability), isNull(sellRates.model), sql`${sellRates.id} != ${id}`),
           )
       )[0];
       if (duplicate) {
-        throw new Error(`A sell rate with capability '${existing.capability}' and NULL model already exists`);
+        throw new Error(`A sell rate with capability '${effectiveCapability}' and NULL model already exists`);
       }
     }
 
@@ -254,16 +256,19 @@ export class RateStore {
       throw new Error(`Provider cost with id '${id}' not found`);
     }
 
-    // Check NULL-model uniqueness if changing model to NULL
+    // Check NULL-model uniqueness if changing model to NULL.
+    // Use the updated capability/adapter (if being changed) rather than the existing ones.
     if ("model" in input && !input.model) {
+      const effectiveCapability = input.capability ?? existing.capability;
+      const effectiveAdapter = input.adapter ?? existing.adapter;
       const duplicate = (
         await this.db
           .select({ id: providerCosts.id })
           .from(providerCosts)
           .where(
             and(
-              eq(providerCosts.capability, existing.capability),
-              eq(providerCosts.adapter, existing.adapter),
+              eq(providerCosts.capability, effectiveCapability),
+              eq(providerCosts.adapter, effectiveAdapter),
               isNull(providerCosts.model),
               sql`${providerCosts.id} != ${id}`,
             ),
@@ -271,7 +276,7 @@ export class RateStore {
       )[0];
       if (duplicate) {
         throw new Error(
-          `A provider cost with capability '${existing.capability}', adapter '${existing.adapter}', and NULL model already exists`,
+          `A provider cost with capability '${effectiveCapability}', adapter '${effectiveAdapter}', and NULL model already exists`,
         );
       }
     }

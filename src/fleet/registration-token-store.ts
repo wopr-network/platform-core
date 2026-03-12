@@ -52,27 +52,21 @@ export class DrizzleRegistrationTokenRepository implements IRegistrationTokenRep
   async consume(token: string, nodeId: string): Promise<{ userId: string; label: string | null } | null> {
     const now = Math.floor(Date.now() / 1000);
 
-    const row = (
-      await this.db
-        .select()
-        .from(nodeRegistrationTokens)
-        .where(
-          and(
-            eq(nodeRegistrationTokens.id, token),
-            eq(nodeRegistrationTokens.used, false),
-            gt(nodeRegistrationTokens.expiresAt, now),
-          ),
-        )
-    )[0];
-
-    if (!row) return null;
-
-    await this.db
+    // Atomic: UPDATE with all preconditions in WHERE, returning the row.
+    // Prevents TOCTOU race where two concurrent consumers both see used=false.
+    const updated = await this.db
       .update(nodeRegistrationTokens)
       .set({ used: true, nodeId, usedAt: now })
-      .where(eq(nodeRegistrationTokens.id, token));
+      .where(
+        and(
+          eq(nodeRegistrationTokens.id, token),
+          eq(nodeRegistrationTokens.used, false),
+          gt(nodeRegistrationTokens.expiresAt, now),
+        ),
+      )
+      .returning({ userId: nodeRegistrationTokens.userId, label: nodeRegistrationTokens.label });
 
-    return { userId: row.userId, label: row.label };
+    return updated[0] ?? null;
   }
 
   /** List active (unexpired, unused) tokens for a user. */

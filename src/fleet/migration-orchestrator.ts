@@ -147,10 +147,22 @@ export class MigrationOrchestrator {
         // 9. Update routing — DOWNTIME ENDS
         await this.botInstanceRepo.reassign(botId, resolvedTarget);
       } catch (migrationErr) {
-        // Rollback: restart source container
-        logger.error(`[migrate] Migration failed after stop for bot ${botId}, attempting source restart`, {
+        // Rollback: stop any partially-imported container on target, then restart source
+        logger.error(`[migrate] Migration failed after stop for bot ${botId}, attempting rollback`, {
           err: migrationErr instanceof Error ? migrationErr.message : String(migrationErr),
         });
+
+        // Best-effort cleanup on target to avoid container running on both nodes
+        try {
+          await this.commandBus.send(resolvedTarget, {
+            type: "bot.stop",
+            payload: { name: containerName },
+          });
+          logger.info(`[migrate] Stopped orphaned container ${containerName} on target ${resolvedTarget}`);
+        } catch {
+          // Target container may not exist yet — that's fine
+        }
+
         try {
           await this.commandBus.send(sourceNodeId, {
             type: "bot.start",

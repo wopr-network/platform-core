@@ -80,8 +80,8 @@ export class GpuNodeProvisioner {
     const nodeId = params.name ?? `gpu-${randomUUID().slice(0, 8)}`;
 
     // 1. Insert placeholder
-    this.repo.insert({ id: nodeId, region, size });
-    this.repo.updateStage(nodeId, "creating");
+    await this.repo.insert({ id: nodeId, region, size });
+    await this.repo.updateStage(nodeId, "creating");
 
     try {
       // 2. Create droplet
@@ -101,7 +101,7 @@ export class GpuNodeProvisioner {
       });
 
       // 3. Poll until active
-      this.repo.updateStage(nodeId, "waiting_active");
+      await this.repo.updateStage(nodeId, "waiting_active");
       const activeDroplet = await this.waitForDropletActive(droplet.id);
 
       // 4. Get public IP
@@ -113,8 +113,8 @@ export class GpuNodeProvisioner {
       const monthlyCostCents = Math.round(activeDroplet.size.price_monthly * 100);
 
       // 5. Update node record with real data
-      this.repo.updateHost(nodeId, publicIp, String(droplet.id), monthlyCostCents);
-      this.repo.updateStage(nodeId, "waiting_agent");
+      await this.repo.updateHost(nodeId, publicIp, String(droplet.id), monthlyCostCents);
+      await this.repo.updateStage(nodeId, "waiting_agent");
 
       logger.info(`GPU node ${nodeId} provisioned, waiting for agent registration`, {
         dropletId: droplet.id,
@@ -132,8 +132,8 @@ export class GpuNodeProvisioner {
         monthlyCostCents,
       };
     } catch (err) {
-      this.repo.updateStatus(nodeId, "failed");
-      this.repo.setError(nodeId, err instanceof Error ? err.message : String(err));
+      await this.repo.updateStatus(nodeId, "failed");
+      await this.repo.setError(nodeId, err instanceof Error ? err.message : String(err));
       throw err;
     }
   }

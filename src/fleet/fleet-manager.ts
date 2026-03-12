@@ -358,7 +358,22 @@ export class FleetManager {
       tail,
       timestamps: true,
     });
-    return logBuffer.toString("utf-8");
+
+    // Docker returns multiplexed binary frames when Tty is false (the default).
+    // Demultiplex by stripping the 8-byte header from each frame so callers
+    // receive plain text instead of binary garbage interleaved with log lines.
+    const buf = Buffer.isBuffer(logBuffer) ? logBuffer : Buffer.from(logBuffer as unknown as string, "binary");
+    const chunks: Buffer[] = [];
+    let offset = 0;
+    while (offset + 8 <= buf.length) {
+      const frameSize = buf.readUInt32BE(offset + 4);
+      const end = offset + 8 + frameSize;
+      if (end > buf.length) break;
+      chunks.push(buf.subarray(offset + 8, end));
+      offset = end;
+    }
+    // If demux produced nothing (e.g. TTY container), fall back to raw string
+    return chunks.length > 0 ? Buffer.concat(chunks).toString("utf-8") : buf.toString("utf-8");
   }
 
   /**
@@ -630,7 +645,7 @@ export class FleetManager {
 
     const container = await this.docker.createContainer({
       Image: profile.image,
-      name: `wopr-${profile.name}`,
+      name: `wopr-${profile.name.replace(/_/g, "-")}`,
       Env: Object.entries(mergedEnv)
         .filter(([, v]) => v !== "")
         .map(([k, v]) => `${k}=${v}`),
