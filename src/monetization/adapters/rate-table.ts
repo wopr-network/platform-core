@@ -83,8 +83,21 @@ export const RATE_TABLE: RateEntry[] = [
     effectivePrice: 0.0000013, // = costPerUnit * margin ($1.30 per 1M tokens)
   },
 
+  // Transcription - Speech-to-Text
+  // NOTE: No self-hosted whisper adapter yet — only premium (deepgram) available.
+  // When self-hosted-whisper lands, add a standard tier entry here.
+  {
+    capability: "transcription",
+    tier: "premium",
+    provider: "deepgram",
+    costPerUnit: 0.0000717, // $0.0043/min = $0.0000717/sec
+    billingUnit: "per-second",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.00009321, // = costPerUnit * margin ($93.21 per 1M seconds ≈ $5.59 per 1M minutes)
+  },
+
   // Future self-hosted adapters will add more entries here:
-  // - transcription: self-hosted-whisper (standard) vs deepgram (premium)
+  // - transcription: self-hosted-whisper (standard) — when GPU adapter exists
   // - embeddings: self-hosted-embeddings (standard) vs openrouter (premium)
   // - image-generation: self-hosted-sdxl (standard) vs replicate (premium)
 ];

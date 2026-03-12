@@ -65,6 +65,20 @@ export {
   type TextGenFactoryConfig,
   type TextGenFactoryResult,
 } from "./adapters/text-gen-factory.js";
+// Transcription adapter factory
+export {
+  createTranscriptionAdapters,
+  createTranscriptionAdaptersFromEnv,
+  type TranscriptionFactoryConfig,
+  type TranscriptionFactoryResult,
+} from "./adapters/transcription-factory.js";
+// TTS adapter factory
+export {
+  createTTSAdapters,
+  createTTSAdaptersFromEnv,
+  type TTSFactoryConfig,
+  type TTSFactoryResult,
+} from "./adapters/tts-factory.js";
 export {
   type AdapterCapability,
   type AdapterResult,
