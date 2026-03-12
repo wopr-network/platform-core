@@ -33,7 +33,14 @@ import { cn } from "@/lib/utils";
 // Constants
 // ---------------------------------------------------------------------------
 
-const ADAPTER_IDS = ["nano-banana", "elevenlabs", "deepgram", "openrouter", "replicate", "gemini"];
+const ADAPTER_IDS = [
+  "nano-banana",
+  "elevenlabs",
+  "deepgram",
+  "openrouter",
+  "replicate",
+  "gemini",
+] as const;
 
 const STATUS_COLORS: Record<RateOverrideStatus, string> = {
   active: "bg-terminal/15 text-terminal border border-terminal/20",
@@ -59,7 +66,7 @@ export default function RateOverridesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Create form state
-  const [formAdapter, setFormAdapter] = useState(ADAPTER_IDS[0]);
+  const [formAdapter, setFormAdapter] = useState<string>(ADAPTER_IDS[0] ?? "");
   const [formName, setFormName] = useState("");
   const [formDiscount, setFormDiscount] = useState(0);
   const [formStartsAt, setFormStartsAt] = useState("");
