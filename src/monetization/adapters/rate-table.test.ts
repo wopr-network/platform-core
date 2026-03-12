@@ -138,6 +138,13 @@ describe("getRatesForCapability", () => {
     expect(rates.map((r) => r.tier)).toContain("premium");
   });
 
+  it("returns premium-only for transcription (no standard tier yet)", () => {
+    const rates = getRatesForCapability("transcription");
+    expect(rates).toHaveLength(1);
+    expect(rates[0].tier).toBe("premium");
+    expect(rates[0].provider).toBe("deepgram");
+  });
+
   it("returns empty array for non-existent capability", () => {
     const rates = getRatesForCapability("image-generation" as unknown as AdapterCapability);
     expect(rates).toHaveLength(0);
@@ -178,7 +185,8 @@ describe("calculateSavings", () => {
   });
 
   it("returns zero when capability has no standard tier", () => {
-    const savings = calculateSavings("image-generation" as unknown as AdapterCapability, 1000);
+    // Transcription only has premium (deepgram) — no self-hosted whisper yet
+    const savings = calculateSavings("transcription", 1000);
     expect(savings).toBe(0);
   });
 
