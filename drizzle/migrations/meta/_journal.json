@@ -15,6 +15,13 @@
       "when": 1773279600000,
       "tag": "0001_infrastructure_extraction",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1741795200000,
+      "tag": "0002_gateway_service_keys",
+      "breakpoints": true
     }
   ]
 }
