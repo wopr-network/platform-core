@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { platformUIToolDefinitions } from "../lib/plugin/tool-definitions";
+import { getPlatformUIToolDefinitions } from "../lib/plugin/tool-definitions";
 
 // Mock browser APIs needed by tool modules
 vi.stubGlobal("window", {
@@ -26,7 +26,7 @@ import { getChatWebMCPTools, getWebMCPTools } from "../lib/webmcp/tools";
 
 describe("tool definitions stay in sync with handlers", () => {
   it("every handler tool name has a matching definition", () => {
-    const definitionNames = new Set(platformUIToolDefinitions.map((d) => d.name));
+    const definitionNames = new Set(getPlatformUIToolDefinitions().map((d) => d.name));
 
     const handlerTools = [
       ...getWebMCPTools(vi.fn()),
@@ -37,7 +37,7 @@ describe("tool definitions stay in sync with handlers", () => {
     for (const tool of handlerTools) {
       expect(
         definitionNames.has(tool.name),
-        `Handler tool "${tool.name}" missing from platformUIToolDefinitions`,
+        `Handler tool "${tool.name}" missing from getPlatformUIToolDefinitions()`,
       ).toBe(true);
     }
   });
@@ -50,7 +50,7 @@ describe("tool definitions stay in sync with handlers", () => {
     ];
     const handlerNames = new Set(handlerTools.map((t) => t.name));
 
-    for (const def of platformUIToolDefinitions) {
+    for (const def of getPlatformUIToolDefinitions()) {
       expect(handlerNames.has(def.name), `Definition "${def.name}" has no matching handler`).toBe(
         true,
       );

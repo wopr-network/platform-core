@@ -1,7 +1,7 @@
 import { brandName } from "../brand-config";
 
 export type { ToolDefinition } from "./tool-definitions";
-export { platformUIToolDefinitions } from "./tool-definitions";
+export { getPlatformUIToolDefinitions } from "./tool-definitions";
 
 /**
  * platform-ui plugin — Browser-side configurator UI tools.
@@ -10,7 +10,7 @@ export { platformUIToolDefinitions } from "./tool-definitions";
  * The init/shutdown hooks are no-ops because tool registration
  * happens client-side in the useWebMCP React hook.
  *
- * The exported platformUIToolDefinitions array provides serializable metadata
+ * The exported getPlatformUIToolDefinitions() function provides serializable metadata
  * (name, description, inputSchema) that the platform can advertise
  * to the configurator AI without needing browser APIs.
  */

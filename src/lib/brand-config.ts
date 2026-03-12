@@ -95,9 +95,23 @@ let _config: BrandConfig = envDefaults();
 /**
  * Set the brand configuration. Call once at app startup
  * (typically in the root layout or _app).
+ *
+ * If `storagePrefix` is overridden, derived fields (`envVarPrefix`,
+ * `toolPrefix`, `eventPrefix`, `tenantCookieName`) are re-computed
+ * from the new prefix unless explicitly provided.
  */
 export function setBrandConfig(config: Partial<BrandConfig>): void {
-  _config = { ...envDefaults(), ...config };
+  const base = { ...envDefaults(), ...config };
+  // Re-derive prefix-dependent fields when storagePrefix is overridden
+  // but the dependent fields were not explicitly provided.
+  if (config.storagePrefix) {
+    const sp = config.storagePrefix;
+    if (!config.envVarPrefix) base.envVarPrefix = sp.toUpperCase();
+    if (!config.toolPrefix) base.toolPrefix = sp;
+    if (!config.eventPrefix) base.eventPrefix = sp;
+    if (!config.tenantCookieName) base.tenantCookieName = `${sp}_tenant_id`;
+  }
+  _config = base;
 }
 
 /** Get the current brand configuration. */
@@ -123,4 +137,9 @@ export function storageKey(key: string): string {
 /** Build a custom event name with the brand prefix. */
 export function eventName(event: string): string {
   return `${_config.eventPrefix}-${event}`;
+}
+
+/** Construct a brand-aware environment variable key (e.g. envKey("LLM_MODEL") → "WOPR_LLM_MODEL"). */
+export function envKey(suffix: string): string {
+  return `${_config.envVarPrefix}_${suffix}`;
 }

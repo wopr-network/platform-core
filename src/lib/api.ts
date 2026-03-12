@@ -1,5 +1,5 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
-import { getBrandConfig } from "./brand-config";
+import { envKey, getBrandConfig } from "./brand-config";
 import { ApiError } from "./errors";
 import { handleUnauthorized } from "./fetch-utils";
 import { logger } from "./logger";
@@ -226,7 +226,7 @@ export interface BotStatusResponse {
 
 /** Parse channel IDs from bot env vars ({PREFIX}_PLUGINS_CHANNELS is comma-separated). */
 export function parseChannelsFromEnv(env: Record<string, string> | undefined): string[] {
-  const raw = env?.[`${getBrandConfig().envVarPrefix}_PLUGINS_CHANNELS`];
+  const raw = env?.[envKey("PLUGINS_CHANNELS")];
   if (!raw) return [];
   return raw
     .split(",")
@@ -234,12 +234,15 @@ export function parseChannelsFromEnv(env: Record<string, string> | undefined): s
     .filter(Boolean);
 }
 
-/** Parse plugin IDs from bot env vars ({PREFIX}_PLUGINS_OTHER + {PREFIX}_PLUGINS_VOICE are comma-separated). */
+/** Parse plugin IDs from bot env vars ({PREFIX}_PLUGINS_OTHER, {PREFIX}_PLUGINS_VOICE, {PREFIX}_PLUGINS_PROVIDERS are comma-separated). */
 export function parsePluginsFromEnv(env: Record<string, string> | undefined): PluginInfo[] {
   if (!env) return [];
   const ids = new Set<string>();
-  const p = getBrandConfig().envVarPrefix;
-  for (const key of [`${p}_PLUGINS_OTHER`, `${p}_PLUGINS_VOICE`, `${p}_PLUGINS_PROVIDERS`]) {
+  for (const key of [
+    envKey("PLUGINS_OTHER"),
+    envKey("PLUGINS_VOICE"),
+    envKey("PLUGINS_PROVIDERS"),
+  ]) {
     const raw = env[key];
     if (raw) {
       for (const id of raw
@@ -255,7 +258,7 @@ export function parsePluginsFromEnv(env: Record<string, string> | undefined): Pl
 
 /** Extract the LLM provider from bot env vars. */
 export function getProviderFromEnv(env?: Record<string, string>): string {
-  const val = env?.[`${getBrandConfig().envVarPrefix}_LLM_PROVIDER`];
+  const val = env?.[envKey("LLM_PROVIDER")];
   return typeof val === "string" ? val : "";
 }
 

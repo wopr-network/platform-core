@@ -8,7 +8,7 @@ export interface ToolDefinition {
 }
 
 /** All WebMCP tool definitions for the platform-ui configurator. */
-export const platformUIToolDefinitions: ToolDefinition[] = (() => {
+export function getPlatformUIToolDefinitions(): ToolDefinition[] {
   const t = getBrandConfig().toolPrefix;
   return [
     // Fleet management tools
@@ -303,4 +303,4 @@ export const platformUIToolDefinitions: ToolDefinition[] = (() => {
       },
     },
   ];
-})();
+}

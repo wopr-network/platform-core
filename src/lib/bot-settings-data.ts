@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchRaw } from "./api";
-import { getBrandConfig } from "./brand-config";
+import { envKey } from "./brand-config";
 import { ApiError } from "./errors";
 import { logger } from "./logger";
 
@@ -231,10 +231,9 @@ export async function updateBotBrain(
   brain: { model?: string; provider?: string; mode?: "hosted" | "byok" },
 ): Promise<void> {
   const env: Record<string, string> = {};
-  const p = getBrandConfig().envVarPrefix;
-  if (brain.model) env[`${p}_LLM_MODEL`] = brain.model;
-  if (brain.provider) env[`${p}_LLM_PROVIDER`] = brain.provider;
-  if (brain.mode) env[`${p}_LLM_MODE`] = brain.mode;
+  if (brain.model) env[envKey("LLM_MODEL")] = brain.model;
+  if (brain.provider) env[envKey("LLM_PROVIDER")] = brain.provider;
+  if (brain.mode) env[envKey("LLM_MODE")] = brain.mode;
   await apiFetch(`/fleet/bots/${botId}`, {
     method: "PATCH",
     body: JSON.stringify({ env }),

@@ -37,7 +37,7 @@ describe("platform-ui plugin", () => {
   });
 
   it("exports toolDefinitions for external consumption", async () => {
-    const { platformUIToolDefinitions } = await import("../lib/plugin/tool-definitions");
-    expect(platformUIToolDefinitions.length).toBeGreaterThan(0);
+    const { getPlatformUIToolDefinitions } = await import("../lib/plugin/tool-definitions");
+    expect(getPlatformUIToolDefinitions().length).toBeGreaterThan(0);
   });
 });
