@@ -36,7 +36,8 @@
     "./security": "./dist/security/index.js",
     "./setup": "./dist/setup/index.js",
     "./tenancy": "./dist/tenancy/index.js",
-    "./trpc": "./dist/trpc/index.js"
+    "./trpc": "./dist/trpc/index.js",
+    "./*": "./dist/*.js"
   },
   "scripts": {
     "build": "tsc",
