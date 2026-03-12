@@ -23,11 +23,21 @@ describe("RATE_TABLE", () => {
     );
   });
 
-  it("standard tier is cheaper than premium tier for same capability", () => {
-    const standardTTS = RATE_TABLE.find((e) => e.capability === "tts" && e.tier === "standard");
-    const premiumTTS = RATE_TABLE.find((e) => e.capability === "tts" && e.tier === "premium");
+  it("standard tier is cheaper than premium tier for every capability", () => {
+    const capabilities = new Set(RATE_TABLE.map((e) => e.capability));
+    let compared = 0;
 
-    expect(standardTTS?.effectivePrice).toBeLessThan(premiumTTS?.effectivePrice ?? Infinity);
+    for (const capability of capabilities) {
+      const standard = RATE_TABLE.find((e) => e.capability === capability && e.tier === "standard");
+      const premium = RATE_TABLE.find((e) => e.capability === capability && e.tier === "premium");
+
+      if (standard && premium) {
+        expect(standard.effectivePrice).toBeLessThan(premium.effectivePrice);
+        compared++;
+      }
+    }
+
+    expect(compared).toBeGreaterThan(0);
   });
 
   it("effective price equals cost * margin", () => {

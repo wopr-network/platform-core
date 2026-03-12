@@ -10,9 +10,11 @@ import type {
   AdapterResult,
   EmbeddingsOutput,
   ProviderAdapter,
+  TextGenerationOutput,
   TranscriptionOutput,
   TTSOutput,
 } from "../adapters/types.js";
+import type { ArbitrageRouter } from "../arbitrage/router.js";
 import { BudgetChecker, type SpendLimits } from "../budget/budget-checker.js";
 import { AdapterSocket, type SocketConfig } from "./socket.js";
 
@@ -932,6 +934,224 @@ describe("AdapterSocket", () => {
         expect(error.httpStatus).toBe(429);
         expect(error.budgetCheck).toEqual(expect.any(Object));
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // execute -- ArbitrageRouter integration
+  // ---------------------------------------------------------------------------
+
+  describe("execute -- ArbitrageRouter integration", () => {
+    function stubRouter(overrides: Partial<ArbitrageRouter> = {}): ArbitrageRouter {
+      return {
+        route: vi.fn().mockResolvedValue({
+          result: { text: "routed-response", model: "deepseek-chat", usage: { inputTokens: 50, outputTokens: 50 } },
+          cost: Credit.fromDollars(0.001),
+          provider: "deepseek",
+        }),
+        selectProvider: vi.fn(),
+        registerAdapter: vi.fn(),
+        ...overrides,
+      } as unknown as ArbitrageRouter;
+    }
+
+    it("delegates to router when configured and no explicit adapter", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+
+      // Register adapter so selfHosted lookup works
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      const result = await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+      });
+
+      expect(result.text).toBe("routed-response");
+      expect(router.route).toHaveBeenCalledOnce();
+      expect(meter.events).toHaveLength(1);
+      expect(meter.events[0].provider).toBe("deepseek");
+    });
+
+    it("passes model to router for model-level routing", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+        model: "gemini-2.5-pro",
+      });
+
+      expect(router.route).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-2.5-pro" }));
+    });
+
+    it("explicit adapter override bypasses router", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+
+      socket.register(
+        stubAdapter({
+          name: "explicit-provider",
+          capabilities: ["transcription"],
+          async transcribe() {
+            return {
+              result: { text: "explicit-result", detectedLanguage: "en", durationSeconds: 5 },
+              cost: Credit.fromDollars(0.05),
+            };
+          },
+        }),
+      );
+
+      const result = await socket.execute<TranscriptionOutput>({
+        tenantId: "t-1",
+        capability: "transcription",
+        input: { audioUrl: "https://example.com/audio.mp3" },
+        adapter: "explicit-provider",
+      });
+
+      expect(result.text).toBe("explicit-result");
+      expect(router.route).not.toHaveBeenCalled();
+      expect(meter.events[0].provider).toBe("explicit-provider");
+    });
+
+    it("emits BYOK zero cost/charge even with router", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+        byok: true,
+      });
+
+      expect(meter.events).toHaveLength(1);
+      expect(meter.events[0].cost.isZero()).toBe(true);
+      expect(meter.events[0].charge.isZero()).toBe(true);
+      expect(meter.events[0].tier).toBe("byok");
+    });
+
+    it("applies margin to router result cost", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router, defaultMargin: 1.5 });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+      });
+
+      // Router returns cost $0.001, margin 1.5 → charge $0.0015
+      expect(meter.events[0].cost.toDollars()).toBe(0.001);
+      expect(meter.events[0].charge.toDollars()).toBe(0.0015);
+    });
+
+    it("sets tier to wopr when router picks self-hosted adapter", async () => {
+      const meter = stubMeter();
+      const router = stubRouter({
+        route: vi.fn().mockResolvedValue({
+          result: { text: "gpu-response", model: "llama-3", usage: { inputTokens: 25, outputTokens: 25 } },
+          cost: Credit.fromDollars(0.0001),
+          provider: "self-hosted-llm",
+        }),
+        registerAdapter: vi.fn(),
+      } as unknown as Partial<ArbitrageRouter>);
+
+      const socket = new AdapterSocket({ meter, router });
+      socket.register(stubAdapter({ name: "self-hosted-llm", capabilities: ["text-generation"], selfHosted: true }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+      });
+
+      expect(meter.events[0].tier).toBe("wopr");
+    });
+
+    it("sets tier to branded when router picks third-party adapter", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"], selfHosted: false }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+      });
+
+      expect(meter.events[0].tier).toBe("branded");
+    });
+
+    it("register() forwards adapter to router.registerAdapter()", () => {
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter: stubMeter(), router });
+
+      const adapter = stubAdapter({ name: "test-adapter" });
+      socket.register(adapter);
+
+      expect(router.registerAdapter).toHaveBeenCalledWith(adapter);
+    });
+
+    it("includes sessionId in meter event when routing via router", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+        sessionId: "sess-99",
+      });
+
+      expect(meter.events[0].sessionId).toBe("sess-99");
+    });
+
+    it("per-request margin override works with router", async () => {
+      const meter = stubMeter();
+      const router = stubRouter();
+      const socket = new AdapterSocket({ meter, router, defaultMargin: 1.3 });
+      socket.register(stubAdapter({ name: "deepseek", capabilities: ["text-generation"] }));
+
+      await socket.execute<TextGenerationOutput>({
+        tenantId: "t-1",
+        capability: "text-generation",
+        input: { prompt: "hello" },
+        margin: 2.0,
+      });
+
+      // Router returns cost $0.001, margin override 2.0 → charge $0.002
+      expect(meter.events[0].charge.toDollars()).toBe(0.002);
+    });
+
+    it("falls back to legacy routing when no router configured", async () => {
+      const meter = stubMeter();
+      // No router — should use legacy resolveAdapter
+      const socket = new AdapterSocket({ meter });
+      socket.register(stubAdapter());
+
+      const result = await socket.execute<TranscriptionOutput>({
+        tenantId: "t-1",
+        capability: "transcription",
+        input: { audioUrl: "https://example.com/audio.mp3" },
+      });
+
+      expect(result.text).toBe("hello");
+      expect(meter.events).toHaveLength(1);
     });
   });
 });

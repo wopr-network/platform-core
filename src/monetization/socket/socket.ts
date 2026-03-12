@@ -4,12 +4,17 @@
  * The socket layer is the glue: it receives a capability request with a tenant ID,
  * selects the right adapter, calls it, emits a MeterEvent, and returns the result.
  * Adapters never touch metering or billing — that's the socket's job.
+ *
+ * When an ArbitrageRouter is configured, the socket delegates provider selection
+ * to the router (GPU-first, cost-sorted, 5xx failover) while keeping ownership
+ * of budget checks, metering, BYOK, and margin calculation.
  */
 
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { AdapterCapability, AdapterResult, ProviderAdapter } from "../adapters/types.js";
 import { withMargin } from "../adapters/types.js";
+import type { ArbitrageRouter } from "../arbitrage/router.js";
 import type { BudgetChecker, SpendLimits } from "../budget/budget-checker.js";
 
 export interface SocketConfig {
@@ -19,6 +24,8 @@ export interface SocketConfig {
   budgetChecker?: BudgetChecker;
   /** Default margin multiplier (default: 1.3) */
   defaultMargin?: number;
+  /** ArbitrageRouter for cost-optimized routing (GPU-first, cheapest, 5xx failover) */
+  router?: ArbitrageRouter;
 }
 
 export interface SocketRequest {
@@ -28,8 +35,10 @@ export interface SocketRequest {
   capability: AdapterCapability;
   /** The request payload (matches the capability's input type) */
   input: unknown;
-  /** Optional: force a specific adapter by name */
+  /** Optional: force a specific adapter by name (highest priority, bypasses router) */
   adapter?: string;
+  /** Optional: model specifier for model-level routing (e.g., "gemini-2.5-pro") */
+  model?: string;
   /** Optional: override margin for this request */
   margin?: number;
   /** Optional: session ID for grouping events */
@@ -58,16 +67,22 @@ export class AdapterSocket {
   private readonly meter: MeterEmitter;
   private readonly budgetChecker?: BudgetChecker;
   private readonly defaultMargin: number;
+  private readonly router?: ArbitrageRouter;
 
   constructor(config: SocketConfig) {
     this.meter = config.meter;
     this.budgetChecker = config.budgetChecker;
     this.defaultMargin = config.defaultMargin ?? 1.3;
+    this.router = config.router;
   }
 
   /** Register an adapter. Overwrites any existing adapter with the same name. */
   register(adapter: ProviderAdapter): void {
     this.adapters.set(adapter.name, adapter);
+    // Also register with router so it can call the adapter during failover
+    if (this.router) {
+      this.router.registerAdapter(adapter);
+    }
   }
 
   /** Execute a capability request against the best adapter. */
@@ -85,18 +100,46 @@ export class AdapterSocket {
       }
     }
 
-    const adapter = this.resolveAdapter(request);
-    const method = CAPABILITY_METHOD[request.capability];
-    const fn = adapter[method] as ((input: unknown) => Promise<AdapterResult<T>>) | undefined;
+    // Determine execution path: explicit adapter > arbitrage router > legacy routing
+    let adapterResult: AdapterResult<T>;
+    let providerName: string;
+    let providerSelfHosted: boolean;
 
-    if (!fn) {
-      throw new Error(
-        `Adapter "${adapter.name}" is registered for "${request.capability}" but does not implement "${String(method)}"`,
-      );
+    if (request.adapter) {
+      // Explicit adapter override — highest priority, bypasses router
+      const result = await this.executeWithAdapter<T>(request.adapter, request.capability, request.input);
+      adapterResult = result.adapterResult;
+      providerName = result.providerName;
+      providerSelfHosted = result.selfHosted;
+    } else if (this.router) {
+      // Arbitrage router — cost-optimized routing with GPU-first and 5xx failover.
+      // Margin tracking is handled by the meter event below, not the router's callback.
+      // The router's onMarginRecord callback is intentionally unused here — it fires
+      // only when sellPrice is passed to route(), which the socket never does.
+      const routerResult = await this.router.route<T>({
+        capability: request.capability,
+        tenantId: request.tenantId,
+        input: request.input,
+        model: request.model,
+      });
+      adapterResult = routerResult;
+      providerName = routerResult.provider;
+      const routedAdapter = this.adapters.get(providerName);
+      if (!routedAdapter) {
+        throw new Error(
+          `Router selected provider "${providerName}" but it is not registered in the socket. ` +
+            `Always register adapters via socket.register() — never directly on the router.`,
+        );
+      }
+      providerSelfHosted = routedAdapter.selfHosted === true;
+    } else {
+      // Legacy routing — first-match or tier-based
+      const adapter = this.resolveAdapter(request);
+      const result = await this.executeWithAdapter<T>(adapter.name, request.capability, request.input);
+      adapterResult = result.adapterResult;
+      providerName = result.providerName;
+      providerSelfHosted = result.selfHosted;
     }
-
-    // Call the adapter — if it throws, no meter event is emitted.
-    const adapterResult = await fn.call(adapter, request.input);
 
     // Compute charge if the adapter didn't supply one
     const margin = request.margin ?? this.defaultMargin;
@@ -109,10 +152,10 @@ export class AdapterSocket {
       cost: isByok ? Credit.ZERO : adapterResult.cost,
       charge: isByok ? Credit.ZERO : charge,
       capability: request.capability,
-      provider: adapter.name,
+      provider: providerName,
       timestamp: Date.now(),
       ...(request.sessionId ? { sessionId: request.sessionId } : {}),
-      tier: isByok ? "byok" : adapter.selfHosted ? "wopr" : "branded",
+      tier: isByok ? "byok" : providerSelfHosted ? "wopr" : "branded",
     });
 
     return adapterResult.result;
@@ -129,20 +172,34 @@ export class AdapterSocket {
     return [...seen];
   }
 
-  /** Resolve which adapter to use for a request. */
-  private resolveAdapter(request: SocketRequest): ProviderAdapter {
-    // If a specific adapter is requested, use it (highest priority)
-    if (request.adapter) {
-      const adapter = this.adapters.get(request.adapter);
-      if (!adapter) {
-        throw new Error(`Adapter "${request.adapter}" is not registered`);
-      }
-      if (!adapter.capabilities.includes(request.capability)) {
-        throw new Error(`Adapter "${request.adapter}" does not support capability "${request.capability}"`);
-      }
-      return adapter;
+  /** Call a specific adapter by name. Used by explicit override and legacy routing. */
+  private async executeWithAdapter<T>(
+    adapterName: string,
+    capability: AdapterCapability,
+    input: unknown,
+  ): Promise<{ adapterResult: AdapterResult<T>; providerName: string; selfHosted: boolean }> {
+    const adapter = this.adapters.get(adapterName);
+    if (!adapter) {
+      throw new Error(`Adapter "${adapterName}" is not registered`);
+    }
+    if (!adapter.capabilities.includes(capability)) {
+      throw new Error(`Adapter "${adapterName}" does not support capability "${capability}"`);
     }
 
+    const method = CAPABILITY_METHOD[capability];
+    const fn = adapter[method] as ((input: unknown) => Promise<AdapterResult<T>>) | undefined;
+    if (!fn) {
+      throw new Error(
+        `Adapter "${adapter.name}" is registered for "${capability}" but does not implement "${String(method)}"`,
+      );
+    }
+
+    const adapterResult = await fn.call(adapter, input);
+    return { adapterResult, providerName: adapter.name, selfHosted: adapter.selfHosted === true };
+  }
+
+  /** Resolve which adapter to use for a request (legacy routing — pricingTier or first-match). */
+  private resolveAdapter(request: SocketRequest): ProviderAdapter {
     // If a pricing tier is specified, prefer adapters matching that tier
     if (request.pricingTier) {
       const preferSelfHosted = request.pricingTier === "standard";
