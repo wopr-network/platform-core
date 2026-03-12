@@ -109,10 +109,34 @@ export const RATE_TABLE: RateEntry[] = [
     effectivePrice: 0.000000026, // = costPerUnit * margin ($0.026 per 1M tokens)
   },
 
+  // Image Generation
+  // NOTE: No self-hosted SDXL adapter yet — only premium tiers available.
+  // When self-hosted-sdxl lands, add a standard tier entry here.
+  // Multiple premium providers exist — cheapest first so lookupRate() returns
+  // the best rate. Use getRatesForCapability() for per-provider breakdowns.
+  {
+    capability: "image-generation",
+    tier: "premium",
+    provider: "replicate",
+    costPerUnit: 0.019, // ~$0.019 per image (SDXL on A40, ~8s avg at $0.0023/s)
+    billingUnit: "per-image",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.0247, // = costPerUnit * margin ($24.70 per 1K images)
+  },
+  {
+    capability: "image-generation",
+    tier: "premium",
+    provider: "nano-banana",
+    costPerUnit: 0.02, // $0.02 per image (Gemini Imagen via Nano Banana)
+    billingUnit: "per-image",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.026, // = costPerUnit * margin ($26.00 per 1K images)
+  },
+
   // Future self-hosted adapters will add more entries here:
   // - transcription: self-hosted-whisper (standard) — when GPU adapter exists
   // - embeddings: self-hosted-embeddings (standard) — when GPU adapter exists
-  // - image-generation: self-hosted-sdxl (standard) vs replicate (premium)
+  // - image-generation: self-hosted-sdxl (standard) — when GPU adapter exists
 ];
 
 /**
