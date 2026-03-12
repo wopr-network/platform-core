@@ -56,6 +56,13 @@ export {
 export { createReplicateAdapter, type ReplicateAdapterConfig } from "./adapters/replicate.js";
 // Self-hosted adapter utilities (WOP-497)
 export { checkHealth, type FetchFn, type SelfHostedAdapterConfig } from "./adapters/self-hosted-base.js";
+// Text-generation adapter factory (WOP-463)
+export {
+  createTextGenAdapters,
+  createTextGenAdaptersFromEnv,
+  type TextGenFactoryConfig,
+  type TextGenFactoryResult,
+} from "./adapters/text-gen-factory.js";
 export {
   type AdapterCapability,
   type AdapterResult,
