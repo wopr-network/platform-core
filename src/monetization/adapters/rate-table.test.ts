@@ -62,7 +62,9 @@ describe("RATE_TABLE", () => {
 
     for (const entry of premiumEntries) {
       // Third-party providers are well-known brand names
-      const isThirdParty = ["elevenlabs", "deepgram", "openrouter", "replicate", "gemini"].includes(entry.provider);
+      const isThirdParty = ["elevenlabs", "deepgram", "openrouter", "replicate", "nano-banana"].includes(
+        entry.provider,
+      );
       expect(isThirdParty).toBe(true);
     }
   });
@@ -146,7 +148,7 @@ describe("getRatesForCapability", () => {
   });
 
   it("returns empty array for non-existent capability", () => {
-    const rates = getRatesForCapability("image-generation" as unknown as AdapterCapability);
+    const rates = getRatesForCapability("video-generation" as unknown as AdapterCapability);
     expect(rates).toHaveLength(0);
   });
 

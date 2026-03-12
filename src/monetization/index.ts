@@ -42,6 +42,13 @@ export {
   type EmbeddingsFactoryResult,
 } from "./adapters/embeddings-factory.js";
 export { createGeminiAdapter, type GeminiAdapterConfig } from "./adapters/gemini.js";
+// Image-generation adapter factory (WOP-2188)
+export {
+  createImageGenAdapters,
+  createImageGenAdaptersFromEnv,
+  type ImageGenFactoryConfig,
+  type ImageGenFactoryResult,
+} from "./adapters/image-gen-factory.js";
 export { createKimiAdapter, type KimiAdapterConfig } from "./adapters/kimi.js";
 // Margin config (WOP-364)
 export {
