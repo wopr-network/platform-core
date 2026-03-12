@@ -19,6 +19,7 @@ describe("bootstrapAdapters", () => {
         deepgramApiKey: "sk-dg",
       },
       embeddings: {
+        ollamaBaseUrl: "http://ollama:11434",
         openrouterApiKey: "sk-or",
       },
       imageGen: {
@@ -27,9 +28,9 @@ describe("bootstrapAdapters", () => {
       },
     });
 
-    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings + 2 image-gen = 11
-    expect(result.adapters).toHaveLength(11);
-    expect(result.summary.total).toBe(11);
+    // 5 text-gen + 2 TTS + 1 transcription + 2 embeddings + 2 image-gen = 12
+    expect(result.adapters).toHaveLength(12);
+    expect(result.summary.total).toBe(12);
     expect(result.summary.skipped).toBe(0);
   });
 
@@ -72,7 +73,7 @@ describe("bootstrapAdapters", () => {
 
     expect(result.skipped.tts).toEqual(["chatterbox-tts", "elevenlabs"]);
     expect(result.skipped.transcription).toEqual(["deepgram"]);
-    expect(result.skipped.embeddings).toEqual(["openrouter"]);
+    expect(result.skipped.embeddings).toEqual(["ollama-embeddings", "openrouter"]);
     expect(result.skipped["text-generation"]).toEqual(["gemini", "minimax", "kimi", "openrouter"]);
     expect(result.skipped["image-generation"]).toEqual(["replicate", "nano-banana"]);
   });
@@ -136,14 +137,15 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "http://chatterbox:8000");
     vi.stubEnv("ELEVENLABS_API_KEY", "env-el");
     vi.stubEnv("DEEPGRAM_API_KEY", "env-dg");
+    vi.stubEnv("OLLAMA_BASE_URL", "http://ollama:11434");
     vi.stubEnv("REPLICATE_API_TOKEN", "r8-rep");
     vi.stubEnv("NANO_BANANA_API_KEY", "env-nb");
 
     const result = bootstrapAdaptersFromEnv();
 
-    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings + 2 image-gen = 11
-    expect(result.adapters).toHaveLength(11);
-    expect(result.summary.total).toBe(11);
+    // 5 text-gen + 2 TTS + 1 transcription + 2 embeddings + 2 image-gen = 12
+    expect(result.adapters).toHaveLength(12);
+    expect(result.summary.total).toBe(12);
   });
 
   it("returns empty when no env vars set", () => {
@@ -155,6 +157,7 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "");
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("DEEPGRAM_API_KEY", "");
+    vi.stubEnv("OLLAMA_BASE_URL", "");
     vi.stubEnv("REPLICATE_API_TOKEN", "");
     vi.stubEnv("NANO_BANANA_API_KEY", "");
 
@@ -173,6 +176,7 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "");
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("DEEPGRAM_API_KEY", "");
+    vi.stubEnv("OLLAMA_BASE_URL", "");
     vi.stubEnv("REPLICATE_API_TOKEN", "");
     vi.stubEnv("NANO_BANANA_API_KEY", "");
 

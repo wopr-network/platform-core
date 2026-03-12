@@ -11,6 +11,18 @@ describe("RATE_TABLE", () => {
     expect(premiumTTS).toEqual(expect.objectContaining({ capability: "tts", tier: "premium" }));
   });
 
+  it("contains both standard and premium tiers for embeddings", () => {
+    const standard = RATE_TABLE.find((e) => e.capability === "embeddings" && e.tier === "standard");
+    const premium = RATE_TABLE.find((e) => e.capability === "embeddings" && e.tier === "premium");
+
+    expect(standard).toEqual(
+      expect.objectContaining({ capability: "embeddings", tier: "standard", provider: "ollama-embeddings" }),
+    );
+    expect(premium).toEqual(
+      expect.objectContaining({ capability: "embeddings", tier: "premium", provider: "openrouter" }),
+    );
+  });
+
   it("contains both standard and premium tiers for text-generation", () => {
     const standard = RATE_TABLE.find((e) => e.capability === "text-generation" && e.tier === "standard");
     const premium = RATE_TABLE.find((e) => e.capability === "text-generation" && e.tier === "premium");
@@ -52,7 +64,10 @@ describe("RATE_TABLE", () => {
 
     for (const entry of standardEntries) {
       // Self-hosted providers include "self-hosted-" prefix or are known self-hosted names
-      const isSelfHosted = entry.provider.startsWith("self-hosted-") || entry.provider === "chatterbox-tts";
+      const isSelfHosted =
+        entry.provider.startsWith("self-hosted-") ||
+        entry.provider === "chatterbox-tts" ||
+        entry.provider === "ollama-embeddings";
       expect(isSelfHosted).toBe(true);
     }
   });
@@ -140,6 +155,13 @@ describe("getRatesForCapability", () => {
     expect(rates.map((r) => r.tier)).toContain("premium");
   });
 
+  it("returns both standard and premium for embeddings", () => {
+    const rates = getRatesForCapability("embeddings");
+    expect(rates).toHaveLength(2);
+    expect(rates.map((r) => r.tier)).toContain("standard");
+    expect(rates.map((r) => r.tier)).toContain("premium");
+  });
+
   it("returns premium-only for transcription (no standard tier yet)", () => {
     const rates = getRatesForCapability("transcription");
     expect(rates).toHaveLength(1);
@@ -184,6 +206,15 @@ describe("calculateSavings", () => {
     // Premium: $2.25 per 100K chars
     // Savings: $2.01 per 100K chars
     expect(savings).toBeCloseTo(2.01, 2);
+  });
+
+  it("calculates savings for embeddings at 1M tokens", () => {
+    const savings = calculateSavings("embeddings", 1_000_000);
+
+    // Standard (ollama-embeddings): $0.006 per 1M tokens
+    // Premium (openrouter): $0.026 per 1M tokens
+    // Savings: $0.020 per 1M tokens
+    expect(savings).toBeCloseTo(0.02, 3);
   });
 
   it("returns zero when capability has no standard tier", () => {

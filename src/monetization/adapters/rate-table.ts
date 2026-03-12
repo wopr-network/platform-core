@@ -119,8 +119,15 @@ export const RATE_TABLE: RateEntry[] = [
   },
 
   // Embeddings
-  // NOTE: No self-hosted embeddings adapter yet — only premium (openrouter) available.
-  // When self-hosted-embeddings lands, add a standard tier entry here.
+  {
+    capability: "embeddings",
+    tier: "standard",
+    provider: "ollama-embeddings",
+    costPerUnit: 0.000000005, // Amortized GPU cost per token ($0.005 per 1M tokens)
+    billingUnit: "per-token",
+    margin: 1.2, // 20% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.000000006, // = costPerUnit * margin ($0.006 per 1M tokens)
+  },
   {
     capability: "embeddings",
     tier: "premium",
@@ -157,7 +164,6 @@ export const RATE_TABLE: RateEntry[] = [
 
   // Future self-hosted adapters will add more entries here:
   // - transcription: self-hosted-whisper (standard) — when GPU adapter exists
-  // - embeddings: self-hosted-embeddings (standard) — when GPU adapter exists
   // - image-generation: self-hosted-sdxl (standard) — when GPU adapter exists
 ];
 

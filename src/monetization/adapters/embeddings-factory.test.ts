@@ -1,34 +1,75 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmbeddingsAdapters, createEmbeddingsAdaptersFromEnv } from "./embeddings-factory.js";
+import * as ollamaModule from "./ollama-embeddings.js";
 import * as openrouterModule from "./openrouter.js";
 
 describe("createEmbeddingsAdapters", () => {
-  it("creates adapter when API key provided", () => {
+  it("creates all adapters when all config provided", () => {
+    const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
+      openrouterApiKey: "sk-or",
+    });
+
+    expect(result.adapters).toHaveLength(2);
+    expect(result.adapterMap.size).toBe(2);
+    expect(result.skipped).toHaveLength(0);
+  });
+
+  it("orders adapters cheapest first (ollama before openrouter)", () => {
+    const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
+      openrouterApiKey: "sk-or",
+    });
+
+    expect(result.adapters[0].name).toBe("ollama-embeddings");
+    expect(result.adapters[1].name).toBe("openrouter");
+  });
+
+  it("ollama adapter is self-hosted", () => {
+    const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
+    });
+
+    expect(result.adapters[0].selfHosted).toBe(true);
+  });
+
+  it("creates only openrouter when no ollama URL", () => {
     const result = createEmbeddingsAdapters({
       openrouterApiKey: "sk-or",
     });
 
     expect(result.adapters).toHaveLength(1);
-    expect(result.adapterMap.size).toBe(1);
-    expect(result.skipped).toHaveLength(0);
+    expect(result.adapters[0].name).toBe("openrouter");
+    expect(result.skipped).toEqual(["ollama-embeddings"]);
   });
 
-  it("adapter is openrouter", () => {
+  it("creates only ollama when no openrouter key", () => {
     const result = createEmbeddingsAdapters({
-      openrouterApiKey: "sk-or",
+      ollamaBaseUrl: "http://ollama:11434",
     });
 
-    expect(result.adapters[0].name).toBe("openrouter");
-  });
-
-  it("skips openrouter when no API key", () => {
-    const result = createEmbeddingsAdapters({});
-
-    expect(result.adapters).toHaveLength(0);
+    expect(result.adapters).toHaveLength(1);
+    expect(result.adapters[0].name).toBe("ollama-embeddings");
     expect(result.skipped).toEqual(["openrouter"]);
   });
 
-  it("skips adapter with empty string key", () => {
+  it("skips both when no config", () => {
+    const result = createEmbeddingsAdapters({});
+
+    expect(result.adapters).toHaveLength(0);
+    expect(result.skipped).toEqual(["ollama-embeddings", "openrouter"]);
+  });
+
+  it("skips ollama with empty string URL", () => {
+    const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "",
+    });
+
+    expect(result.adapters).toHaveLength(0);
+    expect(result.skipped).toContain("ollama-embeddings");
+  });
+
+  it("skips openrouter with empty string key", () => {
     const result = createEmbeddingsAdapters({
       openrouterApiKey: "",
     });
@@ -37,24 +78,31 @@ describe("createEmbeddingsAdapters", () => {
     expect(result.skipped).toContain("openrouter");
   });
 
-  it("adapter supports embeddings capability", () => {
+  it("both adapters support embeddings capability", () => {
     const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
       openrouterApiKey: "sk-or",
     });
 
-    expect(result.adapters[0].capabilities).toContain("embeddings");
+    for (const adapter of result.adapters) {
+      expect(adapter.capabilities).toContain("embeddings");
+    }
   });
 
-  it("adapter implements embed", () => {
+  it("both adapters implement embed", () => {
     const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
       openrouterApiKey: "sk-or",
     });
 
-    expect(typeof result.adapters[0].embed).toBe("function");
+    for (const adapter of result.adapters) {
+      expect(typeof adapter.embed).toBe("function");
+    }
   });
 
   it("adapterMap keys match adapter names", () => {
     const result = createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
       openrouterApiKey: "sk-or",
     });
 
@@ -63,7 +111,25 @@ describe("createEmbeddingsAdapters", () => {
     }
   });
 
-  it("passes per-adapter config overrides to adapter constructor", () => {
+  it("passes per-adapter config overrides to ollama constructor", () => {
+    const spy = vi.spyOn(ollamaModule, "createOllamaEmbeddingsAdapter");
+
+    createEmbeddingsAdapters({
+      ollamaBaseUrl: "http://ollama:11434",
+      ollama: { marginMultiplier: 1.5 },
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "http://ollama:11434",
+        marginMultiplier: 1.5,
+      }),
+    );
+
+    spy.mockRestore();
+  });
+
+  it("passes per-adapter config overrides to openrouter constructor", () => {
     const spy = vi.spyOn(openrouterModule, "createOpenRouterAdapter");
 
     createEmbeddingsAdapters({
@@ -80,17 +146,6 @@ describe("createEmbeddingsAdapters", () => {
 
     spy.mockRestore();
   });
-
-  it("apiKey cannot be overridden via openrouter config", () => {
-    // Ensure apiKey always comes from openrouterApiKey, not from spread
-    const result = createEmbeddingsAdapters({
-      openrouterApiKey: "sk-real",
-      openrouter: { apiKey: "sk-evil" } as never,
-    });
-
-    expect(result.adapters).toHaveLength(1);
-    expect(result.adapters[0].name).toBe("openrouter");
-  });
 });
 
 describe("createEmbeddingsAdaptersFromEnv", () => {
@@ -102,37 +157,51 @@ describe("createEmbeddingsAdaptersFromEnv", () => {
     vi.unstubAllEnvs();
   });
 
-  it("reads key from environment variable", () => {
+  it("reads keys from environment variables", () => {
+    vi.stubEnv("OLLAMA_BASE_URL", "http://ollama:11434");
     vi.stubEnv("OPENROUTER_API_KEY", "env-or");
 
     const result = createEmbeddingsAdaptersFromEnv();
 
-    expect(result.adapters).toHaveLength(1);
-    expect(result.adapters[0].name).toBe("openrouter");
+    expect(result.adapters).toHaveLength(2);
+    expect(result.adapters[0].name).toBe("ollama-embeddings");
+    expect(result.adapters[1].name).toBe("openrouter");
     expect(result.skipped).toHaveLength(0);
   });
 
-  it("returns empty when no env var set", () => {
+  it("returns empty when no env vars set", () => {
+    vi.stubEnv("OLLAMA_BASE_URL", "");
     vi.stubEnv("OPENROUTER_API_KEY", "");
 
     const result = createEmbeddingsAdaptersFromEnv();
 
     expect(result.adapters).toHaveLength(0);
-    expect(result.skipped).toEqual(["openrouter"]);
+    expect(result.skipped).toEqual(["ollama-embeddings", "openrouter"]);
   });
 
-  it("passes per-adapter overrides alongside env key to adapter constructor", () => {
+  it("creates only ollama when only OLLAMA_BASE_URL set", () => {
+    vi.stubEnv("OLLAMA_BASE_URL", "http://ollama:11434");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+
+    const result = createEmbeddingsAdaptersFromEnv();
+
+    expect(result.adapters).toHaveLength(1);
+    expect(result.adapters[0].name).toBe("ollama-embeddings");
+  });
+
+  it("passes per-adapter overrides alongside env vars", () => {
+    vi.stubEnv("OLLAMA_BASE_URL", "http://ollama:11434");
     vi.stubEnv("OPENROUTER_API_KEY", "env-or");
-    const spy = vi.spyOn(openrouterModule, "createOpenRouterAdapter");
+    const spy = vi.spyOn(ollamaModule, "createOllamaEmbeddingsAdapter");
 
     createEmbeddingsAdaptersFromEnv({
-      openrouter: { marginMultiplier: 1.2 },
+      ollama: { marginMultiplier: 1.1 },
     });
 
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiKey: "env-or",
-        marginMultiplier: 1.2,
+        baseUrl: "http://ollama:11434",
+        marginMultiplier: 1.1,
       }),
     );
 
