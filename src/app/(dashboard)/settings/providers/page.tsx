@@ -46,6 +46,7 @@ import {
   testProviderKey,
   updateProviderModel,
 } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import {
   listCapabilities,
   testProviderKey as testCapabilityViaTrpc,
@@ -278,7 +279,7 @@ export default function ProvidersPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Provider Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Choose WOPR Hosted or Bring Your Own Key for each capability. Changes take effect
+          Choose {brandName()} Hosted or Bring Your Own Key for each capability. Changes take effect
           immediately.
         </p>
       </div>
@@ -332,7 +333,7 @@ export default function ProvidersPage() {
                         htmlFor={`mode-${capName}-hosted`}
                         className="text-sm font-medium cursor-pointer"
                       >
-                        WOPR Hosted
+                        {brandName()} Hosted
                       </Label>
                       <Badge variant="outline">{meta.pricing}</Badge>
                     </div>
@@ -651,10 +652,12 @@ function BillingGateDialog({
       <Dialog open onOpenChange={(open) => !open && onCancel()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enable WOPR Hosted for {meta.label}?</DialogTitle>
+            <DialogTitle>
+              Enable {brandName()} Hosted for {meta.label}?
+            </DialogTitle>
             <DialogDescription>
-              WOPR Hosted for {meta.label.toLowerCase()} costs {meta.pricing}. This will be billed
-              to your payment method on file.
+              {brandName()} Hosted for {meta.label.toLowerCase()} costs {meta.pricing}. This will be
+              billed to your payment method on file.
             </DialogDescription>
           </DialogHeader>
 

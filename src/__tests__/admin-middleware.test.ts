@@ -51,7 +51,7 @@ describe("Admin route middleware authorization", () => {
     });
 
     const req = mockRequest({
-      url: "https://app.wopr.dev/admin/tenants",
+      url: "https://localhost:3000/admin/tenants",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 
@@ -71,7 +71,7 @@ describe("Admin route middleware authorization", () => {
     });
 
     const req = mockRequest({
-      url: "https://app.wopr.dev/admin/tenants",
+      url: "https://localhost:3000/admin/tenants",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 
@@ -82,7 +82,7 @@ describe("Admin route middleware authorization", () => {
 
   it("redirects unauthenticated users from /admin to /login", async () => {
     const req = mockRequest({
-      url: "https://app.wopr.dev/admin/tenants",
+      url: "https://localhost:3000/admin/tenants",
       // No session cookie
     });
 
@@ -101,7 +101,7 @@ describe("Admin route middleware authorization", () => {
     });
 
     const req = mockRequest({
-      url: "https://app.wopr.dev/admin/tenants",
+      url: "https://localhost:3000/admin/tenants",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 
@@ -121,7 +121,7 @@ describe("Admin route middleware authorization", () => {
     });
 
     const req = mockRequest({
-      url: "https://app.wopr.dev/admin/tenants",
+      url: "https://localhost:3000/admin/tenants",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 
@@ -132,7 +132,7 @@ describe("Admin route middleware authorization", () => {
 
   it("does not set restrictive cache headers on non-admin pages", async () => {
     const req = mockRequest({
-      url: "https://app.wopr.dev/marketplace",
+      url: "https://localhost:3000/marketplace",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 
@@ -146,7 +146,7 @@ describe("Admin route middleware authorization", () => {
     globalThis.fetch = fetchSpy;
 
     const req = mockRequest({
-      url: "https://app.wopr.dev/marketplace",
+      url: "https://localhost:3000/marketplace",
       cookies: { "better-auth.session_token": "valid-token" },
     });
 

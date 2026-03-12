@@ -75,7 +75,7 @@ const MOCK_API_KEYS: PlatformApiKey[] = [
   {
     id: "ak-1",
     name: "CI Pipeline",
-    prefix: "wopr_ci_",
+    prefix: "platform_ci_",
     scope: "full",
     createdAt: "2026-01-20T10:00:00Z",
     lastUsedAt: "2026-02-13T08:00:00Z",
@@ -84,7 +84,7 @@ const MOCK_API_KEYS: PlatformApiKey[] = [
   {
     id: "ak-2",
     name: "Monitoring Dashboard",
-    prefix: "wopr_mon_",
+    prefix: "platform_mon_",
     scope: "read-only",
     createdAt: "2026-02-01T12:00:00Z",
     lastUsedAt: "2026-02-12T22:00:00Z",
@@ -93,7 +93,7 @@ const MOCK_API_KEYS: PlatformApiKey[] = [
   {
     id: "ak-3",
     name: "Mobile App",
-    prefix: "wopr_mob_",
+    prefix: "platform_mob_",
     scope: "instances",
     createdAt: "2026-02-10T09:00:00Z",
     lastUsedAt: null,
@@ -193,7 +193,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     saveProviderKey: vi.fn().mockResolvedValue({ ok: true, id: "test-id", provider: "openai" }),
     updateProviderModel: vi.fn().mockResolvedValue(undefined),
     listApiKeys: vi.fn().mockResolvedValue(MOCK_API_KEYS),
-    createApiKey: vi.fn().mockResolvedValue({ key: MOCK_API_KEYS[0], secret: "wopr_test_secret" }),
+    createApiKey: vi.fn().mockResolvedValue({ key: MOCK_API_KEYS[0], secret: "platform_test_secret" }),
     revokeApiKey: vi.fn().mockResolvedValue(undefined),
     getBillingUsage: vi.fn().mockResolvedValue(MOCK_BILLING_USAGE),
     createBillingPortalSession: vi
@@ -363,11 +363,11 @@ describe("Providers page", () => {
     expect(screen.getByText("$0.0001/1K tokens")).toBeInTheDocument();
   });
 
-  it("renders WOPR Hosted and Bring Your Own Key options", async () => {
+  it("renders Platform Hosted and Bring Your Own Key options", async () => {
     const { default: ProvidersPage } = await import("../app/(dashboard)/settings/providers/page");
     render(<ProvidersPage />);
 
-    const hostedLabels = await screen.findAllByText("WOPR Hosted");
+    const hostedLabels = await screen.findAllByText("Platform Hosted");
     expect(hostedLabels.length).toBe(4);
 
     const byokLabels = screen.getAllByText("Bring Your Own Key");
@@ -441,11 +441,11 @@ describe("Providers page - billing gate", () => {
 
     // text-gen is in byok mode, click hosted radio to trigger billing gate
     const textGenCard = screen.getByTestId("capability-text-gen");
-    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /platform hosted/i });
     await user.click(hostedRadio);
 
     // Dialog opens — wait for billing check to complete
-    expect(await screen.findByText(/Enable WOPR Hosted for Text Generation/)).toBeInTheDocument();
+    expect(await screen.findByText(/Enable Platform Hosted for Text Generation/)).toBeInTheDocument();
     // With a payment method on file, the Enable Hosted button should appear
     expect(await screen.findByRole("button", { name: "Enable Hosted" })).toBeInTheDocument();
   });
@@ -470,7 +470,7 @@ describe("Providers page - billing gate", () => {
     await screen.findByText("Transcription");
 
     const textGenCard = screen.getByTestId("capability-text-gen");
-    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /platform hosted/i });
     await user.click(hostedRadio);
 
     // Dialog opens — should show payment required message instead of Enable Hosted button
@@ -499,7 +499,7 @@ describe("Providers page - billing gate", () => {
     await screen.findByText("Transcription");
 
     const textGenCard = screen.getByTestId("capability-text-gen");
-    const hostedRadio = within(textGenCard).getByRole("radio", { name: /wopr hosted/i });
+    const hostedRadio = within(textGenCard).getByRole("radio", { name: /platform hosted/i });
     await user.click(hostedRadio);
 
     // Has credit balance, so Enable Hosted should be available
@@ -551,7 +551,7 @@ describe("API Keys page", () => {
     const key1: PlatformApiKey = {
       id: "k1",
       name: "Key One",
-      prefix: "wopr_k1",
+      prefix: "platform_k1",
       scope: "full",
       createdAt: "2026-01-01T00:00:00Z",
       lastUsedAt: null,
@@ -560,7 +560,7 @@ describe("API Keys page", () => {
     const key2: PlatformApiKey = {
       id: "k2",
       name: "Key Two",
-      prefix: "wopr_k2",
+      prefix: "platform_k2",
       scope: "full",
       createdAt: "2026-01-01T00:00:00Z",
       lastUsedAt: null,

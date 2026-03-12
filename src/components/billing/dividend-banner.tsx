@@ -5,6 +5,7 @@ import { TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { useCountUp } from "@/hooks/use-count-up";
 import type { DividendWalletStats } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 
 interface DividendBannerProps {
@@ -39,7 +40,7 @@ export function DividendBanner({ todayAmountCents, stats }: DividendBannerProps)
             <TrendingUpIcon className="size-5 text-terminal shrink-0" />
             <div>
               <p className="text-lg font-bold text-terminal">
-                WOPR paid you{" "}
+                {brandName()} paid you{" "}
                 <span className="text-2xl font-bold font-mono tabular-nums">
                   {formatCreditStandard(animatedAmount)}
                 </span>{" "}

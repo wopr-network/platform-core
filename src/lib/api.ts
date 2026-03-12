@@ -1,4 +1,5 @@
 import { API_BASE_URL, PLATFORM_BASE_URL } from "./api-config";
+import { getBrandConfig } from "./brand-config";
 import { ApiError } from "./errors";
 import { handleUnauthorized } from "./fetch-utils";
 import { logger } from "./logger";
@@ -363,12 +364,12 @@ export interface DeployBotPayload {
 
 /**
  * Deploy a new bot instance via tRPC fleet.createInstance.
- * Uses the default stable WOPR image. tenantId is injected server-side.
+ * Uses the default stable image from brand config. tenantId is injected server-side.
  */
 export async function deployInstance(payload: DeployBotPayload): Promise<Instance> {
   const input = {
     name: payload.name,
-    image: "ghcr.io/wopr-network/wopr:stable",
+    image: getBrandConfig().defaultImage || "ghcr.io/wopr-network/wopr:stable",
     description: payload.description ?? "",
     env: payload.env ?? {},
   };

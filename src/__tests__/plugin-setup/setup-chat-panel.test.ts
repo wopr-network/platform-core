@@ -34,7 +34,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.begin",
         args: { pluginId: "discord", botId: "bot-001" },
@@ -51,7 +51,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.ask",
         args: { question: "Enter your API key", fieldName: "apiKey" },
@@ -66,7 +66,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.ask",
         args: { question: "Which region?", fieldName: undefined },
@@ -83,7 +83,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.validateKey",
         args: { fieldName: "apiKey", value: "sk-test-123" },
@@ -101,7 +101,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.saveConfig",
         args: { pluginId: "discord", config },
@@ -118,7 +118,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({ tool: "setup.complete", args: { pluginId: "discord" } });
     });
   });
@@ -132,7 +132,7 @@ describe("setup tool handlers", () => {
       expect(result).toEqual({ ok: true });
       expect(dispatchSpy).toHaveBeenCalledOnce();
       const event = getDispatchedCustomEvent();
-      expect(event.type).toBe("wopr-chat-tool-call");
+      expect(event.type).toBe("platform-chat-tool-call");
       expect(event.detail).toEqual({
         tool: "setup.rollback",
         args: { pluginId: "discord", reason: "Invalid API key" },

@@ -59,7 +59,7 @@ describe("DividendBanner", () => {
     const { DividendBanner } = await import("@/components/billing/dividend-banner");
     render(<DividendBanner todayAmountCents={8} stats={MOCK_STATS} />);
 
-    expect(screen.getByText(/WOPR paid you/)).toBeInTheDocument();
+    expect(screen.getByText(/Platform paid you/)).toBeInTheDocument();
   });
 
   it("renders projected message when no dividend yet today", async () => {
@@ -139,22 +139,22 @@ describe("FirstDividendDialog", () => {
     const { FirstDividendDialog } = await import("@/components/billing/first-dividend-dialog");
     render(<FirstDividendDialog todayAmountCents={8} />);
 
-    expect(screen.getByText(/WOPR just paid you/i)).toBeInTheDocument();
+    expect(screen.getByText(/Platform just paid you/i)).toBeInTheDocument();
   });
 
   it("does not render dialog when already seen", async () => {
-    localStorage.setItem("wopr_first_dividend_seen", "true");
+    localStorage.setItem("platform-first_dividend_seen", "true");
     const { FirstDividendDialog } = await import("@/components/billing/first-dividend-dialog");
     render(<FirstDividendDialog todayAmountCents={8} />);
 
-    expect(screen.queryByText(/WOPR just paid you/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Platform just paid you/i)).not.toBeInTheDocument();
   });
 
   it("does not render when amount is 0", async () => {
     const { FirstDividendDialog } = await import("@/components/billing/first-dividend-dialog");
     render(<FirstDividendDialog todayAmountCents={0} />);
 
-    expect(screen.queryByText(/WOPR just paid you/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Platform just paid you/i)).not.toBeInTheDocument();
   });
 
   it("sets localStorage flag when dismissed", async () => {
@@ -164,6 +164,6 @@ describe("FirstDividendDialog", () => {
     const button = screen.getByRole("button", { name: /nice/i });
     await userEvent.click(button);
 
-    expect(localStorage.getItem("wopr_first_dividend_seen")).toBe("true");
+    expect(localStorage.getItem("platform-first_dividend_seen")).toBe("true");
   });
 });

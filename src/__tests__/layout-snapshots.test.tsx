@@ -60,8 +60,8 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/lib/api-config", () => ({
-  SITE_URL: "https://wopr.bot",
-  PLATFORM_BASE_URL: "https://api.wopr.bot",
+  SITE_URL: "https://localhost",
+  PLATFORM_BASE_URL: "https://localhost",
 }));
 
 vi.mock("@/components/auth/email-verification-banner", () => ({

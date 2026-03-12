@@ -2,6 +2,7 @@
  * Client-side onboarding state with localStorage persistence.
  * Enables resume from last completed step.
  */
+import { storageKey } from "./brand-config";
 
 export interface ProviderConfig {
   id: string;
@@ -36,7 +37,7 @@ export interface OnboardingState {
   instanceName: string;
 }
 
-const STORAGE_KEY = "wopr-onboarding";
+const STORAGE_KEY = storageKey("onboarding");
 
 const defaultState: OnboardingState = {
   currentStep: 0,
@@ -105,7 +106,7 @@ export function clearOnboardingState(): void {
   }
 }
 
-const COMPLETE_KEY = "wopr-onboarding-complete";
+const COMPLETE_KEY = storageKey("onboarding-complete");
 
 export function isOnboardingComplete(): boolean {
   if (typeof window === "undefined") return true; // SSR: never gate

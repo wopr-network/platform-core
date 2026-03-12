@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useImageStatus } from "@/hooks/use-image-status";
 import type { BotStatusResponse, FleetInstance, HealthStatus } from "@/lib/api";
 import { mapBotStatusToFleetInstance } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { formatRelativeTime } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -291,7 +292,9 @@ export function FleetHealth() {
       {/* Instance Grid */}
       {filtered.length === 0 && instances.length === 0 ? (
         <div className="rounded-sm border border-terminal/20 bg-terminal/5 px-6 py-12 text-center font-mono">
-          <p className="text-terminal">&gt; FLEET EMPTY. NO WOPR BOT UNITS DEPLOYED.</p>
+          <p className="text-terminal">
+            &gt; FLEET EMPTY. NO {productName().toUpperCase()} UNITS DEPLOYED.
+          </p>
           <Link
             href="/instances/new"
             className="mt-4 inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-terminal"

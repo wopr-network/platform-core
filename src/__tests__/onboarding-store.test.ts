@@ -22,7 +22,7 @@ describe("saveOnboardingState", () => {
       instanceName: "test-bot",
     };
     saveOnboardingState(state);
-    const raw = localStorage.getItem("wopr-onboarding");
+    const raw = localStorage.getItem("platform-onboarding");
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw ?? "null");
     expect(parsed.currentStep).toBe(2);
@@ -47,7 +47,7 @@ describe("saveOnboardingState", () => {
       instanceName: "test-bot",
     };
     saveOnboardingState(state);
-    const raw = JSON.parse(localStorage.getItem("wopr-onboarding") ?? "{}");
+    const raw = JSON.parse(localStorage.getItem("platform-onboarding") ?? "{}");
     for (const p of raw.providers) {
       expect(p.key).toBeUndefined();
       expect(p.validated).toBe(false);
@@ -116,6 +116,6 @@ describe("clearOnboardingState", () => {
     };
     saveOnboardingState(state);
     clearOnboardingState();
-    expect(localStorage.getItem("wopr-onboarding")).toBeNull();
+    expect(localStorage.getItem("platform-onboarding")).toBeNull();
   });
 });

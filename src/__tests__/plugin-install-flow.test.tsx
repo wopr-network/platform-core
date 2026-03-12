@@ -88,7 +88,7 @@ vi.mock("@/hooks/use-capability-meta", () => ({
     meta: [
       {
         capability: "llm",
-        label: "WOPR Hosted LLM",
+        label: "Platform Hosted LLM",
         description: "Managed LLM.",
         pricing: "Pay-per-token",
         hostedProvider: "OpenRouter",
@@ -97,7 +97,7 @@ vi.mock("@/hooks/use-capability-meta", () => ({
       },
       {
         capability: "stt",
-        label: "WOPR Hosted STT",
+        label: "Platform Hosted STT",
         description: "Managed STT.",
         pricing: "Pay-per-minute",
         hostedProvider: "Whisper",
@@ -361,8 +361,8 @@ describe("Plugin Toggle (Enable/Disable)", () => {
 
     // Provider selector
     expect(screen.getByText("Choose provider for each capability")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted LLM")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted STT")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted LLM")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted STT")).toBeInTheDocument();
 
     // Can choose BYOK
     const byokButtons = screen.getAllByText("Use your key");

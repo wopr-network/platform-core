@@ -59,6 +59,7 @@ import {
   pullImageUpdate,
   renameInstance,
 } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -149,7 +150,7 @@ export function InstanceListClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Instances</h1>
-          <p className="text-sm text-muted-foreground">Manage your WOPR instances</p>
+          <p className="text-sm text-muted-foreground">Manage your {productName()} instances</p>
         </div>
         <Button variant="terminal" asChild>
           <Link href="/instances/new">New Instance</Link>
@@ -239,7 +240,7 @@ export function InstanceListClient() {
           {instances.length === 0 ? (
             <>
               <p className="font-mono text-sm text-terminal">
-                {">"} NO WOPR BOT INSTANCES DEPLOYED. AWAITING LAUNCH ORDERS.
+                {">"} NO BOT INSTANCES DEPLOYED. AWAITING LAUNCH ORDERS.
               </p>
               <Button variant="terminal" size="sm" asChild>
                 <Link href="/instances/new">Deploy Instance</Link>

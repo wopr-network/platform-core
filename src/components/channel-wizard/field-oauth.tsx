@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { initiateChannelOAuth, pollChannelOAuth } from "@/lib/api";
+import { eventName } from "@/lib/brand-config";
 import type { ConfigField } from "@/lib/channel-manifests";
 
 interface FieldOAuthProps {
@@ -65,7 +66,7 @@ export function FieldOAuth({ field, value, onChange, error }: FieldOAuthProps) {
       // Validate origin
       if (event.origin !== window.location.origin) return;
       const data = event.data as Record<string, unknown>;
-      if (!data || data.type !== "wopr-oauth-callback") return;
+      if (!data || data.type !== eventName("oauth-callback")) return;
 
       if (data.status === "error") {
         setStatus("error");
@@ -106,7 +107,7 @@ export function FieldOAuth({ field, value, onChange, error }: FieldOAuthProps) {
     const top = window.screenY + (window.outerHeight - height) / 2;
     const popup = window.open(
       "about:blank",
-      "wopr-oauth-popup",
+      eventName("oauth-popup"),
       `width=${width},height=${height},left=${left},top=${top},popup=yes`,
     );
 

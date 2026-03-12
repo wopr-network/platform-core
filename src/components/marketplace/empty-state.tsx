@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Puzzle, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { productName } from "@/lib/brand-config";
 
 interface EmptyStateProps {
   hasSearch: boolean;
@@ -36,7 +37,7 @@ export function MarketplaceEmptyState({ hasSearch, searchTerm }: EmptyStateProps
         </>
       ) : (
         <>
-          <p className="text-lg font-medium">Your WOPR Bot could do more...</p>
+          <p className="text-lg font-medium">Your {productName()} could do more...</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Add plugins to give your bot superpowers.
           </p>

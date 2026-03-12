@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { brandName } from "@/lib/brand-config";
 
 export function LandingNav() {
   return (
@@ -7,7 +8,7 @@ export function LandingNav() {
         href="/"
         className="font-mono text-sm font-semibold text-terminal/60 transition-colors duration-150 hover:text-terminal"
       >
-        WOPR
+        {brandName()}
       </Link>
       <Link
         href="/login"

@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
+import { getBrandConfig } from "@/lib/brand-config";
 
 export const runtime = "edge";
 export async function GET() {
+  const brand = getBrandConfig();
   return new ImageResponse(
     <div
       style={{
@@ -33,9 +35,11 @@ export async function GET() {
             lineHeight: 1.2,
           }}
         >
-          What would you do with your own WOPR Bot?
+          {brand.tagline}
         </div>
-        <div style={{ fontSize: "32px", color: "#A0A0A0" }}>$5/month. wopr.bot</div>
+        <div style={{ fontSize: "32px", color: "#A0A0A0" }}>
+          {brand.price ? `${brand.price}.` : ""} {brand.domain}
+        </div>
       </div>
     </div>,
     {

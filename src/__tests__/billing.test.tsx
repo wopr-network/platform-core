@@ -235,9 +235,9 @@ describe("Plans page", () => {
     render(<PlansPage />);
 
     expect(await screen.findByText("Bring Your Own Keys")).toBeInTheDocument();
-    expect(screen.getAllByText(/WOPR never touches your inference/).length).toBeGreaterThanOrEqual(
-      1,
-    );
+    expect(
+      screen.getAllByText(/Platform never touches your inference/).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("links to full pricing page", async () => {
@@ -311,7 +311,7 @@ describe("Usage page", () => {
       screen.getByText((_, element) => element?.textContent === "~$23.40"),
     ).toBeInTheDocument();
     expect(screen.getByText((_, element) => element?.textContent === "~$8.12")).toBeInTheDocument();
-    expect(screen.getByText(/WOPR does not charge for inference/)).toBeInTheDocument();
+    expect(screen.getByText(/Platform does not charge for inference/)).toBeInTheDocument();
   });
 
   it("renders billing usage summary card with total spend", async () => {
@@ -393,7 +393,7 @@ describe("Payment page", () => {
     const { default: PaymentPage } = await import("../app/(dashboard)/billing/payment/page");
     render(<PaymentPage />);
 
-    expect(await screen.findByText(/WOPR never touches your inference/)).toBeInTheDocument();
+    expect(await screen.findByText(/Platform never touches your inference/)).toBeInTheDocument();
   });
 
   it("renders remove button for payment methods", async () => {

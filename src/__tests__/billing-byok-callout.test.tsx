@@ -22,7 +22,7 @@ describe("ByokCallout", () => {
   it("renders BYOK callout when mode is byok", async () => {
     render(<ByokCallout />);
     expect(await screen.findByText("Bring Your Own Keys")).toBeInTheDocument();
-    expect(screen.getByText(/WOPR never touches your inference/)).toBeInTheDocument();
+    expect(screen.getByText(/Platform never touches your inference/)).toBeInTheDocument();
   });
 
   it("renders compact BYOK text when compact prop is true", async () => {

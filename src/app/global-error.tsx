@@ -2,6 +2,7 @@
 
 import { AlertTriangleIcon, HomeIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { brandName } from "@/lib/brand-config";
 import { logger } from "@/lib/logger";
 
 const log = logger("global-error");
@@ -25,7 +26,7 @@ export default function GlobalError({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Error — WOPR</title>
+        <title>{`Error — ${brandName()}`}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <link
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
@@ -43,7 +44,7 @@ export default function GlobalError({
                 <AlertTriangleIcon className="size-6 text-red-500" />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-                    WOPR
+                    {brandName()}
                   </p>
                   <h1 className="text-xl font-semibold text-neutral-100">Something went wrong</h1>
                 </div>

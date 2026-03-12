@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
+import { productName } from "@/lib/brand-config";
 import { cn } from "@/lib/utils";
 
 // Types previously from use-onboarding, inlined for WOP-1018 compatibility
@@ -58,7 +59,7 @@ export function StepSuperpowers({
         >
           STEP {stepNumber} {"//"} {stepCode}
         </div>
-        <h2 className="text-2xl font-bold tracking-tight">Give your WOPR Bot superpowers</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Give your {productName()} superpowers</h2>
         <p className="mt-2 text-muted-foreground">
           {isFleetAdd
             ? "Pre-checked from your other bots. Add or remove as you like."

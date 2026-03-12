@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { getBrandConfig } from "@/lib/brand-config";
+
+const brand = getBrandConfig();
 
 export const metadata: Metadata = {
-  title: "Terms of Service — WOPR Bot",
-  description: "Terms of Service for WOPR Bot",
+  title: `Terms of Service — ${brand.productName}`,
+  description: `Terms of Service for ${brand.productName}`,
 };
 
 export default function TermsPage() {
@@ -107,8 +110,8 @@ export default function TermsPage() {
           <section id="section-1" className="scroll-mt-16">
             <h2 className="mb-2 text-base font-semibold text-foreground">1. Acceptance of Terms</h2>
             <p>
-              By creating an account or using WOPR Bot at wopr.bot, you agree to be bound by these
-              Terms of Service and our{" "}
+              By creating an account or using {brand.productName} at {brand.domain}, you agree to be
+              bound by these Terms of Service and our{" "}
               <Link href="/privacy" className="text-foreground underline underline-offset-4">
                 Privacy Policy
               </Link>
@@ -121,16 +124,17 @@ export default function TermsPage() {
               2. Description of Service
             </h2>
             <p>
-              WOPR Bot provides AI bot orchestration services. You bring your own API keys for AI
-              providers (the &ldquo;bring your own key&rdquo; model). WOPR Bot manages
-              orchestration, memory, plugins, and channel integrations. The service is available at
-              wopr.bot.
+              {brand.productName} provides AI bot orchestration services. You bring your own API
+              keys for AI providers (the &ldquo;bring your own key&rdquo; model).{" "}
+              {brand.productName} manages orchestration, memory, plugins, and channel integrations.
+              The service is available at
+              {brand.domain}.
             </p>
             <p className="mt-2">
-              WOPR Bot does not provide AI models directly. We orchestrate your interactions with
-              your chosen AI providers using your API keys. Additionally, we offer optional hosted
-              capabilities (such as voice synthesis and image generation) that consume credits on a
-              per-use basis.
+              {brand.productName} does not provide AI models directly. We orchestrate your
+              interactions with your chosen AI providers using your API keys. Additionally, we offer
+              optional hosted capabilities (such as voice synthesis and image generation) that
+              consume credits on a per-use basis.
             </p>
           </section>
 
@@ -142,9 +146,9 @@ export default function TermsPage() {
                 You must provide accurate and complete information when creating your account.
               </li>
               <li>
-                You are responsible for maintaining the security of your account and password. WOPR
-                Bot will not be liable for any loss or damage from your failure to maintain account
-                security.
+                You are responsible for maintaining the security of your account and password.{" "}
+                {brand.productName} will not be liable for any loss or damage from your failure to
+                maintain account security.
               </li>
               <li>
                 You are responsible for all activity that occurs under your account, including
@@ -165,7 +169,7 @@ export default function TermsPage() {
             </h2>
             <p>
               Paid plans are billed monthly via Stripe. AI provider costs are billed separately by
-              your chosen provider and are not included in WOPR Bot charges.
+              your chosen provider and are not included in {brand.productName} charges.
             </p>
             <ul className="ml-4 mt-2 list-disc space-y-1">
               <li>
@@ -199,10 +203,10 @@ export default function TermsPage() {
               <li>
                 You may request immediate deletion by contacting{" "}
                 <a
-                  href="mailto:legal@wopr.network"
+                  href={`mailto:${brand.emails.legal}`}
                   className="text-foreground underline underline-offset-4"
                 >
-                  legal@wopr.network
+                  {brand.emails.legal}
                 </a>
                 .
               </li>
@@ -256,16 +260,16 @@ export default function TermsPage() {
                 data you provide to the service.
               </li>
               <li>
-                You grant WOPR Bot a limited, non-exclusive license to process your content solely
-                for the purpose of providing the service.
+                You grant {brand.productName} a limited, non-exclusive license to process your
+                content solely for the purpose of providing the service.
               </li>
               <li>
-                WOPR Network retains ownership of the platform, its code, documentation, and all
-                related intellectual property.
+                {brand.companyLegalName} retains ownership of the platform, its code, documentation,
+                and all related intellectual property.
               </li>
               <li>
                 AI-generated outputs belong to you, subject to the terms of service of your chosen
-                AI provider. WOPR Bot makes no claims to AI-generated content.
+                AI provider. {brand.productName} makes no claims to AI-generated content.
               </li>
             </ul>
           </section>
@@ -280,23 +284,24 @@ export default function TermsPage() {
                 them.
               </li>
               <li>
-                WOPR Bot is not liable for charges from your AI providers, including charges
-                resulting from bot activity you have configured.
+                {brand.productName} is not liable for charges from your AI providers, including
+                charges resulting from bot activity you have configured.
               </li>
               <li>
                 You must comply with the terms of service of any AI provider whose API keys you use
-                with WOPR Bot.
+                with {brand.productName}.
               </li>
               <li>
                 If an AI provider revokes or restricts your API key, the corresponding functionality
-                in WOPR Bot will be unavailable. This is not a service failure on our part.
+                in {brand.productName} will be unavailable. This is not a service failure on our
+                part.
               </li>
             </ul>
           </section>
 
           <section id="section-10" className="scroll-mt-16">
             <h2 className="mb-2 text-base font-semibold text-foreground">10. Acceptable Use</h2>
-            <p>You agree not to use WOPR Bot to:</p>
+            <p>You agree not to use {brand.productName} to:</p>
             <ul className="ml-4 mt-2 list-disc space-y-1">
               <li>Engage in any illegal activity or violate applicable laws and regulations</li>
               <li>
@@ -327,27 +332,27 @@ export default function TermsPage() {
               non-infringement.
             </p>
             <p className="mt-2">
-              To the maximum extent permitted by law, WOPR Network shall not be liable for any
-              indirect, incidental, special, consequential, or punitive damages, or any loss of
-              profits or revenues, whether incurred directly or indirectly, arising from your use of
-              the service.
+              To the maximum extent permitted by law, {brand.companyLegalName} shall not be liable
+              for any indirect, incidental, special, consequential, or punitive damages, or any loss
+              of profits or revenues, whether incurred directly or indirectly, arising from your use
+              of the service.
             </p>
             <p className="mt-2">
               Our total liability for any claim arising from or related to these terms or the
-              service shall not exceed the amount you paid to WOPR Bot in the 12 months preceding
-              the claim. We are not liable for actions taken by AI providers or for AI-generated
-              content.
+              service shall not exceed the amount you paid to {brand.productName} in the 12 months
+              preceding the claim. We are not liable for actions taken by AI providers or for
+              AI-generated content.
             </p>
           </section>
 
           <section id="section-12" className="scroll-mt-16">
             <h2 className="mb-2 text-base font-semibold text-foreground">12. Indemnification</h2>
             <p>
-              You agree to indemnify, defend, and hold harmless WOPR Network, its officers,
-              directors, employees, and agents from and against any claims, liabilities, damages,
-              losses, and expenses (including reasonable attorneys&apos; fees) arising out of or in
-              any way connected with your use of the service, your content, or your violation of
-              these terms.
+              You agree to indemnify, defend, and hold harmless {brand.companyLegalName}, its
+              officers, directors, employees, and agents from and against any claims, liabilities,
+              damages, losses, and expenses (including reasonable attorneys&apos; fees) arising out
+              of or in any way connected with your use of the service, your content, or your
+              violation of these terms.
             </p>
           </section>
 
@@ -375,8 +380,8 @@ export default function TermsPage() {
             <p>
               We may update these Terms of Service from time to time. If we make material changes,
               we will notify you at least 30 days in advance via email or through a prominent notice
-              on the service. Your continued use of WOPR Bot after the updated terms take effect
-              constitutes acceptance of the new terms.
+              on the service. Your continued use of {brand.productName} after the updated terms take
+              effect constitutes acceptance of the new terms.
             </p>
           </section>
 
@@ -385,10 +390,10 @@ export default function TermsPage() {
             <p>
               Questions about these terms? Email us at{" "}
               <a
-                href="mailto:legal@wopr.network"
+                href={`mailto:${brand.emails.legal}`}
                 className="text-foreground underline underline-offset-4"
               >
-                legal@wopr.network
+                {brand.emails.legal}
               </a>
               .
             </p>

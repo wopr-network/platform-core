@@ -232,8 +232,8 @@ describe("SetupChecklist", () => {
 
     await user.click(screen.getByText("Dismiss"));
 
-    expect(localStorage.getItem("wopr:setup-checklist-dismissed")).toBe("true");
-    expect(screen.queryByText("Let's get your WOPR running")).not.toBeInTheDocument();
+    expect(localStorage.getItem("platform-setup-checklist-dismissed")).toBe("true");
+    expect(screen.queryByText("Let's get your Platform running")).not.toBeInTheDocument();
   });
 
   it("returns null when no instances exist", async () => {

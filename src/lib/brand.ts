@@ -1,103 +1,97 @@
 /**
- * WOPR Bot Brand Bible
+ * Brand Bible
  *
- * The rulebook. Every pixel, every word, every interaction on wopr.bot
+ * The rulebook. Every pixel, every word, every interaction
  * references this file. Nothing ships without it.
  *
  * READ THIS FIRST. Then build.
+ *
+ * This file uses brand-config for all product/brand references.
+ * Each brand deployment (WOPR, Paperclip, etc.) sets its own
+ * config and the brand bible adapts automatically.
  */
+
+import { brandName, getBrandConfig, productName } from "./brand-config";
 
 // ===========================================================================
 // THE VISION
 // ===========================================================================
 
 /**
- * A WOPR Bot is a $5/month supercomputer that manages your business.
- *
- * Not "a bot." Not "an AI assistant." Not "an automation tool."
- * A supercomputer. Yours. Five dollars.
- *
  * The gap between what it costs and what it does — that IS the brand.
  * Every piece of copy, every UI decision, every interaction should widen
  * that gap. Make the user feel like they're getting away with something.
  *
  * We sell world domination at pocket-money prices.
  */
-export const vision = {
-  /** One sentence. If you can't explain it in one sentence, you don't understand it. */
-  oneLiner: "A $5/month supercomputer that manages your business.",
-
-  /** The question that sells itself. */
-  question: "What would you do with your own WOPR Bot?",
-
-  /** What we actually sell. Not features. Outcomes. */
-  sells: [
-    "Run a company while you sleep.",
-    "Replace yourself at your job. Keep the paycheck.",
-    "Build something that makes money without you.",
-    "Have an employee that never quits, never sleeps, never asks for a raise.",
-    "A supercomputer in your pocket for less than a coffee.",
-  ],
-
-  /** What we do NOT sell. */
-  doesNotSell: [
-    "AI capabilities",
-    "Automation workflows",
-    "Agent orchestration",
-    "LLM integration",
-    "Cloud infrastructure",
-  ],
-
-  /** The absurdity gap. This is the core brand mechanic. */
-  absurdityGap: {
-    what: "A supercomputer that runs your business",
-    cost: "$5/month",
-    emotion: "How is this even legal?",
-    mechanic:
-      "Every piece of marketing widens the gap between power and price. " +
-      "Show something massive. Then reveal the price. The contrast does the selling.",
-  },
-
-  /** The world we're building. */
-  world:
-    "A world where anyone with $5 and an idea can have an army of AI workers " +
-    "running their business 24/7. No code. No infrastructure. No employees. " +
-    "Just a WOPR Bot and a credit card.",
-
-  /** The competitive reality. This is WHY the absurdity gap works. */
-  competitiveReality: {
-    them: {
-      setup: "$10,000 Mac Mini build",
-      gets: "5 agents running in parallel",
-      requires: "Hardware, electricity, maintenance, config, babysitting",
-      audience: "Rich hobbyists and AI Twitter influencers",
+export function getVision() {
+  const name = productName();
+  const config = getBrandConfig();
+  return {
+    oneLiner: `A ${config.price || "$5/month"} supercomputer that manages your business.`,
+    question: `What would you do with your own ${name}?`,
+    sells: [
+      "Run a company while you sleep.",
+      "Replace yourself at your job. Keep the paycheck.",
+      "Build something that makes money without you.",
+      "Have an employee that never quits, never sleeps, never asks for a raise.",
+      "A supercomputer in your pocket for less than a coffee.",
+    ],
+    doesNotSell: [
+      "AI capabilities",
+      "Automation workflows",
+      "Agent orchestration",
+      "LLM integration",
+      "Cloud infrastructure",
+    ],
+    absurdityGap: {
+      what: "A supercomputer that runs your business",
+      cost: config.price || "$5/month",
+      emotion: "How is this even legal?",
+      mechanic:
+        "Every piece of marketing widens the gap between power and price. " +
+        "Show something massive. Then reveal the price. The contrast does the selling.",
     },
-    us: {
-      setup: "$50/month (5 bots at $5 + ~$25 LLM compute)",
-      gets: "5 WOPR Bots running in parallel. Same thing.",
-      requires: "A credit card",
-      audience: "Everyone else",
+    world:
+      `A world where anyone with $5 and an idea can have an army of AI workers ` +
+      `running their business 24/7. No code. No infrastructure. No employees. ` +
+      `Just a ${name} and a credit card.`,
+    competitiveReality: {
+      them: {
+        setup: "$10,000 Mac Mini build",
+        gets: "5 agents running in parallel",
+        requires: "Hardware, electricity, maintenance, config, babysitting",
+        audience: "Rich hobbyists and AI Twitter influencers",
+      },
+      us: {
+        setup: "$50/month (5 bots at $5 + ~$25 LLM compute)",
+        gets: `5 ${name}s running in parallel. Same thing.`,
+        requires: "A credit card",
+        audience: "Everyone else",
+      },
+      math: {
+        theirCost: 10_000,
+        ourMonthlyCost: 50,
+        monthsToBreakEven: 200,
+        yearsToBreakEven: 16.7,
+        costRatio: "200x cheaper to start",
+        punchline: "Their hardware depreciates. Ours gets better every month.",
+      },
+      usage:
+        "Never name-drop Mac Mini or specific competitors in official copy. " +
+        "Instead, make the audience do the math themselves. " +
+        `Show what 5 ${name}s can do. Show the price. ` +
+        "They'll screenshot it and send it to the group chat where " +
+        "their friend just posted their $10K build. That's the play.",
     },
-    math: {
-      theirCost: 10_000,
-      ourMonthlyCost: 50,
-      monthsToBreakEven: 200,
-      yearsToBreakEven: 16.7,
-      costRatio: "200x cheaper to start",
-      punchline: "Their hardware depreciates. Ours gets better every month.",
-    },
-    /** How to use this in marketing. */
-    usage:
-      "Never name-drop Mac Mini or specific competitors in official copy. " +
-      "Instead, make the audience do the math themselves. " +
-      "Show what 5 WOPR Bots can do. Show the price. " +
-      "They'll screenshot it and send it to the group chat where " +
-      "their friend just posted their $10K build. That's the play.",
-  },
-} as const;
+  };
+}
+
+/** @deprecated Use `getVision()` instead — static version reads defaults at import time. */
+export const vision = getVision();
 
 // ===========================================================================
-// WHAT IS A WOPR BOT?
+// WHAT IS THE PRODUCT?
 // ===========================================================================
 
 export const product = {
@@ -142,24 +136,57 @@ export const product = {
 // PRODUCT NAME
 // ===========================================================================
 
-export const PRODUCT_NAME = "WOPR Bot" as const;
-export const BRAND_NAME = "WOPR" as const;
-export const DOMAIN = "wopr.bot" as const;
-export const TAGLINE = "What would you do with your own WOPR Bot?" as const;
-export const PRICE = "$5/month" as const;
+/** @deprecated Use `productName()` from brand-config instead. */
+export function getProductName(): string {
+  return productName();
+}
+/** @deprecated Use `brandName()` from brand-config instead. */
+export function getBrandName(): string {
+  return brandName();
+}
+/** @deprecated Use `getBrandConfig().domain` instead. */
+export function getDomain(): string {
+  return getBrandConfig().domain;
+}
+/** @deprecated Use `getBrandConfig().tagline` instead. */
+export function getTagline(): string {
+  return getBrandConfig().tagline;
+}
+/** @deprecated Use `getBrandConfig().price` instead. */
+export function getPrice(): string {
+  return getBrandConfig().price;
+}
 
-export const nameRules = {
-  correct: ["WOPR Bot", "your WOPR Bot", "Get your WOPR Bot", "a WOPR Bot", "wopr.bot"],
-  incorrect: [
-    "WOPR",
-    "the WOPR platform",
-    "WOPR AI",
-    "WOPR service",
-    "WOPR tool",
-    "Wopr Bot",
-    "wopr bot",
-  ],
-} as const;
+/**
+ * Legacy constants — kept for backward compatibility.
+ * These read from the brand config at import time.
+ * Prefer the function forms above or direct brand-config imports.
+ */
+export const PRODUCT_NAME = getBrandConfig().productName;
+export const BRAND_NAME = getBrandConfig().brandName;
+export const DOMAIN = getBrandConfig().domain;
+export const TAGLINE = getBrandConfig().tagline;
+export const PRICE = getBrandConfig().price;
+
+export function getNameRules() {
+  const name = productName();
+  const brand = brandName();
+  const domain = getBrandConfig().domain;
+  return {
+    correct: [name, `your ${name}`, `Get your ${name}`, `a ${name}`, domain],
+    incorrect: [
+      brand,
+      `the ${brand} platform`,
+      `${brand} AI`,
+      `${brand} service`,
+      `${brand} tool`,
+      name.toLowerCase(),
+    ],
+  };
+}
+
+/** @deprecated Use `getNameRules()` instead. */
+export const nameRules = getNameRules();
 
 // ===========================================================================
 // TARGET AUDIENCE
@@ -379,96 +406,104 @@ export const voice = {
 // DO / DON'T COPY EXAMPLES
 // ===========================================================================
 
-export const copyExamples = [
-  // --- The supercomputer angle ---
-  {
-    do: "A supercomputer for $5/month.",
-    dont: "An affordable AI automation solution.",
-    rule: "Absurdity gap. Power vs price.",
-  },
-  {
-    do: "Your WOPR Bot runs your business. You run your life.",
-    dont: "Streamline your business operations with AI.",
-    rule: "Sell the outcome.",
-  },
-  {
-    do: "Hire an army. Five dollars.",
-    dont: "Access our multi-agent orchestration system.",
-    rule: "Absurdity gap. The price is the punchline.",
-  },
-  // --- The $10K Mac Mini killer angle ---
-  {
-    do: "5 bots. $50/month. Do the math.",
-    dont: "Our cost-effective alternative to local hardware.",
-    rule: "Let them do the math. The contrast sells itself.",
-  },
-  {
-    do: "Skip the hardware. Keep the power.",
-    dont: "No expensive infrastructure required.",
-    rule: "Sell the outcome. Never say 'no X required.'",
-  },
-  // --- Original examples, refined ---
-  {
-    do: "Get your WOPR Bot.",
-    dont: "Try our AI platform today.",
-    rule: "Confident, not humble.",
-  },
-  {
-    do: "Your WOPR Bot runs while you sleep.",
-    dont: "Our always-on solution ensures 24/7 uptime.",
-    rule: "Short sentences. No corporate language.",
-  },
-  {
-    do: "Build a company. $5/month.",
-    dont: "Leverage our powerful tools to unlock business potential.",
-    rule: "Sell the outcome. Price is the punchline.",
-  },
-  {
-    do: "WOPR Bot writes your code. Ships your product. Answers your DMs.",
-    dont: "WOPR enables seamless automation across multiple workflows.",
-    rule: "Show, don't list.",
-  },
-  {
-    do: "What would you do with your own WOPR Bot?",
-    dont: "Discover the possibilities of AI-powered automation.",
-    rule: "Sell the outcome, not the tool.",
-  },
-  {
-    do: "Your WOPR Bot. Everything handled.",
-    dont: "Our comprehensive solution covers all your needs.",
-    rule: "Short sentences.",
-  },
-  {
-    do: "Your WOPR Bot doesn't take lunch breaks.",
-    dont: "Benefit from continuous AI processing capabilities.",
-    rule: "Internet-native.",
-  },
-  {
-    do: "Replace yourself at your job. Keep the paycheck.",
-    dont: "Optimize your workflow with intelligent automation.",
-    rule: "Sell the outcome.",
-  },
-  {
-    do: "WOPR Bot. Not WOPR. Not the WOPR platform.",
-    dont: "Powered by the WOPR platform.",
-    rule: "Product name is WOPR Bot.",
-  },
-  {
-    do: "Five bucks. Unlimited bots.",
-    dont: "Starting at just $5 per month with our flexible pricing.",
-    rule: "The price is the punchline.",
-  },
-  {
-    do: "Ship it. Your WOPR Bot already did.",
-    dont: "Accelerate your deployment pipeline with our robust tooling.",
-    rule: "Confident. No corporate language.",
-  },
-  {
-    do: "wopr.bot",
-    dont: "Visit us at wopr.bot to learn more about our offerings.",
-    rule: "Internet-native. The URL is the noun.",
-  },
-] as const;
+export function getCopyExamples() {
+  const name = productName();
+  const brand = brandName();
+  const domain = getBrandConfig().domain;
+  return [
+    // --- The supercomputer angle ---
+    {
+      do: "A supercomputer for $5/month.",
+      dont: "An affordable AI automation solution.",
+      rule: "Absurdity gap. Power vs price.",
+    },
+    {
+      do: `Your ${name} runs your business. You run your life.`,
+      dont: "Streamline your business operations with AI.",
+      rule: "Sell the outcome.",
+    },
+    {
+      do: "Hire an army. Five dollars.",
+      dont: "Access our multi-agent orchestration system.",
+      rule: "Absurdity gap. The price is the punchline.",
+    },
+    // --- The $10K Mac Mini killer angle ---
+    {
+      do: "5 bots. $50/month. Do the math.",
+      dont: "Our cost-effective alternative to local hardware.",
+      rule: "Let them do the math. The contrast sells itself.",
+    },
+    {
+      do: "Skip the hardware. Keep the power.",
+      dont: "No expensive infrastructure required.",
+      rule: "Sell the outcome. Never say 'no X required.'",
+    },
+    // --- Product-name examples ---
+    {
+      do: `Get your ${name}.`,
+      dont: "Try our AI platform today.",
+      rule: "Confident, not humble.",
+    },
+    {
+      do: `Your ${name} runs while you sleep.`,
+      dont: "Our always-on solution ensures 24/7 uptime.",
+      rule: "Short sentences. No corporate language.",
+    },
+    {
+      do: "Build a company. $5/month.",
+      dont: "Leverage our powerful tools to unlock business potential.",
+      rule: "Sell the outcome. Price is the punchline.",
+    },
+    {
+      do: `${name} writes your code. Ships your product. Answers your DMs.`,
+      dont: `${brand} enables seamless automation across multiple workflows.`,
+      rule: "Show, don't list.",
+    },
+    {
+      do: `What would you do with your own ${name}?`,
+      dont: "Discover the possibilities of AI-powered automation.",
+      rule: "Sell the outcome, not the tool.",
+    },
+    {
+      do: `Your ${name}. Everything handled.`,
+      dont: "Our comprehensive solution covers all your needs.",
+      rule: "Short sentences.",
+    },
+    {
+      do: `Your ${name} doesn't take lunch breaks.`,
+      dont: "Benefit from continuous AI processing capabilities.",
+      rule: "Internet-native.",
+    },
+    {
+      do: "Replace yourself at your job. Keep the paycheck.",
+      dont: "Optimize your workflow with intelligent automation.",
+      rule: "Sell the outcome.",
+    },
+    {
+      do: `${name}. Not ${brand}. Not the ${brand} platform.`,
+      dont: `Powered by the ${brand} platform.`,
+      rule: `Product name is ${name}.`,
+    },
+    {
+      do: "Five bucks. Unlimited bots.",
+      dont: "Starting at just $5 per month with our flexible pricing.",
+      rule: "The price is the punchline.",
+    },
+    {
+      do: `Ship it. Your ${name} already did.`,
+      dont: "Accelerate your deployment pipeline with our robust tooling.",
+      rule: "Confident. No corporate language.",
+    },
+    {
+      do: domain,
+      dont: `Visit us at ${domain} to learn more about our offerings.`,
+      rule: "Internet-native. The URL is the noun.",
+    },
+  ];
+}
+
+/** @deprecated Use `getCopyExamples()` instead. */
+export const copyExamples = getCopyExamples();
 
 // ===========================================================================
 // ANIMATION — TWO CONTEXTS
@@ -557,72 +592,78 @@ export const imagery = {
  * Every page type has a copy framework. Use these to write headlines,
  * subheads, and CTAs. Always reference emotionalArc for the target feeling.
  */
-export const copyFrameworks = {
-  landing: {
-    headline: "Ask the question. Let imagination do the work.",
-    structure: "Question → Scenarios → Price reveal → CTA",
-    cta: "Get your WOPR Bot",
-    antiPattern: "Never list features. Show outcomes.",
-    example: {
-      headline: "What would you do with your own WOPR Bot?",
-      scenarios: [
-        "Run a company from your phone.",
-        "Ship code while you sleep.",
-        "Never answer a support ticket again.",
-      ],
-      reveal: "$5/month. Not a typo.",
-      cta: "Get your WOPR Bot",
+export function getCopyFrameworks() {
+  const name = productName();
+  return {
+    landing: {
+      headline: "Ask the question. Let imagination do the work.",
+      structure: "Question → Scenarios → Price reveal → CTA",
+      cta: `Get your ${name}`,
+      antiPattern: "Never list features. Show outcomes.",
+      example: {
+        headline: `What would you do with your own ${name}?`,
+        scenarios: [
+          "Run a company from your phone.",
+          "Ship code while you sleep.",
+          "Never answer a support ticket again.",
+        ],
+        reveal: "$5/month. Not a typo.",
+        cta: `Get your ${name}`,
+      },
     },
-  },
 
-  onboarding: {
-    headline: "Mission briefing. You're the commander.",
-    structure: "Step label → Terminal-style instruction → Action",
-    cta: "Continue / Launch",
-    antiPattern: "Never say 'step 1 of 6.' Say 'STEP 01 // DESIGNATION.'",
-    tone: "Military command terminal. Every step is a mission phase.",
-  },
+    onboarding: {
+      headline: "Mission briefing. You're the commander.",
+      structure: "Step label → Terminal-style instruction → Action",
+      cta: "Continue / Launch",
+      antiPattern: "Never say 'step 1 of 6.' Say 'STEP 01 // DESIGNATION.'",
+      tone: "Military command terminal. Every step is a mission phase.",
+    },
 
-  dashboard: {
-    headline: "Status report. Everything your WOPR Bot did today.",
-    structure: "Stats → Activity feed → Quick actions",
-    cta: "Launch another WOPR Bot",
-    antiPattern: "Never show an empty dashboard. Always show something happening.",
-    tone: "Mission control. Calm authority.",
-  },
+    dashboard: {
+      headline: `Status report. Everything your ${name} did today.`,
+      structure: "Stats → Activity feed → Quick actions",
+      cta: `Launch another ${name}`,
+      antiPattern: "Never show an empty dashboard. Always show something happening.",
+      tone: "Mission control. Calm authority.",
+    },
 
-  marketplace: {
-    headline: "Make your WOPR Bot do more.",
-    structure: "Categories → Cards → Detail → Install",
-    cta: "Install / Add to your WOPR Bot",
-    antiPattern: "Never say 'browse our catalog.' This is an arsenal, not a library.",
-    tone: "Candy store meets armory.",
-  },
+    marketplace: {
+      headline: `Make your ${name} do more.`,
+      structure: "Categories → Cards → Detail → Install",
+      cta: `Install / Add to your ${name}`,
+      antiPattern: "Never say 'browse our catalog.' This is an arsenal, not a library.",
+      tone: "Candy store meets armory.",
+    },
 
-  billing: {
-    headline: "What you're getting for $5.",
-    structure: "Balance → Usage breakdown → Top up",
-    cta: "Add credits",
-    antiPattern: "Never hide the price. Never make billing scary. Reinforce the deal.",
-    tone: "Transparent. The numbers are your friend.",
-  },
+    billing: {
+      headline: "What you're getting for $5.",
+      structure: "Balance → Usage breakdown → Top up",
+      cta: "Add credits",
+      antiPattern: "Never hide the price. Never make billing scary. Reinforce the deal.",
+      tone: "Transparent. The numbers are your friend.",
+    },
 
-  settings: {
-    headline: "Configure your supercomputer.",
-    structure: "Section → Form → Save confirmation",
-    cta: "Save",
-    antiPattern: "Never make settings feel like a chore. This is a control panel.",
-    tone: "Precise. Every toggle does something real.",
-  },
+    settings: {
+      headline: "Configure your supercomputer.",
+      structure: "Section → Form → Save confirmation",
+      cta: "Save",
+      antiPattern: "Never make settings feel like a chore. This is a control panel.",
+      tone: "Precise. Every toggle does something real.",
+    },
 
-  empty: {
-    headline: "Your WOPR Bot could do more.",
-    structure: "Terminal-style message → Suggestion → CTA",
-    antiPattern: "Never say 'nothing here yet.' Always suggest the next action.",
-    examples: [
-      "> NO CHANNELS LINKED. YOUR WOPR BOT IS ISOLATED.",
-      "> FLEET EMPTY. AWAITING LAUNCH ORDERS.",
-      "> NO PLUGINS INSTALLED. YOUR WOPR BOT IS RUNNING STOCK.",
-    ],
-  },
-} as const;
+    empty: {
+      headline: `Your ${name} could do more.`,
+      structure: "Terminal-style message → Suggestion → CTA",
+      antiPattern: "Never say 'nothing here yet.' Always suggest the next action.",
+      examples: [
+        `> NO CHANNELS LINKED. YOUR ${name.toUpperCase()} IS ISOLATED.`,
+        "> FLEET EMPTY. AWAITING LAUNCH ORDERS.",
+        `> NO PLUGINS INSTALLED. YOUR ${name.toUpperCase()} IS RUNNING STOCK.`,
+      ],
+    },
+  };
+}
+
+/** @deprecated Use `getCopyFrameworks()` instead. */
+export const copyFrameworks = getCopyFrameworks();

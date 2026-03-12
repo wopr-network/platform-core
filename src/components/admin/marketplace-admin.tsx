@@ -358,7 +358,7 @@ export function MarketplaceAdmin() {
                   </DialogHeader>
                   <Input
                     className="font-mono"
-                    placeholder="@wopr-network/plugin-name"
+                    placeholder="@org/plugin-name"
                     value={addPackage}
                     onChange={(e) => setAddPackage(e.target.value)}
                     onKeyDown={(e) => {

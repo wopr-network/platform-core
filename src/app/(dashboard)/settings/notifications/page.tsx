@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import type { NotificationPreferences } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { getNotificationPreferences, updateNotificationPreferences } from "@/lib/settings-api";
 
 // ---------------------------------------------------------------------------
@@ -136,7 +137,7 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-lg font-semibold">Notifications</h1>
           <p className="text-sm text-muted-foreground">
-            Control which system emails you receive from WOPR.
+            Control which system emails you receive from {brandName()}.
           </p>
         </div>
 

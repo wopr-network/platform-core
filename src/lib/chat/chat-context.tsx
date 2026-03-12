@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useEffect } from "react";
+import { eventName } from "../brand-config";
 import type { ChatActions, ChatMessage, ChatMode } from "./types";
 import { useChat } from "./use-chat";
 
@@ -33,8 +34,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         notify(args.text as string);
       }
     }
-    window.addEventListener("wopr-chat-tool-call", handleToolCall);
-    return () => window.removeEventListener("wopr-chat-tool-call", handleToolCall);
+    const evtName = eventName("chat-tool-call");
+    window.addEventListener(evtName, handleToolCall);
+    return () => window.removeEventListener(evtName, handleToolCall);
   }, [expand, collapse, fullscreen, sendMessage, showTyping, notify]);
 
   return (

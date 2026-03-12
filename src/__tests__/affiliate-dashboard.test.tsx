@@ -22,7 +22,7 @@ vi.mock("better-auth/react", () => ({
 
 const MOCK_STATS: AffiliateStats = {
   referralCode: "t7k9x",
-  referralUrl: "https://wopr.network/join?ref=t7k9x",
+  referralUrl: "https://localhost/join?ref=t7k9x",
   totalReferred: 12,
   totalConverted: 8,
   totalEarnedCents: 16000,
@@ -78,7 +78,7 @@ describe("Affiliate Dashboard", () => {
     const { default: ReferralsPage } = await import("../app/(dashboard)/billing/referrals/page");
     render(<ReferralsPage />);
 
-    expect(await screen.findByText("https://wopr.network/join?ref=t7k9x")).toBeInTheDocument();
+    expect(await screen.findByText("https://localhost/join?ref=t7k9x")).toBeInTheDocument();
   });
 
   it("renders copy button", async () => {
@@ -147,7 +147,7 @@ describe("Affiliate Dashboard", () => {
     const copyBtn = await screen.findByRole("button", { name: /copy/i });
     await user.click(copyBtn);
 
-    expect(writeText).toHaveBeenCalledWith("https://wopr.network/join?ref=t7k9x");
+    expect(writeText).toHaveBeenCalledWith("https://localhost/join?ref=t7k9x");
   });
 });
 

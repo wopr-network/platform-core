@@ -10,7 +10,7 @@ function findTool(name: string) {
 }
 
 describe("onboarding.setProvider WebMCP tool", () => {
-  it("dispatches wopr:onboarding event with provider choice", async () => {
+  it("dispatches platform-onboarding event with provider choice", async () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     const tool = findTool("onboarding.setProvider");
 
@@ -19,7 +19,7 @@ describe("onboarding.setProvider WebMCP tool", () => {
 
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "wopr:onboarding",
+        type: "platform-onboarding",
         detail: { type: "setProvider", provider: "anthropic" },
       }),
     );
@@ -32,15 +32,15 @@ describe("onboarding.setProvider WebMCP tool", () => {
     expect(result).toEqual({ error: expect.stringContaining("Invalid provider") });
   });
 
-  it("accepts wopr-hosted as a valid provider", async () => {
+  it("accepts hosted as a valid provider", async () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     const tool = findTool("onboarding.setProvider");
 
-    const result = await tool.handler({ provider: "wopr-hosted" });
+    const result = await tool.handler({ provider: "hosted" });
     expect(result).toEqual({ ok: true });
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        detail: { type: "setProvider", provider: "wopr-hosted" },
+        detail: { type: "setProvider", provider: "hosted" },
       }),
     );
   });

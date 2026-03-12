@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { quickSetup } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { markOnboardingComplete } from "@/lib/onboarding-store";
 
 const CHANNELS = [
@@ -73,7 +74,7 @@ export function FallbackSetup() {
             </h2>
           </div>
           <p className="text-xs text-muted-foreground mb-6">
-            Platform WOPR unavailable. Configure manually.
+            Platform {brandName()} unavailable. Configure manually.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -22,6 +22,7 @@ import {
   getFleetResources,
   mapBotStatusToFleetInstance,
 } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import { formatRelativeTime } from "@/lib/format";
 import { formatCreditStandard } from "@/lib/format-credit";
@@ -441,7 +442,7 @@ export function CommandCenter() {
         </CardContent>
       </Card>
 
-      {/* Fleet Grid — bot cards + "Add another WOPR Bot" CTA */}
+      {/* Fleet Grid — bot cards + "Add another bot" CTA */}
       {!loading && pagedInstances.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {pagedInstances.map((inst) => (
@@ -469,7 +470,7 @@ export function CommandCenter() {
             </Link>
           ))}
 
-          {/* Add another WOPR Bot CTA card */}
+          {/* Add another bot CTA card */}
           <Link data-onboarding-id="dashboard.add-bot" href="/instances/new">
             <motion.div
               className="h-full rounded-sm border border-dashed border-terminal/20"
@@ -495,7 +496,7 @@ export function CommandCenter() {
                   >
                     <Plus size={24} />
                   </motion.div>
-                  <p className="font-semibold">Add another WOPR Bot</p>
+                  <p className="font-semibold">Add another {productName()}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Name it. Teach it. Give it superpowers.
                   </p>
@@ -547,7 +548,7 @@ export function CommandCenter() {
             <div className="flex items-center gap-3">
               <Plus size={18} />
               <div className="text-left">
-                <p className="font-semibold">Add Another WOPR Bot</p>
+                <p className="font-semibold">Add Another {productName()}</p>
                 <p className="text-xs opacity-70">Grow your fleet</p>
               </div>
             </div>

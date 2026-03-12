@@ -46,11 +46,11 @@ describe("Brand Bible", () => {
   });
 
   describe("Product definition", () => {
-    it("defines what a WOPR Bot IS", () => {
+    it("defines what the product IS", () => {
       expect(product.is).toContain("A supercomputer");
     });
 
-    it("defines what a WOPR Bot is NOT", () => {
+    it("defines what the product is NOT", () => {
       expect(product.isNot).toContain("A chatbot");
       expect(product.isNot).toContain("A platform");
     });
@@ -104,41 +104,41 @@ describe("Brand Bible", () => {
   });
 
   describe("Product identity", () => {
-    it("defines product name as WOPR Bot", () => {
-      expect(PRODUCT_NAME).toBe("WOPR Bot");
+    it("defines product name from brand config", () => {
+      expect(PRODUCT_NAME).toBe("Platform");
     });
 
-    it("defines brand name as WOPR", () => {
-      expect(BRAND_NAME).toBe("WOPR");
+    it("defines brand name from brand config", () => {
+      expect(BRAND_NAME).toBe("Platform");
     });
 
-    it("defines domain as wopr.bot", () => {
-      expect(DOMAIN).toBe("wopr.bot");
+    it("defines domain from brand config", () => {
+      expect(DOMAIN).toBe("localhost");
     });
 
-    it("has a tagline that asks a question", () => {
-      expect(TAGLINE).toContain("WOPR Bot");
-      expect(TAGLINE).toContain("?");
+    it("has a tagline", () => {
+      expect(typeof TAGLINE).toBe("string");
+      expect(TAGLINE.length).toBeGreaterThan(0);
     });
 
-    it("defines the price point", () => {
-      expect(PRICE).toBe("$5/month");
+    it("defines the price from brand config", () => {
+      expect(typeof PRICE).toBe("string");
     });
   });
 
   describe("Name rules", () => {
-    it("has correct name forms", () => {
-      expect(nameRules.correct).toContain("WOPR Bot");
-      expect(nameRules.correct).toContain("your WOPR Bot");
+    it("has correct name forms using product name", () => {
+      expect(nameRules.correct).toContain("Platform");
+      expect(nameRules.correct).toContain("your Platform");
     });
 
-    it("flags incorrect name forms", () => {
-      expect(nameRules.incorrect).toContain("the WOPR platform");
-      expect(nameRules.incorrect).toContain("WOPR AI");
+    it("flags incorrect name forms using brand name", () => {
+      expect(nameRules.incorrect).toContain("the Platform platform");
+      expect(nameRules.incorrect).toContain("Platform AI");
     });
 
-    it("does not allow bare WOPR as product name", () => {
-      expect(nameRules.incorrect).toContain("WOPR");
+    it("does not allow bare brand as product name", () => {
+      expect(nameRules.incorrect).toContain("Platform");
     });
   });
 
@@ -239,9 +239,9 @@ describe("Brand Bible", () => {
       }
     });
 
-    it("includes WOPR Bot name usage examples", () => {
+    it("includes product name usage examples", () => {
       const hasNameExample = copyExamples.some(
-        (e) => e.do.includes("WOPR Bot") || e.rule.includes("WOPR Bot"),
+        (e) => e.do.includes("Platform") || e.rule.includes("Platform"),
       );
       expect(hasNameExample).toBe(true);
     });
@@ -323,7 +323,7 @@ describe("Brand Bible", () => {
     it("landing page has a complete example", () => {
       expect(copyFrameworks.landing.example).toEqual(
         expect.objectContaining({
-          headline: expect.stringContaining("WOPR Bot"),
+          headline: expect.stringContaining("Platform"),
           reveal: expect.stringContaining("$5"),
           scenarios: expect.any(Array),
         }),

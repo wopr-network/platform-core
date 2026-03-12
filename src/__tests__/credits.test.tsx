@@ -82,7 +82,7 @@ const MOCK_HISTORY: CreditHistoryResponse = {
     {
       id: "tx-2",
       type: "bot_runtime",
-      description: "Bot runtime (wopr-1)",
+      description: "Bot runtime (platform-1)",
       amount: -0.17,
       createdAt: "2026-02-14T12:00:00Z",
     },
@@ -102,7 +102,7 @@ const MOCK_HISTORY_PAGE2: CreditHistoryResponse = {
     {
       id: "tx-4",
       type: "bot_runtime",
-      description: "Bot runtime (wopr-2)",
+      description: "Bot runtime (platform-2)",
       amount: -0.17,
       createdAt: "2026-02-15T12:00:00Z",
     },
@@ -215,7 +215,7 @@ describe("Credits page", () => {
     expect(await screen.findByText("Transaction History")).toBeInTheDocument();
     // "Signup credit" appears in both the description and the type badge
     expect((await screen.findAllByText("Signup credit")).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Bot runtime (wopr-1)")).toBeInTheDocument();
+    expect(screen.getByText("Bot runtime (platform-1)")).toBeInTheDocument();
     expect(screen.getByText("Credit purchase")).toBeInTheDocument();
   });
 
@@ -247,7 +247,7 @@ describe("Credits page", () => {
     const loadMoreBtn = await screen.findByRole("button", { name: "Load more" });
     await user.click(loadMoreBtn);
 
-    expect(await screen.findByText("Bot runtime (wopr-2)")).toBeInTheDocument();
+    expect(await screen.findByText("Bot runtime (platform-2)")).toBeInTheDocument();
   });
 
   it("buy credits button is disabled without selection", async () => {

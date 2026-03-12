@@ -22,8 +22,8 @@ describe("CSRF Origin validation", () => {
   it("allows POST with matching Origin header", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
-      headers: { origin: "https://app.wopr.dev" },
+      url: "https://localhost:3000/api/instances",
+      headers: { origin: "https://localhost:3000" },
     });
     expect(validateCsrfOrigin(req)).toBe(true);
   });
@@ -31,7 +31,7 @@ describe("CSRF Origin validation", () => {
   it("blocks POST with cross-origin Origin header", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
+      url: "https://localhost:3000/api/instances",
       headers: { origin: "https://evil.com" },
     });
     expect(validateCsrfOrigin(req)).toBe(false);
@@ -40,7 +40,7 @@ describe("CSRF Origin validation", () => {
   it("blocks POST with no Origin or Referer", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
+      url: "https://localhost:3000/api/instances",
     });
     expect(validateCsrfOrigin(req)).toBe(false);
   });
@@ -48,8 +48,8 @@ describe("CSRF Origin validation", () => {
   it("allows POST with matching Referer when Origin is absent", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
-      headers: { referer: "https://app.wopr.dev/instances/new" },
+      url: "https://localhost:3000/api/instances",
+      headers: { referer: "https://localhost:3000/instances/new" },
     });
     expect(validateCsrfOrigin(req)).toBe(true);
   });
@@ -57,7 +57,7 @@ describe("CSRF Origin validation", () => {
   it("blocks POST with cross-origin Referer when Origin is absent", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
+      url: "https://localhost:3000/api/instances",
       headers: { referer: "https://evil.com/attack" },
     });
     expect(validateCsrfOrigin(req)).toBe(false);
@@ -68,8 +68,8 @@ describe("CSRF Origin validation", () => {
     // Explicitly do not set host
     const req = {
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
-      nextUrl: new URL("https://app.wopr.dev/api/instances"),
+      url: "https://localhost:3000/api/instances",
+      nextUrl: new URL("https://localhost:3000/api/instances"),
       headers,
       cookies: { get: () => undefined },
     } as unknown as Parameters<typeof validateCsrfOrigin>[0];
@@ -79,7 +79,7 @@ describe("CSRF Origin validation", () => {
   it("blocks POST with malformed Referer URL", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
+      url: "https://localhost:3000/api/instances",
       headers: { referer: "not-a-url" },
     });
     expect(validateCsrfOrigin(req)).toBe(false);
@@ -97,10 +97,10 @@ describe("CSRF Origin validation", () => {
   it("blocks HTTP origin against HTTPS host", () => {
     const req = mockRequest({
       method: "POST",
-      url: "https://app.wopr.dev/api/instances",
+      url: "https://localhost:3000/api/instances",
       headers: {
-        host: "app.wopr.dev",
-        origin: "http://app.wopr.dev",
+        host: "localhost:3000",
+        origin: "http://localhost:3000",
       },
     });
     // http:// origin against https:// host must be blocked to prevent

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import plugin from "../lib/plugin";
 
-describe("wopr-plugin-platform-ui", () => {
+describe("platform-ui plugin", () => {
   it("has the correct name", () => {
-    expect(plugin.name).toBe("wopr-plugin-platform-ui");
+    expect(plugin.name).toBe("platform-ui");
   });
 
   it("has a version string", () => {

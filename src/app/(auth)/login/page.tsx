@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "@/lib/auth-client";
+import { getBrandConfig, productName } from "@/lib/brand-config";
 import { sanitizeRedirectUrl } from "@/lib/utils";
 
 function LoginForm() {
@@ -82,7 +83,7 @@ function LoginForm() {
           <CardTitle className="text-sm font-medium uppercase tracking-widest text-terminal">
             Sign in
           </CardTitle>
-          <CardDescription>Access your WOPR Bot terminal</CardDescription>
+          <CardDescription>Access your {productName()} terminal</CardDescription>
         </CardHeader>
         <CardContent>
           {reason === "expired" && (
@@ -96,7 +97,7 @@ function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="operator@wopr.bot"
+                placeholder={`operator@${getBrandConfig().domain}`}
                 autoComplete="email"
                 required
                 value={email}
@@ -139,10 +140,10 @@ function LoginForm() {
                   <p className="text-xs text-muted-foreground text-center">
                     If you believe this is an error, contact{" "}
                     <a
-                      href="mailto:support@wopr.bot"
+                      href={`mailto:${getBrandConfig().emails.support}`}
                       className="text-terminal-dim underline underline-offset-4 hover:text-terminal"
                     >
-                      support@wopr.bot
+                      {getBrandConfig().emails.support}
                     </a>
                   </p>
                 )}

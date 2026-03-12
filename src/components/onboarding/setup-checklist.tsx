@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CapabilitySetting, ChannelInfo } from "@/lib/api";
 import { getCreditBalance, listChannels, listInstances } from "@/lib/api";
+import { productName, storageKey } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 import { listMarketplacePlugins } from "@/lib/marketplace-data";
 import { channelPlugins, type PluginOption, superpowers } from "@/lib/onboarding-data";
 import { listCapabilities } from "@/lib/settings-api";
 
-const STORAGE_KEY = "wopr:setup-checklist-dismissed";
+const STORAGE_KEY = storageKey("setup-checklist-dismissed");
 
 interface ChannelStatus {
   id: string;
@@ -221,7 +222,7 @@ export function SetupChecklist() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Let&apos;s get your WOPR running</CardTitle>
+          <CardTitle className="text-base">Let&apos;s get your {productName()} running</CardTitle>
           <Button
             data-onboarding-id="dashboard.checklist.dismiss"
             variant="ghost"
@@ -323,7 +324,7 @@ export function SetupChecklist() {
         {/* Footer hint */}
         {!allComplete && (
           <p className="text-xs text-muted-foreground">
-            Complete the channel setup to start using your WOPR.
+            Complete the channel setup to start using your {productName()}.
           </p>
         )}
       </CardContent>

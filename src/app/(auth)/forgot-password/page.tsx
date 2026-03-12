@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { getBrandConfig } from "@/lib/brand-config";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -101,7 +102,7 @@ export default function ForgotPasswordPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="operator@wopr.bot"
+                placeholder={`operator@${getBrandConfig().domain}`}
                 autoComplete="email"
                 required
                 value={email}

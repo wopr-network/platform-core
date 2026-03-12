@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openChatStream, sendChatMessage } from "@/lib/api";
+import { eventName } from "@/lib/brand-config";
 import { clearChatHistory, getSessionId, loadChatHistory, saveChatHistory } from "./chat-store";
 import type { ChatEvent, ChatMessage, ChatMode } from "./types";
 
@@ -92,7 +93,7 @@ export function useChat(): UseChatReturn {
           });
         } else if (data.type === "tool_call") {
           window.dispatchEvent(
-            new CustomEvent("wopr-chat-tool-call", {
+            new CustomEvent(eventName("chat-tool-call"), {
               detail: { tool: data.tool, args: data.args },
             }),
           );

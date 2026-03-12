@@ -1,7 +1,27 @@
 {
-  "name": "wopr-platform-ui",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@wopr-network/platform-ui-core",
+  "version": "1.0.0",
+  "description": "Brand-agnostic AI agent platform UI — deploy as any brand via env vars",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wopr-network/platform-ui-core.git"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "src/",
+    "public/",
+    "next.config.ts",
+    "tsconfig.json",
+    "postcss.config.mjs",
+    "tailwind.config.ts",
+    "biome.json",
+    "vitest.config.ts",
+    ".env.wopr",
+    ".env.paperclip"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

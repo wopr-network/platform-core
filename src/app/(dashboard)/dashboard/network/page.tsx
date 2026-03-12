@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Instance } from "@/lib/api";
 import { listInstances } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 
 export default function NetworkPage() {
@@ -49,8 +50,8 @@ export default function NetworkPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-widest uppercase">Friends &amp; Network</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage P2P connections, friend requests, and auto-accept rules for your WOPR bot
-            instances.
+            Manage P2P connections, friend requests, and auto-accept rules for your {productName()}{" "}
+            bot instances.
           </p>
         </div>
         <div className="w-full sm:w-56 shrink-0">

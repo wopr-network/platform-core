@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { usePageContext } from "@/hooks/use-page-context";
 import { useWebMCP } from "@/hooks/use-webmcp";
+import { productName } from "@/lib/brand-config";
 import { ChatProvider } from "@/lib/chat/chat-context";
 
 export default function DashboardLayout({
@@ -86,7 +87,7 @@ export default function DashboardLayout({
               <SidebarContent onNavigate={() => setSheetOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="text-lg font-semibold tracking-tight">WOPR Bot</span>
+          <span className="text-lg font-semibold tracking-tight">{productName()}</span>
         </header>
         <SuspensionBanner />
         <EmailVerificationBanner />

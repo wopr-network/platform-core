@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCreditBalance } from "@/lib/api";
 import { signOut, useSession } from "@/lib/auth-client";
+import { productName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
@@ -98,7 +99,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-sidebar-border px-6">
         <span className="text-lg font-semibold tracking-tight text-terminal [text-shadow:0_0_12px_rgba(0,255,65,0.4)]">
-          WOPR Bot
+          {productName()}
         </span>
       </div>
       <AccountSwitcher />

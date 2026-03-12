@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { getBrandConfig } from "@/lib/brand-config";
+
+const brand = getBrandConfig();
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — WOPR Bot",
-  description: "Privacy Policy for WOPR Bot",
+  title: `Privacy Policy — ${brand.productName}`,
+  description: `Privacy Policy for ${brand.productName}`,
 };
 
 export default function PrivacyPage() {
@@ -94,18 +97,19 @@ export default function PrivacyPage() {
               1. Identity and Contact Details
             </h2>
             <p>
-              WOPR Network (&ldquo;WOPR,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
-              &ldquo;our&rdquo;) is the data controller responsible for your personal data. We
-              operate the WOPR Bot platform available at wopr.bot.
+              {brand.companyLegalName} (&ldquo;{brand.brandName},&rdquo; &ldquo;we,&rdquo;
+              &ldquo;us,&rdquo; or &ldquo;our&rdquo;) is the data controller responsible for your
+              personal data. We operate the {brand.productName} platform available at {brand.domain}
+              .
             </p>
             <p className="mt-2">
               If you have questions about how we handle your data, or if you wish to exercise any of
               your rights described below, contact us at{" "}
               <a
-                href="mailto:privacy@wopr.network"
+                href={`mailto:${brand.emails.privacy}`}
                 className="text-foreground underline underline-offset-4"
               >
-                privacy@wopr.network
+                {brand.emails.privacy}
               </a>
               .
             </p>
@@ -116,7 +120,8 @@ export default function PrivacyPage() {
               2. What We Collect and Why
             </h2>
             <p>
-              We only collect information that is necessary to provide and improve WOPR Bot
+              We only collect information that is necessary to provide and improve{" "}
+              {brand.productName}
               services. We do not collect data for advertising or sell your information to third
               parties.
             </p>
@@ -131,7 +136,8 @@ export default function PrivacyPage() {
 
             <h3 className="mb-1 mt-4 text-sm font-semibold text-foreground">Billing information</h3>
             <p>
-              Payment card details are processed directly by Stripe and are never stored on WOPR
+              Payment card details are processed directly by Stripe and are never stored on{" "}
+              {brand.brandName}
               servers. We receive only a tokenized reference, your billing email, and transaction
               history from Stripe. Legal basis: performance of our contract with you.
             </p>
@@ -200,8 +206,8 @@ export default function PrivacyPage() {
             </ul>
             <p className="mt-2">
               We may also disclose information if required by law, to enforce our Terms of Service,
-              or to protect the rights, property, or safety of WOPR Network, our users, or the
-              public.
+              or to protect the rights, property, or safety of {brand.companyLegalName}, our users,
+              or the public.
             </p>
           </section>
 
@@ -238,10 +244,10 @@ export default function PrivacyPage() {
             <p className="mt-2">
               To exercise any of these rights, email{" "}
               <a
-                href="mailto:privacy@wopr.network"
+                href={`mailto:${brand.emails.privacy}`}
                 className="text-foreground underline underline-offset-4"
               >
-                privacy@wopr.network
+                {brand.emails.privacy}
               </a>
               . We will respond within 30 days.
             </p>
@@ -267,10 +273,10 @@ export default function PrivacyPage() {
             <p className="mt-2">
               To exercise these rights, email{" "}
               <a
-                href="mailto:privacy@wopr.network"
+                href={`mailto:${brand.emails.privacy}`}
                 className="text-foreground underline underline-offset-4"
               >
-                privacy@wopr.network
+                {brand.emails.privacy}
               </a>
               .
             </p>
@@ -346,14 +352,14 @@ export default function PrivacyPage() {
               11. Children&apos;s Privacy
             </h2>
             <p>
-              WOPR Bot is not intended for use by children under the age of 13. We do not knowingly
-              collect personal data from children under 13. If you believe a child under 13 has
-              provided us with personal data, please contact us at{" "}
+              {brand.productName} is not intended for use by children under the age of 13. We do not
+              knowingly collect personal data from children under 13. If you believe a child under
+              13 has provided us with personal data, please contact us at{" "}
               <a
-                href="mailto:privacy@wopr.network"
+                href={`mailto:${brand.emails.privacy}`}
                 className="text-foreground underline underline-offset-4"
               >
-                privacy@wopr.network
+                {brand.emails.privacy}
               </a>{" "}
               and we will delete the data promptly.
             </p>
@@ -366,8 +372,8 @@ export default function PrivacyPage() {
             <p>
               We may update this Privacy Policy from time to time. If we make material changes, we
               will notify you by email or through a prominent notice on the service before the
-              changes take effect. Your continued use of WOPR Bot after the changes take effect
-              constitutes acceptance of the updated policy.
+              changes take effect. Your continued use of {brand.productName} after the changes take
+              effect constitutes acceptance of the updated policy.
             </p>
           </section>
 
@@ -376,10 +382,10 @@ export default function PrivacyPage() {
             <p>
               Questions about this privacy policy? Email us at{" "}
               <a
-                href="mailto:privacy@wopr.network"
+                href={`mailto:${brand.emails.privacy}`}
                 className="text-foreground underline underline-offset-4"
               >
-                privacy@wopr.network
+                {brand.emails.privacy}
               </a>
               .
             </p>

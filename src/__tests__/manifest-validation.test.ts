@@ -29,7 +29,7 @@ describe("parseManifest", () => {
       name: "Discord",
       description: "Connect to Discord",
       version: "3.2.0",
-      author: "WOPR Team",
+      author: "Platform Team",
       icon: "MessageCircle",
       color: "#5865F2",
       category: "channel",

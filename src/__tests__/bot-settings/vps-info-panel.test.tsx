@@ -21,8 +21,8 @@ describe("VpsInfoPanel", () => {
     mockGetVpsInfo.mockResolvedValue({
       botId: "bot-1",
       status: "active",
-      hostname: "bot-1.wopr.vps",
-      sshConnectionString: "ssh wopr@bot-1.wopr.vps",
+      hostname: "bot-1.platform.vps",
+      sshConnectionString: "ssh platform@bot-1.platform.vps",
       diskSizeGb: 20,
       createdAt: "2026-01-15T00:00:00Z",
     });
@@ -31,17 +31,17 @@ describe("VpsInfoPanel", () => {
       expect(screen.getByText("VPS")).toBeInTheDocument();
     });
     expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("bot-1.wopr.vps")).toBeInTheDocument();
+    expect(screen.getByText("bot-1.platform.vps")).toBeInTheDocument();
     expect(screen.getByText("20 GB SSD")).toBeInTheDocument();
     expect(screen.getByText("2 GB RAM / 2 vCPU")).toBeInTheDocument();
-    expect(screen.getByText("ssh wopr@bot-1.wopr.vps")).toBeInTheDocument();
+    expect(screen.getByText("ssh platform@bot-1.platform.vps")).toBeInTheDocument();
   });
 
   it("shows Active since date", async () => {
     mockGetVpsInfo.mockResolvedValue({
       botId: "bot-1",
       status: "active",
-      hostname: "bot-1.wopr.vps",
+      hostname: "bot-1.platform.vps",
       sshConnectionString: null,
       diskSizeGb: 20,
       createdAt: "2026-01-15T00:00:00Z",
@@ -57,7 +57,7 @@ describe("VpsInfoPanel", () => {
     mockGetVpsInfo.mockResolvedValue({
       botId: "bot-1",
       status: "active",
-      hostname: "bot-1.wopr.vps",
+      hostname: "bot-1.platform.vps",
       sshConnectionString: null,
       diskSizeGb: 20,
       createdAt: "2026-01-15T00:00:00Z",
@@ -72,7 +72,7 @@ describe("VpsInfoPanel", () => {
     mockGetVpsInfo.mockResolvedValue({
       botId: "bot-1",
       status: "canceling",
-      hostname: "bot-1.wopr.vps",
+      hostname: "bot-1.platform.vps",
       sshConnectionString: null,
       diskSizeGb: 20,
       createdAt: "2026-01-15T00:00:00Z",

@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCapabilityMeta } from "@/hooks/use-capability-meta";
+import { brandName } from "@/lib/brand-config";
 
 /**
  * Renders a capability label from the registry. Falls back to auto-formatted name.
@@ -69,7 +70,7 @@ export function CapabilityProviderPicker({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Some capabilities can be provided by WOPR Hosted services. Choose for each:
+        Some capabilities can be provided by {brandName()} Hosted services. Choose for each:
       </p>
       {hostedCapabilities.map((capMeta) => {
         const choice = choices[capMeta.capability] ?? "hosted";
@@ -93,7 +94,7 @@ export function CapabilityProviderPicker({
                 size="sm"
                 onClick={() => onChoose(capMeta.capability, "hosted")}
               >
-                WOPR Hosted
+                {brandName()} Hosted
               </Button>
               <Button
                 data-onboarding-id={`marketplace.wizard.provider.byok.${capMeta.capability}`}

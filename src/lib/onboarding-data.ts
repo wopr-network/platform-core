@@ -763,7 +763,7 @@ export const pluginCategories: PluginCategory[] = [
       {
         id: "web-ui",
         name: "Web UI",
-        description: "Browser-based chat interface for your WOPR.",
+        description: "Browser-based chat interface for your bot.",
         icon: "Globe",
         color: "#3B82F6",
         capabilities: ["ui"],

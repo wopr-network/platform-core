@@ -13,9 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCountUp } from "@/hooks/use-count-up";
+import { brandName, storageKey } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 
-const STORAGE_KEY = "wopr_first_dividend_seen";
+const STORAGE_KEY = storageKey("first_dividend_seen");
 
 interface FirstDividendDialogProps {
   todayAmountCents: number;
@@ -88,7 +89,7 @@ export function FirstDividendDialog({ todayAmountCents }: FirstDividendDialogPro
               />
             </motion.div>
             <DialogTitle className="text-2xl">
-              WOPR just paid you{" "}
+              {brandName()} just paid you{" "}
               <span className="font-mono tabular-nums">{formatCreditStandard(animatedAmount)}</span>
             </DialogTitle>
             <DialogDescription>

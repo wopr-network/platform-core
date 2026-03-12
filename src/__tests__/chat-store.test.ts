@@ -42,31 +42,31 @@ describe("chat-store", () => {
     });
 
     it("returns empty array when localStorage contains invalid JSON shape", () => {
-      localStorage.setItem("wopr-chat-history", JSON.stringify([{ bad: "data" }]));
+      localStorage.setItem("platform-chat-history", JSON.stringify([{ bad: "data" }]));
       expect(loadChatHistory()).toEqual([]);
     });
 
     it("returns empty array when localStorage contains non-array JSON", () => {
-      localStorage.setItem("wopr-chat-history", JSON.stringify({ id: "1", role: "user" }));
+      localStorage.setItem("platform-chat-history", JSON.stringify({ id: "1", role: "user" }));
       expect(loadChatHistory()).toEqual([]);
     });
 
     it("returns empty array when a message has an invalid role", () => {
       localStorage.setItem(
-        "wopr-chat-history",
+        "platform-chat-history",
         JSON.stringify([{ id: "1", role: "admin", content: "hi", timestamp: 1000 }]),
       );
       expect(loadChatHistory()).toEqual([]);
     });
 
     it("returns empty array when a message is missing required fields", () => {
-      localStorage.setItem("wopr-chat-history", JSON.stringify([{ id: "1", role: "user" }]));
+      localStorage.setItem("platform-chat-history", JSON.stringify([{ id: "1", role: "user" }]));
       expect(loadChatHistory()).toEqual([]);
     });
 
     it("strips extra fields from valid messages", () => {
       localStorage.setItem(
-        "wopr-chat-history",
+        "platform-chat-history",
         JSON.stringify([
           { id: "1", role: "user", content: "hi", timestamp: 1000, xss: "<script>" },
         ]),

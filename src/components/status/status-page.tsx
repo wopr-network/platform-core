@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HealthStatus, PlatformHealthResponse } from "@/lib/api";
 import { fetchPlatformHealth } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { HEALTH_DOT_STYLES } from "@/lib/status-colors";
 import { cn } from "@/lib/utils";
 
@@ -95,7 +96,9 @@ export function StatusPage() {
     <div className="mx-auto max-w-2xl px-6 py-16">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Platform Status</h1>
-        <p className="text-sm text-muted-foreground">Real-time health of the WOPR platform.</p>
+        <p className="text-sm text-muted-foreground">
+          Real-time health of the {brandName()} platform.
+        </p>
       </div>
 
       <div className="mt-8 space-y-6">
@@ -114,7 +117,7 @@ export function StatusPage() {
               <XCircle className="size-5 shrink-0 text-red-500" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-red-500">
-                  Unable to reach the WOPR platform
+                  Unable to reach the {brandName()} platform
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   The health endpoint is not responding. The platform may be experiencing an outage.

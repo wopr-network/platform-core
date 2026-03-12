@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AffiliateStats, Referral } from "@/lib/api";
 import { getAffiliateReferrals, getAffiliateStats } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 
 function formatCents(cents: number): string {
@@ -64,7 +65,7 @@ export function AffiliateDashboard() {
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({
-          title: "Join WOPR",
+          title: `Join ${brandName()}`,
           text: "Get 20% extra credits on your first buy!",
           url: stats.referralUrl,
         });

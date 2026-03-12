@@ -16,7 +16,7 @@ describe("TerminalSequence", () => {
 
   it("renders hold lines in reduced-motion mode", () => {
     render(<TerminalSequence />);
-    expect(screen.getByText("WOPR Bot.")).toBeInTheDocument();
+    expect(screen.getByText("Platform.")).toBeInTheDocument();
     expect(screen.getByText(/Ready to launch/)).toBeInTheDocument();
   });
 

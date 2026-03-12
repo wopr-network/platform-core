@@ -31,12 +31,12 @@ function createWrapper() {
 
 function clearTenantCookie() {
   // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
-  document.cookie = "wopr_tenant_id=; path=/; max-age=0";
+  document.cookie = "platform_tenant_id=; path=/; max-age=0";
 }
 
 function setTenantCookie(tenantId: string) {
   // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
-  document.cookie = `wopr_tenant_id=${encodeURIComponent(tenantId)}; path=/`;
+  document.cookie = `platform_tenant_id=${encodeURIComponent(tenantId)}; path=/`;
 }
 
 describe("useTenant", () => {
@@ -96,7 +96,7 @@ describe("useTenant", () => {
     });
 
     expect(result.current.activeTenantId).toBe("org-1");
-    expect(document.cookie).toContain("wopr_tenant_id=org-1");
+    expect(document.cookie).toContain("platform_tenant_id=org-1");
   });
 
   it("falls back to personal if stored tenant is not in list", async () => {

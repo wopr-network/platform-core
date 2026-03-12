@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ByokCallout } from "@/components/billing/byok-callout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { productName } from "@/lib/brand-config";
 import { pricingData } from "@/lib/pricing-data";
 
 export default function PlansPage() {
@@ -18,7 +19,7 @@ export default function PlansPage() {
       <Card className="border-terminal shadow-[0_0_12px_rgba(0,255,65,0.15)]">
         <CardHeader className="text-center">
           <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">
-            WOPR Bot
+            {productName()}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4 text-center">

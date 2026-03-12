@@ -29,6 +29,7 @@ import {
   updateBillingEmail,
 } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { brandName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 import { getOrganization } from "@/lib/org-api";
 import { getOrgBillingInfo } from "@/lib/org-billing-api";
@@ -243,7 +244,7 @@ export default function PaymentPage() {
         <CardHeader>
           <CardTitle>Payment Methods</CardTitle>
           <CardDescription>
-            Cards on file for WOPR platform charges (not AI provider costs)
+            Cards on file for {brandName()} platform charges (not AI provider costs)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -516,7 +517,7 @@ export default function PaymentPage() {
       <div>
         <h2 className="text-lg font-semibold">Billing History</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Past invoices for WOPR platform services
+          Past invoices for {brandName()} platform services
         </p>
       </div>
 

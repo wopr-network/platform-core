@@ -270,7 +270,7 @@ describe("MarketplacePage", () => {
     expect(screen.queryByText("Webhooks")).not.toBeInTheDocument();
   });
 
-  it("shows WOPR Hosted Available badge for eligible plugins", async () => {
+  it("shows Platform Hosted Available badge for eligible plugins", async () => {
     const user = userEvent.setup();
     const { default: MarketplacePage } = await import("../app/(dashboard)/marketplace/page");
     render(<MarketplacePage />);
@@ -281,8 +281,8 @@ describe("MarketplacePage", () => {
     const capabilitiesButton = closestButton(screen.getByText("Capabilities"));
     await user.click(capabilitiesButton);
 
-    // PluginCard shows "WOPR Hosted" badge for eligible plugins
-    const hostedBadges = screen.getAllByText("WOPR Hosted");
+    // PluginCard shows "Platform Hosted" badge for eligible plugins
+    const hostedBadges = screen.getAllByText("Platform Hosted");
     expect(hostedBadges.length).toBeGreaterThan(0);
   });
 
@@ -337,9 +337,9 @@ describe("PluginDetailPage", () => {
     renderWithQueryClient(<PluginDetailPage />);
 
     await screen.findByText("A Bot That Never Forgets");
-    expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted Options")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted Embeddings")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted Options")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted Embeddings")).toBeInTheDocument();
   });
 
   it("shows requirements for plugins with dependencies", async () => {
@@ -478,7 +478,7 @@ describe("InstallWizard", () => {
     // Should now show provider selector
     expect(
       screen.getByText(
-        "Some capabilities can be provided by WOPR Hosted services. Choose for each:",
+        "Some capabilities can be provided by Platform Hosted services. Choose for each:",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("LLM")).toBeInTheDocument();
@@ -509,32 +509,32 @@ describe("PluginCard", () => {
     expect(screen.getByText("Discord")).toBeInTheDocument();
     expect(screen.getByText("v3.2.0")).toBeInTheDocument();
     expect(screen.getByText("12.4k installs")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Team")).toBeInTheDocument();
+    expect(screen.getByText("Platform Team")).toBeInTheDocument();
 
     // Should have a link to the detail page
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "/marketplace/discord");
   });
 
-  it("shows WOPR Hosted badge for eligible plugins", async () => {
+  it("shows Platform Hosted badge for eligible plugins", async () => {
     const { PluginCard } = await import("../components/marketplace/plugin-card");
     // semantic-memory has embeddings capability
     const plugin = findManifest("semantic-memory");
 
     render(<PluginCard plugin={plugin} />);
 
-    // Cards show shortened "WOPR Hosted" badge text
-    expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
+    // Cards show shortened "Platform Hosted" badge text
+    expect(screen.getByText("Platform Hosted")).toBeInTheDocument();
   });
 
-  it("does not show WOPR Hosted badge for plugins without hosted capabilities", async () => {
+  it("does not show Platform Hosted badge for plugins without hosted capabilities", async () => {
     const { PluginCard } = await import("../components/marketplace/plugin-card");
     // discord only has 'channel' capability, no hosted adapter for that
     const plugin = findManifest("discord");
 
     render(<PluginCard plugin={plugin} />);
 
-    expect(screen.queryByText("WOPR Hosted")).not.toBeInTheDocument();
+    expect(screen.queryByText("Platform Hosted")).not.toBeInTheDocument();
   });
 
   it("shows Installed badge when installed prop is true", async () => {

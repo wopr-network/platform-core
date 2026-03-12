@@ -1,4 +1,4 @@
-/** Base class for all WOPR platform errors. */
+/** Base class for all platform errors. */
 export class AppError extends Error {
   constructor(message: string) {
     super(message);

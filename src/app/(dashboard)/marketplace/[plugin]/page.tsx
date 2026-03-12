@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { brandName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import {
   formatInstallCount,
@@ -34,7 +35,7 @@ export function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone
   onDoneRef.current = onDone;
 
   const logLines = useRef([
-    `$ wopr plugin install ${plugin.id}`,
+    `$ ${brandName().toLowerCase()} plugin install ${plugin.id}`,
     `Resolving ${plugin.name} v${plugin.version}...`,
     "Checking dependencies...",
     ...(plugin.requires.length > 0
@@ -77,7 +78,7 @@ export function TerminalLog({ plugin, onDone }: { plugin: PluginManifest; onDone
     >
       <div className="mb-2 flex items-center gap-2 text-primary/60">
         <Terminal className="h-3.5 w-3.5" />
-        <span>wopr-install</span>
+        <span>{brandName().toLowerCase()}-install</span>
       </div>
       <div ref={containerRef} className="max-h-48 overflow-y-auto space-y-1">
         {lines.map((line, idx) => (
@@ -357,7 +358,7 @@ export default function PluginDetailPage() {
         })}
         {hostedAvailable && (
           <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/25">
-            WOPR Hosted
+            {brandName()} Hosted
           </Badge>
         )}
       </motion.div>
@@ -406,7 +407,7 @@ export default function PluginDetailPage() {
           {hostedAdapters.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">WOPR Hosted Options</CardTitle>
+                <CardTitle className="text-base">{brandName()} Hosted Options</CardTitle>
                 <CardDescription>
                   Capabilities available as managed services -- no keys needed.
                 </CardDescription>

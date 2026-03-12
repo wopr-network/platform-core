@@ -99,13 +99,13 @@ describe("api-config", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", undefined as unknown as string);
     vi.resetModules();
     const { SITE_URL } = await import("./api-config");
-    expect(SITE_URL).toBe("https://wopr.bot");
+    expect(SITE_URL).toBe("https://localhost");
   });
 
   it("uses NEXT_PUBLIC_SITE_URL when set", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.wopr.bot");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.example.com");
     vi.resetModules();
     const { SITE_URL } = await import("./api-config");
-    expect(SITE_URL).toBe("https://staging.wopr.bot");
+    expect(SITE_URL).toBe("https://staging.example.com");
   });
 });

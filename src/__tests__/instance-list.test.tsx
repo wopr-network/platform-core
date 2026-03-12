@@ -102,7 +102,7 @@ describe("InstanceListClient", () => {
     render(<InstanceListClient />);
 
     expect(screen.getByText("Instances")).toBeInTheDocument();
-    expect(screen.getByText("Manage your WOPR instances")).toBeInTheDocument();
+    expect(screen.getByText("Manage your Platform instances")).toBeInTheDocument();
   });
 
   it("has a New Instance button linking to /instances/new", async () => {

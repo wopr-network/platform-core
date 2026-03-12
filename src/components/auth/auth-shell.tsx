@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import { WoprWordmark } from "./wopr-wordmark";
+import { BrandWordmark } from "./wopr-wordmark";
 
 interface AuthShellProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ interface AuthShellProps {
 export function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="flex flex-col items-center">
-      <WoprWordmark />
+      <BrandWordmark />
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

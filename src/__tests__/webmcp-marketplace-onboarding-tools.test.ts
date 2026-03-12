@@ -42,9 +42,9 @@ describe("getMarketplaceOnboardingTools", () => {
   });
 
   describe("marketplace.showSuperpowers", () => {
-    it("dispatches wopr:marketplace filter event when on marketplace page", async () => {
+    it("dispatches platform-marketplace filter event when on marketplace page", async () => {
       const spy = vi.fn();
-      window.addEventListener("wopr:marketplace", spy);
+      window.addEventListener("platform-marketplace", spy);
       const tool = getTool("marketplace.showSuperpowers");
 
       const result = await tool.handler({ query: "voice" });
@@ -53,7 +53,7 @@ describe("getMarketplaceOnboardingTools", () => {
       const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
       expect(detail).toEqual({ type: "filter", query: "voice" });
       expect(result).toEqual({ ok: true, navigated: false });
-      window.removeEventListener("wopr:marketplace", spy);
+      window.removeEventListener("platform-marketplace", spy);
     });
 
     it("navigates to /marketplace when on a different page", async () => {
@@ -106,7 +106,7 @@ describe("getMarketplaceOnboardingTools", () => {
   describe("marketplace.clearFilter", () => {
     it("dispatches clearFilter event", async () => {
       const spy = vi.fn();
-      window.addEventListener("wopr:marketplace", spy);
+      window.addEventListener("platform-marketplace", spy);
       const tool = getTool("marketplace.clearFilter");
 
       const result = await tool.handler({});
@@ -115,14 +115,14 @@ describe("getMarketplaceOnboardingTools", () => {
       const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
       expect(detail).toEqual({ type: "clearFilter" });
       expect(result).toEqual({ ok: true });
-      window.removeEventListener("wopr:marketplace", spy);
+      window.removeEventListener("platform-marketplace", spy);
     });
   });
 
   describe("onboarding.beginSetup", () => {
     it("dispatches chat.expand event for plugin setup", async () => {
       const spy = vi.fn();
-      window.addEventListener("wopr-chat-tool-call", spy);
+      window.addEventListener("platform-chat-tool-call", spy);
       const tool = getTool("onboarding.beginSetup");
 
       const result = await tool.handler({ pluginId: "discord" });
@@ -131,14 +131,14 @@ describe("getMarketplaceOnboardingTools", () => {
       const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
       expect(detail).toEqual({ tool: "chat.expand", args: {} });
       expect(result).toEqual({ ok: true, pluginId: "discord" });
-      window.removeEventListener("wopr-chat-tool-call", spy);
+      window.removeEventListener("platform-chat-tool-call", spy);
     });
   });
 
   describe("onboarding.markComplete", () => {
-    it("dispatches wopr:onboarding complete event", async () => {
+    it("dispatches platform-onboarding complete event", async () => {
       const spy = vi.fn();
-      window.addEventListener("wopr:onboarding", spy);
+      window.addEventListener("platform-onboarding", spy);
       const tool = getTool("onboarding.markComplete");
 
       const result = await tool.handler({ step: "plugins" });
@@ -147,7 +147,7 @@ describe("getMarketplaceOnboardingTools", () => {
       const detail = (spy.mock.calls[0][0] as CustomEvent).detail;
       expect(detail).toEqual({ type: "markComplete", step: "plugins" });
       expect(result).toEqual({ ok: true });
-      window.removeEventListener("wopr:onboarding", spy);
+      window.removeEventListener("platform-onboarding", spy);
     });
   });
 

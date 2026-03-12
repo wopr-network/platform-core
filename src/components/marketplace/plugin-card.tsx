@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { brandName } from "@/lib/brand-config";
 import {
   formatInstallCount,
   getCapabilityColor,
@@ -111,7 +112,7 @@ export function PluginCard({ plugin, index = 0, installed = false }: PluginCardP
                 })}
                 {hostedAvailable && (
                   <Badge variant="terminal" className="text-[10px]">
-                    WOPR Hosted
+                    {brandName()} Hosted
                   </Badge>
                 )}
               </div>

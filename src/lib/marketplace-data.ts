@@ -1,6 +1,7 @@
 // --- Plugin Manifest types ---
 
 import { z } from "zod";
+import { brandName } from "./brand-config";
 import { logger } from "./logger";
 
 const log = logger("marketplace");
@@ -110,9 +111,9 @@ export function parseManifestSafe(data: unknown): PluginManifest | null {
 }
 
 // --- Hosted Adapter Registry ---
-// Capabilities that have WOPR-hosted adapter options.
-// When a plugin declares a capability listed here, it gets a "WOPR Hosted Available" badge
-// and the install flow shows a "WOPR Hosted" option for that capability.
+// Capabilities that have hosted adapter options.
+// When a plugin declares a capability listed here, it gets a "Hosted Available" badge
+// and the install flow shows a "Hosted" option for that capability.
 
 export interface HostedAdapter {
   capability: string;
@@ -124,31 +125,31 @@ export interface HostedAdapter {
 export const HOSTED_ADAPTERS: HostedAdapter[] = [
   {
     capability: "llm",
-    label: "WOPR Hosted LLM",
+    label: `${brandName()} Hosted LLM`,
     description: "Managed LLM inference with automatic model routing.",
     pricing: "Pay-per-token",
   },
   {
     capability: "tts",
-    label: "WOPR Hosted TTS",
+    label: `${brandName()} Hosted TTS`,
     description: "Managed text-to-speech synthesis.",
     pricing: "Pay-per-character",
   },
   {
     capability: "stt",
-    label: "WOPR Hosted STT",
+    label: `${brandName()} Hosted STT`,
     description: "Managed speech-to-text transcription.",
     pricing: "Pay-per-minute",
   },
   {
     capability: "embeddings",
-    label: "WOPR Hosted Embeddings",
+    label: `${brandName()} Hosted Embeddings`,
     description: "Managed vector embeddings for semantic search.",
     pricing: "Pay-per-request",
   },
   {
     capability: "image-gen",
-    label: "WOPR Hosted Image Generation",
+    label: `${brandName()} Hosted Image Generation`,
     description: "Managed image generation.",
     pricing: "Pay-per-image",
   },

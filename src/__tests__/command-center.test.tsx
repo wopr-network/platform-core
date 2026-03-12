@@ -195,7 +195,7 @@ describe("CommandCenter", () => {
   it("renders quick action buttons with correct links", () => {
     render(<CommandCenter />);
 
-    const launchLink = screen.getByText("Add Another WOPR Bot").closest("a");
+    const launchLink = screen.getByText("Add Another Platform").closest("a");
     expect(launchLink).toHaveAttribute("href", "/instances/new");
 
     const healthLink = screen.getByText("Fleet Health").closest("a");

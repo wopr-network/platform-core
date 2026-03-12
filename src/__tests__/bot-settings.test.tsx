@@ -31,7 +31,7 @@ const TEST_BOT_SETTINGS = vi.hoisted(
       {
         id: "ch-2",
         type: "Web UI",
-        name: "chat.wopr.bot/jarvis",
+        name: "chat.localhost/jarvis",
         status: "always-on",
         stats: "12 sessions today",
       },
@@ -88,14 +88,14 @@ const TEST_BOT_SETTINGS = vi.hoisted(
         id: "phone",
         name: "Phone Calls",
         icon: "phone",
-        description: "Your WOPR answers the phone and calls people",
+        description: "Your bot answers the phone and calls people",
         pricing: "~$0.10/min",
       },
       {
         id: "sms",
         name: "SMS",
         icon: "message-square",
-        description: "Your WOPR sends and receives texts",
+        description: "Your bot sends and receives texts",
         pricing: "~$0.02/msg",
       },
       {
@@ -286,7 +286,7 @@ describe("Brain tab", () => {
     expect(screen.getByText("Provider Mode")).toBeInTheDocument();
   });
 
-  it("renders WOPR Hosted and BYOK options", async () => {
+  it("renders Platform Hosted and BYOK options", async () => {
     const user = userEvent.setup();
     const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
     render(<BotSettingsClient botId="bot-001" />);
@@ -294,7 +294,7 @@ describe("Brain tab", () => {
 
     await user.click(screen.getByRole("tab", { name: "Brain" }));
 
-    expect(screen.getByText("WOPR Hosted")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted")).toBeInTheDocument();
     expect(screen.getByText("Bring Your Own Key")).toBeInTheDocument();
   });
 });
@@ -336,7 +336,7 @@ describe("Channels tab", () => {
     await user.click(screen.getByRole("tab", { name: "Channels" }));
 
     expect(
-      screen.getByText("Your WOPR works everywhere you do. All channels are free."),
+      screen.getByText("Your Platform works everywhere you do. All channels are free."),
     ).toBeInTheDocument();
   });
 });
@@ -387,7 +387,7 @@ describe("Superpowers tab", () => {
     expect(addButtons.length).toBe(5); // 5 available superpowers
   });
 
-  it("renders 'Your WOPR can do more' section", async () => {
+  it("renders 'Your Platform can do more' section", async () => {
     const user = userEvent.setup();
     const { BotSettingsClient } = await import("../components/bot-settings/bot-settings-client");
     render(<BotSettingsClient botId="bot-001" />);
@@ -395,7 +395,7 @@ describe("Superpowers tab", () => {
 
     await user.click(screen.getByRole("tab", { name: "Superpowers" }));
 
-    expect(screen.getByText("Your WOPR can do more")).toBeInTheDocument();
+    expect(screen.getByText("Your Platform can do more")).toBeInTheDocument();
     expect(screen.getByText("One click to activate. Uses your credits.")).toBeInTheDocument();
   });
 

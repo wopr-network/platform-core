@@ -331,7 +331,7 @@ export function TerminalSequence({ onComplete, onMilestone, onFadeStart }: Termi
   return (
     <div
       role="img"
-      aria-label="Terminal animation showing WOPR Bot capabilities accelerating from mundane tasks to cosmic scale, ending at $5/month"
+      aria-label="Terminal animation showing capabilities accelerating from mundane tasks to cosmic scale"
       className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden"
     >
       {/* Grid dot background */}

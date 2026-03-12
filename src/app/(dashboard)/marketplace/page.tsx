@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BotStatusResponse } from "@/lib/api";
 import { apiFetch } from "@/lib/api";
+import { eventName, productName, storageKey } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import {
   listInstalledPlugins,
@@ -24,7 +25,7 @@ import {
   type PluginManifest,
 } from "@/lib/marketplace-data";
 
-const FIRST_VISIT_KEY = "wopr-marketplace-visited";
+const FIRST_VISIT_KEY = storageKey("marketplace-visited");
 
 export default function MarketplacePage() {
   const [plugins, setPlugins] = useState<PluginManifest[]>([]);
@@ -83,8 +84,9 @@ export default function MarketplacePage() {
         setSearch("");
       }
     }
-    window.addEventListener("wopr:marketplace", handleMarketplaceEvent);
-    return () => window.removeEventListener("wopr:marketplace", handleMarketplaceEvent);
+    const evtName = eventName("marketplace");
+    window.addEventListener(evtName, handleMarketplaceEvent);
+    return () => window.removeEventListener(evtName, handleMarketplaceEvent);
   }, []);
 
   // Detect first visit
@@ -207,7 +209,7 @@ export default function MarketplacePage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Browse Superpowers</h1>
           <p className="text-sm text-muted-foreground">
-            Give your WOPR Bot abilities it was born to have.
+            Give your {productName()} abilities it was born to have.
           </p>
         </div>
 

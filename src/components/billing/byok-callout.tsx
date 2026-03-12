@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { InferenceMode } from "@/lib/api";
 import { getInferenceMode } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 
 export function ByokCallout({ compact }: { compact?: boolean }) {
   const [mode, setMode] = useState<InferenceMode | null>(null);
@@ -33,7 +34,8 @@ export function ByokCallout({ compact }: { compact?: boolean }) {
   if (compact) {
     return (
       <p className="text-xs text-muted-foreground">
-        All plans are BYOK — you pay your AI provider directly. WOPR never touches your inference.
+        All plans are BYOK — you pay your AI provider directly. {brandName()} never touches your
+        inference.
       </p>
     );
   }
@@ -47,7 +49,7 @@ export function ByokCallout({ compact }: { compact?: boolean }) {
         <div className="space-y-1">
           <p className="text-sm font-medium">Bring Your Own Keys</p>
           <p className="text-sm text-muted-foreground">
-            All plans are BYOK — you pay your AI provider directly. WOPR never touches your
+            All plans are BYOK — you pay your AI provider directly. {brandName()} never touches your
             inference. We only charge for the orchestration layer: containers, plugins, and support.
           </p>
         </div>

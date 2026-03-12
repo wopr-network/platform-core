@@ -284,22 +284,22 @@ describe("middleware", () => {
     });
 
     it("redirects authenticated GET / to app domain when NEXT_PUBLIC_APP_DOMAIN is set and host is the marketing domain", async () => {
-      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.wopr.bot";
+      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.localhost";
       const req = buildRequest("/", {
         cookies: { "better-auth.session_token": "valid-token" },
-        host: "wopr.bot",
+        host: "localhost",
       });
       const res = await middleware(req);
       expect(isRedirect(res)).toBe(true);
       const loc = res.headers.get("location");
-      expect(loc).toBe("https://app.wopr.bot/marketplace");
+      expect(loc).toBe("https://app.localhost/marketplace");
     });
 
     it("redirects authenticated GET / to /marketplace when already on app subdomain", async () => {
-      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.wopr.bot";
+      process.env.NEXT_PUBLIC_APP_DOMAIN = "app.localhost";
       const req = buildRequest("/", {
         cookies: { "better-auth.session_token": "valid-token" },
-        host: "app.wopr.bot",
+        host: "app.localhost",
       });
       const res = await middleware(req);
       expect(isRedirect(res)).toBe(true);

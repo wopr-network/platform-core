@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Instance } from "@/lib/api";
 import { listInstances } from "@/lib/api";
+import { getBrandConfig } from "@/lib/brand-config";
 import { type ChannelManifest, getChannelManifests } from "@/lib/channel-manifests";
 import { toUserMessage } from "@/lib/errors";
 
@@ -65,7 +66,8 @@ export default function ChannelsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-widest uppercase">COMMS CHANNELS</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Connect messaging platforms to your WOPR Bot. Each channel is driven by a plugin manifest.
+          Connect messaging platforms to your {getBrandConfig().productName}. Each channel is driven
+          by a plugin manifest.
         </p>
       </div>
 
@@ -181,7 +183,7 @@ export default function ChannelsPage() {
             ) : (
               <div className="flex h-40 items-center justify-center rounded-sm border border-dashed border-terminal/20">
                 <p className="font-mono text-sm text-terminal/60">
-                  &gt; NO CHANNELS LINKED. YOUR WOPR BOT IS ISOLATED.
+                  &gt; NO CHANNELS LINKED. YOUR BOT IS ISOLATED.
                 </p>
               </div>
             )}

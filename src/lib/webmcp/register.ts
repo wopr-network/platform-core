@@ -6,7 +6,7 @@ import {
 import { type ConfirmCallback, getChatWebMCPTools, getWebMCPTools } from "./tools";
 
 /**
- * Register all WOPR WebMCP tools with the browser.
+ * Register all WebMCP tools with the browser.
  *
  * Prerequisites:
  * - WebMCP API must be available (Chrome 146+ DevTrial)

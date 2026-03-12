@@ -6,7 +6,7 @@ import { AmbientDot } from "@/components/chat/ambient-dot";
 describe("AmbientDot", () => {
   it("renders button with correct aria-label", () => {
     render(<AmbientDot hasUnread={false} onClick={vi.fn()} />);
-    expect(screen.getByLabelText("Open WOPR chat")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Platform chat")).toBeInTheDocument();
   });
 
   it("renders with chat-ambient-dot testid", () => {

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SITE_URL } from "@/lib/api-config";
+import { getBrandConfig } from "@/lib/brand-config";
 import { TRPCProvider } from "@/lib/trpc";
 import "./globals.css";
 
@@ -14,25 +15,29 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
+const brand = getBrandConfig();
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "WOPR — AI Agent Platform",
-    template: "%s | WOPR",
+    default: `${brand.productName} — AI Agent Platform`,
+    template: `%s | ${brand.brandName}`,
   },
-  description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+  description: `${brand.tagline} ${brand.price ? `${brand.price}.` : ""} ${brand.domain}`,
   openGraph: {
     type: "website",
-    siteName: "WOPR",
-    title: "WOPR — AI Agent Platform",
-    description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+    siteName: brand.brandName,
+    title: `${brand.productName} — AI Agent Platform`,
+    description: `${brand.tagline} ${brand.price ? `${brand.price}.` : ""} ${brand.domain}`,
     url: SITE_URL,
-    images: [{ url: "/og", width: 1200, height: 630, alt: "WOPR — AI Agent Platform" }],
+    images: [
+      { url: "/og", width: 1200, height: 630, alt: `${brand.productName} — AI Agent Platform` },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "WOPR — AI Agent Platform",
-    description: "What would you do with your own WOPR Bot? $5/month. wopr.bot",
+    title: `${brand.productName} — AI Agent Platform`,
+    description: `${brand.tagline} ${brand.price ? `${brand.price}.` : ""} ${brand.domain}`,
     images: ["/og"],
   },
   alternates: {

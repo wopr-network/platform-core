@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { usePluginRegistry } from "@/hooks/use-plugin-registry";
 import { createInstance } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
@@ -173,7 +174,7 @@ export function CreateInstanceClient() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Create Instance</h1>
         <p className="text-sm text-muted-foreground">
-          Launch a new WOPR bot. Pick a preset or go custom.
+          Launch a new {productName()} bot. Pick a preset or go custom.
         </p>
       </div>
 

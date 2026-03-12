@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp } from "@/lib/auth-client";
+import { getBrandConfig, productName } from "@/lib/brand-config";
 import { sanitizeRedirectUrl } from "@/lib/utils";
 
 function getPasswordStrength(password: string): { score: number; label: string } {
@@ -159,7 +160,7 @@ function SignupForm() {
           <CardTitle className="text-sm font-medium uppercase tracking-widest text-terminal">
             Create account
           </CardTitle>
-          <CardDescription>Register for WOPR Bot access</CardDescription>
+          <CardDescription>Register for {productName()} access</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" id="signup-form">
@@ -181,7 +182,7 @@ function SignupForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="operator@wopr.bot"
+                placeholder={`operator@${getBrandConfig().domain}`}
                 autoComplete="email"
                 required
                 value={email}

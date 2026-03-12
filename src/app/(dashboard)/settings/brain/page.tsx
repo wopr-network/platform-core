@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ModelSelection } from "@/lib/api";
 import { getModelSelection, saveProviderKey, updateModelSelection } from "@/lib/api";
+import { productName } from "@/lib/brand-config";
 import { logger } from "@/lib/logger";
 import {
   additionalModels,
@@ -131,7 +132,7 @@ export default function BrainSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Brain</h1>
         <p className="text-sm text-muted-foreground">
-          Choose which AI model powers your WOPR. Changes take effect immediately.
+          Choose which AI model powers your {productName()}. Changes take effect immediately.
         </p>
       </div>
 
@@ -317,8 +318,8 @@ export default function BrainSettingsPage() {
       {viewMode === "byok" && (
         <div className="space-y-6">
           <p className="text-sm text-muted-foreground">
-            Bring your own provider key and bypass credits. WOPR takes nothing when using BYOK
-            providers -- you pay the provider directly.
+            Bring your own provider key and bypass credits. {productName()} takes nothing when using
+            BYOK providers -- you pay the provider directly.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

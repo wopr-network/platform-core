@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { LandingNav } from "../components/landing/landing-nav";
 
 describe("LandingNav", () => {
-  it("renders the WOPR brand link", () => {
+  it("renders the brand link", () => {
     render(<LandingNav />);
-    const link = screen.getByRole("link", { name: /wopr/i });
+    const link = screen.getByRole("link", { name: /platform/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/");
   });

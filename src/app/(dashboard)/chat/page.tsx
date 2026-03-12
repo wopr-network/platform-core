@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { Button } from "@/components/ui/button";
+import { brandName } from "@/lib/brand-config";
 import { useChatContext } from "@/lib/chat/chat-context";
 
 export default function ChatPage() {
@@ -25,7 +26,9 @@ export default function ChatPage() {
             className={`h-2 w-2 rounded-full inline-block ${isConnected ? "bg-terminal" : "bg-destructive"}`}
             aria-label={isConnected ? "Connected" : "Disconnected"}
           />
-          <h1 className="text-sm font-mono uppercase tracking-wider text-muted-foreground">WOPR</h1>
+          <h1 className="text-sm font-mono uppercase tracking-wider text-muted-foreground">
+            {brandName()}
+          </h1>
         </div>
         <Button
           type="button"
@@ -48,7 +51,7 @@ export default function ChatPage() {
         )}
         {messages.length === 0 && !isConnected && (
           <p className="text-center text-xs text-muted-foreground animate-ellipsis">
-            Connecting to WOPR
+            Connecting to {brandName()}
           </p>
         )}
         {messages.map((msg) => (

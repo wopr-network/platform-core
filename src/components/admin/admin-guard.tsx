@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 
 // UX-only guard: all tRPC admin procedures enforce platform_admin server-side
-// via requirePlatformAdmin() in wopr-platform/src/trpc/routers/admin.ts.
+// via requirePlatformAdmin() in the platform backend's admin router.
 // This component prevents unauthorized users from seeing the admin UI, but
 // the backend will reject any mutations regardless of client-side state.
 export function AdminGuard({ children }: { children: React.ReactNode }) {

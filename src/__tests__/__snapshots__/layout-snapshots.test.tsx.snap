@@ -240,7 +240,7 @@ exports[`Layout snapshots > DashboardLayout renders sidebar + main with mobile s
       <span
         class="text-lg font-semibold tracking-tight"
       >
-        WOPR Bot
+        Platform
       </span>
     </header>
     <main

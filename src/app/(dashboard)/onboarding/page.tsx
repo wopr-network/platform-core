@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getBrandConfig, storageKey } from "@/lib/brand-config";
 import { presets } from "@/lib/onboarding-data";
 import {
   isOnboardingComplete,
@@ -45,7 +46,7 @@ export default function OnboardingPage() {
       setBotName(saved.instanceName);
     }
     try {
-      const savedPreset = localStorage.getItem("wopr-onboarding-preset");
+      const savedPreset = localStorage.getItem(storageKey("onboarding-preset"));
       if (savedPreset) setSelectedPreset(savedPreset);
     } catch {
       // ignore — storage may be blocked
@@ -55,7 +56,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     try {
       if (selectedPreset) {
-        localStorage.setItem("wopr-onboarding-preset", selectedPreset);
+        localStorage.setItem(storageKey("onboarding-preset"), selectedPreset);
       }
     } catch {
       // ignore
@@ -122,7 +123,7 @@ export default function OnboardingPage() {
                   <Bot className="size-8 text-terminal" />
                 </div>
                 <CardTitle className="text-sm font-medium uppercase tracking-widest text-terminal">
-                  Name your WOPR
+                  Name your bot
                 </CardTitle>
                 <CardDescription>Give your bot a name. You can change this later.</CardDescription>
               </CardHeader>

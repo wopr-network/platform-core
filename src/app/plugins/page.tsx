@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePluginSetupChat } from "@/hooks/use-plugin-setup-chat";
+import { getBrandConfig } from "@/lib/brand-config";
 import {
   type BotSummary,
   formatInstallCount,
@@ -244,7 +245,8 @@ export default function PluginsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-widest uppercase">PLUGINS</h1>
         <p className="mt-2 text-muted-foreground">
-          Manage installed plugins and discover new ones for your WOPR Bot instances.
+          Manage installed plugins and discover new ones for your {getBrandConfig().productName}{" "}
+          instances.
         </p>
       </div>
 
@@ -490,7 +492,7 @@ export default function PluginsPage() {
                               ))}
                               {hostedAvailable && (
                                 <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/25 text-[10px]">
-                                  WOPR Hosted Available
+                                  {getBrandConfig().brandName} Hosted Available
                                 </Badge>
                               )}
                             </div>

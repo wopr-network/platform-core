@@ -199,7 +199,7 @@ describe("FieldOAuth", () => {
     fireEvent(
       window,
       new MessageEvent("message", {
-        data: { type: "wopr-oauth-callback", status: "success", state: "state-xyz" },
+        data: { type: "platform-oauth-callback", status: "success", state: "state-xyz" },
         origin: window.location.origin,
       }),
     );
@@ -240,7 +240,7 @@ describe("FieldOAuth", () => {
     fireEvent(
       window,
       new MessageEvent("message", {
-        data: { type: "wopr-oauth-callback", status: "error", error: "access_denied" },
+        data: { type: "platform-oauth-callback", status: "error", error: "access_denied" },
         origin: window.location.origin,
       }),
     );
@@ -273,7 +273,7 @@ describe("FieldOAuth", () => {
     fireEvent(
       window,
       new MessageEvent("message", {
-        data: { type: "wopr-oauth-callback", status: "success", state: "state-def" },
+        data: { type: "platform-oauth-callback", status: "success", state: "state-def" },
         origin: "https://evil.example.com",
       }),
     );

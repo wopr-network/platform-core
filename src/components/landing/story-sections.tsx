@@ -1,19 +1,26 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { productName } from "@/lib/brand-config";
 
 const stories = [
   {
     heading: "It works while you sleep.",
-    body: "Regina went to bed. Her WOPR Bot found a gap in her university's AI law curriculum, drafted a new module, and had it in her inbox by 6am.",
+    get body() {
+      return `Regina went to bed. Her ${productName()} found a gap in her university's AI law curriculum, drafted a new module, and had it in her inbox by 6am.`;
+    },
   },
   {
     heading: "It doesn't quit when you do.",
-    body: 'Alvin said "I\'ll finish the chapter tomorrow" for six years. His WOPR Bot finished it while he was at dinner.',
+    get body() {
+      return `Alvin said "I'll finish the chapter tomorrow" for six years. His ${productName()} finished it while he was at dinner.`;
+    },
   },
   {
     heading: "It runs the whole thing.",
-    body: "T hasn't hired anyone. His WOPR Bot runs engineering, ops, and customer support. The commit history is the proof.",
+    get body() {
+      return `T hasn't hired anyone. His ${productName()} runs engineering, ops, and customer support. The commit history is the proof.`;
+    },
   },
 ];
 

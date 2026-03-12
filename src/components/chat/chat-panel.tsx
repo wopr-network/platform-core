@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Maximize2, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { brandName } from "@/lib/brand-config";
 import type { ChatMessage as ChatMessageType, ChatMode } from "@/lib/chat/types";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
@@ -81,7 +82,7 @@ export function ChatPanel({
             aria-label={isConnected ? "Connected" : "Disconnected"}
           />
           <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-            WOPR
+            {brandName()}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -116,7 +117,7 @@ export function ChatPanel({
       >
         {messages.length === 0 && !isConnected && (
           <p className="text-center text-xs text-muted-foreground animate-ellipsis">
-            Connecting to WOPR
+            Connecting to {brandName()}
           </p>
         )}
         {messages.map((msg) => (

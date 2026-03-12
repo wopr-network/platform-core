@@ -43,6 +43,7 @@ import {
   getUsageHistory,
   updateSpendingLimits,
 } from "@/lib/api";
+import { brandName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
@@ -253,7 +254,9 @@ export default function UsagePage() {
       <Card>
         <CardHeader>
           <CardTitle>Platform Usage</CardTitle>
-          <CardDescription>Your WOPR orchestration usage this billing period</CardDescription>
+          <CardDescription>
+            Your {brandName()} orchestration usage this billing period
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <UsageMeter
@@ -412,7 +415,8 @@ export default function UsagePage() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              These are your direct costs with your providers — WOPR does not charge for inference.
+              These are your direct costs with your providers — {brandName()} does not charge for
+              inference.
             </p>
           </CardContent>
         )}

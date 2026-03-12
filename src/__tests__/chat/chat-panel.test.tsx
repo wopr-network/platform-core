@@ -56,14 +56,14 @@ describe("ChatPanel", () => {
     expect(screen.getByText("Answer!")).toBeInTheDocument();
   });
 
-  it("shows 'Connecting to WOPR' when no messages and disconnected", () => {
+  it("shows 'Connecting to Platform' when no messages and disconnected", () => {
     render(<ChatPanel {...baseProps} messages={[]} isConnected={false} />);
-    expect(screen.getByText("Connecting to WOPR")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to Platform")).toBeInTheDocument();
   });
 
   it("does NOT show connecting text when connected with no messages", () => {
     render(<ChatPanel {...baseProps} messages={[]} isConnected={true} />);
-    expect(screen.queryByText("Connecting to WOPR")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connecting to Platform")).not.toBeInTheDocument();
   });
 
   it("shows typing indicator when isTyping is true", () => {

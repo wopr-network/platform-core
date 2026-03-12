@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchPublicPricing } from "@/lib/api";
+import { brandName, getBrandConfig } from "@/lib/brand-config";
 import { formatCreditDetailed } from "@/lib/format-credit";
 import { mergeApiRates, type PricingCapability, pricingData } from "@/lib/pricing-data";
 import { DividendCalculator } from "./dividend-calculator";
@@ -42,7 +43,7 @@ export async function PricingPage() {
         </Badge>
 
         <h1 className="max-w-3xl text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-          WOPR pays for itself.
+          {brandName()} pays for itself.
         </h1>
 
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
@@ -52,7 +53,7 @@ export async function PricingPage() {
 
         <p className="mt-4 max-w-lg text-sm text-muted-foreground">
           At scale, the daily dividend covers your entire credit spend. You&apos;re not paying to
-          run your bots. WOPR is.
+          run your bots. {brandName()} is.
         </p>
       </section>
 
@@ -206,7 +207,9 @@ export async function PricingPage() {
           <Link href="/signup">Get Started</Link>
         </Button>
 
-        <span className="mt-4 text-sm text-muted-foreground opacity-60">wopr.bot</span>
+        <span className="mt-4 text-sm text-muted-foreground opacity-60">
+          {getBrandConfig().domain}
+        </span>
       </section>
 
       {/* --- Footer --- */}

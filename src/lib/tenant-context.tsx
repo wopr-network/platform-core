@@ -3,9 +3,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-client";
+import { getBrandConfig } from "@/lib/brand-config";
 import { trpcVanilla } from "@/lib/trpc";
 
-const COOKIE_NAME = "wopr_tenant_id";
+const COOKIE_NAME = getBrandConfig().tenantCookieName;
 
 function readTenantCookie(): string {
   if (typeof document === "undefined") return "";

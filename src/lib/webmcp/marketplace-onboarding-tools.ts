@@ -1,3 +1,5 @@
+import { eventName } from "@/lib/brand-config";
+
 export interface MarketplaceOnboardingToolDeps {
   router: { push: (url: string) => void };
 }
@@ -33,7 +35,7 @@ export function getMarketplaceOnboardingTools(
           return { ok: true, navigated: true };
         }
         window.dispatchEvent(
-          new CustomEvent("wopr:marketplace", { detail: { type: "filter", query } }),
+          new CustomEvent(eventName("marketplace"), { detail: { type: "filter", query } }),
         );
         return { ok: true, navigated: false };
       },
@@ -85,7 +87,7 @@ export function getMarketplaceOnboardingTools(
       },
       handler: async () => {
         window.dispatchEvent(
-          new CustomEvent("wopr:marketplace", { detail: { type: "clearFilter" } }),
+          new CustomEvent(eventName("marketplace"), { detail: { type: "clearFilter" } }),
         );
         return { ok: true };
       },
@@ -104,7 +106,7 @@ export function getMarketplaceOnboardingTools(
       },
       handler: async (params) => {
         window.dispatchEvent(
-          new CustomEvent("wopr-chat-tool-call", {
+          new CustomEvent(eventName("chat-tool-call"), {
             detail: { tool: "chat.expand", args: {} },
           }),
         );
@@ -123,7 +125,7 @@ export function getMarketplaceOnboardingTools(
       },
       handler: async (params) => {
         window.dispatchEvent(
-          new CustomEvent("wopr:onboarding", {
+          new CustomEvent(eventName("onboarding"), {
             detail: { type: "markComplete", step: params.step as string },
           }),
         );
@@ -145,13 +147,13 @@ export function getMarketplaceOnboardingTools(
     {
       name: "onboarding.setProvider",
       description:
-        "Save the user's AI provider choice. Use 'wopr-hosted' for hosted AI, or 'anthropic'/'openai'/'google' for BYOK.",
+        "Save the user's AI provider choice. Use 'hosted' for hosted AI, or 'anthropic'/'openai'/'google' for BYOK.",
       inputSchema: {
         type: "object",
         properties: {
           provider: {
             type: "string",
-            enum: ["anthropic", "openai", "google", "wopr-hosted"],
+            enum: ["anthropic", "openai", "google", "hosted"],
             description: "The provider to set",
           },
         },
@@ -159,12 +161,12 @@ export function getMarketplaceOnboardingTools(
       },
       handler: async (params) => {
         const provider = params.provider as string;
-        const valid = ["anthropic", "openai", "google", "wopr-hosted"];
+        const valid = ["anthropic", "openai", "google", "hosted"];
         if (!valid.includes(provider)) {
           return { error: `Invalid provider: ${provider}. Must be one of: ${valid.join(", ")}` };
         }
         window.dispatchEvent(
-          new CustomEvent("wopr:onboarding", {
+          new CustomEvent(eventName("onboarding"), {
             detail: { type: "setProvider", provider },
           }),
         );

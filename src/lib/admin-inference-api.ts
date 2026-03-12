@@ -1,6 +1,6 @@
 import { trpcVanilla } from "./trpc";
 
-// ---- Types (mirror backend domain types until @wopr-network/sdk is published) ----
+// ---- Types (mirror backend domain types until SDK is published) ----
 
 export interface DailyCostAggregate {
   day: string; // YYYY-MM-DD

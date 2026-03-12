@@ -20,7 +20,7 @@ describe("PricingPage", () => {
   it("renders the dividend hero headline", async () => {
     const { PricingPage } = await import("../components/pricing/pricing-page");
     await renderAsync(PricingPage());
-    expect(screen.getByText(/WOPR pays for itself/i)).toBeInTheDocument();
+    expect(screen.getByText(/Platform pays for itself/i)).toBeInTheDocument();
   });
 
   it("shows the community dividend badge", async () => {

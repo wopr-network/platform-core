@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { storageKey } from "../brand-config";
 import type { ChatMessage } from "./types";
 
-const HISTORY_KEY = "wopr-chat-history";
-const SESSION_KEY = "wopr-chat-session";
+const HISTORY_KEY = storageKey("chat-history");
+const SESSION_KEY = storageKey("chat-session");
 
 const ChatMessageSchema = z.object({
   id: z.string(),

@@ -57,6 +57,7 @@ import {
   updatePluginConfig,
   updateSuperpowerConfig,
 } from "@/lib/bot-settings-data";
+import { brandName, productName } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import { formatCreditDetailed, formatCreditStandard } from "@/lib/format-credit";
 import { DEFAULT_STATUS_STYLE, PLUGIN_STATUS_STYLES } from "@/lib/status-colors";
@@ -567,7 +568,7 @@ function BrainTab({
           <CardTitle>Model</CardTitle>
           <CardDescription>
             LLM model ID (e.g. claude-sonnet-4, gpt-4o). Used via{" "}
-            {brain.mode === "hosted" ? "WOPR Hosted" : "BYOK"}.
+            {brain.mode === "hosted" ? `${brandName()} Hosted` : "BYOK"}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -606,12 +607,12 @@ function BrainTab({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Label htmlFor="mode-hosted" className="text-sm font-medium cursor-pointer">
-                    WOPR Hosted
+                    {brandName()} Hosted
                   </Label>
                   {brain.mode === "hosted" && <Badge variant="default">Active</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Everything routed through WOPR. Uses credits. No API keys needed.
+                  Everything routed through {brandName()}. Uses credits. No API keys needed.
                 </p>
               </div>
             </div>
@@ -719,7 +720,7 @@ function ChannelsTab({
         <CardHeader>
           <CardTitle>Add More Channels</CardTitle>
           <CardDescription>
-            Your WOPR works everywhere you do. All channels are free.
+            Your {productName()} works everywhere you do. All channels are free.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -948,7 +949,7 @@ function SuperpowersTab({
       {/* Available superpowers */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Your WOPR can do more
+          Your {productName()} can do more
         </h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(settings.availableSuperpowers ?? []).map((sp) => (

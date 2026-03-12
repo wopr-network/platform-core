@@ -8,6 +8,8 @@
  * This prevents internal Docker hostnames from leaking into the browser bundle.
  */
 
+import { getBrandConfig } from "./brand-config";
+
 const INTERNAL_HOSTNAME_RE =
   /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.local$)/i;
 
@@ -26,7 +28,7 @@ function validateProductionApiUrl(url: string | undefined): void {
 
   if (!url) {
     throw new Error(
-      "NEXT_PUBLIC_API_URL is not set. In production it must be a public HTTPS URL (e.g. https://api.wopr.bot). An internal hostname or localhost will not work in the browser.",
+      "NEXT_PUBLIC_API_URL is not set. In production it must be a public HTTPS URL. An internal hostname or localhost will not work in the browser.",
     );
   }
 
@@ -41,13 +43,13 @@ function validateProductionApiUrl(url: string | undefined): void {
 
   if (isInternalHostname(parsed.hostname)) {
     throw new Error(
-      `NEXT_PUBLIC_API_URL ("${url}") contains an internal hostname ("${parsed.hostname}"). In production it must be a public HTTPS URL (e.g. https://api.wopr.bot).`,
+      `NEXT_PUBLIC_API_URL ("${url}") contains an internal hostname ("${parsed.hostname}"). In production it must be a public HTTPS URL.`,
     );
   }
 
   if (parsed.protocol !== "https:") {
     throw new Error(
-      `NEXT_PUBLIC_API_URL ("${url}") uses ${parsed.protocol} but production requires https. Set it to the public HTTPS URL (e.g. https://api.wopr.bot).`,
+      `NEXT_PUBLIC_API_URL ("${url}") uses ${parsed.protocol} but production requires https. Set it to the public HTTPS URL.`,
     );
   }
 }
@@ -60,4 +62,4 @@ export const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://loca
 export const API_BASE_URL = `${PLATFORM_BASE_URL}/api`;
 
 /** Canonical site URL for SEO metadata (sitemap, OG tags, robots). */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wopr.bot";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${getBrandConfig().domain}`;

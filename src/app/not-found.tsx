@@ -2,6 +2,7 @@ import { HomeIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { brandName } from "@/lib/brand-config";
 
 export default function NotFound() {
   return (
@@ -12,7 +13,7 @@ export default function NotFound() {
             <SearchXIcon aria-hidden="true" className="size-6 text-muted-foreground" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                WOPR
+                {brandName()}
               </p>
               <CardTitle className="text-xl">404</CardTitle>
             </div>

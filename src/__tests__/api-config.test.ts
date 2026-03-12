@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const VALID_PRODUCTION_URL = "https://api.wopr.bot";
+const VALID_PRODUCTION_URL = "https://api.example.com";
 const INTERNAL_URL = "http://localhost:3001";
 
 function setEnv(vars: Record<string, string | undefined>) {

@@ -299,7 +299,7 @@ describe("useChat", () => {
       mockOpenChatStream.mockResolvedValueOnce(sse.response);
 
       const toolCallHandler = vi.fn();
-      window.addEventListener("wopr-chat-tool-call", toolCallHandler);
+      window.addEventListener("platform-chat-tool-call", toolCallHandler);
 
       const { result } = renderHook(() => useChat());
 
@@ -320,7 +320,7 @@ describe("useChat", () => {
       expect(event.detail.tool).toBe("ui.showPricing");
       expect(event.detail.args).toEqual({ plan: "pro" });
 
-      window.removeEventListener("wopr-chat-tool-call", toolCallHandler);
+      window.removeEventListener("platform-chat-tool-call", toolCallHandler);
       sse.close();
     });
   });

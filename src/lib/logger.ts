@@ -1,5 +1,5 @@
 /**
- * Structured logger for wopr-platform-ui.
+ * Structured logger for platform-ui-core.
  *
  * Wraps console.warn / console.error with a namespace tag so log lines are
  * easy to filter and grep in production log streams.

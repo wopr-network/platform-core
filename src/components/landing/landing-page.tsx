@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { getBrandConfig, productName } from "@/lib/brand-config";
 import { LandingNav } from "./landing-nav";
 import { PortfolioChart } from "./portfolio-chart";
 import { StorySections } from "./story-sections";
@@ -14,7 +15,9 @@ function CtaBlock({ className }: { className?: string }) {
       <Button variant="terminal" size="lg" asChild>
         <Link href="/signup">Start for free</Link>
       </Button>
-      <span className="mt-4 font-mono text-xs text-terminal/40">Your WOPR Bot is waiting.</span>
+      <span className="mt-4 font-mono text-xs text-terminal/40">
+        Your {productName()} is waiting.
+      </span>
     </div>
   );
 }
@@ -51,7 +54,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-terminal/10 bg-black px-4 py-12">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-4">
-          <span className="font-mono text-sm font-semibold text-terminal/60">WOPR Bot</span>
+          <span className="font-mono text-sm font-semibold text-terminal/60">{productName()}</span>
           <div className="flex gap-6 font-mono text-xs text-terminal/30">
             <Link href="/privacy" className="underline underline-offset-4 hover:text-terminal/60">
               Privacy
@@ -60,7 +63,7 @@ export function LandingPage() {
               Terms
             </Link>
           </div>
-          <span className="font-mono text-xs text-terminal/20">wopr.bot</span>
+          <span className="font-mono text-xs text-terminal/20">{getBrandConfig().domain}</span>
         </div>
       </footer>
     </div>

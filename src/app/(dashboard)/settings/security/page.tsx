@@ -37,6 +37,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { LoginAttempt, LoginHistoryResponse } from "@/lib/api";
 import { fetchLoginHistory } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+import { getBrandConfig, productName } from "@/lib/brand-config";
 import { trpc } from "@/lib/trpc";
 
 // ---------- helpers ----------
@@ -278,12 +279,12 @@ function TwoFactorSection() {
   }
 
   function downloadCodes(codes: string[]) {
-    const text = `WOPR Bot Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n${codes.join("\n")}\n\nEach code can only be used once.`;
+    const text = `${productName()} Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n${codes.join("\n")}\n\nEach code can only be used once.`;
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "wopr-recovery-codes.txt";
+    a.download = `${getBrandConfig().storagePrefix}-recovery-codes.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

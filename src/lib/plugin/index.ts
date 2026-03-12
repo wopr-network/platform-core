@@ -1,21 +1,23 @@
+import { brandName } from "../brand-config";
+
 export type { ToolDefinition } from "./tool-definitions";
 export { platformUIToolDefinitions } from "./tool-definitions";
 
 /**
- * wopr-plugin-platform-ui — Browser-side configurator UI tools.
+ * platform-ui plugin — Browser-side configurator UI tools.
  *
  * This plugin's tools run in the browser via the WebMCP API.
  * The init/shutdown hooks are no-ops because tool registration
  * happens client-side in the useWebMCP React hook.
  *
  * The exported platformUIToolDefinitions array provides serializable metadata
- * (name, description, inputSchema) that wopr-platform can advertise
+ * (name, description, inputSchema) that the platform can advertise
  * to the configurator AI without needing browser APIs.
  */
 const plugin = {
-  name: "wopr-plugin-platform-ui" as const,
+  name: "platform-ui" as const,
   version: "1.0.0",
-  description: "Browser-side configurator UI tools for the WOPR platform dashboard",
+  description: `Browser-side configurator UI tools for the ${brandName()} platform dashboard`,
   commands: [] as never[],
 
   async init(_ctx: Record<string, unknown>): Promise<void> {

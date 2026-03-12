@@ -346,7 +346,7 @@ describe("Wizard", () => {
     fireEvent.click(screen.getByText("Continue"));
 
     // Step 3 (select guild)
-    fireEvent.click(screen.getByText("WOPR HQ"));
+    fireEvent.click(screen.getByText("Platform HQ"));
     fireEvent.click(screen.getByText("Continue"));
 
     // Step 4 (done)
@@ -369,7 +369,7 @@ describe("Wizard", () => {
       target: { value: "valid-token-123" },
     });
     fireEvent.click(screen.getByText("Continue"));
-    fireEvent.click(screen.getByText("WOPR HQ"));
+    fireEvent.click(screen.getByText("Platform HQ"));
     fireEvent.click(screen.getByText("Continue"));
 
     expect(screen.getByText("Test Bot Connection")).toBeInTheDocument();
@@ -392,7 +392,7 @@ describe("Wizard", () => {
       target: { value: "valid-token-123" },
     });
     fireEvent.click(screen.getByText("Continue")); // step 2
-    fireEvent.click(screen.getByText("WOPR HQ")); // select guild
+    fireEvent.click(screen.getByText("Platform HQ")); // select guild
     fireEvent.click(screen.getByText("Continue")); // step 3
 
     const finishBtn = screen.getByText("Connecting...");
@@ -435,7 +435,7 @@ describe("Wizard connection test API integration", () => {
       target: { value: "valid-token-123" },
     });
     fireEvent.click(screen.getByText("Continue")); // step 2
-    fireEvent.click(screen.getByText("WOPR HQ")); // select guild
+    fireEvent.click(screen.getByText("Platform HQ")); // select guild
     fireEvent.click(screen.getByText("Continue")); // step 3 → final
   }
 

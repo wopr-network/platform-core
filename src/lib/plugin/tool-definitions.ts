@@ -1,3 +1,5 @@
+import { brandName, productName } from "../brand-config";
+
 /** A tool definition without a handler — serializable metadata only. */
 export interface ToolDefinition {
   name: string;
@@ -10,13 +12,12 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   // Fleet management tools
   {
     name: "wopr_list_instances",
-    description:
-      "List all WOPR bot instances with their status, uptime, template, provider, and installed plugins.",
+    description: `List all ${productName()} instances with their status, uptime, template, provider, and installed plugins.`,
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "wopr_create_instance",
-    description: "Create a new WOPR bot instance from a preset.",
+    description: `Create a new ${productName()} instance from a preset.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -39,7 +40,7 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   },
   {
     name: "wopr_control_instance",
-    description: "Control a WOPR bot instance: start, stop, or restart it.",
+    description: `Control a ${productName()} instance: start, stop, or restart it.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -55,7 +56,7 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   },
   {
     name: "wopr_install_plugin",
-    description: "Install a plugin on a WOPR bot instance.",
+    description: `Install a plugin on a ${productName()} instance.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -67,7 +68,7 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   },
   {
     name: "wopr_browse_plugins",
-    description: "Browse available plugins in the WOPR marketplace.",
+    description: `Browse available plugins in the ${brandName()} marketplace.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -77,7 +78,7 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   },
   {
     name: "wopr_get_instance_health",
-    description: "Get detailed health information for a WOPR bot instance.",
+    description: `Get detailed health information for a ${productName()} instance.`,
     inputSchema: {
       type: "object",
       properties: { instanceId: { type: "string", description: "The instance ID" } },
@@ -86,7 +87,7 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   },
   {
     name: "wopr_view_logs",
-    description: "View recent logs for a WOPR bot instance.",
+    description: `View recent logs for a ${productName()} instance.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -104,17 +105,17 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   // Chat tools
   {
     name: "chat_expand",
-    description: "Open the WOPR chat panel.",
+    description: `Open the ${brandName()} chat panel.`,
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "chat_collapse",
-    description: "Minimize the WOPR chat to the ambient dot.",
+    description: `Minimize the ${brandName()} chat to the ambient dot.`,
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "chat_fullscreen",
-    description: "Expand the WOPR chat to full screen mode.",
+    description: `Expand the ${brandName()} chat to full screen mode.`,
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -199,13 +200,13 @@ export const platformUIToolDefinitions: ToolDefinition[] = [
   {
     name: "onboarding.setProvider",
     description:
-      "Save the user's AI provider choice. Use 'wopr-hosted' for hosted AI, or 'anthropic'/'openai'/'google' for BYOK.",
+      "Save the user's AI provider choice. Use 'hosted' for hosted AI, or 'anthropic'/'openai'/'google' for BYOK.",
     inputSchema: {
       type: "object",
       properties: {
         provider: {
           type: "string",
-          enum: ["anthropic", "openai", "google", "wopr-hosted"],
+          enum: ["anthropic", "openai", "google", "hosted"],
           description: "The provider to set",
         },
       },

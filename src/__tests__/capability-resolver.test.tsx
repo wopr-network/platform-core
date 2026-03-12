@@ -146,7 +146,7 @@ describe("CapabilityProviderPicker", () => {
     );
 
     expect(screen.getByText("Use your key").closest("button")).toBeInTheDocument();
-    expect(screen.getByText("WOPR Hosted").closest("button")).toBeInTheDocument();
+    expect(screen.getByText("Platform Hosted").closest("button")).toBeInTheDocument();
   });
 });
 

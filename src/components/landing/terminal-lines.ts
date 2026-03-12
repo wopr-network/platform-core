@@ -1,9 +1,12 @@
+import { productName } from "@/lib/brand-config";
+
 export interface TerminalLine {
   text: string;
   hold: boolean;
 }
 
-export const TERMINAL_LINES: TerminalLine[] = [
+/** Static lines that don't need brand interpolation. */
+const STATIC_LINES: TerminalLine[] = [
   // Opening — the WarGames reference
   { text: "Shall we play a game?", hold: false },
   { text: "Shall we play chess?", hold: false },
@@ -74,11 +77,23 @@ export const TERMINAL_LINES: TerminalLine[] = [
   { text: "Shall we outlast?", hold: false },
   { text: "Shall we outlast?", hold: false },
   { text: "Shall we...", hold: false },
-
-  // --- final block: holds, no backspace ---
-  { text: "", hold: true },
-  { text: "Shall we rule the universe?", hold: true },
-  { text: "WOPR Bot.", hold: true },
-  { text: "The AI with superpowers to do anything.", hold: true },
-  { text: "Ready to launch.", hold: true },
 ];
+
+/** Build terminal lines with brand-aware final block. */
+export function getTerminalLines(): TerminalLine[] {
+  return [
+    ...STATIC_LINES,
+    // --- final block: holds, no backspace ---
+    { text: "", hold: true },
+    { text: "Shall we rule the universe?", hold: true },
+    { text: `${productName()}.`, hold: true },
+    { text: "The AI with superpowers to do anything.", hold: true },
+    { text: "Ready to launch.", hold: true },
+  ];
+}
+
+/**
+ * @deprecated Use getTerminalLines() for brand-aware lines.
+ * Kept for backward compatibility — resolves brand at import time.
+ */
+export const TERMINAL_LINES: TerminalLine[] = getTerminalLines();
