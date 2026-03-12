@@ -2,6 +2,7 @@ import { Credit } from "@wopr-network/platform-core/credits";
 import { describe, expect, it, vi } from "vitest";
 import type { DeepSeekAdapterConfig, FetchFn } from "./deepseek.js";
 import { createDeepSeekAdapter } from "./deepseek.js";
+import type { TextGenerationInput } from "./types.js";
 import { withMargin } from "./types.js";
 
 /** Helper to create a mock Response with headers */
@@ -120,7 +121,7 @@ describe("createDeepSeekAdapter", () => {
     });
 
     it("supports model override via input", async () => {
-      const response = chatCompletionResponse();
+      const response = chatCompletionResponse({ model: "deepseek-reasoner" });
       const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
 
       const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
@@ -331,6 +332,46 @@ describe("createDeepSeekAdapter", () => {
       // Both cache fields are 0, so falls back to standard pricing
       // (1000 / 1M) * $0.14 + (500 / 1M) * $0.28 = $0.00028
       expect(result.cost.toDollars()).toBeCloseTo(0.00028, 6);
+    });
+
+    it("bills uncovered tokens at standard rate when cache totals diverge", async () => {
+      const response = chatCompletionResponse({
+        usage: {
+          prompt_tokens: 1000,
+          completion_tokens: 500,
+          prompt_cache_hit_tokens: 600,
+          prompt_cache_miss_tokens: 200,
+          // 600 + 200 = 800, but prompt_tokens = 1000 → 200 uncovered
+        },
+      });
+      const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
+
+      const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
+      const result = await adapter.generateText({ prompt: "Hello" });
+
+      // (600 / 1M) * $0.014 + (200 / 1M) * $0.14 + (200 / 1M) * $0.14 + (500 / 1M) * $0.28
+      // = $0.0000084 + $0.000028 + $0.000028 + $0.00014 = $0.0002044
+      expect(result.cost.toDollars()).toBeCloseTo(0.0002044, 6);
+    });
+
+    it("returns response model from API, not request model", async () => {
+      const response = chatCompletionResponse({ model: "deepseek-chat-v3.2-20260301" });
+      const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
+
+      const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
+      const result = await adapter.generateText({ prompt: "test", model: "deepseek-chat" });
+
+      expect(result.result.model).toBe("deepseek-chat-v3.2-20260301");
+    });
+
+    it("throws when neither messages nor prompt provided", async () => {
+      const fetchFn = vi.fn<FetchFn>();
+      const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
+
+      await expect(adapter.generateText({} as TextGenerationInput)).rejects.toThrow(
+        "DeepSeek adapter requires either 'messages' or 'prompt'",
+      );
+      expect(fetchFn).not.toHaveBeenCalled();
     });
 
     it("calculates cost correctly with 100% cache hit", async () => {

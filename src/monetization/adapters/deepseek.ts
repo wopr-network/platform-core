@@ -89,6 +89,10 @@ export function createDeepSeekAdapter(
     async generateText(input: TextGenerationInput): Promise<AdapterResult<TextGenerationOutput>> {
       const model = input.model ?? defaultModel;
 
+      if (!input.messages && !input.prompt) {
+        throw new Error("DeepSeek adapter requires either 'messages' or 'prompt'");
+      }
+
       const body: Record<string, unknown> = {
         model,
         messages: input.messages ?? [{ role: "user", content: input.prompt }],
@@ -136,10 +140,14 @@ export function createDeepSeekAdapter(
       const cacheMissTokens = data.usage?.prompt_cache_miss_tokens ?? 0;
 
       let inputCostUsd: number;
-      if (cacheHitTokens > 0 || cacheMissTokens > 0) {
-        // Use granular cache-aware pricing
+      const cacheTokenTotal = cacheHitTokens + cacheMissTokens;
+      if (cacheTokenTotal > 0) {
+        // Use granular cache-aware pricing; bill any uncovered tokens at standard rate
+        const uncovered = Math.max(0, inputTokens - cacheTokenTotal);
         inputCostUsd =
-          (cacheHitTokens / 1_000_000) * cachedInputCostPer1M + (cacheMissTokens / 1_000_000) * inputCostPer1M;
+          (cacheHitTokens / 1_000_000) * cachedInputCostPer1M +
+          (cacheMissTokens / 1_000_000) * inputCostPer1M +
+          (uncovered / 1_000_000) * inputCostPer1M;
       } else {
         // No cache info — charge all input at standard rate
         inputCostUsd = (inputTokens / 1_000_000) * inputCostPer1M;
@@ -152,7 +160,7 @@ export function createDeepSeekAdapter(
       return {
         result: {
           text,
-          model,
+          model: data.model ?? model,
           usage: { inputTokens, outputTokens },
         },
         cost,
