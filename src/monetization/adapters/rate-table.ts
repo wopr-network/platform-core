@@ -60,9 +60,28 @@ export const RATE_TABLE: RateEntry[] = [
     effectivePrice: 0.0000225, // $22.50 per 1M chars
   },
 
+  // Text Generation
+  {
+    capability: "text-generation",
+    tier: "standard",
+    provider: "self-hosted-llm",
+    costPerUnit: 0.00000005, // Amortized GPU cost per token (H100)
+    billingUnit: "per-token",
+    margin: 1.2, // 20% margin
+    effectivePrice: 0.00000006, // $0.06 per 1M tokens
+  },
+  {
+    capability: "text-generation",
+    tier: "premium",
+    provider: "openrouter",
+    costPerUnit: 0.000001, // Fallback per-token rate
+    billingUnit: "per-token",
+    margin: 1.3, // 30% margin
+    effectivePrice: 0.0000013, // $1.30 per 1M tokens
+  },
+
   // Future self-hosted adapters will add more entries here:
   // - transcription: self-hosted-whisper (standard) vs deepgram (premium)
-  // - text-generation: self-hosted-llm (standard) vs openrouter (premium)
   // - embeddings: self-hosted-embeddings (standard) vs openrouter (premium)
   // - image-generation: self-hosted-sdxl (standard) vs replicate (premium)
 ];

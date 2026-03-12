@@ -11,6 +11,18 @@ describe("RATE_TABLE", () => {
     expect(premiumTTS).toEqual(expect.objectContaining({ capability: "tts", tier: "premium" }));
   });
 
+  it("contains both standard and premium tiers for text-generation", () => {
+    const standard = RATE_TABLE.find((e) => e.capability === "text-generation" && e.tier === "standard");
+    const premium = RATE_TABLE.find((e) => e.capability === "text-generation" && e.tier === "premium");
+
+    expect(standard).toEqual(
+      expect.objectContaining({ capability: "text-generation", tier: "standard", provider: "self-hosted-llm" }),
+    );
+    expect(premium).toEqual(
+      expect.objectContaining({ capability: "text-generation", tier: "premium", provider: "openrouter" }),
+    );
+  });
+
   it("standard tier is cheaper than premium tier for same capability", () => {
     const standardTTS = RATE_TABLE.find((e) => e.capability === "tts" && e.tier === "standard");
     const premiumTTS = RATE_TABLE.find((e) => e.capability === "tts" && e.tier === "premium");
@@ -82,6 +94,14 @@ describe("lookupRate", () => {
     );
   });
 
+  it("finds text-generation rate entries", () => {
+    const standard = lookupRate("text-generation", "standard");
+    const premium = lookupRate("text-generation", "premium");
+
+    expect(standard?.provider).toBe("self-hosted-llm");
+    expect(premium?.provider).toBe("openrouter");
+  });
+
   it("returns undefined for non-existent capability", () => {
     const rate = lookupRate("image-generation" as unknown as AdapterCapability, "standard");
     expect(rate).toBeUndefined();
@@ -96,6 +116,13 @@ describe("lookupRate", () => {
 describe("getRatesForCapability", () => {
   it("returns both standard and premium for TTS", () => {
     const rates = getRatesForCapability("tts");
+    expect(rates).toHaveLength(2);
+    expect(rates.map((r) => r.tier)).toContain("standard");
+    expect(rates.map((r) => r.tier)).toContain("premium");
+  });
+
+  it("returns both standard and premium for text-generation", () => {
+    const rates = getRatesForCapability("text-generation");
     expect(rates).toHaveLength(2);
     expect(rates.map((r) => r.tier)).toContain("standard");
     expect(rates.map((r) => r.tier)).toContain("premium");
@@ -120,6 +147,15 @@ describe("calculateSavings", () => {
     // Premium: $22.50 per 1M chars
     // Savings: $20.10 per 1M chars
     expect(savings).toBeCloseTo(20.1, 1);
+  });
+
+  it("calculates savings for text-generation at 1M tokens", () => {
+    const savings = calculateSavings("text-generation", 1_000_000);
+
+    // Standard (self-hosted-llm): $0.06 per 1M tokens
+    // Premium (openrouter): $1.30 per 1M tokens
+    // Savings: $1.24 per 1M tokens
+    expect(savings).toBeCloseTo(1.24, 2);
   });
 
   it("calculates savings for TTS at 100K characters", () => {
