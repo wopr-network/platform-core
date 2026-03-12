@@ -2,7 +2,7 @@ import type { AuditEntry } from "../../admin/audit-log.js";
 
 /** Minimal interface for admin audit logging in route factories. */
 export interface AdminAuditLogger {
-  log(entry: AuditEntry): void | Promise<unknown>;
+  log(entry: AuditEntry): void | Promise<void>;
 }
 
 /** Safely log an admin audit entry — never throws. */
