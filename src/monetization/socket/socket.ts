@@ -147,7 +147,7 @@ export class AdapterSocket {
 
     // Emit meter event — BYOK tenants get zero cost/charge (WOP-512)
     const isByok = request.byok === true;
-    this.meter.emit({
+    await this.meter.emit({
       tenant: request.tenantId,
       cost: isByok ? Credit.ZERO : adapterResult.cost,
       charge: isByok ? Credit.ZERO : charge,
