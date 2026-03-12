@@ -12,12 +12,11 @@
  *   - tts (Chatterbox GPU, ElevenLabs)
  *   - transcription (Deepgram)
  *   - embeddings (OpenRouter)
- *
- * Image-generation (Nano Banana, Replicate) will be wired once the
- * image-gen-factory PR merges.
+ *   - image-generation (Replicate, Nano Banana)
  */
 
 import { createEmbeddingsAdapters, type EmbeddingsFactoryConfig } from "./embeddings-factory.js";
+import { createImageGenAdapters, type ImageGenFactoryConfig } from "./image-gen-factory.js";
 import { createTextGenAdapters, type TextGenFactoryConfig } from "./text-gen-factory.js";
 import { createTranscriptionAdapters, type TranscriptionFactoryConfig } from "./transcription-factory.js";
 import { createTTSAdapters, type TTSFactoryConfig } from "./tts-factory.js";
@@ -33,6 +32,8 @@ export interface BootstrapConfig {
   transcription?: TranscriptionFactoryConfig;
   /** Embeddings adapter config */
   embeddings?: EmbeddingsFactoryConfig;
+  /** Image generation adapter config */
+  imageGen?: ImageGenFactoryConfig;
 }
 
 /** Result of bootstrapping all adapters. */
@@ -45,6 +46,12 @@ export interface BootstrapResult {
    * capabilities (e.g. OpenRouter for both text-gen and embeddings). Each
    * instance is independently configured. Use the per-capability factory
    * results if you need a name→adapter map within a single capability.
+   *
+   * NOTE: Some adapters advertise more capabilities than the factory that
+   * created them (e.g. Replicate advertises text-generation and transcription
+   * in addition to image-generation). The ArbitrageRouter should use the
+   * factory-assigned capability (reflected in byCapability), not the adapter's
+   * own capabilities array, for routing decisions.
    */
   adapters: ProviderAdapter[];
   /** Names of providers that were skipped (missing config), grouped by capability. */
@@ -68,12 +75,14 @@ export function bootstrapAdapters(config: BootstrapConfig): BootstrapResult {
   const tts = createTTSAdapters(config.tts ?? {});
   const transcription = createTranscriptionAdapters(config.transcription ?? {});
   const embeddings = createEmbeddingsAdapters(config.embeddings ?? {});
+  const imageGen = createImageGenAdapters(config.imageGen ?? {});
 
   const adapters: ProviderAdapter[] = [
     ...textGen.adapters,
     ...tts.adapters,
     ...transcription.adapters,
     ...embeddings.adapters,
+    ...imageGen.adapters,
   ];
 
   const skipped: Record<string, string[]> = {};
@@ -81,6 +90,7 @@ export function bootstrapAdapters(config: BootstrapConfig): BootstrapResult {
   if (tts.skipped.length > 0) skipped.tts = tts.skipped;
   if (transcription.skipped.length > 0) skipped.transcription = transcription.skipped;
   if (embeddings.skipped.length > 0) skipped.embeddings = embeddings.skipped;
+  if (imageGen.skipped.length > 0) skipped["image-generation"] = imageGen.skipped;
 
   let totalSkipped = 0;
   for (const list of Object.values(skipped)) {
@@ -98,6 +108,7 @@ export function bootstrapAdapters(config: BootstrapConfig): BootstrapResult {
         tts: tts.adapters.length,
         transcription: transcription.adapters.length,
         embeddings: embeddings.adapters.length,
+        "image-generation": imageGen.adapters.length,
       },
     },
   };
@@ -111,6 +122,7 @@ export function bootstrapAdapters(config: BootstrapConfig): BootstrapResult {
  *   - CHATTERBOX_BASE_URL, ELEVENLABS_API_KEY (TTS)
  *   - DEEPGRAM_API_KEY (transcription)
  *   - OPENROUTER_API_KEY (embeddings)
+ *   - REPLICATE_API_TOKEN, NANO_BANANA_API_KEY (image-gen)
  *
  * Accepts optional per-capability config overrides.
  */
@@ -136,6 +148,13 @@ export function bootstrapAdaptersFromEnv(overrides?: Partial<BootstrapConfig>): 
     embeddings: {
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
       ...overrides?.embeddings,
+    },
+    imageGen: {
+      replicateApiToken: process.env.REPLICATE_API_TOKEN,
+      // Separate env var from GEMINI_API_KEY (used for text-gen) to avoid
+      // silently enabling image-gen when only text-gen is intended.
+      geminiApiKey: process.env.NANO_BANANA_API_KEY,
+      ...overrides?.imageGen,
     },
   });
 }

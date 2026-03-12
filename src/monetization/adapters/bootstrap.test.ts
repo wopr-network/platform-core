@@ -21,11 +21,15 @@ describe("bootstrapAdapters", () => {
       embeddings: {
         openrouterApiKey: "sk-or",
       },
+      imageGen: {
+        replicateApiToken: "r8-rep",
+        geminiApiKey: "sk-gem",
+      },
     });
 
-    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings = 9
-    expect(result.adapters).toHaveLength(9);
-    expect(result.summary.total).toBe(9);
+    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings + 2 image-gen = 11
+    expect(result.adapters).toHaveLength(11);
+    expect(result.summary.total).toBe(11);
     expect(result.summary.skipped).toBe(0);
   });
 
@@ -54,6 +58,7 @@ describe("bootstrapAdapters", () => {
       tts: 1,
       transcription: 1,
       embeddings: 1,
+      "image-generation": 0,
     });
   });
 
@@ -69,6 +74,7 @@ describe("bootstrapAdapters", () => {
     expect(result.skipped.transcription).toEqual(["deepgram"]);
     expect(result.skipped.embeddings).toEqual(["openrouter"]);
     expect(result.skipped["text-generation"]).toEqual(["gemini", "minimax", "kimi", "openrouter"]);
+    expect(result.skipped["image-generation"]).toEqual(["replicate", "nano-banana"]);
   });
 
   it("returns empty result when no config provided", () => {
@@ -96,6 +102,7 @@ describe("bootstrapAdapters", () => {
     expect(result.summary.byCapability.tts).toBe(0);
     expect(result.summary.byCapability.transcription).toBe(0);
     expect(result.summary.byCapability.embeddings).toBe(0);
+    expect(result.summary.byCapability["image-generation"]).toBe(0);
   });
 
   it("passes per-adapter overrides through", () => {
@@ -129,12 +136,14 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "http://chatterbox:8000");
     vi.stubEnv("ELEVENLABS_API_KEY", "env-el");
     vi.stubEnv("DEEPGRAM_API_KEY", "env-dg");
+    vi.stubEnv("REPLICATE_API_TOKEN", "r8-rep");
+    vi.stubEnv("NANO_BANANA_API_KEY", "env-nb");
 
     const result = bootstrapAdaptersFromEnv();
 
-    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings = 9
-    expect(result.adapters).toHaveLength(9);
-    expect(result.summary.total).toBe(9);
+    // 5 text-gen + 2 TTS + 1 transcription + 1 embeddings + 2 image-gen = 11
+    expect(result.adapters).toHaveLength(11);
+    expect(result.summary.total).toBe(11);
   });
 
   it("returns empty when no env vars set", () => {
@@ -146,6 +155,8 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "");
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("DEEPGRAM_API_KEY", "");
+    vi.stubEnv("REPLICATE_API_TOKEN", "");
+    vi.stubEnv("NANO_BANANA_API_KEY", "");
 
     const result = bootstrapAdaptersFromEnv();
 
@@ -162,6 +173,8 @@ describe("bootstrapAdaptersFromEnv", () => {
     vi.stubEnv("CHATTERBOX_BASE_URL", "");
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("DEEPGRAM_API_KEY", "");
+    vi.stubEnv("REPLICATE_API_TOKEN", "");
+    vi.stubEnv("NANO_BANANA_API_KEY", "");
 
     const result = bootstrapAdaptersFromEnv({
       textGen: { deepseek: { marginMultiplier: 2.0 } },
