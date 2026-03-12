@@ -31,13 +31,16 @@ export interface RateEntry {
 }
 
 /**
- * The rate table.
+ * The rate table — admin-dashboard reference for pricing comparisons.
  *
  * Each capability has both standard and premium entries. Standard is always
  * cheaper than premium for the same capability (that's the whole point).
  *
- * Entries are added as self-hosted adapters are implemented. Currently only
- * TTS (Chatterbox vs ElevenLabs) is in the table.
+ * NOTE: Margin values here are reference defaults for dashboard display.
+ * Runtime margins are authoritative via `getMargin()` / `MARGIN_CONFIG_JSON`.
+ *
+ * NOTE: Text-generation rates are blended (approximate 50/50 input/output).
+ * Real costs vary by workload — output-heavy chat costs more than shown here.
  */
 export const RATE_TABLE: RateEntry[] = [
   // TTS - Text-to-Speech
@@ -47,8 +50,8 @@ export const RATE_TABLE: RateEntry[] = [
     provider: "chatterbox-tts",
     costPerUnit: 0.000002, // Amortized GPU cost
     billingUnit: "per-character",
-    margin: 1.2, // 20% margin
-    effectivePrice: 0.0000024, // $2.40 per 1M chars
+    margin: 1.2, // 20% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.0000024, // = costPerUnit * margin ($2.40 per 1M chars)
   },
   {
     capability: "tts",
@@ -56,8 +59,8 @@ export const RATE_TABLE: RateEntry[] = [
     provider: "elevenlabs",
     costPerUnit: 0.000015, // Third-party wholesale
     billingUnit: "per-character",
-    margin: 1.5, // 50% margin
-    effectivePrice: 0.0000225, // $22.50 per 1M chars
+    margin: 1.5, // 50% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.0000225, // = costPerUnit * margin ($22.50 per 1M chars)
   },
 
   // Text Generation
@@ -65,19 +68,19 @@ export const RATE_TABLE: RateEntry[] = [
     capability: "text-generation",
     tier: "standard",
     provider: "self-hosted-llm",
-    costPerUnit: 0.00000005, // Amortized GPU cost per token (H100)
+    costPerUnit: 0.00000005, // Amortized GPU cost per token (H100), blended in/out
     billingUnit: "per-token",
-    margin: 1.2, // 20% margin
-    effectivePrice: 0.00000006, // $0.06 per 1M tokens
+    margin: 1.2, // 20% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.00000006, // = costPerUnit * margin ($0.06 per 1M tokens)
   },
   {
     capability: "text-generation",
     tier: "premium",
     provider: "openrouter",
-    costPerUnit: 0.000001, // Fallback per-token rate
+    costPerUnit: 0.000001, // Blended per-token rate (variable across models)
     billingUnit: "per-token",
-    margin: 1.3, // 30% margin
-    effectivePrice: 0.0000013, // $1.30 per 1M tokens
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.0000013, // = costPerUnit * margin ($1.30 per 1M tokens)
   },
 
   // Future self-hosted adapters will add more entries here:
