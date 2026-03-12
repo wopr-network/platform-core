@@ -87,7 +87,7 @@ export function createMiniMaxAdapter(
 
       const body: Record<string, unknown> = {
         model,
-        messages: input.messages ?? [{ role: "user", content: input.prompt }],
+        messages: input.messages?.length ? input.messages : [{ role: "user", content: input.prompt }],
       };
       if (input.maxTokens !== undefined) {
         body.max_tokens = input.maxTokens;

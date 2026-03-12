@@ -16,6 +16,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Clean stale symlinks
+        run: |
+          [ -L node_modules ] && unlink node_modules || true
+          [ -L dist ] && unlink dist || true
+
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
@@ -35,6 +40,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Clean stale symlinks
+        run: |
+          [ -L node_modules ] && unlink node_modules || true
+          [ -L dist ] && unlink dist || true
+
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
@@ -56,6 +66,11 @@ jobs:
       checks: write
       pull-requests: write
     steps:
+      - name: Clean stale symlinks
+        run: |
+          [ -L node_modules ] && unlink node_modules || true
+          [ -L dist ] && unlink dist || true
+
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
