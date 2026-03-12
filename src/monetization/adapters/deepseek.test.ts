@@ -364,6 +364,17 @@ describe("createDeepSeekAdapter", () => {
       expect(result.result.model).toBe("deepseek-chat-v3.2-20260301");
     });
 
+    it("falls back to prompt when messages is empty array", async () => {
+      const response = chatCompletionResponse();
+      const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(mockResponse(response));
+
+      const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
+      await adapter.generateText({ prompt: "use this prompt", messages: [] });
+
+      const body = JSON.parse(fetchFn.mock.calls[0][1]?.body as string);
+      expect(body.messages).toEqual([{ role: "user", content: "use this prompt" }]);
+    });
+
     it("throws when neither messages nor prompt provided", async () => {
       const fetchFn = vi.fn<FetchFn>();
       const adapter = createDeepSeekAdapter(makeConfig(), fetchFn);
