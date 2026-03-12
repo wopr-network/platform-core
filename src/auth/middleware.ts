@@ -18,6 +18,9 @@ import type { IApiKeyRepository } from "./api-key-repository.js";
 import type { Auth } from "./better-auth.js";
 import type { AuthUser } from "./index.js";
 
+/** Minimum length for API key tokens (rejects obviously short tokens). */
+export const MIN_API_KEY_LENGTH = 22;
+
 export interface SessionAuthEnv {
   Variables: {
     user: AuthUser;
