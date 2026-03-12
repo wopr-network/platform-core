@@ -96,6 +96,28 @@ export const RATE_TABLE: RateEntry[] = [
     effectivePrice: 0.00009321, // = costPerUnit * margin ($93.21 per 1M seconds ≈ $5.59 per 1M minutes)
   },
 
+  // Image Generation
+  // NOTE: No self-hosted SDXL adapter yet — only premium tiers available.
+  // When self-hosted-sdxl lands, add a standard tier entry here.
+  {
+    capability: "image-generation",
+    tier: "premium",
+    provider: "nano-banana",
+    costPerUnit: 0.02, // $0.02 per image (Gemini Imagen via Nano Banana)
+    billingUnit: "per-image",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.026, // = costPerUnit * margin ($26.00 per 1K images)
+  },
+  {
+    capability: "image-generation",
+    tier: "premium",
+    provider: "replicate",
+    costPerUnit: 0.019, // ~$0.019 per image (SDXL on A40, ~8s avg at $0.0023/s)
+    billingUnit: "per-image",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.0247, // = costPerUnit * margin ($24.70 per 1K images)
+  },
+
   // Embeddings
   // NOTE: No self-hosted embeddings adapter yet — only premium (openrouter) available.
   // When self-hosted-embeddings lands, add a standard tier entry here.

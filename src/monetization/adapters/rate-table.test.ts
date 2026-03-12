@@ -115,7 +115,7 @@ describe("lookupRate", () => {
   });
 
   it("returns undefined for non-existent capability", () => {
-    const rate = lookupRate("image-generation" as unknown as AdapterCapability, "standard");
+    const rate = lookupRate("video-generation" as unknown as AdapterCapability, "standard");
     expect(rate).toBeUndefined();
   });
 
@@ -194,7 +194,7 @@ describe("calculateSavings", () => {
 
   it("returns zero when capability has no premium tier", () => {
     // This would happen if a capability only has self-hosted, no third-party
-    const savings = calculateSavings("embeddings" as unknown as AdapterCapability, 1000);
+    const savings = calculateSavings("voice-cloning" as unknown as AdapterCapability, 1000);
     expect(savings).toBe(0);
   });
 

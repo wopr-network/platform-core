@@ -29,6 +29,13 @@ export type {
 } from "@wopr-network/platform-core/billing";
 // Credit value object (WOP-983)
 export { Credit } from "@wopr-network/platform-core/credits";
+// Unified adapter bootstrap (WOP-2194)
+export {
+  type BootstrapConfig,
+  type BootstrapResult,
+  bootstrapAdapters,
+  bootstrapAdaptersFromEnv,
+} from "./adapters/bootstrap.js";
 // Adapters (WOP-301, WOP-353, WOP-377, WOP-386, WOP-387, WOP-497)
 export { type ChatterboxTTSAdapterConfig, createChatterboxTTSAdapter } from "./adapters/chatterbox-tts.js";
 export { createDeepgramAdapter, type DeepgramAdapterConfig } from "./adapters/deepgram.js";
