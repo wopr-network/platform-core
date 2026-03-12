@@ -1,4 +1,6 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -12,33 +14,27 @@ import { MeterEmitter } from "./emitter.js";
 import { DrizzleMeterEventRepository } from "./meter-event-repository.js";
 import type { MeterEvent } from "./types.js";
 
+// Each test file gets its own temp directory to prevent cross-file WAL interference
+// when vitest runs test files in parallel.
+const FILE_TEMP_DIR = join(tmpdir(), `meter-test-core-${process.pid}-${Date.now()}`);
+mkdirSync(FILE_TEMP_DIR, { recursive: true });
+let walCounter = 0;
+
 function makeEmitter(db: PlatformDb, opts: ConstructorParameters<typeof MeterEmitter>[1] = {}): MeterEmitter {
-  return new MeterEmitter(new DrizzleMeterEventRepository(db), opts);
+  const id = walCounter++;
+  return new MeterEmitter(new DrizzleMeterEventRepository(db), {
+    walPath: join(FILE_TEMP_DIR, `wal-${id}.jsonl`),
+    dlqPath: join(FILE_TEMP_DIR, `dlq-${id}.jsonl`),
+    ...opts,
+  });
 }
 
-// Clean up the default WAL/DLQ files before any test runs to prevent
-// stale events from being replayed into fresh in-memory databases.
-// This is the root cause of the flaky "preserves event ordering" test —
-// the MeterEmitter constructor calls replayWAL() which reads from these
-// files if they exist from a prior test run.
-const DEFAULT_WAL_PATH = "./data/meter-wal.jsonl";
-const DEFAULT_DLQ_PATH = "./data/meter-dlq.jsonl";
-
-function cleanDefaultWalFiles() {
+afterAll(() => {
   try {
-    unlinkSync(DEFAULT_WAL_PATH);
+    rmSync(FILE_TEMP_DIR, { recursive: true, force: true });
   } catch {
     /* ignore */
   }
-  try {
-    unlinkSync(DEFAULT_DLQ_PATH);
-  } catch {
-    /* ignore */
-  }
-}
-
-beforeAll(() => {
-  cleanDefaultWalFiles();
 });
 
 function makeEvent(overrides: Partial<MeterEvent> = {}): MeterEvent {
@@ -914,7 +910,6 @@ describe("MeterEmitter - edge cases", () => {
   let emitter: MeterEmitter;
 
   beforeEach(async () => {
-    cleanDefaultWalFiles();
     const testDb = await createTestDb();
     db = testDb.db;
     pool = testDb.pool;
@@ -926,7 +921,6 @@ describe("MeterEmitter - edge cases", () => {
   afterEach(async () => {
     await emitter.close();
     await pool.close();
-    cleanDefaultWalFiles();
   });
 
   it("handles large batch of events", async () => {
@@ -1021,8 +1015,8 @@ describe("MeterEmitter - fail-closed policy", () => {
   let db: PlatformDb;
   let pool: PGlite;
   let emitter: MeterEmitter;
-  const TEST_WAL_PATH = "/tmp/wopr-test-wal.jsonl";
-  const TEST_DLQ_PATH = "/tmp/wopr-test-dlq.jsonl";
+  const TEST_WAL_PATH = join(FILE_TEMP_DIR, "wal-failclosed.jsonl");
+  const TEST_DLQ_PATH = join(FILE_TEMP_DIR, "dlq-failclosed.jsonl");
 
   beforeEach(async () => {
     // Clean up test files before each test.

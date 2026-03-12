@@ -3,14 +3,20 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { Pool } from "pg";
 import * as schema from "./schema/index.js";
 
-/** The platform schema type (subset of the full application schema). */
+/** The platform schema type. */
 export type PlatformSchema = typeof schema;
 
+/** Alias used throughout platform-core (and by wopr-platform). */
+export type Schema = PlatformSchema;
+
 /**
- * Narrower DB type used by platform-core repositories.
- * wopr-platform's full DrizzleDb (wider schema) satisfies this constraint.
+ * Structural DrizzleDb type — satisfied by both NodePgDatabase (production)
+ * and PgliteDatabase (tests). Repositories accept this type.
  */
-export type PlatformDb = PgDatabase<PgQueryResultHKT, PlatformSchema>;
+export type DrizzleDb = PgDatabase<PgQueryResultHKT, PlatformSchema>;
+
+/** @deprecated Use DrizzleDb instead */
+export type PlatformDb = DrizzleDb;
 
 /** Create a Drizzle database instance wrapping the given pg.Pool. */
 export function createDb(pool: Pool): PlatformDb {
