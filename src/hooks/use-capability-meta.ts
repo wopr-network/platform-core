@@ -61,7 +61,7 @@ function fallbackEntry(capability: string): CapabilityMetaEntry {
 export function useCapabilityMeta() {
   const [meta, setMeta] = useState<CapabilityMetaEntry[]>(FALLBACK_META);
   const [loading, setLoading] = useState(true);
-  const [error, _setError] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,8 +73,8 @@ export function useCapabilityMeta() {
           setMeta(sorted);
         }
       } catch {
-        // Fallback to hardcoded defaults — no error shown to user
         if (!cancelled) {
+          setError(true);
           setMeta(FALLBACK_META);
         }
       } finally {

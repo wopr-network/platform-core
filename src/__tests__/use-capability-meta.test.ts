@@ -101,7 +101,7 @@ describe("useCapabilityMeta hook", () => {
     const { result } = renderHook(() => useCapabilityMeta());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe(false);
+    expect(result.current.error).toBe(true);
     expect(result.current.meta.length).toBeGreaterThan(0);
     expect(result.current.meta[0].capability).toBe("transcription");
   });
