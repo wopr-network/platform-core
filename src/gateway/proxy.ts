@@ -19,7 +19,7 @@ import { logger } from "../config/logger.js";
 import type { TTSOutput } from "../monetization/adapters/types.js";
 import { withMargin } from "../monetization/adapters/types.js";
 import { NoProviderAvailableError } from "../monetization/arbitrage/types.js";
-import type { BudgetChecker } from "../monetization/budget/budget-checker.js";
+import type { IBudgetChecker } from "../monetization/budget/budget-checker.js";
 import { PHONE_NUMBER_MONTHLY_COST } from "../monetization/credits/phone-billing.js";
 import { creditBalanceCheck, debitCredits } from "./credit-gate.js";
 import { mapBudgetError, mapProviderError } from "./error-mapping.js";
@@ -62,7 +62,7 @@ const smsDeliveryStatusBodySchema = z.object({
 /** Shared state for all proxy handlers. */
 export interface ProxyDeps {
   meter: MeterEmitter;
-  budgetChecker: BudgetChecker;
+  budgetChecker: IBudgetChecker;
   creditLedger?: ICreditLedger;
   topUpUrl: string;
   graceBufferCents?: number;

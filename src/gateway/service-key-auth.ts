@@ -26,7 +26,9 @@ export interface GatewayAuthEnv {
  *
  * @param resolveServiceKey - Function that maps a service key to a tenant (or null)
  */
-export function serviceKeyAuth(resolveServiceKey: (key: string) => GatewayTenant | null) {
+export function serviceKeyAuth(
+  resolveServiceKey: (key: string) => GatewayTenant | null | Promise<GatewayTenant | null>,
+) {
   return async (c: Context<GatewayAuthEnv>, next: Next) => {
     const authHeader = c.req.header("Authorization");
     if (!authHeader) {
@@ -70,7 +72,7 @@ export function serviceKeyAuth(resolveServiceKey: (key: string) => GatewayTenant
       );
     }
 
-    const tenant = resolveServiceKey(serviceKey);
+    const tenant = await resolveServiceKey(serviceKey);
     if (!tenant) {
       logger.warn("Invalid service key attempted", {
         keyPrefix: `${serviceKey.slice(0, 8)}...`,

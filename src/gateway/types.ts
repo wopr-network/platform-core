@@ -9,7 +9,7 @@
 import type { ICreditLedger } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { IRateLimitRepository } from "../api/rate-limit-repository.js";
-import type { BudgetChecker, SpendLimits } from "../monetization/budget/budget-checker.js";
+import type { IBudgetChecker, SpendLimits } from "../monetization/budget/budget-checker.js";
 import type { CapabilityRateLimitConfig } from "./capability-rate-limit.js";
 import type { CircuitBreakerConfig } from "./circuit-breaker.js";
 import type { ICircuitBreakerRepository } from "./circuit-breaker-repository.js";
@@ -97,7 +97,7 @@ export interface GatewayConfig {
   /** MeterEmitter instance for usage tracking */
   meter: MeterEmitter;
   /** BudgetChecker instance for pre-call budget validation */
-  budgetChecker: BudgetChecker;
+  budgetChecker: IBudgetChecker;
   /** CreditLedger instance for deducting credits after proxy calls (optional — if absent, credit deduction is skipped) */
   creditLedger?: ICreditLedger;
   /** URL to direct users to when they need to add credits (default: "/dashboard/credits") */
@@ -115,7 +115,7 @@ export interface GatewayConfig {
   /** Optional cached rate lookup for model-specific token pricing (WOP-646) */
   rateLookupFn?: import("./rate-lookup.js").SellRateLookupFn;
   /** Function to resolve a service key to a tenant */
-  resolveServiceKey: (key: string) => GatewayTenant | null;
+  resolveServiceKey: (key: string) => GatewayTenant | null | Promise<GatewayTenant | null>;
   /** Base URL for Twilio webhook signature verification (e.g., https://api.wopr.network/v1). Required for Twilio/Telnyx webhook endpoints. */
   webhookBaseUrl?: string;
   /** Resolve a tenant from an inbound webhook request (e.g., from a tenantId URL path param). Required when webhookBaseUrl is set. */

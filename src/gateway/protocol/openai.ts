@@ -26,7 +26,7 @@ import type { ProtocolDeps } from "./deps.js";
 // Auth middleware — OpenAI SDK sends Authorization: Bearer
 // ---------------------------------------------------------------------------
 
-function openaiAuth(resolveServiceKey: (key: string) => GatewayTenant | null) {
+function openaiAuth(resolveServiceKey: (key: string) => GatewayTenant | null | Promise<GatewayTenant | null>) {
   return async (c: Context<GatewayAuthEnv>, next: Next) => {
     const authHeader = c.req.header("Authorization");
 
@@ -73,7 +73,7 @@ function openaiAuth(resolveServiceKey: (key: string) => GatewayTenant | null) {
       );
     }
 
-    const tenant = resolveServiceKey(key);
+    const tenant = await resolveServiceKey(key);
     if (!tenant) {
       logger.warn("Invalid service key attempted (openai handler)", {
         keyPrefix: `${key.slice(0, 8)}...`,

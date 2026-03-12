@@ -46,7 +46,7 @@ function anthropicErrorResponse(status: number, body: AnthropicError): Response 
 // Auth middleware — Anthropic SDK sends x-api-key instead of Authorization
 // ---------------------------------------------------------------------------
 
-function anthropicAuth(resolveServiceKey: (key: string) => GatewayTenant | null) {
+function anthropicAuth(resolveServiceKey: (key: string) => GatewayTenant | null | Promise<GatewayTenant | null>) {
   return async (c: Context<GatewayAuthEnv>, next: Next) => {
     // Anthropic SDK uses x-api-key header
     const apiKey = c.req.header("x-api-key");
@@ -70,7 +70,7 @@ function anthropicAuth(resolveServiceKey: (key: string) => GatewayTenant | null)
       );
     }
 
-    const tenant = resolveServiceKey(key);
+    const tenant = await resolveServiceKey(key);
     if (!tenant) {
       logger.warn("Invalid service key attempted (anthropic handler)");
       return c.json(

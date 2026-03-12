@@ -51,6 +51,8 @@ export {
 } from "./proxy.js";
 export { createGatewayRoutes } from "./routes.js";
 export { type GatewayAuthEnv, serviceKeyAuth } from "./service-key-auth.js";
+export type { IServiceKeyRepository } from "./service-key-repository.js";
+export { DrizzleServiceKeyRepository } from "./service-key-repository.js";
 export { type SpendingCapConfig, type SpendingCaps, spendingCapCheck } from "./spending-cap.js";
 export type { ISpendingCapStore, SpendingCapRecord } from "./spending-cap-store.js";
 export { proxySSEStream } from "./streaming.js";

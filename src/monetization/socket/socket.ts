@@ -15,13 +15,13 @@ import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { AdapterCapability, AdapterResult, ProviderAdapter } from "../adapters/types.js";
 import { withMargin } from "../adapters/types.js";
 import type { ArbitrageRouter } from "../arbitrage/router.js";
-import type { BudgetChecker, SpendLimits } from "../budget/budget-checker.js";
+import type { IBudgetChecker, SpendLimits } from "../budget/budget-checker.js";
 
 export interface SocketConfig {
   /** MeterEmitter instance for usage tracking */
   meter: MeterEmitter;
-  /** BudgetChecker instance for pre-call budget validation */
-  budgetChecker?: BudgetChecker;
+  /** IBudgetChecker instance for pre-call budget validation */
+  budgetChecker?: IBudgetChecker;
   /** Default margin multiplier (default: 1.3) */
   defaultMargin?: number;
   /** ArbitrageRouter for cost-optimized routing (GPU-first, cheapest, 5xx failover) */
@@ -65,7 +65,7 @@ const CAPABILITY_METHOD: Record<AdapterCapability, keyof ProviderAdapter> = {
 export class AdapterSocket {
   private readonly adapters = new Map<string, ProviderAdapter>();
   private readonly meter: MeterEmitter;
-  private readonly budgetChecker?: BudgetChecker;
+  private readonly budgetChecker?: IBudgetChecker;
   private readonly defaultMargin: number;
   private readonly router?: ArbitrageRouter;
 

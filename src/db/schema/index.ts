@@ -21,6 +21,7 @@ export * from "./email-notifications.js";
 export * from "./fleet-event-history.js";
 export * from "./fleet-events.js";
 export * from "./gateway-metrics.js";
+export * from "./gateway-service-keys.js";
 export * from "./gpu-allocations.js";
 export * from "./gpu-configurations.js";
 export * from "./gpu-nodes.js";
