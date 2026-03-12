@@ -137,8 +137,10 @@ describe("Brand Bible", () => {
       expect(nameRules.incorrect).toContain("Platform AI");
     });
 
-    it("does not allow bare brand as product name", () => {
-      expect(nameRules.incorrect).toContain("Platform");
+    it("omits bare brand from incorrect list when it equals product name", () => {
+      // When brandName === productName (default "Platform"), the bare name
+      // is NOT in the incorrect list — it would be self-contradictory.
+      expect(nameRules.incorrect).not.toContain("Platform");
     });
   });
 
