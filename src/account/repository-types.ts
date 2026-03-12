@@ -23,8 +23,11 @@ export interface InsertDeletionRequest {
   id: string;
   tenantId: string;
   requestedBy: string;
-  deleteAfter: string;
-  reason?: string;
+  /** Explicit ISO timestamp for when deletion should execute. */
+  deleteAfter?: string;
+  /** Number of grace days from now. Used if deleteAfter is not provided. */
+  graceDays?: number;
+  reason?: string | null;
 }
 
 export interface ExportRequestRow {
