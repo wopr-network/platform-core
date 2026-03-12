@@ -1,20 +1,20 @@
 name: CI
 
 on:
-  merge_group:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 
-permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  lint:
+    runs-on: [self-hosted, Linux, X64]
     permissions:
       contents: read
-      pull-requests: write
-    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
 
@@ -30,10 +30,47 @@ jobs:
       - name: Lint and Type Check
         run: pnpm check
 
+  build:
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
       - name: Build
         run: pnpm build
 
-      - name: Test
+  unit-test:
+    runs-on: [self-hosted, Linux, X64, test-runner]
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build (required for self-referencing imports)
+        run: pnpm build
+
+      - name: Unit tests with coverage
         run: pnpm test -- --coverage
 
       - name: Coverage Report
