@@ -144,8 +144,12 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
       const result = await this.db.execute(sql`DELETE FROM credit_adjustments WHERE tenant_id = ${tenantId}`);
       return (result as unknown as { rowCount?: number }).rowCount ?? 0;
     } catch (err: unknown) {
-      const pgCode = (err as { code?: string }).code;
+      // Drizzle may wrap PGlite errors; check both top-level and cause for the PG code
+      const errObj = err as { code?: string; cause?: { code?: string }; message?: string };
+      const pgCode = errObj.code ?? errObj.cause?.code;
       if (pgCode === "42P01") return null; // table does not exist
+      // PGlite errors surfaced through Drizzle may embed the code in the message
+      if (errObj.message?.includes("42P01")) return null;
       throw err;
     }
   }
