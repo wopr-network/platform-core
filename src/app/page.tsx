@@ -5,14 +5,15 @@ import { getBrandConfig } from "@/lib/brand-config";
 
 const brand = getBrandConfig();
 
+const desc =
+  brand.tagline || `A ${brand.price || "$5/month"} supercomputer that runs your business.`;
+
 export const metadata: Metadata = {
   title: `${brand.productName} — ${brand.tagline}`,
-  description:
-    "A $5/month supercomputer that runs your business. No really. We know because we run ours on one.",
+  description: desc,
   openGraph: {
     title: `${brand.productName} — ${brand.tagline}`,
-    description:
-      "A $5/month supercomputer that runs your business. No really. We know because we run ours on one.",
+    description: desc,
     url: SITE_URL,
     siteName: brand.productName,
     type: "website",
@@ -28,8 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: `${brand.productName} — ${brand.tagline}`,
-    description:
-      "A $5/month supercomputer that runs your business. No really. We know because we run ours on one.",
+    description: desc,
     images: ["/og"],
   },
 };

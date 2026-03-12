@@ -175,7 +175,7 @@ export function getNameRules() {
   return {
     correct: [name, `your ${name}`, `Get your ${name}`, `a ${name}`, domain],
     incorrect: [
-      brand,
+      ...(brand !== name ? [brand] : []),
       `the ${brand} platform`,
       `${brand} AI`,
       `${brand} service`,
