@@ -1,7 +1,7 @@
-import { and, count, eq, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, lte, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountDeletionRequests } from "../db/schema/index.js";
-import type { DeletionRequestRow, InsertDeletionRequest } from "./repository-types.js";
+import type { DeletionRequestRow, DeletionStatus, InsertDeletionRequest } from "./repository-types.js";
 
 export type { DeletionRequestRow, InsertDeletionRequest };
 
@@ -18,7 +18,7 @@ export interface IDeletionRepository {
   markCompleted(id: string, summary: string): Promise<void>;
   findExpired(): Promise<DeletionRequestRow[]>;
   list(opts: {
-    status?: string;
+    status?: DeletionStatus;
     limit: number;
     offset: number;
   }): Promise<{ requests: DeletionRequestRow[]; total: number }>;
@@ -61,7 +61,8 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
     const rows = await this.db
       .select()
       .from(accountDeletionRequests)
-      .where(and(eq(accountDeletionRequests.tenantId, tenantId), eq(accountDeletionRequests.status, "pending")));
+      .where(and(eq(accountDeletionRequests.tenantId, tenantId), eq(accountDeletionRequests.status, "pending")))
+      .limit(1);
     const row = rows[0];
     return row ? toRow(row) : null;
   }
@@ -84,35 +85,36 @@ export class DrizzleDeletionRepository implements IDeletionRepository {
       .update(accountDeletionRequests)
       .set({
         status: "completed",
-        completedAt: new Date().toISOString(),
+        completedAt: sql`now()`,
         deletionSummary: summary,
         updatedAt: sql`now()`,
       })
-      .where(eq(accountDeletionRequests.id, id));
+      .where(and(eq(accountDeletionRequests.id, id), eq(accountDeletionRequests.status, "pending")));
   }
 
   async findExpired(): Promise<DeletionRequestRow[]> {
     const rows = await this.db
       .select()
       .from(accountDeletionRequests)
-      .where(
-        and(
-          eq(accountDeletionRequests.status, "pending"),
-          lte(accountDeletionRequests.deleteAfter, new Date().toISOString()),
-        ),
-      );
+      .where(and(eq(accountDeletionRequests.status, "pending"), lte(accountDeletionRequests.deleteAfter, sql`now()`)));
     return rows.map(toRow);
   }
 
   async list(opts: {
-    status?: string;
+    status?: DeletionStatus;
     limit: number;
     offset: number;
   }): Promise<{ requests: DeletionRequestRow[]; total: number }> {
     const conditions = opts.status ? eq(accountDeletionRequests.status, opts.status) : undefined;
 
     const [rows, totalResult] = await Promise.all([
-      this.db.select().from(accountDeletionRequests).where(conditions).limit(opts.limit).offset(opts.offset),
+      this.db
+        .select()
+        .from(accountDeletionRequests)
+        .where(conditions)
+        .orderBy(desc(accountDeletionRequests.createdAt))
+        .limit(opts.limit)
+        .offset(opts.offset),
       this.db.select({ count: count() }).from(accountDeletionRequests).where(conditions),
     ]);
 

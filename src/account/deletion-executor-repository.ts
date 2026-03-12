@@ -54,7 +54,7 @@ export interface IDeletionExecutorRepository {
   deleteAdminNotes(tenantId: string): Promise<number>;
   listSnapshotS3Keys(tenantId: string): Promise<{ id: string; s3Key: string | null }[]>;
   deleteSnapshots(tenantId: string): Promise<number>;
-  deleteBackupStatus(tenantId: string): Promise<number | null>;
+  deleteBackupStatus(tenantId: string): Promise<number>;
   deletePayramCharges(tenantId: string): Promise<number>;
   deleteTenantStatus(tenantId: string): Promise<number>;
   deleteUserRolesByUser(tenantId: string): Promise<number>;
@@ -139,12 +139,14 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
   }
 
   async deleteCreditAdjustments(tenantId: string): Promise<number | null> {
-    // credit_adjustments may not exist in all deployments (raw SQL table)
+    // raw SQL: credit_adjustments is not in the Drizzle schema (optional table)
     try {
       const result = await this.db.execute(sql`DELETE FROM credit_adjustments WHERE tenant_id = ${tenantId}`);
       return (result as unknown as { rowCount?: number }).rowCount ?? 0;
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      const pgCode = (err as { code?: string }).code;
+      if (pgCode === "42P01") return null; // table does not exist
+      throw err;
     }
   }
 
@@ -242,11 +244,13 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
     return result.length;
   }
 
-  async deleteBackupStatus(tenantId: string): Promise<number | null> {
+  async deleteBackupStatus(tenantId: string): Promise<number> {
+    // Escape LIKE wildcards in tenantId to prevent injection
+    const safeTenantId = tenantId.replace(/%/g, "\\%").replace(/_/g, "\\_");
     // backup_status uses containerId with pattern "tenant_{id}_..."
     const result = await this.db
       .delete(backupStatus)
-      .where(like(backupStatus.containerId, `tenant_${tenantId}%`))
+      .where(like(backupStatus.containerId, `tenant_${safeTenantId}%`))
       .returning({ containerId: backupStatus.containerId });
     return result.length;
   }
@@ -304,18 +308,27 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
     const getCount = (result: { affectedRows?: number; rowCount?: number }): number =>
       result.affectedRows ?? result.rowCount ?? 0;
 
-    const sessionResult = await this.authDb.query(`DELETE FROM session WHERE user_id = $1`, [tenantId]);
-    const accountResult = await this.authDb.query(`DELETE FROM account WHERE user_id = $1`, [tenantId]);
-    const verificationResult = await this.authDb.query(`DELETE FROM email_verification_tokens WHERE user_id = $1`, [
-      tenantId,
-    ]);
-    const userResult = await this.authDb.query(`DELETE FROM "user" WHERE id = $1`, [tenantId]);
+    // raw SQL: better-auth tables are not in the Drizzle schema
+    // Wrapped in a transaction — all four DELETEs must succeed or none.
+    await this.authDb.query("BEGIN", []);
+    try {
+      const sessionResult = await this.authDb.query(`DELETE FROM session WHERE user_id = $1`, [tenantId]);
+      const accountResult = await this.authDb.query(`DELETE FROM account WHERE user_id = $1`, [tenantId]);
+      const verificationResult = await this.authDb.query(`DELETE FROM email_verification_tokens WHERE user_id = $1`, [
+        tenantId,
+      ]);
+      const userResult = await this.authDb.query(`DELETE FROM "user" WHERE id = $1`, [tenantId]);
+      await this.authDb.query("COMMIT", []);
 
-    return {
-      sessionChanges: getCount(sessionResult),
-      accountChanges: getCount(accountResult),
-      verificationChanges: getCount(verificationResult),
-      userChanges: getCount(userResult),
-    };
+      return {
+        sessionChanges: getCount(sessionResult),
+        accountChanges: getCount(accountResult),
+        verificationChanges: getCount(verificationResult),
+        userChanges: getCount(userResult),
+      };
+    } catch (err) {
+      await this.authDb.query("ROLLBACK", []);
+      throw err;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { accountExportRequests } from "../db/schema/index.js";
 import type { ExportRequestRow, ExportStatus, InsertExportRequest } from "./repository-types.js";
@@ -96,7 +96,13 @@ export class DrizzleExportRepository implements IExportRepository {
     const conditions = filters.status ? eq(accountExportRequests.status, filters.status) : undefined;
 
     const [rows, totalResult] = await Promise.all([
-      this.db.select().from(accountExportRequests).where(conditions).limit(filters.limit).offset(filters.offset),
+      this.db
+        .select()
+        .from(accountExportRequests)
+        .where(conditions)
+        .orderBy(desc(accountExportRequests.createdAt))
+        .limit(filters.limit)
+        .offset(filters.offset),
       this.db.select({ count: count() }).from(accountExportRequests).where(conditions),
     ]);
 
@@ -111,7 +117,8 @@ export class DrizzleExportRepository implements IExportRepository {
       .update(accountExportRequests)
       .set({
         status,
-        ...(downloadUrl !== undefined ? { downloadUrl } : {}),
+        // Clear stale downloadUrl when transitioning away from completed
+        downloadUrl: downloadUrl ?? (status === "completed" ? undefined : null),
         updatedAt: sql`now()`,
       })
       .where(eq(accountExportRequests.id, id));
