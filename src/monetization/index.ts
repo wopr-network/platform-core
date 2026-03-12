@@ -34,6 +34,13 @@ export { type ChatterboxTTSAdapterConfig, createChatterboxTTSAdapter } from "./a
 export { createDeepgramAdapter, type DeepgramAdapterConfig } from "./adapters/deepgram.js";
 export { createDeepSeekAdapter, type DeepSeekAdapterConfig } from "./adapters/deepseek.js";
 export { createElevenLabsAdapter, type ElevenLabsAdapterConfig } from "./adapters/elevenlabs.js";
+// Embeddings adapter factory (WOP-2190)
+export {
+  createEmbeddingsAdapters,
+  createEmbeddingsAdaptersFromEnv,
+  type EmbeddingsFactoryConfig,
+  type EmbeddingsFactoryResult,
+} from "./adapters/embeddings-factory.js";
 export { createGeminiAdapter, type GeminiAdapterConfig } from "./adapters/gemini.js";
 export { createKimiAdapter, type KimiAdapterConfig } from "./adapters/kimi.js";
 // Margin config (WOP-364)

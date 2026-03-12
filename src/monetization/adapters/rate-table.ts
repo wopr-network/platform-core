@@ -96,9 +96,22 @@ export const RATE_TABLE: RateEntry[] = [
     effectivePrice: 0.00009321, // = costPerUnit * margin ($93.21 per 1M seconds ≈ $5.59 per 1M minutes)
   },
 
+  // Embeddings
+  // NOTE: No self-hosted embeddings adapter yet — only premium (openrouter) available.
+  // When self-hosted-embeddings lands, add a standard tier entry here.
+  {
+    capability: "embeddings",
+    tier: "premium",
+    provider: "openrouter",
+    costPerUnit: 0.00000002, // $0.02 per 1M tokens (text-embedding-3-small via OpenRouter)
+    billingUnit: "per-token",
+    margin: 1.3, // 30% — dashboard default; runtime uses getMargin()
+    effectivePrice: 0.000000026, // = costPerUnit * margin ($0.026 per 1M tokens)
+  },
+
   // Future self-hosted adapters will add more entries here:
   // - transcription: self-hosted-whisper (standard) — when GPU adapter exists
-  // - embeddings: self-hosted-embeddings (standard) vs openrouter (premium)
+  // - embeddings: self-hosted-embeddings (standard) — when GPU adapter exists
   // - image-generation: self-hosted-sdxl (standard) vs replicate (premium)
 ];
 
