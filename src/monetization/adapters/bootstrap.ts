@@ -11,7 +11,7 @@
  *   - text-generation (DeepSeek, Gemini, MiniMax, Kimi, OpenRouter)
  *   - tts (Chatterbox GPU, ElevenLabs)
  *   - transcription (Deepgram)
- *   - embeddings (OpenRouter)
+ *   - embeddings (Ollama GPU, OpenRouter)
  *   - image-generation (Replicate, Nano Banana)
  */
 
@@ -121,7 +121,7 @@ export function bootstrapAdapters(config: BootstrapConfig): BootstrapResult {
  *   - DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY, KIMI_API_KEY, OPENROUTER_API_KEY (text-gen)
  *   - CHATTERBOX_BASE_URL, ELEVENLABS_API_KEY (TTS)
  *   - DEEPGRAM_API_KEY (transcription)
- *   - OPENROUTER_API_KEY (embeddings)
+ *   - OLLAMA_BASE_URL, OPENROUTER_API_KEY (embeddings)
  *   - REPLICATE_API_TOKEN, NANO_BANANA_API_KEY (image-gen)
  *
  * Accepts optional per-capability config overrides.
@@ -146,6 +146,7 @@ export function bootstrapAdaptersFromEnv(overrides?: Partial<BootstrapConfig>): 
       ...overrides?.transcription,
     },
     embeddings: {
+      ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
       ...overrides?.embeddings,
     },
