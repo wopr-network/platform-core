@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmbeddingsAdapters, createEmbeddingsAdaptersFromEnv } from "./embeddings-factory.js";
+import * as openrouterModule from "./openrouter.js";
 
 describe("createEmbeddingsAdapters", () => {
   it("creates adapter when API key provided", () => {
@@ -62,18 +63,22 @@ describe("createEmbeddingsAdapters", () => {
     }
   });
 
-  it("passes per-adapter config overrides", () => {
-    const withOverride = createEmbeddingsAdapters({
+  it("passes per-adapter config overrides to adapter constructor", () => {
+    const spy = vi.spyOn(openrouterModule, "createOpenRouterAdapter");
+
+    createEmbeddingsAdapters({
       openrouterApiKey: "sk-or",
       openrouter: { marginMultiplier: 1.5 },
     });
-    const withoutOverride = createEmbeddingsAdapters({
-      openrouterApiKey: "sk-or",
-    });
 
-    expect(withOverride.adapters).toHaveLength(1);
-    // Both create an adapter — override doesn't break construction
-    expect(withOverride.adapters[0].name).toBe(withoutOverride.adapters[0].name);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "sk-or",
+        marginMultiplier: 1.5,
+      }),
+    );
+
+    spy.mockRestore();
   });
 
   it("apiKey cannot be overridden via openrouter config", () => {
@@ -116,14 +121,21 @@ describe("createEmbeddingsAdaptersFromEnv", () => {
     expect(result.skipped).toEqual(["openrouter"]);
   });
 
-  it("accepts per-adapter overrides alongside env key", () => {
+  it("passes per-adapter overrides alongside env key to adapter constructor", () => {
     vi.stubEnv("OPENROUTER_API_KEY", "env-or");
+    const spy = vi.spyOn(openrouterModule, "createOpenRouterAdapter");
 
-    const result = createEmbeddingsAdaptersFromEnv({
+    createEmbeddingsAdaptersFromEnv({
       openrouter: { marginMultiplier: 1.2 },
     });
 
-    expect(result.adapters).toHaveLength(1);
-    expect(result.adapters[0].name).toBe("openrouter");
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "env-or",
+        marginMultiplier: 1.2,
+      }),
+    );
+
+    spy.mockRestore();
   });
 });
