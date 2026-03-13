@@ -75,32 +75,33 @@ export interface BrandConfig {
  * at build time — no code changes required.
  */
 function envDefaults(): BrandConfig {
-  const env = (key: string) =>
-    (typeof process !== "undefined" ? process.env?.[key] : undefined) ?? "";
-  const productName = env("NEXT_PUBLIC_BRAND_PRODUCT_NAME") || "Platform";
-  const brandName = env("NEXT_PUBLIC_BRAND_NAME") || "Platform";
-  const storagePrefix = env("NEXT_PUBLIC_BRAND_STORAGE_PREFIX") || "platform";
-  const eventPrefix = env("NEXT_PUBLIC_BRAND_EVENT_PREFIX") || storagePrefix;
+  // Direct process.env.X access is required — Next.js Turbopack only inlines
+  // NEXT_PUBLIC_* vars when accessed as literal dot-property references.
+  // Dynamic access like process.env[key] is NOT inlined at build time.
+  const productName = process.env.NEXT_PUBLIC_BRAND_PRODUCT_NAME || "Platform";
+  const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "Platform";
+  const storagePrefix = process.env.NEXT_PUBLIC_BRAND_STORAGE_PREFIX || "platform";
+  const eventPrefix = process.env.NEXT_PUBLIC_BRAND_EVENT_PREFIX || storagePrefix;
   return {
     productName,
     brandName,
-    domain: env("NEXT_PUBLIC_BRAND_DOMAIN") || "localhost",
-    appDomain: env("NEXT_PUBLIC_BRAND_APP_DOMAIN") || "localhost:3000",
-    tagline: env("NEXT_PUBLIC_BRAND_TAGLINE") || "Your platform, your rules.",
+    domain: process.env.NEXT_PUBLIC_BRAND_DOMAIN || "localhost",
+    appDomain: process.env.NEXT_PUBLIC_BRAND_APP_DOMAIN || "localhost:3000",
+    tagline: process.env.NEXT_PUBLIC_BRAND_TAGLINE || "Your platform, your rules.",
     emails: {
-      privacy: env("NEXT_PUBLIC_BRAND_EMAIL_PRIVACY") || "privacy@example.com",
-      legal: env("NEXT_PUBLIC_BRAND_EMAIL_LEGAL") || "legal@example.com",
-      support: env("NEXT_PUBLIC_BRAND_EMAIL_SUPPORT") || "support@example.com",
+      privacy: process.env.NEXT_PUBLIC_BRAND_EMAIL_PRIVACY || "privacy@example.com",
+      legal: process.env.NEXT_PUBLIC_BRAND_EMAIL_LEGAL || "legal@example.com",
+      support: process.env.NEXT_PUBLIC_BRAND_EMAIL_SUPPORT || "support@example.com",
     },
-    defaultImage: env("NEXT_PUBLIC_BRAND_DEFAULT_IMAGE"),
+    defaultImage: process.env.NEXT_PUBLIC_BRAND_DEFAULT_IMAGE || "",
     storagePrefix,
     eventPrefix,
-    envVarPrefix: env("NEXT_PUBLIC_BRAND_ENV_PREFIX") || storagePrefix.toUpperCase(),
-    toolPrefix: env("NEXT_PUBLIC_BRAND_TOOL_PREFIX") || storagePrefix,
-    tenantCookieName: env("NEXT_PUBLIC_BRAND_TENANT_COOKIE") || `${storagePrefix}_tenant_id`,
-    companyLegalName: env("NEXT_PUBLIC_BRAND_COMPANY_LEGAL") || "Platform Inc.",
-    price: env("NEXT_PUBLIC_BRAND_PRICE"),
-    homePath: env("NEXT_PUBLIC_BRAND_HOME_PATH") || "/marketplace",
+    envVarPrefix: process.env.NEXT_PUBLIC_BRAND_ENV_PREFIX || storagePrefix.toUpperCase(),
+    toolPrefix: process.env.NEXT_PUBLIC_BRAND_TOOL_PREFIX || storagePrefix,
+    tenantCookieName: process.env.NEXT_PUBLIC_BRAND_TENANT_COOKIE || `${storagePrefix}_tenant_id`,
+    companyLegalName: process.env.NEXT_PUBLIC_BRAND_COMPANY_LEGAL || "Platform Inc.",
+    price: process.env.NEXT_PUBLIC_BRAND_PRICE || "",
+    homePath: process.env.NEXT_PUBLIC_BRAND_HOME_PATH || "/marketplace",
     navItems: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Chat", href: "/chat" },
