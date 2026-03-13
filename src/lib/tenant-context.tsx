@@ -3,28 +3,44 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-client";
-import { getBrandConfig } from "@/lib/brand-config";
 import { trpcVanilla } from "@/lib/trpc";
 
-const COOKIE_NAME = getBrandConfig().tenantCookieName;
+/**
+ * Module-level tenant ID, set by TenantProvider from the server-injected value.
+ * Read by getActiveTenantId() for non-React callers (apiFetch, tRPC, SSE hooks).
+ */
+let _activeTenantId = "";
 
-function readTenantCookie(): string {
-  if (typeof document === "undefined") return "";
-  const match = document.cookie.split("; ").find((row) => row.startsWith(`${COOKIE_NAME}=`));
-  return match ? decodeURIComponent(match.split("=")[1]) : "";
-}
-
-function writeTenantCookie(tenantId: string): void {
-  // biome-ignore lint/suspicious/noDocumentCookie: intentional session cookie write (security: tenant ID moved out of localStorage)
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(tenantId)}; path=/; SameSite=Lax; Secure`;
+/**
+ * Set the active tenant ID from server context (called by TenantProvider on mount
+ * and on tenant switch). Also used by tests.
+ *
+ * @internal Not for production code. Import in tests only.
+ */
+export function setServerTenantId(tenantId: string): void {
+  _activeTenantId = tenantId;
 }
 
 /**
- * Read the active tenant ID from a session cookie.
+ * Read the active tenant ID.
  * Used by non-React code (apiFetch, trpc client) to inject X-Tenant-Id headers.
  */
 export function getActiveTenantId(): string {
-  return readTenantCookie();
+  return _activeTenantId;
+}
+
+/** Persist tenant selection via HttpOnly cookie (server-side). */
+async function persistTenantSelection(tenantId: string): Promise<void> {
+  try {
+    await fetch("/api/tenant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId }),
+    });
+  } catch {
+    // Best-effort — cookie will be stale on next hard navigation but
+    // in-memory state is already updated for the current session.
+  }
 }
 
 export interface TenantOption {
@@ -43,16 +59,20 @@ export interface TenantContextValue {
 
 const TenantContext = createContext<TenantContextValue | null>(null);
 
-export function TenantProvider({ children }: { children: React.ReactNode }) {
+interface TenantProviderProps {
+  children: React.ReactNode;
+  /** Server-injected tenant ID from the HttpOnly cookie (read in middleware → layout). */
+  initialTenantId?: string;
+}
+
+export function TenantProvider({ children, initialTenantId = "" }: TenantProviderProps) {
   const { data: session, isPending: sessionPending } = useSession();
   const queryClient = useQueryClient();
   const user = session?.user;
 
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string; image?: string | null }>>([]);
   const [orgsLoaded, setOrgsLoaded] = useState(false);
-  const [activeTenantId, setActiveTenantId] = useState<string>(() => {
-    return readTenantCookie();
-  });
+  const [activeTenantId, setActiveTenantId] = useState<string>(initialTenantId);
 
   // Fetch orgs once user is available
   useEffect(() => {
@@ -101,10 +121,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     return user.id;
   }, [user, activeTenantId, tenants]);
 
+  // Keep module-level var in sync with resolved value.
+  // Guard on truthy value so an initial render with user=null (resolvedTenantId="")
+  // does not overwrite a value already set by switchTenant or SSR hydration.
+  useEffect(() => {
+    if (resolvedTenantId) {
+      _activeTenantId = resolvedTenantId;
+    }
+  }, [resolvedTenantId]);
+
   const switchTenant = useCallback(
     (tenantId: string) => {
       setActiveTenantId(tenantId);
-      writeTenantCookie(tenantId);
+      _activeTenantId = tenantId;
+      persistTenantSelection(tenantId);
       queryClient.invalidateQueries();
     },
     [queryClient],

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getBrandConfig } from "@/lib/brand-config";
 import { logger } from "@/lib/logger";
 import { sanitizeRedirectUrl } from "@/lib/utils";
 
@@ -78,6 +79,8 @@ const CSRF_EXEMPT_AUTH_PATHS = [
 ];
 
 const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+const TENANT_COOKIE_NAME = getBrandConfig().tenantCookieName;
 
 /**
  * Validate that a state-changing request originates from this application.
@@ -168,6 +171,18 @@ export default async function middleware(request: NextRequest) {
   function nextWithNonce(): NextResponse {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
+
+    // Strip any client-supplied x-tenant-id before conditionally setting from the
+    // trusted HttpOnly cookie. Without this delete, a client that sends their own
+    // x-tenant-id header could spoof a tenant when no cookie is present.
+    requestHeaders.delete("x-tenant-id");
+
+    // Forward HttpOnly tenant cookie as request header for server components
+    const tenantCookie = request.cookies.get(TENANT_COOKIE_NAME);
+    if (tenantCookie?.value) {
+      requestHeaders.set("x-tenant-id", tenantCookie.value);
+    }
+
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 

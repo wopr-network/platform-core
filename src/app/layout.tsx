@@ -57,7 +57,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") ?? undefined;
+  const initialTenantId = headersList.get("x-tenant-id") ?? "";
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -71,7 +73,7 @@ export default async function RootLayout({
             disableTransitionOnChange
             nonce={nonce}
           >
-            <TRPCProvider>
+            <TRPCProvider initialTenantId={initialTenantId}>
               {children}
               <Toaster theme="dark" richColors />
             </TRPCProvider>

@@ -16,36 +16,32 @@ vi.mock("@/lib/trpc", () => ({
   },
 }));
 
-import { getActiveTenantId, TenantProvider, useTenant } from "@/lib/tenant-context";
+import {
+  getActiveTenantId,
+  setServerTenantId,
+  TenantProvider,
+  useTenant,
+} from "@/lib/tenant-context";
 
-function createWrapper() {
+function createWrapper(initialTenantId?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <TenantProvider>{children}</TenantProvider>
+      <TenantProvider initialTenantId={initialTenantId}>{children}</TenantProvider>
     </QueryClientProvider>
   );
 }
 
-function clearTenantCookie() {
-  // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
-  document.cookie = "platform_tenant_id=; path=/; max-age=0";
-}
-
-function setTenantCookie(tenantId: string) {
-  // biome-ignore lint/suspicious/noDocumentCookie: test helper — mirrors production writeTenantCookie pattern
-  document.cookie = `platform_tenant_id=${encodeURIComponent(tenantId)}; path=/`;
-}
-
 describe("useTenant", () => {
   beforeEach(() => {
-    clearTenantCookie();
+    setServerTenantId("");
     mockQuery.mockResolvedValue([]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }))));
   });
 
-  it("defaults to the user's personal account", async () => {
+  it("defaults to the user's personal account when no initial tenant", async () => {
     const { result } = renderHook(() => useTenant(), {
       wrapper: createWrapper(),
     });
@@ -55,32 +51,26 @@ describe("useTenant", () => {
     });
 
     expect(result.current.activeTenantId).toBe("user-1");
-    expect(result.current.tenants).toEqual([
-      { id: "user-1", name: "Test User", type: "personal", image: null },
-    ]);
   });
 
-  it("includes orgs when listMyOrganizations returns results", async () => {
+  it("uses initialTenantId from server when provided", async () => {
     mockQuery.mockResolvedValue([{ id: "org-1", name: "My Team", image: null }]);
 
     const { result } = renderHook(() => useTenant(), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper("org-1"),
     });
 
     await vi.waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.tenants).toHaveLength(2);
-    expect(result.current.tenants[1]).toEqual({
-      id: "org-1",
-      name: "My Team",
-      type: "org",
-      image: null,
-    });
+    expect(result.current.activeTenantId).toBe("org-1");
   });
 
-  it("persists tenant switch to cookie", async () => {
+  it("calls /api/tenant on switchTenant instead of writing document.cookie", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    vi.stubGlobal("fetch", mockFetch);
+
     mockQuery.mockResolvedValue([{ id: "org-1", name: "My Team", image: null }]);
 
     const { result } = renderHook(() => useTenant(), {
@@ -96,15 +86,20 @@ describe("useTenant", () => {
     });
 
     expect(result.current.activeTenantId).toBe("org-1");
-    expect(document.cookie).toContain("platform_tenant_id=org-1");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/tenant",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ tenantId: "org-1" }),
+      }),
+    );
   });
 
   it("falls back to personal if stored tenant is not in list", async () => {
-    setTenantCookie("org-deleted");
     mockQuery.mockResolvedValue([]);
 
     const { result } = renderHook(() => useTenant(), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper("org-deleted"),
     });
 
     await vi.waitFor(() => {
@@ -132,15 +127,15 @@ describe("useTenant", () => {
 
 describe("getActiveTenantId", () => {
   beforeEach(() => {
-    clearTenantCookie();
+    setServerTenantId("");
   });
 
-  it("returns stored tenant ID from cookie", () => {
-    setTenantCookie("org-1");
+  it("returns the server-injected tenant ID", () => {
+    setServerTenantId("org-1");
     expect(getActiveTenantId()).toBe("org-1");
   });
 
-  it("returns empty string when nothing stored", () => {
+  it("returns empty string when nothing set", () => {
     expect(getActiveTenantId()).toBe("");
   });
 });

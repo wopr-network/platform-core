@@ -59,7 +59,10 @@ function getQueryClient(): QueryClient {
   return browserQueryClient;
 }
 
-export function TRPCProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+export function TRPCProvider({
+  children,
+  initialTenantId,
+}: Readonly<{ children: React.ReactNode; initialTenantId?: string }>) {
   const queryClient = getQueryClient();
   const [trpcClient] = useState(() =>
     trpc.createClient({
@@ -79,7 +82,7 @@ export function TRPCProvider({ children }: Readonly<{ children: React.ReactNode 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <TenantProvider>{children}</TenantProvider>
+        <TenantProvider initialTenantId={initialTenantId}>{children}</TenantProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

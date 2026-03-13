@@ -113,7 +113,7 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 - **No `console.log`.** Biome enforces `noConsole` as an error. Use `console.warn` or `console.error` for legitimate diagnostics.
 - **No `any` casts.** Use `unknown` and narrow, or define a proper type.
 - **No `alert()` for UI feedback.** Use `sonner` toast notifications (`toast.success()`, `toast.error()`).
-- **No `localStorage` for tenant ID.** Tenant ID is stored in a `Secure; SameSite=Lax` cookie via `src/lib/tenant-context.tsx`. See `getActiveTenantId()`.
+- **No `localStorage` for tenant ID.** Tenant ID is stored in an `HttpOnly; Secure; SameSite=Lax` cookie managed by the `/api/tenant` route. See `src/lib/tenant-context.tsx`. Never read tenant ID from `document.cookie` — use `getActiveTenantId()`.
 
 ## Testing
 
@@ -131,7 +131,7 @@ For tRPC endpoints, use the `trpc` client in `src/lib/trpc.ts` — it shares the
 
 ## Security Rules
 
-- **No tenant ID in localStorage.** Always use the cookie-based tenant context (`src/lib/tenant-context.tsx`).
+- **No tenant ID in localStorage or document.cookie.** Always use `getActiveTenantId()` from `src/lib/tenant-context.tsx`. The tenant cookie is `HttpOnly` and managed server-side via `/api/tenant`.
 - **Validate redirects.** The middleware (`src/proxy.ts`) is the auth gate — it checks session cookies and redirects unauthenticated users to `/login` with a `callbackUrl` param. Never bypass it.
 - **CSRF protection** is enforced in middleware for mutation requests (`POST`/`PUT`/`PATCH`/`DELETE`) on `/api` routes (except `/api/auth`). Origin/Referer headers are validated.
 - **CSP headers** are configured in `next.config.ts` — includes script-src, connect-src, frame-src allowlists. Update CSP if adding new external services.
