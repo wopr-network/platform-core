@@ -7,6 +7,15 @@
     "url": "https://github.com/wopr-network/platform-ui-core.git"
   },
   "license": "UNLICENSED",
+  "exports": {
+    ".": "./src/lib/index.ts",
+    "./app/*": "./src/app/*",
+    "./components/*": "./src/components/*",
+    "./hooks/*": "./src/hooks/*",
+    "./lib/*": "./src/lib/*",
+    "./globals.css": "./src/app/globals.css",
+    "./proxy": "./src/proxy.ts"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
@@ -20,8 +29,7 @@
     "tailwind.config.ts",
     "biome.json",
     "vitest.config.ts",
-    ".env.wopr",
-    ".env.paperclip"
+    ".env.wopr"
   ],
   "scripts": {
     "dev": "next dev",

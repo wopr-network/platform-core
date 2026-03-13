@@ -67,11 +67,9 @@ import {
   renameInstance,
   restoreSnapshot,
   toggleInstancePlugin,
-  updateInstanceBudget,
   updateInstanceConfig,
   updateInstanceSecrets,
 } from "@/lib/api";
-import { getBrandConfig } from "@/lib/brand-config";
 import { toUserMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
@@ -118,10 +116,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
-  const [budgetCents, setBudgetCents] = useState<number>(0);
-  const [budgetSaving, setBudgetSaving] = useState(false);
-  const [budgetError, setBudgetError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!configText.trim()) return;
     try {
@@ -193,7 +187,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       const data = await getInstance(instanceId);
       setInstance(data);
       setConfigText(JSON.stringify(data.config, null, 2));
-      if (data.budgetCents !== undefined) setBudgetCents(data.budgetCents);
     } catch (err) {
       setError(toUserMessage(err, "Failed to load instance"));
     } finally {
@@ -303,19 +296,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
       await load();
     } catch (err) {
       setActionError(toUserMessage(err, `Failed to ${action} instance`));
-    }
-  }
-
-  async function handleSaveBudget() {
-    setBudgetSaving(true);
-    setBudgetError(null);
-    try {
-      await updateInstanceBudget(instanceId, budgetCents);
-      await load();
-    } catch (err) {
-      setBudgetError(toUserMessage(err, "Failed to update budget"));
-    } finally {
-      setBudgetSaving(false);
     }
   }
 
@@ -496,16 +476,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
               </Badge>
             )}
             <span>{instance.provider}</span>
-            {instance.subdomain && (
-              <a
-                href={`https://${instance.subdomain}.${getBrandConfig().domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-xs text-terminal hover:underline"
-              >
-                {instance.subdomain}.{getBrandConfig().domain}
-              </a>
-            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -599,48 +569,6 @@ export function InstanceDetailClient({ instanceId }: { instanceId: string }) {
             <MetricCard title="Active Sessions" value={String(instance.sessions.length)} />
             <MetricCard title="Created" value={new Date(instance.createdAt).toLocaleDateString()} />
           </div>
-
-          {/* Budget management — shown when backend provides budget data */}
-          {instance.budgetCents !== undefined && (
-            <Card className="mt-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Spending Budget</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold font-mono">
-                    ${(budgetCents / 100).toFixed(2)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">per month</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={10000}
-                  step={100}
-                  value={budgetCents}
-                  onChange={(e) => setBudgetCents(Number(e.target.value))}
-                  className="w-full accent-terminal"
-                  aria-label="Budget slider"
-                />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>$0</span>
-                  <span>$100</span>
-                </div>
-                {budgetError && <p className="text-sm text-destructive">{budgetError}</p>}
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="terminal"
-                    onClick={handleSaveBudget}
-                    disabled={budgetSaving || budgetCents === instance.budgetCents}
-                  >
-                    {budgetSaving ? "Saving..." : "Update Budget"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Health Tab */}
