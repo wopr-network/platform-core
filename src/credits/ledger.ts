@@ -825,18 +825,24 @@ export class DrizzleLedger implements ILedger {
       .from(journalLines)
       .groupBy(journalLines.side);
 
-    let totalDebits = 0;
-    let totalCredits = 0;
+    let totalDebitsBig = 0n;
+    let totalCreditsBig = 0n;
     for (const row of rows) {
-      if (row.side === "debit") totalDebits = Number(row.total);
-      else totalCredits = Number(row.total);
+      if (row.side === "debit") totalDebitsBig = BigInt(String(row.total));
+      else totalCreditsBig = BigInt(String(row.total));
+    }
+
+    const diff = totalDebitsBig > totalCreditsBig ? totalDebitsBig - totalCreditsBig : totalCreditsBig - totalDebitsBig;
+
+    if (totalDebitsBig > BigInt(Number.MAX_SAFE_INTEGER) || totalCreditsBig > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new Error(`trialBalance overflow: debits=${totalDebitsBig}, credits=${totalCreditsBig}`);
     }
 
     return {
-      totalDebits: Credit.fromRaw(totalDebits),
-      totalCredits: Credit.fromRaw(totalCredits),
-      balanced: totalDebits === totalCredits,
-      difference: Credit.fromRaw(Math.abs(totalDebits - totalCredits)),
+      totalDebits: Credit.fromRaw(Number(totalDebitsBig)),
+      totalCredits: Credit.fromRaw(Number(totalCreditsBig)),
+      balanced: totalDebitsBig === totalCreditsBig,
+      difference: Credit.fromRaw(Number(diff)),
     };
   }
 }

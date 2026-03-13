@@ -12,7 +12,6 @@ export {
 export { Credit } from "./credit.js";
 export type { CreditExpiryCronConfig, CreditExpiryCronResult } from "./credit-expiry-cron.js";
 export { runCreditExpiryCron } from "./credit-expiry-cron.js";
-
 // -- Double-entry ledger (new) --
 export type {
   AccountType,
@@ -39,6 +38,7 @@ export {
   Ledger,
   SYSTEM_ACCOUNTS,
 } from "./ledger.js";
-
 export { grantSignupCredits, SIGNUP_GRANT } from "./signup-grant.js";
 export type { ITenantCustomerRepository, TenantCustomerRow } from "./tenant-customer-repository.js";
+export type { TrialBalanceCronConfig, TrialBalanceCronResult } from "./trial-balance-cron.js";
+export { runTrialBalanceCron } from "./trial-balance-cron.js";
