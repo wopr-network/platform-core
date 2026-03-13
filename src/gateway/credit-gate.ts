@@ -6,7 +6,7 @@
  * gateway endpoints.
  */
 
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit, InsufficientBalanceError } from "@wopr-network/platform-core/credits";
 import type { Context } from "hono";
 import { logger } from "../config/logger.js";
@@ -14,7 +14,7 @@ import { withMargin } from "../monetization/adapters/types.js";
 import type { GatewayAuthEnv } from "./service-key-auth.js";
 
 export interface CreditGateDeps {
-  creditLedger?: ICreditLedger;
+  creditLedger?: ILedger;
   topUpUrl: string;
   /** Maximum negative balance allowed before hard-stop, in cents. Default: 50 (-$0.50). */
   graceBufferCents?: number;
@@ -118,15 +118,11 @@ export async function debitCredits(
   }
 
   try {
-    await deps.creditLedger.debit(
-      tenantId,
-      chargeCredit,
-      "adapter_usage",
-      `Gateway ${capability} via ${provider}`,
-      undefined,
-      true,
+    await deps.creditLedger.debit(tenantId, chargeCredit, "adapter_usage", {
+      description: `Gateway ${capability} via ${provider}`,
+      allowNegative: true,
       attributedUserId,
-    );
+    });
 
     // Only fire on first zero-crossing (balance was positive before, now ≤ 0)
     if (deps.onBalanceExhausted) {

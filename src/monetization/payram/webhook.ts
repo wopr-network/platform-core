@@ -4,13 +4,13 @@ import type {
   PayRamWebhookPayload,
   PayRamWebhookResult,
 } from "@wopr-network/platform-core/billing";
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { BotBilling } from "../credits/bot-billing.js";
 
 export interface PayRamWebhookDeps {
   chargeStore: PayRamChargeRepository;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   botBilling?: BotBilling;
   replayGuard: IWebhookSeenRepository;
 }
@@ -60,14 +60,11 @@ export async function handlePayRamWebhook(
       // overpayment stays in the PayRam wallet as a buffer.
       const creditCents = charge.amountUsdCents;
 
-      await creditLedger.credit(
-        charge.tenantId,
-        Credit.fromCents(creditCents),
-        "purchase",
-        `Crypto credit purchase via PayRam (ref: ${payload.reference_id}, ${payload.currency ?? "crypto"})`,
-        `payram:${payload.reference_id}`,
-        "payram",
-      );
+      await creditLedger.credit(charge.tenantId, Credit.fromCents(creditCents), "purchase", {
+        description: `Crypto credit purchase via PayRam (ref: ${payload.reference_id}, ${payload.currency ?? "crypto"})`,
+        referenceId: `payram:${payload.reference_id}`,
+        fundingSource: "payram",
+      });
 
       await chargeStore.markCredited(payload.reference_id);
 

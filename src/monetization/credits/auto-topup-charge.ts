@@ -1,5 +1,5 @@
 import type { ITenantCustomerRepository } from "@wopr-network/platform-core/billing";
-import type { Credit, ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { Credit, ILedger } from "@wopr-network/platform-core/credits";
 import Stripe from "stripe";
 import { logger } from "../../config/logger.js";
 import type { IAutoTopupEventLogRepository } from "./auto-topup-event-log-repository.js";
@@ -10,7 +10,7 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
 export interface AutoTopupChargeDeps {
   stripe: Stripe;
   tenantRepo: ITenantCustomerRepository;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   eventLogRepo: IAutoTopupEventLogRepository;
 }
 
@@ -136,14 +136,11 @@ export async function chargeAutoTopup(
   // 5. Credit the ledger (idempotent via referenceId = PI ID)
   try {
     if (!(await deps.creditLedger.hasReferenceId(paymentIntent.id))) {
-      await deps.creditLedger.credit(
-        tenantId,
-        amount,
-        "purchase",
-        `Auto-topup (${source})`,
-        paymentIntent.id,
-        "stripe",
-      );
+      await deps.creditLedger.credit(tenantId, amount, "purchase", {
+        description: `Auto-topup (${source})`,
+        referenceId: paymentIntent.id,
+        fundingSource: "stripe",
+      });
     }
   } catch (err) {
     const message = `Stripe charge ${paymentIntent.id} succeeded but credit grant failed: ${err instanceof Error ? err.message : String(err)}`;

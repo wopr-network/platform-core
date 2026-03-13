@@ -2,13 +2,13 @@ import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformDb } from "../db/index.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
-import { CreditLedger } from "./credit-ledger.js";
+import { DrizzleLedger } from "./ledger.js";
 import { grantSignupCredits, SIGNUP_GRANT } from "./signup-grant.js";
 
 describe("grantSignupCredits", () => {
   let pool: PGlite;
   let db: PlatformDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -20,7 +20,9 @@ describe("grantSignupCredits", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("grants credits to a new tenant and returns true", async () => {
@@ -53,7 +55,8 @@ describe("grantSignupCredits", () => {
     const uniqueErr = Object.assign(new Error("duplicate key value violates unique constraint"), {
       code: "23505",
     });
-    const racingLedger = new CreditLedger(db);
+    const racingLedger = new DrizzleLedger(db);
+    await racingLedger.seedSystemAccounts();
     vi.spyOn(racingLedger, "hasReferenceId").mockResolvedValue(false);
     vi.spyOn(racingLedger, "credit").mockRejectedValue(uniqueErr);
 

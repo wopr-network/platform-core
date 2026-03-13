@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
@@ -57,7 +57,7 @@ describe("BotBilling", () => {
   let pool: PGlite;
   let db: DrizzleDb;
   let billing: BotBilling;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -70,7 +70,9 @@ describe("BotBilling", () => {
   beforeEach(async () => {
     await truncateAllTables(pool);
     billing = new BotBilling(new DrizzleBotInstanceRepository(db));
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   describe("registerBot", () => {
@@ -211,7 +213,11 @@ describe("BotBilling", () => {
       await billing.suspendBot("bot-1");
       await billing.suspendBot("bot-2");
 
-      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "test credit", "ref-1", "stripe");
+      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", {
+        description: "test credit",
+        referenceId: "ref-1",
+        fundingSource: "stripe",
+      });
       const reactivated = await billing.checkReactivation("tenant-1", ledger);
 
       expect(reactivated.sort()).toEqual(["bot-1", "bot-2"]);
@@ -231,14 +237,22 @@ describe("BotBilling", () => {
       await billing.registerBot("bot-1", "tenant-1", "bot-a");
       await billing.destroyBot("bot-1");
 
-      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "test credit", "ref-1", "stripe");
+      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", {
+        description: "test credit",
+        referenceId: "ref-1",
+        fundingSource: "stripe",
+      });
       const reactivated = await billing.checkReactivation("tenant-1", ledger);
 
       expect(reactivated).toEqual([]);
     });
 
     it("returns empty array for tenant with no bots", async () => {
-      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "test credit", "ref-1", "stripe");
+      await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", {
+        description: "test credit",
+        referenceId: "ref-1",
+        fundingSource: "stripe",
+      });
       const reactivated = await billing.checkReactivation("tenant-1", ledger);
       expect(reactivated).toEqual([]);
     });

@@ -8,7 +8,7 @@ import { createTestDb, truncateAllTables } from "../test/db.js";
 import { type AutoTopupChargeDeps, chargeAutoTopup, MAX_CONSECUTIVE_FAILURES } from "./auto-topup-charge.js";
 import { DrizzleAutoTopupEventLogRepository } from "./auto-topup-event-log-repository.js";
 import { Credit } from "./credit.js";
-import { CreditLedger } from "./credit-ledger.js";
+import { DrizzleLedger } from "./ledger.js";
 import type { ITenantCustomerRepository } from "./tenant-customer-repository.js";
 
 function mockStripe(overrides?: {
@@ -49,7 +49,7 @@ function mockTenantStore(stripeCustomerId = "cus_123") {
 describe("chargeAutoTopup", () => {
   let pool: PGlite;
   let db: PlatformDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -61,7 +61,9 @@ describe("chargeAutoTopup", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("charges Stripe and credits ledger on success", async () => {
@@ -80,8 +82,8 @@ describe("chargeAutoTopup", () => {
     expect(result.paymentReference).toEqual(expect.any(String));
     expect((await ledger.balance("t1")).toCents()).toBe(500);
     const history = await ledger.history("t1");
-    expect(history[0].type).toBe("purchase");
-    expect(history[0].fundingSource).toBe("stripe");
+    expect(history[0].entryType).toBe("purchase");
+    expect(history[0].metadata?.fundingSource).toBe("stripe");
   });
 
   it("writes success event to credit_auto_topup log", async () => {

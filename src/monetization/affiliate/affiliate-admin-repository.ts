@@ -4,7 +4,7 @@ import { logger } from "../../config/logger.js";
 import type { DrizzleDb } from "../../db/index.js";
 import { affiliateReferrals } from "../../db/schema/affiliate.js";
 import { affiliateFraudEvents } from "../../db/schema/affiliate-fraud.js";
-import { creditTransactions } from "../../db/schema/credits.js";
+import { journalEntries } from "../../db/schema/ledger.js";
 
 function parseSignals(raw: string): string[] {
   try {
@@ -119,13 +119,16 @@ export class DrizzleAffiliateFraudAdminRepository implements IAffiliateFraudAdmi
   }
 
   async listFingerprintClusters(): Promise<FingerprintCluster[]> {
+    // Query journal_entries.metadata->>'stripeFingerprint' for purchase entries
     // raw SQL: Drizzle cannot express HAVING COUNT(DISTINCT ...) with array_agg in a single query
     type ClusterRow = { stripe_fingerprint: string; tenant_ids: string[] };
     const rows = (await this.db.execute(sql`
-      SELECT stripe_fingerprint, array_agg(DISTINCT tenant_id ORDER BY tenant_id) AS tenant_ids
-      FROM credit_transactions
-      WHERE stripe_fingerprint IS NOT NULL
-      GROUP BY stripe_fingerprint
+      SELECT metadata->>'stripeFingerprint' AS stripe_fingerprint,
+             array_agg(DISTINCT tenant_id ORDER BY tenant_id) AS tenant_ids
+      FROM journal_entries
+      WHERE metadata->>'stripeFingerprint' IS NOT NULL
+        AND entry_type = 'purchase'
+      GROUP BY metadata->>'stripeFingerprint'
       HAVING COUNT(DISTINCT tenant_id) > 1
       ORDER BY COUNT(DISTINCT tenant_id) DESC
     `)) as unknown as { rows: ClusterRow[] };
@@ -138,9 +141,14 @@ export class DrizzleAffiliateFraudAdminRepository implements IAffiliateFraudAdmi
 
   async blockFingerprint(fingerprint: string, adminUserId: string): Promise<void> {
     const rows = await this.db
-      .selectDistinct({ tenantId: creditTransactions.tenantId })
-      .from(creditTransactions)
-      .where(eq(creditTransactions.stripeFingerprint, fingerprint));
+      .selectDistinct({ tenantId: journalEntries.tenantId })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.entryType, "purchase"),
+          sql`${journalEntries.metadata}->>'stripeFingerprint' = ${fingerprint}`,
+        ),
+      );
     const tenantIds = rows.map((r) => r.tenantId);
 
     const now = new Date().toISOString();

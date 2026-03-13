@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import type { ITenantCustomerRepository } from "@wopr-network/platform-core/billing";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
@@ -48,7 +48,7 @@ function mockTenantStore(stripeCustomerId = "cus_123") {
 describe("chargeAutoTopup", () => {
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -60,7 +60,9 @@ describe("chargeAutoTopup", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("charges Stripe and credits ledger on success", async () => {
@@ -79,8 +81,8 @@ describe("chargeAutoTopup", () => {
     expect(result.paymentReference).toEqual(expect.any(String));
     expect((await ledger.balance("t1")).toCents()).toBe(500);
     const history = await ledger.history("t1");
-    expect(history[0].type).toBe("purchase");
-    expect(history[0].fundingSource).toBe("stripe");
+    expect(history[0].entryType).toBe("purchase");
+    expect(history[0].metadata?.fundingSource).toBe("stripe");
   });
 
   it("writes success event to credit_auto_topup log", async () => {

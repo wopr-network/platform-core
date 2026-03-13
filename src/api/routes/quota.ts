@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { ICreditLedger } from "../../credits/credit-ledger.js";
+import type { ILedger } from "../../credits/ledger.js";
 import { checkInstanceQuota, DEFAULT_INSTANCE_LIMITS } from "../../monetization/quotas/quota-check.js";
 import { buildResourceLimits, DEFAULT_RESOURCE_CONFIG } from "../../monetization/quotas/resource-limits.js";
 
@@ -8,7 +8,7 @@ import { buildResourceLimits, DEFAULT_RESOURCE_CONFIG } from "../../monetization
  *
  * @param ledgerFactory - Factory returning the credit ledger
  */
-export function createQuotaRoutes(ledgerFactory: () => ICreditLedger): Hono {
+export function createQuotaRoutes(ledgerFactory: () => ILedger): Hono {
   const routes = new Hono();
 
   /**

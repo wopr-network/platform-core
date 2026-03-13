@@ -10,7 +10,7 @@
  * 5. Return response to bot
  */
 
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { Context } from "hono";
@@ -63,7 +63,7 @@ const smsDeliveryStatusBodySchema = z.object({
 export interface ProxyDeps {
   meter: MeterEmitter;
   budgetChecker: IBudgetChecker;
-  creditLedger?: ICreditLedger;
+  creditLedger?: ILedger;
   topUpUrl: string;
   graceBufferCents?: number;
   providers: ProviderConfig;

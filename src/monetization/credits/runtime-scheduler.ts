@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { logger } from "../../config/logger.js";
 import type { IBotInstanceRepository } from "../../fleet/bot-instance-repository.js";
 import { buildAddonCosts } from "../addons/addon-cron.js";
@@ -6,7 +6,7 @@ import type { ITenantAddonRepository } from "../addons/addon-repository.js";
 import { buildResourceTierCosts, runRuntimeDeductions } from "./runtime-cron.js";
 
 export interface RuntimeSchedulerDeps {
-  ledger: ICreditLedger;
+  ledger: ILedger;
   botInstanceRepo: IBotInstanceRepository;
   tenantAddonRepo: ITenantAddonRepository;
   onSuspend?: (tenantId: string) => void;

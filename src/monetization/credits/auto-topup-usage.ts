@@ -1,11 +1,11 @@
-import type { Credit, IAutoTopupSettingsRepository, ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { Credit, IAutoTopupSettingsRepository, ILedger } from "@wopr-network/platform-core/credits";
 import { logger } from "../../config/logger.js";
 import type { AutoTopupChargeResult } from "./auto-topup-charge.js";
 import { MAX_CONSECUTIVE_FAILURES } from "./auto-topup-charge.js";
 
 export interface UsageTopupDeps {
   settingsRepo: IAutoTopupSettingsRepository;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   /** Injected charge function (allows mocking in tests). */
   chargeAutoTopup: (tenantId: string, amount: Credit, source: string) => Promise<AutoTopupChargeResult>;
   /** Optional tenant status check. If provided and returns non-null, skip the charge. */

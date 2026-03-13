@@ -22,6 +22,13 @@
       "when": 1741795200000,
       "tag": "0002_gateway_service_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1741881600000,
+      "tag": "0003_double_entry_ledger",
+      "breakpoints": true
     }
   ]
 }

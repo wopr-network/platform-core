@@ -5,7 +5,7 @@ export type {
   ITenantCustomerRepository,
   PayRamChargeRecord,
 } from "@wopr-network/platform-core/billing";
-export type { IAutoTopupSettingsRepository, ICreditLedger } from "@wopr-network/platform-core/credits";
+export type { IAutoTopupSettingsRepository, ILedger } from "@wopr-network/platform-core/credits";
 export type { IMeterAggregator, IMeterEmitter } from "@wopr-network/platform-core/metering";
 export type { FraudEvent, FraudEventInput, IAffiliateFraudRepository } from "./affiliate/affiliate-fraud-repository.js";
 export type {

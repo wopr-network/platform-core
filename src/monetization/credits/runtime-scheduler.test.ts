@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RUNTIME_INTERVAL_MS, startRuntimeScheduler } from "./runtime-scheduler.js";
 
-// Minimal ICreditLedger stub — only the methods runRuntimeDeductions calls.
+// Minimal ILedger stub — only the methods runRuntimeDeductions calls.
 function makeLedger() {
   return {
     tenantsWithBalance: vi.fn().mockResolvedValue([]),

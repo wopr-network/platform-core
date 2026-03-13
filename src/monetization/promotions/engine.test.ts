@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ICouponRepository } from "./coupon-repository.js";
@@ -40,7 +40,7 @@ describe("PromotionEngine", () => {
   let promotionRepo: IPromotionRepository;
   let couponRepo: ICouponRepository;
   let redemptionRepo: IRedemptionRepository;
-  let ledger: ICreditLedger;
+  let ledger: ILedger;
   let engine: PromotionEngine;
 
   beforeEach(() => {
@@ -95,7 +95,7 @@ describe("PromotionEngine", () => {
         createdAt: new Date().toISOString(),
       }),
       hasReferenceId: vi.fn().mockResolvedValue(false),
-    } as unknown as ICreditLedger;
+    } as unknown as ILedger;
 
     engine = new PromotionEngine({ promotionRepo, couponRepo, redemptionRepo, ledger });
   });
@@ -111,8 +111,9 @@ describe("PromotionEngine", () => {
       "tenant-1",
       expect.any(Object), // Credit instance
       "promo",
-      expect.any(String),
-      "promo:promo-1:tenant-1:1",
+      expect.objectContaining({
+        referenceId: "promo:promo-1:tenant-1:1",
+      }),
     );
   });
 

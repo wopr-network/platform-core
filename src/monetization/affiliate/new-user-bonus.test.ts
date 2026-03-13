@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
@@ -9,7 +9,7 @@ import { DEFAULT_BONUS_RATE, grantNewUserBonus } from "./new-user-bonus.js";
 describe("grantNewUserBonus", () => {
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
   let affiliateRepo: DrizzleAffiliateRepository;
 
   beforeAll(async () => {
@@ -22,7 +22,9 @@ describe("grantNewUserBonus", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
     affiliateRepo = new DrizzleAffiliateRepository(db);
   });
 
@@ -48,7 +50,7 @@ describe("grantNewUserBonus", () => {
 
     const txns = await ledger.history("referred-1");
     expect(txns).toHaveLength(1);
-    expect(txns[0].type).toBe("affiliate_bonus");
+    expect(txns[0].entryType).toBe("affiliate_bonus");
     expect(txns[0].referenceId).toBe("affiliate-bonus:referred-1");
     expect(txns[0].description).toContain("first-purchase bonus");
   });

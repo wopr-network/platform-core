@@ -134,11 +134,12 @@ export { BudgetChecker, DrizzleBudgetChecker } from "./budget/index.js";
 // Credit ledger (WOP-384)
 export type {
   BillingState,
-  CreditTransaction,
   CreditType,
   DebitType,
   GetActiveBotCount,
   HistoryOptions,
+  ILedger,
+  JournalEntry,
   OnSuspend,
   RuntimeCronConfig,
   RuntimeCronResult,
@@ -147,12 +148,12 @@ export type {
 export {
   BotBilling,
   buildResourceTierCosts,
-  CreditLedger,
   DAILY_BOT_COST,
   DrizzleBotBilling,
-  DrizzleCreditLedger,
+  DrizzleLedger,
   grantSignupCredits,
   InsufficientBalanceError,
+  Ledger,
   runRuntimeDeductions,
   SIGNUP_GRANT,
   SUSPENSION_GRACE_DAYS,
@@ -215,7 +216,6 @@ export {
 export type {
   IBotBilling,
   IBudgetChecker,
-  ICreditLedger,
   IMeterAggregator,
   IMeterEmitter,
   IPayRamChargeRepository,

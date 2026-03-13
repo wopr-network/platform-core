@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import type { Pool } from "pg";
 import { logger } from "../../config/logger.js";
-import type { ICreditLedger } from "../../credits/index.js";
+import type { ILedger } from "../../credits/index.js";
 import { grantSignupCredits } from "../../credits/index.js";
 import { getEmailClient } from "../../email/client.js";
 import { verifyToken, welcomeTemplate } from "../../email/index.js";
 
 export interface VerifyEmailRouteDeps {
   pool: Pool;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
 }
 
 export interface VerifyEmailRouteConfig {
@@ -32,7 +32,7 @@ export function createVerifyEmailRoutes(deps: VerifyEmailRouteDeps, config?: Ver
  */
 export function createVerifyEmailRoutesLazy(
   poolFactory: () => Pool,
-  creditLedgerFactory: () => ICreditLedger,
+  creditLedgerFactory: () => ILedger,
   config?: VerifyEmailRouteConfig,
 ): Hono {
   return buildRoutes(poolFactory, creditLedgerFactory, config);
@@ -40,7 +40,7 @@ export function createVerifyEmailRoutesLazy(
 
 function buildRoutes(
   poolFactory: () => Pool,
-  creditLedgerFactory: () => ICreditLedger,
+  creditLedgerFactory: () => ILedger,
   config?: VerifyEmailRouteConfig,
 ): Hono {
   const uiOrigin = config?.uiOrigin ?? process.env.UI_ORIGIN ?? "http://localhost:3001";

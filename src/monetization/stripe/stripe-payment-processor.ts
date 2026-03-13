@@ -17,7 +17,7 @@ import {
   type SetupResult,
   type WebhookResult,
 } from "@wopr-network/platform-core/billing";
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type Stripe from "stripe";
 import { chargeAutoTopup } from "../credits/auto-topup-charge.js";
@@ -30,7 +30,7 @@ export interface StripePaymentProcessorDeps {
   tenantRepo: ITenantCustomerRepository;
   webhookSecret: string;
   priceMap?: CreditPriceMap;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   botBilling?: BotBilling;
   replayGuard: IWebhookSeenRepository;
   autoTopupEventLog?: IAutoTopupEventLogRepository;
@@ -43,7 +43,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
   private readonly tenantRepo: ITenantCustomerRepository;
   private readonly webhookSecret: string;
   private readonly priceMap: CreditPriceMap;
-  private readonly creditLedger: ICreditLedger;
+  private readonly creditLedger: ILedger;
   private readonly botBilling?: BotBilling;
   private readonly replayGuard: IWebhookSeenRepository;
   private readonly autoTopupEventLog?: IAutoTopupEventLogRepository;

@@ -1,9 +1,9 @@
 import { logger } from "../config/logger.js";
-import type { ICreditLedger } from "./credit-ledger.js";
-import { InsufficientBalanceError } from "./credit-ledger.js";
+import type { ILedger } from "./ledger.js";
+import { InsufficientBalanceError } from "./ledger.js";
 
 export interface CreditExpiryCronConfig {
-  ledger: ICreditLedger;
+  ledger: ILedger;
   /** Current time as ISO-8601 string. */
   now: string;
 }
@@ -42,13 +42,10 @@ export async function runCreditExpiryCron(cfg: CreditExpiryCronConfig): Promise<
       // Debit the lesser of the original grant amount or current balance
       const debitAmount = balance.lessThan(grant.amount) ? balance : grant.amount;
 
-      await cfg.ledger.debit(
-        grant.tenantId,
-        debitAmount,
-        "credit_expiry",
-        `Expired credit grant reclaimed: ${grant.id}`,
-        `expiry:${grant.id}`,
-      );
+      await cfg.ledger.debit(grant.tenantId, debitAmount, "credit_expiry", {
+        description: `Expired credit grant reclaimed: ${grant.entryId}`,
+        referenceId: `expiry:${grant.entryId}`,
+      });
 
       result.processed++;
       if (!result.expired.includes(grant.tenantId)) {
@@ -59,8 +56,8 @@ export async function runCreditExpiryCron(cfg: CreditExpiryCronConfig): Promise<
         result.skippedZeroBalance++;
       } else {
         const msg = err instanceof Error ? err.message : String(err);
-        logger.error("Credit expiry failed", { tenantId: grant.tenantId, txnId: grant.id, error: msg });
-        result.errors.push(`${grant.tenantId}:${grant.id}: ${msg}`);
+        logger.error("Credit expiry failed", { tenantId: grant.tenantId, entryId: grant.entryId, error: msg });
+        result.errors.push(`${grant.tenantId}:${grant.entryId}: ${msg}`);
       }
     }
   }

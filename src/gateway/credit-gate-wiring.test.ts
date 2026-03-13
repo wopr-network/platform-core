@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { describe, expect, it, vi } from "vitest";
 import { type CreditGateDeps, debitCredits } from "./credit-gate.js";
@@ -9,7 +9,7 @@ describe("onDebitComplete wiring", () => {
     const balance = vi.fn().mockResolvedValue(Credit.fromCents(500));
     const debit = vi.fn().mockResolvedValue(undefined);
     const deps: CreditGateDeps = {
-      creditLedger: { balance, debit } as unknown as ICreditLedger,
+      creditLedger: { balance, debit } as unknown as ILedger,
       topUpUrl: "/billing",
       onDebitComplete,
     };
@@ -25,7 +25,7 @@ describe("onDebitComplete wiring", () => {
     const { InsufficientBalanceError } = await import("@wopr-network/platform-core/credits");
     const debit = vi.fn().mockRejectedValue(new InsufficientBalanceError(Credit.fromCents(0), Credit.fromCents(100)));
     const deps: CreditGateDeps = {
-      creditLedger: { debit } as unknown as ICreditLedger,
+      creditLedger: { debit } as unknown as ILedger,
       topUpUrl: "/billing",
       onDebitComplete,
     };

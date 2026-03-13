@@ -7,7 +7,7 @@
  * Uses mocked deps — no PGlite required.
  */
 
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,7 +51,7 @@ function buildTestConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig 
     debit: vi.fn().mockResolvedValue(undefined),
     credit: vi.fn(),
     history: vi.fn(),
-  } as unknown as ICreditLedger;
+  } as unknown as ILedger;
   const fetchFn = vi.fn().mockResolvedValue(
     new Response(
       JSON.stringify({
@@ -163,7 +163,7 @@ describe("gateway routes — credit check", () => {
         debit: vi.fn(),
         credit: vi.fn(),
         history: vi.fn(),
-      } as unknown as ICreditLedger,
+      } as unknown as ILedger,
     });
     const app = buildApp(config);
     const res = await chatRequest(app, VALID_KEY);
@@ -183,7 +183,7 @@ describe("gateway routes — credit check", () => {
         debit: vi.fn(),
         credit: vi.fn(),
         history: vi.fn(),
-      } as unknown as ICreditLedger,
+      } as unknown as ILedger,
     });
     const app = buildApp(config);
     const res = await chatRequest(app, VALID_KEY);
@@ -200,7 +200,7 @@ describe("gateway routes — credit check", () => {
         debit: vi.fn(),
         credit: vi.fn(),
         history: vi.fn(),
-      } as unknown as ICreditLedger,
+      } as unknown as ILedger,
       fetchFn,
     });
     const app = buildApp(config);

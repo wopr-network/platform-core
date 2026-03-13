@@ -1,4 +1,4 @@
-import type { CreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { Context, Next } from "hono";
 import { DAILY_BOT_COST } from "./credits/runtime-cron.js";
@@ -74,7 +74,7 @@ export function createFeatureGate(cfg: FeatureGateConfig) {
 /**
  * Convenience factory that creates a requireBalance middleware from a CreditLedger instance.
  */
-export function createBalanceGate(ledger: CreditLedger, userKey?: string, userIdField?: string) {
+export function createBalanceGate(ledger: ILedger, userKey?: string, userIdField?: string) {
   return createFeatureGate({
     getUserBalance: (tenantId) => ledger.balance(tenantId),
     userKey,
@@ -94,7 +94,7 @@ export type ResolveTenantId = (c: Context) => string | undefined | Promise<strin
 
 export interface CreditGateConfig {
   /** CreditLedger instance used to check balance. */
-  ledger: CreditLedger;
+  ledger: ILedger;
   /** Resolve the tenant ID from the request context. */
   resolveTenantId: ResolveTenantId;
 }

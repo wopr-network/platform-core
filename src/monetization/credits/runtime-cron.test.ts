@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger, InsufficientBalanceError } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger, InsufficientBalanceError } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { RESOURCE_TIERS } from "../../fleet/resource-tiers.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
@@ -8,12 +8,12 @@ import { buildResourceTierCosts, DAILY_BOT_COST, runRuntimeDeductions } from "./
 describe("runRuntimeDeductions", () => {
   const TODAY = "2025-01-01";
   let pool: PGlite;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     const { db, pool: p } = await createTestDb();
     pool = p;
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
   });
 
   afterAll(async () => {
@@ -22,6 +22,7 @@ describe("runRuntimeDeductions", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
+    await ledger.seedSystemAccounts();
   });
 
   it("DAILY_BOT_COST equals 17 cents", () => {
@@ -40,7 +41,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("skips tenants with zero active bots", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     const result = await runRuntimeDeductions({
       ledger,
       date: TODAY,
@@ -51,7 +52,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("deducts full amount when balance is sufficient", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     const result = await runRuntimeDeductions({
       ledger,
       date: TODAY,
@@ -63,7 +64,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("partial deduction and suspension when balance is insufficient", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(10), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(10), "purchase", { description: "top-up" });
     const onSuspend = vi.fn();
     const result = await runRuntimeDeductions({
       ledger,
@@ -78,9 +79,9 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("suspends with zero partial when balance exactly zero", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(100), "purchase", "top-up");
-    await ledger.debit("tenant-1", Credit.fromCents(100), "bot_runtime", "drain");
-    await ledger.credit("tenant-1", Credit.fromCents(1), "purchase", "tiny");
+    await ledger.credit("tenant-1", Credit.fromCents(100), "purchase", { description: "top-up" });
+    await ledger.debit("tenant-1", Credit.fromCents(100), "bot_runtime", { description: "drain" });
+    await ledger.credit("tenant-1", Credit.fromCents(1), "purchase", { description: "tiny" });
 
     const onSuspend = vi.fn();
     const result = await runRuntimeDeductions({
@@ -95,7 +96,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("suspends without onSuspend callback", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(5), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(5), "purchase", { description: "top-up" });
     const result = await runRuntimeDeductions({
       ledger,
       date: TODAY,
@@ -106,7 +107,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("handles errors from getActiveBotCount gracefully", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     const result = await runRuntimeDeductions({
       ledger,
       date: TODAY,
@@ -120,8 +121,8 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("handles InsufficientBalanceError from ledger.debit", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
-    await ledger.debit("tenant-1", Credit.fromCents(499), "bot_runtime", "drain");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
+    await ledger.debit("tenant-1", Credit.fromCents(499), "bot_runtime", { description: "drain" });
     const onSuspend = vi.fn();
     const result = await runRuntimeDeductions({
       ledger,
@@ -134,7 +135,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("catches InsufficientBalanceError from debit and suspends", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     vi.spyOn(ledger, "debit").mockRejectedValue(
       new InsufficientBalanceError(Credit.fromCents(0), Credit.fromCents(17)),
     );
@@ -152,7 +153,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("catches InsufficientBalanceError without onSuspend callback", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     vi.spyOn(ledger, "debit").mockRejectedValue(
       new InsufficientBalanceError(Credit.fromCents(0), Credit.fromCents(17)),
     );
@@ -167,8 +168,8 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("processes multiple tenants", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
-    await ledger.credit("tenant-2", Credit.fromCents(10), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
+    await ledger.credit("tenant-2", Credit.fromCents(10), "purchase", { description: "top-up" });
     const onSuspend = vi.fn();
     const result = await runRuntimeDeductions({
       ledger,
@@ -182,7 +183,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("fires onLowBalance when balance drops below 100 cents threshold", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(110), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(110), "purchase", { description: "top-up" });
     const onLowBalance = vi.fn();
     await runRuntimeDeductions({
       ledger,
@@ -197,7 +198,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("does NOT fire onLowBalance when balance was already below threshold before deduction", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(90), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(90), "purchase", { description: "top-up" });
     const onLowBalance = vi.fn();
     await runRuntimeDeductions({
       ledger,
@@ -209,7 +210,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("fires onCreditsExhausted when full deduction causes balance to drop to 0", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", { description: "top-up" });
     const onCreditsExhausted = vi.fn();
     await runRuntimeDeductions({
       ledger,
@@ -223,7 +224,7 @@ describe("runRuntimeDeductions", () => {
 
   it("suspends tenant when full deduction causes balance to drop to exactly 0", async () => {
     // Balance = exactly 1 bot * DAILY_BOT_COST = 17 cents → full deduction → 0
-    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", { description: "top-up" });
     const onSuspend = vi.fn();
     const onCreditsExhausted = vi.fn();
     const result = await runRuntimeDeductions({
@@ -240,7 +241,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("fires onCreditsExhausted on partial deduction when balance hits 0", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(10), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(10), "purchase", { description: "top-up" });
     const onCreditsExhausted = vi.fn();
     await runRuntimeDeductions({
       ledger,
@@ -253,7 +254,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("partially debits resource tier surcharge when balance is positive but insufficient", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(30), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(30), "purchase", { description: "top-up" });
     const result = await runRuntimeDeductions({
       ledger,
       date: TODAY,
@@ -265,7 +266,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("skips resource tier partial debit when balance is exactly 0 after runtime", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", { description: "top-up" });
     const onCreditsExhausted = vi.fn();
     const result = await runRuntimeDeductions({
       ledger,
@@ -284,7 +285,7 @@ describe("runRuntimeDeductions", () => {
     // triggering the zero-crossing suspend in the runtime block.
     // Storage cost (5 cents) then tries to suspend again via its else-branch (balance 0 < 5).
     // The !result.suspended.includes(tenantId) guard must prevent onSuspend being called twice.
-    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(17), "purchase", { description: "top-up" });
     const onSuspend = vi.fn();
     const result = await runRuntimeDeductions({
       ledger,
@@ -301,7 +302,7 @@ describe("runRuntimeDeductions", () => {
   it("buildResourceTierCosts: deducts pro tier surcharge via getResourceTierCosts", async () => {
     const proTierCost = RESOURCE_TIERS.pro.dailyCost.toCents();
     const startBalance = 17 + proTierCost + 10;
-    await ledger.credit("tenant-1", Credit.fromCents(startBalance), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(startBalance), "purchase", { description: "top-up" });
 
     const mockRepo = {
       getResourceTier: async (_botId: string): Promise<string | null> => "pro",
@@ -324,7 +325,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("treats unique constraint violation from concurrent debit as already-billed (skip, not error)", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     const uniqueErr = Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" });
     vi.spyOn(ledger, "debit").mockRejectedValueOnce(uniqueErr);
     const result = await runRuntimeDeductions({
@@ -338,7 +339,7 @@ describe("runRuntimeDeductions", () => {
   });
 
   it("is idempotent — second run on same date does not double-deduct", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "top-up" });
     const cfg = {
       ledger,
       getActiveBotCount: async () => 1,

@@ -6,8 +6,8 @@ import { adminUsers } from "../db/schema/admin-users.js";
 import { dividendDistributions } from "../db/schema/dividend-distributions.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
 import { Credit } from "./credit.js";
-import { CreditLedger } from "./credit-ledger.js";
 import { DrizzleDividendRepository } from "./dividend-repository.js";
+import { DrizzleLedger } from "./ledger.js";
 
 let pool: PGlite;
 let db: PlatformDb;
@@ -55,6 +55,7 @@ describe("DrizzleDividendRepository", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
+    await new DrizzleLedger(db).seedSystemAccounts();
     repo = new DrizzleDividendRepository(db);
   });
 
@@ -195,8 +196,8 @@ describe("DrizzleDividendRepository", () => {
     });
 
     it("marks user as eligible when they have a recent purchase", async () => {
-      const ledger = new CreditLedger(db);
-      await ledger.credit("t1", Credit.fromCents(100), "purchase", "recent buy");
+      const ledger = new DrizzleLedger(db);
+      await ledger.credit("t1", Credit.fromCents(100), "purchase", { description: "recent buy" });
 
       const stats = await repo.getStats("t1");
       expect(stats.userEligible).toBe(true);

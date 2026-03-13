@@ -1,5 +1,5 @@
 import { Credit } from "./credit.js";
-import type { ICreditLedger } from "./credit-ledger.js";
+import type { ILedger } from "./ledger.js";
 
 /** Signup grant amount: $5.00 */
 export const SIGNUP_GRANT = Credit.fromDollars(5);
@@ -11,25 +11,19 @@ export const SIGNUP_GRANT = Credit.fromDollars(5);
  *
  * @returns true if the grant was applied, false if already granted.
  */
-export async function grantSignupCredits(ledger: ICreditLedger, tenantId: string): Promise<boolean> {
+export async function grantSignupCredits(ledger: ILedger, tenantId: string): Promise<boolean> {
   const refId = `signup:${tenantId}`;
 
-  // Idempotency check
   if (await ledger.hasReferenceId(refId)) {
     return false;
   }
 
   try {
-    await ledger.credit(
-      tenantId,
-      SIGNUP_GRANT,
-      "signup_grant",
-      "Welcome bonus — $5.00 credit on email verification",
-      refId,
-    );
+    await ledger.credit(tenantId, SIGNUP_GRANT, "signup_grant", {
+      description: "Welcome bonus — $5.00 credit on email verification",
+      referenceId: refId,
+    });
   } catch (err) {
-    // Concurrent verify-email request won the race and already inserted the same referenceId.
-    // Treat unique constraint violation as a no-op (idempotent).
     if (isUniqueConstraintViolation(err)) return false;
     throw err;
   }

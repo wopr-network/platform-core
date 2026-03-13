@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { logger } from "../../config/logger.js";
 import type { IBotInstanceRepository } from "../../fleet/bot-instance-repository.js";
@@ -16,7 +16,7 @@ export interface IBotBilling {
   suspendBot(botId: string): Promise<void>;
   suspendAllForTenant(tenantId: string): Promise<string[]>;
   reactivateBot(botId: string): Promise<void>;
-  checkReactivation(tenantId: string, ledger: ICreditLedger): Promise<string[]>;
+  checkReactivation(tenantId: string, ledger: ILedger): Promise<string[]>;
   destroyBot(botId: string): Promise<void>;
   destroyExpiredBots(): Promise<string[]>;
   getBotBilling(botId: string): Promise<unknown>;
@@ -98,7 +98,7 @@ export class DrizzleBotBilling implements IBotBilling {
    *
    * @returns IDs of reactivated bots.
    */
-  async checkReactivation(tenantId: string, ledger: ICreditLedger): Promise<string[]> {
+  async checkReactivation(tenantId: string, ledger: ILedger): Promise<string[]> {
     const balance = await ledger.balance(tenantId);
     if (balance.isNegative() || balance.isZero()) return [];
 

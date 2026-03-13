@@ -1,11 +1,11 @@
-import type { CreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import type { SnapshotManager } from "./snapshot-manager.js";
 import type { Snapshot, Tier } from "./types.js";
 import { SNAPSHOT_TIER_POLICIES, STORAGE_CHARGE_PER_GB_MONTH, STORAGE_COST_PER_GB_MONTH } from "./types.js";
 
 export interface OnDemandSnapshotServiceConfig {
   manager: SnapshotManager;
-  ledger: CreditLedger;
+  ledger: ILedger;
 }
 
 export interface CreateSnapshotParams {
@@ -25,7 +25,7 @@ export interface CreateSnapshotResult {
 
 export class OnDemandSnapshotService {
   private readonly manager: SnapshotManager;
-  private readonly ledger: CreditLedger;
+  private readonly ledger: ILedger;
 
   constructor(cfg: OnDemandSnapshotServiceConfig) {
     this.manager = cfg.manager;

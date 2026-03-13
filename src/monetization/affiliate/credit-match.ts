@@ -1,4 +1,4 @@
-import type { Credit, ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { Credit, ILedger } from "@wopr-network/platform-core/credits";
 import { config } from "../../config/index.js";
 import type { IAffiliateFraudRepository } from "./affiliate-fraud-repository.js";
 import type { IAffiliateRepository } from "./drizzle-affiliate-repository.js";
@@ -11,7 +11,7 @@ const DEFAULT_MAX_MATCH_CREDITS_30D = config.billing.affiliateMaxMatchCredits30d
 export interface AffiliateCreditMatchDeps {
   tenantId: string;
   purchaseAmount: Credit;
-  ledger: ICreditLedger;
+  ledger: ILedger;
   affiliateRepo: IAffiliateRepository;
   matchRate?: number;
   fraudRepo?: IAffiliateFraudRepository;
@@ -122,13 +122,10 @@ export async function processAffiliateCreditMatch(
   if (matchAmount.isZero() || matchAmount.isNegative()) return null;
 
   // 6. Credit the referrer
-  await ledger.credit(
-    referral.referrerTenantId,
-    matchAmount,
-    "affiliate_match",
-    `Affiliate match for referred tenant ${tenantId}`,
-    refId,
-  );
+  await ledger.credit(referral.referrerTenantId, matchAmount, "affiliate_match", {
+    description: `Affiliate match for referred tenant ${tenantId}`,
+    referenceId: refId,
+  });
 
   // 7. Update referral record
   await affiliateRepo.markFirstPurchase(tenantId);

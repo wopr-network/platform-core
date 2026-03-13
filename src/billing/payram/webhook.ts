@@ -1,15 +1,15 @@
 import { Credit } from "../../credits/credit.js";
-import type { ICreditLedger } from "../../credits/credit-ledger.js";
+import type { ILedger } from "../../credits/ledger.js";
 import type { IWebhookSeenRepository } from "../webhook-seen-repository.js";
 import type { PayRamChargeRepository } from "./charge-store.js";
 import type { PayRamWebhookPayload, PayRamWebhookResult } from "./types.js";
 
 export interface PayRamWebhookDeps {
   chargeStore: PayRamChargeRepository;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   replayGuard: IWebhookSeenRepository;
   /** Called after credits are purchased — consumer can reactivate suspended resources. Returns reactivated resource IDs. */
-  onCreditsPurchased?: (tenantId: string, ledger: ICreditLedger) => Promise<string[]>;
+  onCreditsPurchased?: (tenantId: string, ledger: ILedger) => Promise<string[]>;
 }
 
 /**
@@ -57,14 +57,11 @@ export async function handlePayRamWebhook(
       // overpayment stays in the PayRam wallet as a buffer.
       const creditCents = charge.amountUsdCents;
 
-      await creditLedger.credit(
-        charge.tenantId,
-        Credit.fromCents(creditCents),
-        "purchase",
-        `Crypto credit purchase via PayRam (ref: ${payload.reference_id}, ${payload.currency ?? "crypto"})`,
-        `payram:${payload.reference_id}`,
-        "payram",
-      );
+      await creditLedger.credit(charge.tenantId, Credit.fromCents(creditCents), "purchase", {
+        description: `Crypto credit purchase via PayRam (ref: ${payload.reference_id}, ${payload.currency ?? "crypto"})`,
+        referenceId: `payram:${payload.reference_id}`,
+        fundingSource: "payram",
+      });
 
       await chargeStore.markCredited(payload.reference_id);
 

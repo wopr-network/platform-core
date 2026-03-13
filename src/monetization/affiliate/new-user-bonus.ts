@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { config } from "../../config/index.js";
 import type { IAffiliateRepository } from "./drizzle-affiliate-repository.js";
@@ -7,7 +7,7 @@ import type { IAffiliateRepository } from "./drizzle-affiliate-repository.js";
 export const DEFAULT_BONUS_RATE = config.billing.affiliateNewUserBonusRate;
 
 export interface NewUserBonusParams {
-  ledger: ICreditLedger;
+  ledger: ILedger;
   affiliateRepo: IAffiliateRepository;
   referredTenantId: string;
   purchaseAmount: Credit;
@@ -57,13 +57,10 @@ export async function grantNewUserBonus(params: NewUserBonusParams): Promise<New
   await affiliateRepo.markFirstPurchase(referredTenantId);
 
   // 6. Credit the bonus
-  await ledger.credit(
-    referredTenantId,
-    bonus,
-    "affiliate_bonus",
-    `New user first-purchase bonus (${Math.round(rate * 100)}%)`,
-    refId,
-  );
+  await ledger.credit(referredTenantId, bonus, "affiliate_bonus", {
+    description: `New user first-purchase bonus (${Math.round(rate * 100)}%)`,
+    referenceId: refId,
+  });
 
   return { granted: true, bonus };
 }

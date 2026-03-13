@@ -23,7 +23,7 @@ export interface ITenantCustomerRepository {
  * All billing operations look up the processor customer via this store.
  *
  * Note: No subscription tracking — WOPR uses credits, not subscriptions.
- * Credit balances are managed by ICreditLedger / DrizzleCreditLedger.
+ * Credit balances are managed by ILedger / DrizzleCreditLedger.
  */
 export class DrizzleTenantCustomerRepository implements ITenantCustomerRepository {
   constructor(private readonly db: PlatformDb) {}

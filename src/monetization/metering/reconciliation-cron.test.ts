@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { runReconciliation } from "@wopr-network/platform-core/metering";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
@@ -17,7 +17,7 @@ const DAY_END = DAY_START + 24 * 60 * 60 * 1000;
 describe("runReconciliation", () => {
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
   let usageSummaryRepo: DrizzleUsageSummaryRepository;
   let adapterUsageRepo: DrizzleAdapterUsageRepository;
 
@@ -25,7 +25,7 @@ describe("runReconciliation", () => {
     const t = await createTestDb();
     pool = t.pool;
     db = t.db;
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
     usageSummaryRepo = new DrizzleUsageSummaryRepository(db);
     adapterUsageRepo = new DrizzleAdapterUsageRepository(db);
   });
@@ -36,6 +36,7 @@ describe("runReconciliation", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
+    await ledger.seedSystemAccounts();
   });
 
   /** Insert a usage_summaries row directly. */
@@ -74,7 +75,7 @@ describe("runReconciliation", () => {
     await insertSummary({ tenant: "t1", totalCharge: charge.toRaw() });
 
     await ledger.credit("t1", Credit.fromCents(500), "purchase");
-    await ledger.debit("t1", charge, "adapter_usage", "chat usage");
+    await ledger.debit("t1", charge, "adapter_usage", { description: "chat usage" });
 
     const result = await runReconciliation({ usageSummaryRepo, adapterUsageRepo, targetDate: TODAY });
     expect(result.tenantsChecked).toBe(1);
@@ -85,7 +86,7 @@ describe("runReconciliation", () => {
     await insertSummary({ tenant: "t1", totalCharge: Credit.fromCents(100).toRaw() });
 
     await ledger.credit("t1", Credit.fromCents(500), "purchase");
-    await ledger.debit("t1", Credit.fromCents(80), "adapter_usage", "chat usage");
+    await ledger.debit("t1", Credit.fromCents(80), "adapter_usage", { description: "chat usage" });
 
     const result = await runReconciliation({ usageSummaryRepo, adapterUsageRepo, targetDate: TODAY });
     expect(result.tenantsChecked).toBe(1);
@@ -117,7 +118,7 @@ describe("runReconciliation", () => {
 
     await ledger.credit("t1", Credit.fromCents(500), "purchase");
     // Debit as bot_runtime — should NOT count toward reconciliation
-    await ledger.debit("t1", Credit.fromCents(20), "bot_runtime", "daily runtime");
+    await ledger.debit("t1", Credit.fromCents(20), "bot_runtime", { description: "daily runtime" });
 
     const result = await runReconciliation({ usageSummaryRepo, adapterUsageRepo, targetDate: TODAY });
     // Metered 20c, ledger adapter_usage = 0 => drift = 20c
@@ -149,12 +150,12 @@ describe("runReconciliation", () => {
     // t1: balanced
     await insertSummary({ tenant: "t1", totalCharge: Credit.fromCents(50).toRaw() });
     await ledger.credit("t1", Credit.fromCents(500), "purchase");
-    await ledger.debit("t1", Credit.fromCents(50), "adapter_usage", "chat");
+    await ledger.debit("t1", Credit.fromCents(50), "adapter_usage", { description: "chat" });
 
     // t2: drifted
     await insertSummary({ tenant: "t2", totalCharge: Credit.fromCents(100).toRaw() });
     await ledger.credit("t2", Credit.fromCents(500), "purchase");
-    await ledger.debit("t2", Credit.fromCents(60), "adapter_usage", "chat");
+    await ledger.debit("t2", Credit.fromCents(60), "adapter_usage", { description: "chat" });
 
     const result = await runReconciliation({ usageSummaryRepo, adapterUsageRepo, targetDate: TODAY });
     expect(result.tenantsChecked).toBe(2);
@@ -192,7 +193,7 @@ describe("runReconciliation", () => {
     await insertSummary({ tenant: "t1", totalCharge: Credit.fromCents(50).toRaw() });
 
     await ledger.credit("t1", Credit.fromCents(500), "purchase");
-    await ledger.debit("t1", Credit.fromCents(80), "adapter_usage", "chat usage");
+    await ledger.debit("t1", Credit.fromCents(80), "adapter_usage", { description: "chat usage" });
 
     const result = await runReconciliation({ usageSummaryRepo, adapterUsageRepo, targetDate: TODAY });
     expect(result.discrepancies).toHaveLength(1);

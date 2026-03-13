@@ -1,11 +1,9 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { logger } from "../../config/logger.js";
-import type { ICreditTransactionRepository } from "./credit-transaction-repository.js";
 
 export interface DividendCronConfig {
-  creditTransactionRepo: ICreditTransactionRepository;
-  ledger: ICreditLedger;
+  ledger: ILedger;
   /** Fraction of daily purchases matched as dividend pool. Default 1.0 (100%). */
   matchRate: number;
   /** The date to compute dividend for, as YYYY-MM-DD string. Typically yesterday. */
@@ -43,7 +41,7 @@ export async function runDividendCron(cfg: DividendCronConfig): Promise<Dividend
   // Idempotency: check if any per-tenant dividend was already distributed for this date.
   // We look for any referenceId matching "dividend:YYYY-MM-DD:*".
   const sentinelPrefix = `dividend:${cfg.targetDate}:`;
-  const alreadyRan = await cfg.creditTransactionRepo.existsByReferenceIdLike(`${sentinelPrefix}%`);
+  const alreadyRan = await cfg.ledger.existsByReferenceIdLike(`${sentinelPrefix}%`);
 
   if (alreadyRan) {
     result.skippedAlreadyRun = true;
@@ -55,7 +53,7 @@ export async function runDividendCron(cfg: DividendCronConfig): Promise<Dividend
   const dayStart = `${cfg.targetDate} 00:00:00`;
   const dayEnd = `${cfg.targetDate} 24:00:00`;
 
-  const dailyPurchaseTotalCredit = await cfg.creditTransactionRepo.sumPurchasesForPeriod(dayStart, dayEnd);
+  const dailyPurchaseTotalCredit = await cfg.ledger.sumPurchasesForPeriod(dayStart, dayEnd);
   result.pool = dailyPurchaseTotalCredit.multiply(cfg.matchRate);
 
   // Step 2: Find all active tenants (purchased in last 7 days from target date).
@@ -64,7 +62,7 @@ export async function runDividendCron(cfg: DividendCronConfig): Promise<Dividend
   const windowStart = subtractDays(cfg.targetDate, 6);
   const windowStartTs = `${windowStart} 00:00:00`;
 
-  const activeTenantIds = await cfg.creditTransactionRepo.getActiveTenantIdsInWindow(windowStartTs, dayEnd);
+  const activeTenantIds = await cfg.ledger.getActiveTenantIdsInWindow(windowStartTs, dayEnd);
   result.activeCount = activeTenantIds.length;
 
   // Step 3: Compute per-user share.
@@ -92,13 +90,10 @@ export async function runDividendCron(cfg: DividendCronConfig): Promise<Dividend
   for (const tenantId of activeTenantIds) {
     const perUserRef = `dividend:${cfg.targetDate}:${tenantId}`;
     try {
-      await cfg.ledger.credit(
-        tenantId,
-        result.perUser,
-        "community_dividend",
-        `Community dividend for ${cfg.targetDate}: pool ${result.pool.toCents()}c / ${result.activeCount} users`,
-        perUserRef,
-      );
+      await cfg.ledger.credit(tenantId, result.perUser, "community_dividend", {
+        description: `Community dividend for ${cfg.targetDate}: pool ${result.pool.toCents()}c / ${result.activeCount} users`,
+        referenceId: perUserRef,
+      });
       result.distributed++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

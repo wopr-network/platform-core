@@ -25,6 +25,7 @@ export * from "./gateway-service-keys.js";
 export * from "./gpu-allocations.js";
 export * from "./gpu-configurations.js";
 export * from "./gpu-nodes.js";
+export * from "./ledger.js";
 export * from "./marketplace-plugins.js";
 export * from "./meter-events.js";
 export * from "./node-registration-tokens.js";

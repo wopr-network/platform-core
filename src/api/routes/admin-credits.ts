@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AuthEnv } from "../../auth/index.js";
-import type { ICreditLedger } from "../../credits/index.js";
+import type { ILedger } from "../../credits/index.js";
 import { Credit, InsufficientBalanceError } from "../../credits/index.js";
 import type { AdminAuditLogger } from "./admin-audit-helper.js";
 import { safeAuditLog } from "./admin-audit-helper.js";
@@ -31,7 +31,7 @@ function parseIntParam(value: string | undefined): number | undefined {
  * Pass a ledger directly or a factory for lazy init.
  */
 export function createAdminCreditApiRoutes(
-  ledgerOrFactory: ICreditLedger | (() => ICreditLedger),
+  ledgerOrFactory: ILedger | (() => ILedger),
   auditLogger?: () => AdminAuditLogger,
 ): Hono<AuthEnv> {
   const ledgerFactory = typeof ledgerOrFactory === "function" ? ledgerOrFactory : () => ledgerOrFactory;
@@ -66,15 +66,10 @@ export function createAdminCreditApiRoutes(
       const adminUser = user?.id ?? "unknown";
       let result: Awaited<ReturnType<typeof ledger.credit>>;
       try {
-        result = await ledger.credit(
-          tenant,
-          Credit.fromCents(amountCents),
-          "admin_grant",
-          reason,
-          undefined,
-          undefined,
-          adminUser,
-        );
+        result = await ledger.credit(tenant, Credit.fromCents(amountCents), "admin_grant", {
+          description: reason,
+          createdBy: adminUser,
+        });
       } catch (err) {
         safeAuditLog(auditLogger, {
           adminUser,
@@ -129,7 +124,7 @@ export function createAdminCreditApiRoutes(
       const adminUser = user?.id ?? "unknown";
       let result: Awaited<ReturnType<typeof ledger.credit>>;
       try {
-        result = await ledger.credit(tenant, Credit.fromCents(amountCents), "admin_grant", reason);
+        result = await ledger.credit(tenant, Credit.fromCents(amountCents), "admin_grant", { description: reason });
       } catch (err) {
         safeAuditLog(auditLogger, {
           adminUser,
@@ -188,9 +183,11 @@ export function createAdminCreditApiRoutes(
       let result: Awaited<ReturnType<typeof ledger.credit>>;
       try {
         if (amountCents >= 0) {
-          result = await ledger.credit(tenant, Credit.fromCents(amountCents), "promo", reason);
+          result = await ledger.credit(tenant, Credit.fromCents(amountCents), "correction", { description: reason });
         } else {
-          result = await ledger.debit(tenant, Credit.fromCents(Math.abs(amountCents)), "correction", reason);
+          result = await ledger.debit(tenant, Credit.fromCents(Math.abs(amountCents)), "correction", {
+            description: reason,
+          });
         }
       } catch (err) {
         safeAuditLog(auditLogger, {
