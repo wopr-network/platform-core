@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
@@ -9,7 +9,7 @@ describe("runtime cron with storage tiers", () => {
   const TODAY = "2025-01-01";
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -21,7 +21,9 @@ describe("runtime cron with storage tiers", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("debits base cost plus storage surcharge for pro tier", async () => {

@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
@@ -10,7 +10,7 @@ import { DrizzleAffiliateRepository } from "./drizzle-affiliate-repository.js";
 describe("processAffiliateCreditMatch", () => {
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
   let affiliateRepo: DrizzleAffiliateRepository;
   let fraudRepo: DrizzleAffiliateFraudRepository;
 
@@ -24,13 +24,19 @@ describe("processAffiliateCreditMatch", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
     affiliateRepo = new DrizzleAffiliateRepository(db);
     fraudRepo = new DrizzleAffiliateFraudRepository(db);
   });
 
   it("does nothing when tenant has no referral", async () => {
-    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -45,8 +51,16 @@ describe("processAffiliateCreditMatch", () => {
   it("does nothing when tenant already has prior purchases", async () => {
     await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
 
-    await ledger.credit("buyer", Credit.fromCents(500), "purchase", "old buy", "session-0", "stripe");
-    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", "new buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(500), "purchase", {
+      description: "old buy",
+      referenceId: "session-0",
+      fundingSource: "stripe",
+    });
+    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", {
+      description: "new buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -60,7 +74,11 @@ describe("processAffiliateCreditMatch", () => {
 
   it("credits referrer on first purchase with 100% match", async () => {
     await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -83,7 +101,11 @@ describe("processAffiliateCreditMatch", () => {
 
   it("respects custom match rate", async () => {
     await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -99,7 +121,11 @@ describe("processAffiliateCreditMatch", () => {
 
   it("is idempotent — second call returns null", async () => {
     await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(1000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const first = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -123,7 +149,11 @@ describe("processAffiliateCreditMatch", () => {
       signupIp: "1.2.3.4",
       signupEmail: "alice+ref@gmail.com",
     });
-    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",
@@ -156,7 +186,11 @@ describe("processAffiliateCreditMatch", () => {
 
       // New referral
       await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-      await ledger.credit("buyer", Credit.fromCents(1000), "purchase", "first buy", "session-1", "stripe");
+      await ledger.credit("buyer", Credit.fromCents(1000), "purchase", {
+        description: "first buy",
+        referenceId: "session-1",
+        fundingSource: "stripe",
+      });
 
       const result = await processAffiliateCreditMatch({
         tenantId: "buyer",
@@ -184,7 +218,11 @@ describe("processAffiliateCreditMatch", () => {
 
       // New referral
       await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-      await ledger.credit("buyer", Credit.fromCents(1000), "purchase", "first buy", "session-1", "stripe");
+      await ledger.credit("buyer", Credit.fromCents(1000), "purchase", {
+        description: "first buy",
+        referenceId: "session-1",
+        fundingSource: "stripe",
+      });
 
       const result = await processAffiliateCreditMatch({
         tenantId: "buyer",
@@ -203,7 +241,11 @@ describe("processAffiliateCreditMatch", () => {
 
     it("allows payout when under both caps", async () => {
       await affiliateRepo.recordReferral("referrer", "buyer", "abc123");
-      await ledger.credit("buyer", Credit.fromCents(2000), "purchase", "first buy", "session-1", "stripe");
+      await ledger.credit("buyer", Credit.fromCents(2000), "purchase", {
+        description: "first buy",
+        referenceId: "session-1",
+        fundingSource: "stripe",
+      });
 
       const result = await processAffiliateCreditMatch({
         tenantId: "buyer",
@@ -223,7 +265,11 @@ describe("processAffiliateCreditMatch", () => {
     await affiliateRepo.recordReferral("referrer", "buyer", "abc123", {
       signupIp: "1.2.3.4",
     });
-    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", "first buy", "session-1", "stripe");
+    await ledger.credit("buyer", Credit.fromCents(2000), "purchase", {
+      description: "first buy",
+      referenceId: "session-1",
+      fundingSource: "stripe",
+    });
 
     const result = await processAffiliateCreditMatch({
       tenantId: "buyer",

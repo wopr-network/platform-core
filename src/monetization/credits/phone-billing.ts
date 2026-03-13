@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit, InsufficientBalanceError } from "@wopr-network/platform-core/credits";
 import type { IMeterEmitter } from "@wopr-network/platform-core/metering";
 import { logger } from "../../config/logger.js";
@@ -15,7 +15,7 @@ const PHONE_NUMBER_MARGIN = 2.6;
 
 export async function runMonthlyPhoneBilling(
   phoneRepo: IPhoneNumberRepository,
-  ledger: ICreditLedger,
+  ledger: ILedger,
   meter: IMeterEmitter,
 ): Promise<{
   processed: number;
@@ -45,14 +45,11 @@ export async function runMonthlyPhoneBilling(
       const costCredit = Credit.fromDollars(PHONE_NUMBER_MONTHLY_COST);
       const chargeCredit = withMargin(costCredit, PHONE_NUMBER_MARGIN);
 
-      await ledger.debit(
-        number.tenantId,
-        chargeCredit,
-        "addon",
-        "Monthly phone number fee",
-        `phone-billing:${number.sid}:${now.toISOString().slice(0, 7)}`,
-        true,
-      );
+      await ledger.debit(number.tenantId, chargeCredit, "addon", {
+        description: "Monthly phone number fee",
+        referenceId: `phone-billing:${number.sid}:${now.toISOString().slice(0, 7)}`,
+        allowNegative: true,
+      });
 
       meter.emit({
         tenant: number.tenantId,

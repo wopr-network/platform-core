@@ -95,7 +95,7 @@ export class InsufficientBalanceError extends Error {
   }
 }
 
-export interface ICreditLedger {
+export interface ILedger {
   credit(
     tenantId: string,
     amount: Credit,
@@ -135,7 +135,7 @@ export interface ICreditLedger {
  * creditBalances row is always consistent with the sum of creditTransactions.
  * Zero raw SQL in application code.
  */
-export class DrizzleCreditLedger implements ICreditLedger {
+export class DrizzleCreditLedger implements ILedger {
   constructor(private readonly db: PlatformDb) {}
 
   /**
@@ -446,5 +446,5 @@ export class DrizzleCreditLedger implements ICreditLedger {
   }
 }
 
-// Backward-compat alias — callers using 'new CreditLedger(db)' continue to work.
+// Backward-compat alias — callers using 'new DrizzleLedger(db)' continue to work.
 export { DrizzleCreditLedger as CreditLedger };

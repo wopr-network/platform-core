@@ -1,44 +1,40 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PlatformDb } from "../db/index.js";
-import { creditBalances, creditTransactions } from "../db/schema/credits.js";
 import { createTestDb, truncateAllTables } from "../test/db.js";
 import { Credit } from "./credit.js";
-import { CreditLedger } from "./credit-ledger.js";
-import { DrizzleCreditTransactionRepository } from "./credit-transaction-repository.js";
 import { type DividendCronConfig, runDividendCron } from "./dividend-cron.js";
+import { CREDIT_TYPE_ACCOUNT, DrizzleLedger } from "./ledger.js";
 
-async function insertPurchase(db: PlatformDb, tenantId: string, amountCents: number, createdAt: string): Promise<void> {
-  const id = `test-${tenantId}-${Date.now()}-${Math.random()}`;
+/**
+ * Insert a backdated purchase entry into the double-entry ledger.
+ * Uses post() with postedAt override to simulate historical purchases.
+ */
+async function insertPurchase(
+  ledger: DrizzleLedger,
+  tenantId: string,
+  amountCents: number,
+  postedAt: string,
+): Promise<void> {
   const amount = Credit.fromCents(amountCents);
-  await db.insert(creditTransactions).values({
-    id,
+  // Purchase: DR cash (1000), CR unearned_revenue (2000:<tenantId>)
+  await ledger.post({
+    entryType: "purchase",
     tenantId,
-    amount,
-    balanceAfter: amount,
-    type: "purchase",
-    createdAt,
+    description: `Test purchase ${amountCents}¢`,
+    referenceId: `test-purchase:${tenantId}:${postedAt}:${Math.random()}`,
+    postedAt,
+    lines: [
+      { accountCode: CREDIT_TYPE_ACCOUNT.purchase, amount, side: "debit" },
+      { accountCode: `2000:${tenantId}`, amount, side: "credit" },
+    ],
   });
-  // Upsert credit_balances
-  const existing = await db
-    .select()
-    .from(creditBalances)
-    .where((await import("drizzle-orm")).eq(creditBalances.tenantId, tenantId));
-  if (existing.length > 0) {
-    await db
-      .update(creditBalances)
-      .set({ balance: existing[0].balance.add(amount) })
-      .where((await import("drizzle-orm")).eq(creditBalances.tenantId, tenantId));
-  } else {
-    await db.insert(creditBalances).values({ tenantId, balance: amount });
-  }
 }
 
 describe("runDividendCron", () => {
   let pool: PGlite;
   let db: PlatformDb;
-  let ledger: CreditLedger;
-  let creditTransactionRepo: DrizzleCreditTransactionRepository;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -50,13 +46,12 @@ describe("runDividendCron", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
-    creditTransactionRepo = new DrizzleCreditTransactionRepository(db);
+    ledger = new DrizzleLedger(db);
+    await ledger.seedSystemAccounts();
   });
 
   function makeConfig(overrides?: Partial<DividendCronConfig>): DividendCronConfig {
     return {
-      creditTransactionRepo,
       ledger,
       matchRate: 1.0,
       targetDate: "2026-02-20",
@@ -65,7 +60,7 @@ describe("runDividendCron", () => {
   }
 
   it("distributes dividend to eligible tenants", async () => {
-    await insertPurchase(db, "t1", 1000, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t1", 1000, "2026-02-20 12:00:00");
 
     const result = await runDividendCron(makeConfig());
 
@@ -76,7 +71,7 @@ describe("runDividendCron", () => {
   });
 
   it("is idempotent — skips if already ran for the date", async () => {
-    await insertPurchase(db, "t1", 1000, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t1", 1000, "2026-02-20 12:00:00");
 
     const result1 = await runDividendCron(makeConfig());
     expect(result1.distributed).toBe(1);
@@ -92,23 +87,22 @@ describe("runDividendCron", () => {
   });
 
   it("handles floor rounding — remainder is not distributed", async () => {
-    await insertPurchase(db, "t1", 50, "2026-02-20 12:00:00");
-    await insertPurchase(db, "t2", 30, "2026-02-20 12:00:00");
-    await insertPurchase(db, "t3", 20, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t1", 50, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t2", 30, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t3", 20, "2026-02-20 12:00:00");
 
     const result = await runDividendCron(makeConfig());
 
     expect(result.pool.toCents()).toBe(100);
     expect(result.activeCount).toBe(3);
     // Nanodollar precision: floor(1_000_000_000 raw / 3) = 333_333_333 raw each
-    // Remainder = 1 nanodollar (not 1 cent — far less wasted with higher scale)
     expect(result.perUser.toRaw()).toBe(333_333_333);
     expect(result.distributed).toBe(3);
   });
 
   it("skips distribution when pool is zero", async () => {
     // Tenant purchased within 7 days but NOT on target date -> pool = 0
-    await insertPurchase(db, "t1", 500, "2026-02-18 12:00:00");
+    await insertPurchase(ledger, "t1", 500, "2026-02-18 12:00:00");
 
     const result = await runDividendCron(makeConfig());
 
@@ -121,9 +115,9 @@ describe("runDividendCron", () => {
   it("distributes sub-cent amounts at nanodollar precision", async () => {
     // 1 cent purchase, 3 active users: pool = 10_000_000 raw
     // floor(10_000_000 / 3) = 3_333_333 raw each — non-zero, gets distributed
-    await insertPurchase(db, "t1", 1, "2026-02-20 12:00:00");
-    await insertPurchase(db, "t2", 500, "2026-02-18 12:00:00");
-    await insertPurchase(db, "t3", 500, "2026-02-17 12:00:00");
+    await insertPurchase(ledger, "t1", 1, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t2", 500, "2026-02-18 12:00:00");
+    await insertPurchase(ledger, "t3", 500, "2026-02-17 12:00:00");
 
     const result = await runDividendCron(makeConfig({ matchRate: 1.0 }));
 
@@ -134,21 +128,20 @@ describe("runDividendCron", () => {
   });
 
   it("records transactions with correct type and referenceId", async () => {
-    await insertPurchase(db, "t1", 1000, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t1", 1000, "2026-02-20 12:00:00");
 
     await runDividendCron(makeConfig());
 
     const history = await ledger.history("t1", { type: "community_dividend" });
     expect(history).toHaveLength(1);
-    expect(history[0].type).toBe("community_dividend");
+    expect(history[0].entryType).toBe("community_dividend");
     expect(history[0].referenceId).toBe("dividend:2026-02-20:t1");
-    expect(history[0].amount.toCents()).toBe(1000);
     expect(history[0].description).toContain("Community dividend");
   });
 
   it("collects errors without stopping distribution to other tenants", async () => {
-    await insertPurchase(db, "t1", 500, "2026-02-20 12:00:00");
-    await insertPurchase(db, "t2", 500, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t1", 500, "2026-02-20 12:00:00");
+    await insertPurchase(ledger, "t2", 500, "2026-02-20 12:00:00");
 
     const result = await runDividendCron(makeConfig());
 

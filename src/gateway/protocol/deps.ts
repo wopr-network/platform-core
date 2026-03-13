@@ -5,7 +5,7 @@
  * budget checking, metering, provider configs, fetch, and service key resolution.
  */
 
-import type { Credit, ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { Credit, ILedger } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { IRateLimitRepository } from "../../api/rate-limit-repository.js";
 import type { IBudgetChecker } from "../../monetization/budget/budget-checker.js";
@@ -18,7 +18,7 @@ import type { FetchFn, GatewayTenant, ProviderConfig } from "../types.js";
 export interface ProtocolDeps {
   meter: MeterEmitter;
   budgetChecker: IBudgetChecker;
-  creditLedger?: ICreditLedger;
+  creditLedger?: ILedger;
   topUpUrl: string;
   graceBufferCents?: number;
   providers: ProviderConfig;

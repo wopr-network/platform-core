@@ -6,7 +6,7 @@
  * budget-checks, proxies to upstream providers, meters usage, and responds.
  */
 
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import type { MeterEmitter } from "@wopr-network/platform-core/metering";
 import type { IRateLimitRepository } from "../api/rate-limit-repository.js";
 import type { IBudgetChecker, SpendLimits } from "../monetization/budget/budget-checker.js";
@@ -99,7 +99,7 @@ export interface GatewayConfig {
   /** BudgetChecker instance for pre-call budget validation */
   budgetChecker: IBudgetChecker;
   /** CreditLedger instance for deducting credits after proxy calls (optional — if absent, credit deduction is skipped) */
-  creditLedger?: ICreditLedger;
+  creditLedger?: ILedger;
   /** URL to direct users to when they need to add credits (default: "/dashboard/credits") */
   topUpUrl?: string;
   /** Maximum negative credit balance (in cents) before hard-stop. Default: 50 (-$0.50). */

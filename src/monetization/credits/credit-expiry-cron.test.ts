@@ -1,16 +1,16 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, DrizzleCreditLedger, runCreditExpiryCron } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger, runCreditExpiryCron } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
 
 describe("runCreditExpiryCron", () => {
   let pool: PGlite;
-  let ledger: DrizzleCreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     const { db, pool: p } = await createTestDb();
     pool = p;
-    ledger = new DrizzleCreditLedger(db);
+    ledger = new DrizzleLedger(db);
   });
 
   afterAll(async () => {
@@ -19,6 +19,7 @@ describe("runCreditExpiryCron", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
+    await ledger.seedSystemAccounts();
   });
 
   // All tests pass an explicit `now` parameter — hardcoded dates are time-independent
@@ -31,16 +32,11 @@ describe("runCreditExpiryCron", () => {
   });
 
   it("debits expired promotional credit grant", async () => {
-    await ledger.credit(
-      "tenant-1",
-      Credit.fromCents(500),
-      "promo",
-      "New user bonus",
-      "promo:tenant-1",
-      undefined,
-      undefined,
-      "2026-01-10T00:00:00Z",
-    );
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "New user bonus",
+      referenceId: "promo:tenant-1",
+      expiresAt: "2026-01-10T00:00:00Z",
+    });
 
     const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
     expect(result.processed).toBe(1);
@@ -51,16 +47,11 @@ describe("runCreditExpiryCron", () => {
   });
 
   it("does not debit non-expired credits", async () => {
-    await ledger.credit(
-      "tenant-1",
-      Credit.fromCents(500),
-      "promo",
-      "Future bonus",
-      "promo:tenant-1-future",
-      undefined,
-      undefined,
-      "2026-02-01T00:00:00Z",
-    );
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "Future bonus",
+      referenceId: "promo:tenant-1-future",
+      expiresAt: "2026-02-01T00:00:00Z",
+    });
 
     const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
     expect(result.processed).toBe(0);
@@ -70,7 +61,7 @@ describe("runCreditExpiryCron", () => {
   });
 
   it("does not debit credits without expires_at", async () => {
-    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", "Top-up");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", { description: "Top-up" });
 
     const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
     expect(result.processed).toBe(0);
@@ -80,17 +71,12 @@ describe("runCreditExpiryCron", () => {
   });
 
   it("only debits up to available balance when partially consumed", async () => {
-    await ledger.credit(
-      "tenant-1",
-      Credit.fromCents(500),
-      "promo",
-      "Promo",
-      "promo:partial",
-      undefined,
-      undefined,
-      "2026-01-10T00:00:00Z",
-    );
-    await ledger.debit("tenant-1", Credit.fromCents(300), "bot_runtime", "Runtime");
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "Promo",
+      referenceId: "promo:partial",
+      expiresAt: "2026-01-10T00:00:00Z",
+    });
+    await ledger.debit("tenant-1", Credit.fromCents(300), "bot_runtime", { description: "Runtime" });
 
     const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
     expect(result.processed).toBe(1);
@@ -100,16 +86,11 @@ describe("runCreditExpiryCron", () => {
   });
 
   it("is idempotent -- does not double-debit on second run", async () => {
-    await ledger.credit(
-      "tenant-1",
-      Credit.fromCents(500),
-      "promo",
-      "Promo",
-      "promo:idemp",
-      undefined,
-      undefined,
-      "2026-01-10T00:00:00Z",
-    );
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "Promo",
+      referenceId: "promo:idemp",
+      expiresAt: "2026-01-10T00:00:00Z",
+    });
 
     await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
     const balanceAfterFirst = await ledger.balance("tenant-1");

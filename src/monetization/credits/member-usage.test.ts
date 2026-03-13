@@ -1,13 +1,13 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
 
-describe("DrizzleCreditLedger.memberUsage", () => {
+describe("DrizzleDrizzleLedger.memberUsage", () => {
   let pool: PGlite;
   let db: DrizzleDb;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
@@ -19,14 +19,25 @@ describe("DrizzleCreditLedger.memberUsage", () => {
 
   beforeEach(async () => {
     await truncateAllTables(pool);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("should aggregate debit totals per attributed user", async () => {
-    await ledger.credit("org-1", Credit.fromCents(10000), "purchase", "Seed");
-    await ledger.debit("org-1", Credit.fromCents(100), "adapter_usage", "Chat", undefined, false, "user-a");
-    await ledger.debit("org-1", Credit.fromCents(200), "adapter_usage", "Chat", undefined, false, "user-a");
-    await ledger.debit("org-1", Credit.fromCents(300), "adapter_usage", "Chat", undefined, false, "user-b");
+    await ledger.credit("org-1", Credit.fromCents(10000), "purchase", { description: "Seed" });
+    await ledger.debit("org-1", Credit.fromCents(100), "adapter_usage", {
+      description: "Chat",
+      attributedUserId: "user-a",
+    });
+    await ledger.debit("org-1", Credit.fromCents(200), "adapter_usage", {
+      description: "Chat",
+      attributedUserId: "user-a",
+    });
+    await ledger.debit("org-1", Credit.fromCents(300), "adapter_usage", {
+      description: "Chat",
+      attributedUserId: "user-b",
+    });
 
     const result = await ledger.memberUsage("org-1");
     expect(result).toHaveLength(2);
@@ -41,9 +52,12 @@ describe("DrizzleCreditLedger.memberUsage", () => {
   });
 
   it("should exclude transactions with null attributedUserId", async () => {
-    await ledger.credit("org-1", Credit.fromCents(10000), "purchase", "Seed");
-    await ledger.debit("org-1", Credit.fromCents(100), "bot_runtime", "Cron"); // no attributedUserId
-    await ledger.debit("org-1", Credit.fromCents(200), "adapter_usage", "Chat", undefined, false, "user-a");
+    await ledger.credit("org-1", Credit.fromCents(10000), "purchase", { description: "Seed" });
+    await ledger.debit("org-1", Credit.fromCents(100), "bot_runtime", { description: "Cron" }); // no attributedUserId
+    await ledger.debit("org-1", Credit.fromCents(200), "adapter_usage", {
+      description: "Chat",
+      attributedUserId: "user-a",
+    });
 
     const result = await ledger.memberUsage("org-1");
     expect(result).toHaveLength(1);

@@ -1,10 +1,10 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { sql } from "drizzle-orm";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { affiliateReferrals } from "../../db/schema/affiliate.js";
 import { affiliateFraudEvents } from "../../db/schema/affiliate-fraud.js";
-import { beginTestTransaction, createTestDb, endTestTransaction, rollbackTestTransaction } from "../../test/db.js";
+import { createTestDb, truncateAllTables } from "../../test/db.js";
 import { ADMIN_BLOCK_SENTINEL, DrizzleAffiliateFraudAdminRepository } from "./affiliate-admin-repository.js";
 
 describe("DrizzleAffiliateFraudAdminRepository", () => {
@@ -14,16 +14,15 @@ describe("DrizzleAffiliateFraudAdminRepository", () => {
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
-    await beginTestTransaction(pool);
   });
 
   afterAll(async () => {
-    await endTestTransaction(pool);
     await pool.close();
   });
 
   beforeEach(async () => {
-    await rollbackTestTransaction(pool);
+    await truncateAllTables(pool);
+    await new DrizzleLedger(db).seedSystemAccounts();
     repo = new DrizzleAffiliateFraudAdminRepository(db);
   });
 
@@ -162,11 +161,17 @@ describe("DrizzleAffiliateFraudAdminRepository", () => {
 
   describe("blockFingerprint", () => {
     it("should insert fraud events with ADMIN_BLOCK as referredTenantId", async () => {
-      await db.execute(
-        sql`INSERT INTO credit_transactions (id, tenant_id, amount_credits, balance_after_credits, type, created_at, stripe_fingerprint)
-            VALUES ('ct-1', 't-alice', 0, 0, 'purchase', now(), 'fp_abc123'),
-                   ('ct-2', 't-bob', 0, 0, 'purchase', now(), 'fp_abc123')`,
-      );
+      const ledger = new DrizzleLedger(db);
+      await ledger.credit("t-alice", Credit.fromCents(1), "purchase", {
+        description: "test purchase",
+        referenceId: "ref-alice-fp_abc123",
+        stripeFingerprint: "fp_abc123",
+      });
+      await ledger.credit("t-bob", Credit.fromCents(1), "purchase", {
+        description: "test purchase",
+        referenceId: "ref-bob-fp_abc123",
+        stripeFingerprint: "fp_abc123",
+      });
 
       await repo.blockFingerprint("fp_abc123", "admin-user-1");
 
@@ -185,11 +190,17 @@ describe("DrizzleAffiliateFraudAdminRepository", () => {
     });
 
     it("should use unique referralId per tenant to avoid unique constraint conflicts", async () => {
-      await db.execute(
-        sql`INSERT INTO credit_transactions (id, tenant_id, amount_credits, balance_after_credits, type, created_at, stripe_fingerprint)
-            VALUES ('ct-3', 't-carol', 0, 0, 'purchase', now(), 'fp_def456'),
-                   ('ct-4', 't-dave', 0, 0, 'purchase', now(), 'fp_def456')`,
-      );
+      const ledger = new DrizzleLedger(db);
+      await ledger.credit("t-carol", Credit.fromCents(1), "purchase", {
+        description: "test purchase",
+        referenceId: "ref-carol-fp_def456",
+        stripeFingerprint: "fp_def456",
+      });
+      await ledger.credit("t-dave", Credit.fromCents(1), "purchase", {
+        description: "test purchase",
+        referenceId: "ref-dave-fp_def456",
+        stripeFingerprint: "fp_def456",
+      });
 
       await repo.blockFingerprint("fp_def456", "admin-user-2");
 
@@ -204,10 +215,12 @@ describe("DrizzleAffiliateFraudAdminRepository", () => {
     });
 
     it("should be idempotent via onConflictDoNothing", async () => {
-      await db.execute(
-        sql`INSERT INTO credit_transactions (id, tenant_id, amount_credits, balance_after_credits, type, created_at, stripe_fingerprint)
-            VALUES ('ct-5', 't-eve', 0, 0, 'purchase', now(), 'fp_ghi789')`,
-      );
+      const ledger = new DrizzleLedger(db);
+      await ledger.credit("t-eve", Credit.fromCents(1), "purchase", {
+        description: "test purchase",
+        referenceId: "ref-eve-fp_ghi789",
+        stripeFingerprint: "fp_ghi789",
+      });
 
       await repo.blockFingerprint("fp_ghi789", "admin-user-3");
       await repo.blockFingerprint("fp_ghi789", "admin-user-3");

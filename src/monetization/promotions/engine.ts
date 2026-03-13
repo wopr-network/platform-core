@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { ICouponRepository } from "./coupon-repository.js";
 import type { IPromotionRepository, Promotion } from "./promotion-repository.js";
@@ -22,7 +22,7 @@ interface PromotionEngineDeps {
   promotionRepo: IPromotionRepository;
   couponRepo: ICouponRepository;
   redemptionRepo: IRedemptionRepository;
-  ledger: ICreditLedger;
+  ledger: ILedger;
 }
 
 export class PromotionEngine {
@@ -113,7 +113,10 @@ export class PromotionEngine {
     if (!granted) return null;
 
     // Grant credits
-    const tx = await ledger.credit(ctx.tenantId, grantAmount, "promo", `Promotion: ${promo.name}`, refId);
+    const tx = await ledger.credit(ctx.tenantId, grantAmount, "promo", {
+      description: `Promotion: ${promo.name}`,
+      referenceId: refId,
+    });
 
     // Record redemption
     await redemptionRepo.create({

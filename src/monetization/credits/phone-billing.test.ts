@@ -1,28 +1,20 @@
-import {
-  Credit,
-  type CreditTransaction,
-  type ICreditLedger,
-  InsufficientBalanceError,
-} from "@wopr-network/platform-core/credits";
+import { Credit, type ILedger, InsufficientBalanceError, type JournalEntry } from "@wopr-network/platform-core/credits";
 import type { IMeterEmitter } from "@wopr-network/platform-core/metering";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IPhoneNumberRepository } from "./drizzle-phone-number-repository.js";
 import { PHONE_NUMBER_MONTHLY_COST, runMonthlyPhoneBilling } from "./phone-billing.js";
 import type { ProvisionedPhoneNumber } from "./repository-types.js";
 
-function makeTx(tenantId: string): CreditTransaction {
+function makeTx(tenantId: string): JournalEntry {
   return {
     id: "tx-1",
+    postedAt: new Date().toISOString(),
+    entryType: "addon",
     tenantId,
-    amount: Credit.fromDollars(1),
-    balanceAfter: Credit.fromDollars(100),
-    type: "addon",
     description: "Monthly phone number fee",
     referenceId: null,
-    fundingSource: null,
-    attributedUserId: null,
-    createdAt: new Date().toISOString(),
-    expiresAt: null,
+    metadata: null,
+    lines: [],
   };
 }
 
@@ -108,7 +100,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -128,7 +120,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -138,16 +130,16 @@ describe("runMonthlyPhoneBilling", () => {
 
     // Verify debit was called with the margined charge amount
     expect(ledger.debit).toHaveBeenCalledOnce();
-    const [tenantId, chargeAmount, type, description, referenceId, allowNegative] = ledger.debit.mock.calls[0];
+    const [tenantId, chargeAmount, type, opts] = ledger.debit.mock.calls[0];
     expect(tenantId).toBe("tenant-1");
     // chargeCredit = Credit.fromDollars(1.15).multiply(2.6)
     const expectedCharge = Credit.fromDollars(1.15).multiply(2.6);
     expect(chargeAmount.toRaw()).toBe(expectedCharge.toRaw());
     expect(type).toBe("addon");
-    expect(description).toBe("Monthly phone number fee");
+    expect(opts.description).toBe("Monthly phone number fee");
     const expectedMonth = `${NOW.getFullYear()}-${String(NOW.getMonth() + 1).padStart(2, "0")}`;
-    expect(referenceId).toMatch(new RegExp(`^phone-billing:PN-abc123:${expectedMonth}$`));
-    expect(allowNegative).toBe(true);
+    expect(opts.referenceId).toMatch(new RegExp(`^phone-billing:PN-abc123:${expectedMonth}$`));
+    expect(opts.allowNegative).toBe(true);
 
     // Verify meter emission
     expect(meter.emit).toHaveBeenCalledOnce();
@@ -170,7 +162,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -191,7 +183,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -208,7 +200,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -229,7 +221,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -252,7 +244,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 
@@ -271,7 +263,7 @@ describe("runMonthlyPhoneBilling", () => {
 
     const result = await runMonthlyPhoneBilling(
       phoneRepo as unknown as IPhoneNumberRepository,
-      ledger as unknown as ICreditLedger,
+      ledger as unknown as ILedger,
       meter as unknown as IMeterEmitter,
     );
 

@@ -1,4 +1,4 @@
-import type { CreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -48,8 +48,8 @@ function makeManager(overrides: Record<string, unknown> = {}): SnapshotManager {
   } as unknown as SnapshotManager;
 }
 
-function makeLedger(balanceCents = 100): CreditLedger {
-  return { balance: vi.fn().mockResolvedValue(Credit.fromCents(balanceCents)) } as unknown as CreditLedger;
+function makeLedger(balanceCents = 100): ILedger {
+  return { balance: vi.fn().mockResolvedValue(Credit.fromCents(balanceCents)) } as unknown as ILedger;
 }
 
 function makeService(managerOverrides: Record<string, unknown> = {}, balanceCents = 100) {

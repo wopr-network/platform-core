@@ -1,4 +1,4 @@
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit, InsufficientBalanceError } from "@wopr-network/platform-core/credits";
 import { logger } from "../../config/logger.js";
 import type { IBotInstanceRepository } from "../../fleet/bot-instance-repository.js";
@@ -20,7 +20,7 @@ export type GetActiveBotCount = (tenantId: string) => number | Promise<number>;
 export const LOW_BALANCE_THRESHOLD = Credit.fromCents(100);
 
 export interface RuntimeCronConfig {
-  ledger: ICreditLedger;
+  ledger: ILedger;
   getActiveBotCount: GetActiveBotCount;
   /** The date being billed, as YYYY-MM-DD. Used for idempotency. */
   date: string;
@@ -122,13 +122,10 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
 
       if (!balance.lessThan(totalCost)) {
         // Full deduction
-        await cfg.ledger.debit(
-          tenantId,
-          totalCost,
-          "bot_runtime",
-          `Daily runtime: ${botCount} bot(s) x $${DAILY_BOT_COST.toDollars().toFixed(2)}`,
-          runtimeRef,
-        );
+        await cfg.ledger.debit(tenantId, totalCost, "bot_runtime", {
+          description: `Daily runtime: ${botCount} bot(s) x $${DAILY_BOT_COST.toDollars().toFixed(2)}`,
+          referenceId: runtimeRef,
+        });
 
         // Debit resource tier surcharges (if any)
         if (cfg.getResourceTierCosts) {
@@ -136,21 +133,15 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
           if (!tierCost.isZero()) {
             const balanceAfterRuntime = await cfg.ledger.balance(tenantId);
             if (!balanceAfterRuntime.lessThan(tierCost)) {
-              await cfg.ledger.debit(
-                tenantId,
-                tierCost,
-                "resource_upgrade",
-                "Daily resource tier surcharge",
-                `runtime-tier:${cfg.date}:${tenantId}`,
-              );
+              await cfg.ledger.debit(tenantId, tierCost, "resource_upgrade", {
+                description: "Daily resource tier surcharge",
+                referenceId: `runtime-tier:${cfg.date}:${tenantId}`,
+              });
             } else if (balanceAfterRuntime.greaterThan(Credit.ZERO)) {
-              await cfg.ledger.debit(
-                tenantId,
-                balanceAfterRuntime,
-                "resource_upgrade",
-                "Partial resource tier surcharge (balance exhausted)",
-                `runtime-tier:${cfg.date}:${tenantId}`,
-              );
+              await cfg.ledger.debit(tenantId, balanceAfterRuntime, "resource_upgrade", {
+                description: "Partial resource tier surcharge (balance exhausted)",
+                referenceId: `runtime-tier:${cfg.date}:${tenantId}`,
+              });
             }
           }
         }
@@ -190,23 +181,17 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
           if (!storageCost.isZero()) {
             const currentBalance = await cfg.ledger.balance(tenantId);
             if (!currentBalance.lessThan(storageCost)) {
-              await cfg.ledger.debit(
-                tenantId,
-                storageCost,
-                "storage_upgrade",
-                "Daily storage tier surcharge",
-                `runtime-storage:${cfg.date}:${tenantId}`,
-              );
+              await cfg.ledger.debit(tenantId, storageCost, "storage_upgrade", {
+                description: "Daily storage tier surcharge",
+                referenceId: `runtime-storage:${cfg.date}:${tenantId}`,
+              });
             } else {
               // Partial debit — take what's left, then suspend
               if (currentBalance.greaterThan(Credit.ZERO)) {
-                await cfg.ledger.debit(
-                  tenantId,
-                  currentBalance,
-                  "storage_upgrade",
-                  "Partial storage tier surcharge (balance exhausted)",
-                  `runtime-storage:${cfg.date}:${tenantId}`,
-                );
+                await cfg.ledger.debit(tenantId, currentBalance, "storage_upgrade", {
+                  description: "Partial storage tier surcharge (balance exhausted)",
+                  referenceId: `runtime-storage:${cfg.date}:${tenantId}`,
+                });
               }
               if (!result.suspended.includes(tenantId)) {
                 result.suspended.push(tenantId);
@@ -222,23 +207,17 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
           if (!addonCost.isZero()) {
             const currentBalance = await cfg.ledger.balance(tenantId);
             if (!currentBalance.lessThan(addonCost)) {
-              await cfg.ledger.debit(
-                tenantId,
-                addonCost,
-                "addon",
-                "Daily infrastructure add-on charges",
-                `runtime-addon:${cfg.date}:${tenantId}`,
-              );
+              await cfg.ledger.debit(tenantId, addonCost, "addon", {
+                description: "Daily infrastructure add-on charges",
+                referenceId: `runtime-addon:${cfg.date}:${tenantId}`,
+              });
             } else {
               // Partial debit — take what's left, then suspend
               if (currentBalance.greaterThan(Credit.ZERO)) {
-                await cfg.ledger.debit(
-                  tenantId,
-                  currentBalance,
-                  "addon",
-                  "Partial add-on charges (balance exhausted)",
-                  `runtime-addon:${cfg.date}:${tenantId}`,
-                );
+                await cfg.ledger.debit(tenantId, currentBalance, "addon", {
+                  description: "Partial add-on charges (balance exhausted)",
+                  referenceId: `runtime-addon:${cfg.date}:${tenantId}`,
+                });
               }
               if (!result.suspended.includes(tenantId)) {
                 result.suspended.push(tenantId);
@@ -250,13 +229,10 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
       } else {
         // Partial deduction — debit remaining balance, then suspend
         if (balance.greaterThan(Credit.ZERO)) {
-          await cfg.ledger.debit(
-            tenantId,
-            balance,
-            "bot_runtime",
-            `Partial daily runtime (balance exhausted): ${botCount} bot(s)`,
-            runtimeRef,
-          );
+          await cfg.ledger.debit(tenantId, balance, "bot_runtime", {
+            description: `Partial daily runtime (balance exhausted): ${botCount} bot(s)`,
+            referenceId: runtimeRef,
+          });
         }
 
         if (cfg.onCreditsExhausted) {

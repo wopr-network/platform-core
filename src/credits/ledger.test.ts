@@ -1,0 +1,514 @@
+import type { PGlite } from "@electric-sql/pglite";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PlatformDb } from "../db/index.js";
+import { createTestDb, truncateAllTables } from "../test/db.js";
+import { Credit } from "./credit.js";
+import { DrizzleLedger, InsufficientBalanceError } from "./ledger.js";
+
+let pool: PGlite;
+let db: PlatformDb;
+
+beforeAll(async () => {
+  ({ db, pool } = await createTestDb());
+});
+
+afterAll(async () => {
+  await pool.close();
+});
+
+describe("DrizzleLedger", () => {
+  let ledger: DrizzleLedger;
+
+  beforeEach(async () => {
+    await truncateAllTables(pool);
+    ledger = new DrizzleLedger(db);
+    await ledger.seedSystemAccounts();
+  });
+
+  // -----------------------------------------------------------------------
+  // post() — the primitive
+  // -----------------------------------------------------------------------
+
+  describe("post()", () => {
+    it("rejects entries with fewer than 2 lines", async () => {
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t1",
+          lines: [{ accountCode: "1000", amount: Credit.fromCents(100), side: "debit" }],
+        }),
+      ).rejects.toThrow("at least 2 lines");
+    });
+
+    it("rejects unbalanced entries", async () => {
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t1",
+          lines: [
+            { accountCode: "1000", amount: Credit.fromCents(100), side: "debit" },
+            { accountCode: "2000:t1", amount: Credit.fromCents(50), side: "credit" },
+          ],
+        }),
+      ).rejects.toThrow("Unbalanced");
+    });
+
+    it("rejects zero-amount lines", async () => {
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t1",
+          lines: [
+            { accountCode: "1000", amount: Credit.ZERO, side: "debit" },
+            { accountCode: "2000:t1", amount: Credit.ZERO, side: "credit" },
+          ],
+        }),
+      ).rejects.toThrow("must be positive");
+    });
+
+    it("rejects negative-amount lines", async () => {
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t1",
+          lines: [
+            { accountCode: "1000", amount: Credit.fromRaw(-100), side: "debit" },
+            { accountCode: "2000:t1", amount: Credit.fromRaw(-100), side: "credit" },
+          ],
+        }),
+      ).rejects.toThrow("must be positive");
+    });
+
+    it("posts a balanced entry and returns it", async () => {
+      const entry = await ledger.post({
+        entryType: "purchase",
+        tenantId: "t1",
+        description: "Stripe purchase",
+        referenceId: "pi_abc123",
+        metadata: { fundingSource: "stripe" },
+        createdBy: "system",
+        lines: [
+          { accountCode: "1000", amount: Credit.fromCents(1000), side: "debit" },
+          { accountCode: "2000:t1", amount: Credit.fromCents(1000), side: "credit" },
+        ],
+      });
+
+      expect(entry.id).toBeTruthy();
+      expect(entry.entryType).toBe("purchase");
+      expect(entry.tenantId).toBe("t1");
+      expect(entry.description).toBe("Stripe purchase");
+      expect(entry.referenceId).toBe("pi_abc123");
+      expect(entry.lines).toHaveLength(2);
+    });
+
+    it("enforces unique referenceId", async () => {
+      await ledger.post({
+        entryType: "purchase",
+        tenantId: "t1",
+        referenceId: "unique-ref",
+        lines: [
+          { accountCode: "1000", amount: Credit.fromCents(100), side: "debit" },
+          { accountCode: "2000:t1", amount: Credit.fromCents(100), side: "credit" },
+        ],
+      });
+
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t2",
+          referenceId: "unique-ref",
+          lines: [
+            { accountCode: "1000", amount: Credit.fromCents(200), side: "debit" },
+            { accountCode: "2000:t2", amount: Credit.fromCents(200), side: "credit" },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("supports multi-line entries (3+ lines)", async () => {
+      // Split a $10 purchase: $7 to tenant, $3 to revenue (hypothetical split)
+      const entry = await ledger.post({
+        entryType: "split_purchase",
+        tenantId: "t1",
+        lines: [
+          { accountCode: "1000", amount: Credit.fromCents(1000), side: "debit" },
+          { accountCode: "2000:t1", amount: Credit.fromCents(700), side: "credit" },
+          { accountCode: "4000", amount: Credit.fromCents(300), side: "credit" },
+        ],
+      });
+
+      expect(entry.lines).toHaveLength(3);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // credit() — convenience
+  // -----------------------------------------------------------------------
+
+  describe("credit()", () => {
+    it("purchase: DR cash, CR unearned_revenue", async () => {
+      const entry = await ledger.credit("t1", Credit.fromCents(500), "purchase", {
+        description: "Stripe $5",
+        fundingSource: "stripe",
+      });
+
+      expect(entry.entryType).toBe("purchase");
+      expect(entry.lines).toHaveLength(2);
+
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const debitLine = entry.lines.find((l) => l.side === "debit")!;
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const creditLine = entry.lines.find((l) => l.side === "credit")!;
+      expect(debitLine.accountCode).toBe("1000"); // cash
+      expect(creditLine.accountCode).toBe("2000:t1"); // unearned revenue
+      expect(debitLine.amount.toCentsRounded()).toBe(500);
+      expect(creditLine.amount.toCentsRounded()).toBe(500);
+    });
+
+    it("signup_grant: DR expense, CR unearned_revenue", async () => {
+      const entry = await ledger.credit("t1", Credit.fromCents(100), "signup_grant");
+
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const debitLine = entry.lines.find((l) => l.side === "debit")!;
+      expect(debitLine.accountCode).toBe("5000"); // expense:signup_grant
+    });
+
+    it("rejects zero amount", async () => {
+      await expect(ledger.credit("t1", Credit.ZERO, "purchase")).rejects.toThrow("must be positive");
+    });
+
+    it("supports referenceId for idempotency", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase", {
+        referenceId: "pi_abc",
+      });
+      expect(await ledger.hasReferenceId("pi_abc")).toBe(true);
+      expect(await ledger.hasReferenceId("pi_xyz")).toBe(false);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // debit() — convenience
+  // -----------------------------------------------------------------------
+
+  describe("debit()", () => {
+    beforeEach(async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+    });
+
+    it("bot_runtime: DR unearned_revenue, CR revenue", async () => {
+      const entry = await ledger.debit("t1", Credit.fromCents(200), "bot_runtime", {
+        description: "1hr compute",
+      });
+
+      expect(entry.entryType).toBe("bot_runtime");
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const debitLine = entry.lines.find((l) => l.side === "debit")!;
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const creditLine = entry.lines.find((l) => l.side === "credit")!;
+      expect(debitLine.accountCode).toBe("2000:t1"); // unearned revenue decreases
+      expect(creditLine.accountCode).toBe("4000"); // revenue recognized
+    });
+
+    it("throws InsufficientBalanceError when balance too low", async () => {
+      await expect(ledger.debit("t1", Credit.fromCents(2000), "bot_runtime")).rejects.toBeInstanceOf(
+        InsufficientBalanceError,
+      );
+    });
+
+    it("allowNegative bypasses balance check", async () => {
+      const entry = await ledger.debit("t1", Credit.fromCents(2000), "bot_runtime", {
+        allowNegative: true,
+      });
+      expect(entry.entryType).toBe("bot_runtime");
+
+      const bal = await ledger.balance("t1");
+      expect(bal.toCentsRounded()).toBe(-1000);
+    });
+
+    it("refund: DR unearned_revenue, CR cash", async () => {
+      const entry = await ledger.debit("t1", Credit.fromCents(300), "refund");
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed present in balanced entry
+      const creditLine = entry.lines.find((l) => l.side === "credit")!;
+      expect(creditLine.accountCode).toBe("1000"); // cash goes out
+    });
+
+    it("rejects zero amount", async () => {
+      await expect(ledger.debit("t1", Credit.ZERO, "bot_runtime")).rejects.toThrow("must be positive");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // balance()
+  // -----------------------------------------------------------------------
+
+  describe("balance()", () => {
+    it("returns ZERO for unknown tenant", async () => {
+      expect((await ledger.balance("unknown")).isZero()).toBe(true);
+    });
+
+    it("reflects credits and debits", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      expect((await ledger.balance("t1")).toCentsRounded()).toBe(1000);
+
+      await ledger.debit("t1", Credit.fromCents(300), "bot_runtime");
+      expect((await ledger.balance("t1")).toCentsRounded()).toBe(700);
+    });
+
+    it("multiple tenants are independent", async () => {
+      await ledger.credit("t1", Credit.fromCents(500), "purchase");
+      await ledger.credit("t2", Credit.fromCents(200), "purchase");
+
+      expect((await ledger.balance("t1")).toCentsRounded()).toBe(500);
+      expect((await ledger.balance("t2")).toCentsRounded()).toBe(200);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // accountBalance() — any account
+  // -----------------------------------------------------------------------
+
+  describe("accountBalance()", () => {
+    it("tracks cash (asset) balance", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase"); // DR cash
+      expect((await ledger.accountBalance("1000")).toCentsRounded()).toBe(1000);
+
+      await ledger.debit("t1", Credit.fromCents(300), "refund"); // CR cash
+      expect((await ledger.accountBalance("1000")).toCentsRounded()).toBe(700);
+    });
+
+    it("tracks revenue balance", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.debit("t1", Credit.fromCents(400), "bot_runtime"); // CR revenue
+      expect((await ledger.accountBalance("4000")).toCentsRounded()).toBe(400);
+    });
+
+    it("tracks expense balance", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "signup_grant"); // DR expense
+      expect((await ledger.accountBalance("5000")).toCentsRounded()).toBe(100);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // trialBalance() — THE accounting invariant
+  // -----------------------------------------------------------------------
+
+  describe("trialBalance()", () => {
+    it("empty ledger is balanced", async () => {
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+      expect(tb.difference.isZero()).toBe(true);
+    });
+
+    it("balanced after multiple transactions", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.credit("t2", Credit.fromCents(500), "signup_grant");
+      await ledger.debit("t1", Credit.fromCents(200), "bot_runtime");
+      await ledger.debit("t2", Credit.fromCents(100), "adapter_usage");
+
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+      expect(tb.totalDebits.equals(tb.totalCredits)).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // history()
+  // -----------------------------------------------------------------------
+
+  describe("history()", () => {
+    it("returns entries newest-first with lines", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase");
+      await ledger.credit("t1", Credit.fromCents(200), "admin_grant");
+      await ledger.debit("t1", Credit.fromCents(50), "bot_runtime");
+
+      const entries = await ledger.history("t1");
+      expect(entries).toHaveLength(3);
+      expect(entries[0].entryType).toBe("bot_runtime"); // newest
+      expect(entries[2].entryType).toBe("purchase"); // oldest
+      // Each entry has lines
+      for (const e of entries) {
+        expect(e.lines.length).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    it("filters by type", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase");
+      await ledger.credit("t1", Credit.fromCents(200), "signup_grant");
+
+      const purchases = await ledger.history("t1", { type: "purchase" });
+      expect(purchases).toHaveLength(1);
+      expect(purchases[0].entryType).toBe("purchase");
+    });
+
+    it("paginates with limit and offset", async () => {
+      for (let i = 0; i < 5; i++) {
+        await ledger.credit("t1", Credit.fromCents(100), "purchase");
+      }
+
+      const page1 = await ledger.history("t1", { limit: 2, offset: 0 });
+      const page2 = await ledger.history("t1", { limit: 2, offset: 2 });
+      expect(page1).toHaveLength(2);
+      expect(page2).toHaveLength(2);
+      expect(page1[0].id).not.toBe(page2[0].id);
+    });
+
+    it("isolates tenants", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase");
+      await ledger.credit("t2", Credit.fromCents(200), "purchase");
+
+      expect(await ledger.history("t1")).toHaveLength(1);
+      expect(await ledger.history("t2")).toHaveLength(1);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // tenantsWithBalance()
+  // -----------------------------------------------------------------------
+
+  describe("tenantsWithBalance()", () => {
+    it("returns only tenants with positive balance", async () => {
+      await ledger.credit("t1", Credit.fromCents(500), "purchase");
+      await ledger.credit("t2", Credit.fromCents(300), "purchase");
+      await ledger.debit("t2", Credit.fromCents(300), "bot_runtime"); // zero balance
+
+      const result = await ledger.tenantsWithBalance();
+      expect(result).toHaveLength(1);
+      expect(result[0].tenantId).toBe("t1");
+      expect(result[0].balance.toCentsRounded()).toBe(500);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // lifetimeSpend()
+  // -----------------------------------------------------------------------
+
+  describe("lifetimeSpend()", () => {
+    it("sums all debits from tenant liability account", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.debit("t1", Credit.fromCents(200), "bot_runtime");
+      await ledger.debit("t1", Credit.fromCents(300), "adapter_usage");
+
+      const spend = await ledger.lifetimeSpend("t1");
+      expect(spend.toCentsRounded()).toBe(500);
+    });
+
+    it("returns zero for unknown tenant", async () => {
+      const spend = await ledger.lifetimeSpend("unknown");
+      expect(spend.isZero()).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // lifetimeSpendBatch()
+  // -----------------------------------------------------------------------
+
+  describe("lifetimeSpendBatch()", () => {
+    it("returns spend for multiple tenants", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.credit("t2", Credit.fromCents(500), "purchase");
+      await ledger.debit("t1", Credit.fromCents(200), "bot_runtime");
+      await ledger.debit("t2", Credit.fromCents(100), "bot_runtime");
+
+      const result = await ledger.lifetimeSpendBatch(["t1", "t2", "t3"]);
+      // biome-ignore lint/style/noNonNullAssertion: keys guaranteed present per API contract
+      expect(result.get("t1")!.toCentsRounded()).toBe(200);
+      // biome-ignore lint/style/noNonNullAssertion: keys guaranteed present per API contract
+      expect(result.get("t2")!.toCentsRounded()).toBe(100);
+      // biome-ignore lint/style/noNonNullAssertion: keys guaranteed present per API contract
+      expect(result.get("t3")!.isZero()).toBe(true);
+    });
+
+    it("returns empty map for empty input", async () => {
+      const result = await ledger.lifetimeSpendBatch([]);
+      expect(result.size).toBe(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // memberUsage()
+  // -----------------------------------------------------------------------
+
+  describe("memberUsage()", () => {
+    it("aggregates debit totals per attributed user", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.debit("t1", Credit.fromCents(200), "bot_runtime", {
+        attributedUserId: "user-a",
+      });
+      await ledger.debit("t1", Credit.fromCents(300), "bot_runtime", {
+        attributedUserId: "user-a",
+      });
+      await ledger.debit("t1", Credit.fromCents(100), "bot_runtime", {
+        attributedUserId: "user-b",
+      });
+
+      const usage = await ledger.memberUsage("t1");
+      expect(usage).toHaveLength(2);
+
+      // biome-ignore lint/style/noNonNullAssertion: seeded above, guaranteed present
+      const userA = usage.find((u) => u.userId === "user-a")!;
+      // biome-ignore lint/style/noNonNullAssertion: seeded above, guaranteed present
+      const userB = usage.find((u) => u.userId === "user-b")!;
+      expect(userA.totalDebit.toCentsRounded()).toBe(500);
+      expect(userA.transactionCount).toBe(2);
+      expect(userB.totalDebit.toCentsRounded()).toBe(100);
+      expect(userB.transactionCount).toBe(1);
+    });
+
+    it("excludes entries without attributedUserId", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.debit("t1", Credit.fromCents(200), "bot_runtime"); // no user
+
+      const usage = await ledger.memberUsage("t1");
+      expect(usage).toHaveLength(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // The accounting equation: Assets = Liabilities + Equity + Revenue - Expenses
+  // -----------------------------------------------------------------------
+
+  describe("accounting equation", () => {
+    it("holds after a purchase + usage cycle", async () => {
+      // Tenant buys $10
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      // Tenant uses $3
+      await ledger.debit("t1", Credit.fromCents(300), "bot_runtime");
+
+      const cash = await ledger.accountBalance("1000"); // asset
+      const unearned = await ledger.balance("t1"); // liability
+      const revenue = await ledger.accountBalance("4000"); // revenue
+
+      // Assets ($10) = Liabilities ($7) + Revenue ($3)
+      expect(cash.toCentsRounded()).toBe(1000);
+      expect(unearned.toCentsRounded()).toBe(700);
+      expect(revenue.toCentsRounded()).toBe(300);
+      expect(cash.toCentsRounded()).toBe(unearned.toCentsRounded() + revenue.toCentsRounded());
+    });
+
+    it("holds after purchase + grant + usage + refund", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.credit("t1", Credit.fromCents(100), "signup_grant");
+      await ledger.debit("t1", Credit.fromCents(400), "bot_runtime");
+      await ledger.debit("t1", Credit.fromCents(200), "refund");
+
+      // Assets = cash: $10 purchase - $2 refund = $8
+      // Liabilities = unearned: $10 + $1 grant - $4 usage - $2 refund = $5
+      // Revenue = $4
+      // Expense = $1 (signup grant)
+      // A = L + R - E → $8 = $5 + $4 - $1 = $8 ✓
+      const cash = await ledger.accountBalance("1000");
+      const unearned = await ledger.balance("t1");
+      const revenue = await ledger.accountBalance("4000");
+      const expense = await ledger.accountBalance("5000");
+
+      expect(cash.toCentsRounded()).toBe(800);
+      expect(unearned.toCentsRounded()).toBe(500);
+      expect(revenue.toCentsRounded()).toBe(400);
+      expect(expense.toCentsRounded()).toBe(100);
+
+      // Verify trial balance
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+    });
+  });
+});

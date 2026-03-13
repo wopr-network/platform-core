@@ -1,6 +1,6 @@
 import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
 import type { DrizzleDb } from "../../db/index.js";
-import { creditTransactions } from "../../db/schema/credits.js";
+import { journalEntries, journalLines } from "../../db/schema/ledger.js";
 import { usageSummaries } from "../../db/schema/meter-events.js";
 
 // ---------------------------------------------------------------------------
@@ -59,24 +59,26 @@ export class DrizzleAdapterUsageRepository implements IAdapterUsageRepository {
   constructor(private readonly db: DrizzleDb) {}
 
   async getAggregatedAdapterUsageDebits(startIso: string, endIso: string): Promise<AggregatedDebit[]> {
+    // Sum the debit-side journal line amounts for adapter_usage entries.
+    // In double-entry: DR tenant liability (2000:<tenantId>), CR revenue:adapter_usage (4010).
     const rows = await this.db
       .select({
-        tenantId: creditTransactions.tenantId,
-        // amount_credits stores negative values for debits; ABS gives the raw positive debit amount.
-        // Use the raw column name in sql to bypass the custom creditColumn type serializer.
-        // raw SQL: Drizzle cannot express ABS with COALESCE and SUM
-        totalDebitRaw: sql<number>`COALESCE(SUM(ABS(amount_credits)), 0)`,
+        tenantId: journalEntries.tenantId,
+        // raw SQL: Drizzle cannot express COALESCE with SUM aggregation
+        totalDebitRaw: sql<number>`COALESCE(SUM(${journalLines.amount}), 0)`,
       })
-      .from(creditTransactions)
+      .from(journalLines)
+      .innerJoin(journalEntries, eq(journalEntries.id, journalLines.journalEntryId))
       .where(
         and(
-          eq(creditTransactions.type, "adapter_usage"),
+          eq(journalEntries.entryType, "adapter_usage"),
+          eq(journalLines.side, "debit"),
           // raw SQL: Drizzle cannot express timestamptz cast for text column date comparison
-          sql`${creditTransactions.createdAt}::timestamptz >= ${startIso}::timestamptz`,
-          sql`${creditTransactions.createdAt}::timestamptz < ${endIso}::timestamptz`,
+          sql`${journalEntries.postedAt}::timestamptz >= ${startIso}::timestamptz`,
+          sql`${journalEntries.postedAt}::timestamptz < ${endIso}::timestamptz`,
         ),
       )
-      .groupBy(creditTransactions.tenantId);
+      .groupBy(journalEntries.tenantId);
 
     return rows.map((r) => ({ tenantId: r.tenantId, totalDebitRaw: Number(r.totalDebitRaw) }));
   }

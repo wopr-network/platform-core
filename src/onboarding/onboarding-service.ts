@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { BudgetTier } from "../inference/budget-guard.js";
 import { checkSessionBudget } from "../inference/budget-guard.js";
@@ -30,7 +30,7 @@ export class OnboardingService {
     private readonly daemon: IDaemonManager,
     private readonly usageRepo?: ISessionUsageRepository,
     private readonly scriptRepo: IOnboardingScriptRepository = OnboardingService.DEFAULT_SCRIPT_REPO,
-    private readonly creditLedger?: ICreditLedger,
+    private readonly creditLedger?: ILedger,
     private readonly resolveTenantId?: (userId: string) => Promise<string | null>,
   ) {}
 
@@ -137,15 +137,12 @@ export class OnboardingService {
         if (costCents > 0) {
           const tenantId = await this.resolveTenantId(session.userId);
           if (tenantId) {
-            await this.creditLedger.debit(
-              tenantId,
-              Credit.fromCents(costCents),
-              "onboarding_llm",
-              `Onboarding session ${sessionId}`,
-              `onboarding-${sessionId}-${Date.now()}`,
-              true, // allowNegative — don't block onboarding mid-conversation
-              session.userId,
-            );
+            await this.creditLedger.debit(tenantId, Credit.fromCents(costCents), "onboarding_llm", {
+              description: `Onboarding session ${sessionId}`,
+              referenceId: `onboarding-${sessionId}-${Date.now()}`,
+              allowNegative: true,
+              attributedUserId: session.userId,
+            });
           }
         }
       }

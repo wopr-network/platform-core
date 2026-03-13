@@ -3,11 +3,11 @@ import type { AutoTopupChargeResult } from "./auto-topup-charge.js";
 import { MAX_CONSECUTIVE_FAILURES } from "./auto-topup-charge.js";
 import type { IAutoTopupSettingsRepository } from "./auto-topup-settings-repository.js";
 import type { Credit } from "./credit.js";
-import type { ICreditLedger } from "./credit-ledger.js";
+import type { ILedger } from "./ledger.js";
 
 export interface UsageTopupDeps {
   settingsRepo: IAutoTopupSettingsRepository;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   /** Injected charge function (allows mocking in tests). */
   chargeAutoTopup: (tenantId: string, amount: Credit, source: string) => Promise<AutoTopupChargeResult>;
   /** Optional tenant status check. If provided and returns non-null, skip the charge. */

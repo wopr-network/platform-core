@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IAutoTopupEventLogRepository } from "../../credits/auto-topup-event-log-repository.js";
 import { Credit } from "../../credits/credit.js";
-import type { CreditTransaction, ICreditLedger } from "../../credits/credit-ledger.js";
+import type { ILedger, JournalEntry } from "../../credits/ledger.js";
 import { PaymentMethodOwnershipError } from "../payment-processor.js";
 import type { CreditPriceMap } from "./credit-prices.js";
 import { StripePaymentProcessor } from "./stripe-payment-processor.js";
@@ -58,7 +58,8 @@ function createMocks() {
     buildCustomerIdMap: vi.fn(),
   };
 
-  const creditLedger: ICreditLedger = {
+  const creditLedger: ILedger = {
+    post: vi.fn(),
     credit: vi.fn(),
     debit: vi.fn(),
     balance: vi.fn(),
@@ -69,6 +70,12 @@ function createMocks() {
     expiredCredits: vi.fn(),
     lifetimeSpend: vi.fn(),
     lifetimeSpendBatch: vi.fn().mockResolvedValue(new Map()),
+    trialBalance: vi.fn(),
+    accountBalance: vi.fn(),
+    seedSystemAccounts: vi.fn(),
+    existsByReferenceIdLike: vi.fn(),
+    sumPurchasesForPeriod: vi.fn(),
+    getActiveTenantIdsInWindow: vi.fn(),
   };
 
   const autoTopupEventLog: IAutoTopupEventLogRepository = {
@@ -330,7 +337,7 @@ describe("StripePaymentProcessor", () => {
         status: "succeeded",
       } as unknown as Stripe.Response<Stripe.PaymentIntent>);
       vi.mocked(mocks.creditLedger.hasReferenceId).mockResolvedValue(false);
-      vi.mocked(mocks.creditLedger.credit).mockResolvedValue({} as unknown as CreditTransaction);
+      vi.mocked(mocks.creditLedger.credit).mockResolvedValue({} as unknown as JournalEntry);
       vi.mocked(mocks.autoTopupEventLog.writeEvent).mockResolvedValue(undefined);
 
       const result = await processor.charge({

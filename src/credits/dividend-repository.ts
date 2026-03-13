@@ -1,8 +1,8 @@
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { PlatformDb } from "../db/index.js";
 import { adminUsers } from "../db/schema/admin-users.js";
-import { creditTransactions } from "../db/schema/credits.js";
 import { dividendDistributions } from "../db/schema/dividend-distributions.js";
+import { journalEntries, journalLines } from "../db/schema/ledger.js";
 import { Credit } from "./credit.js";
 import type { DividendHistoryEntry, DividendStats } from "./repository-types.js";
 
@@ -30,35 +30,36 @@ export class DrizzleDividendRepository implements IDividendRepository {
   constructor(private readonly db: PlatformDb) {}
 
   async getStats(tenantId: string): Promise<DividendStats> {
-    // 1. Pool = sum of purchase amounts from yesterday UTC
+    // 1. Pool = sum of purchase credit amounts from yesterday UTC
+    // In double-entry: purchase entries have a credit line on the tenant liability account.
+    // Sum those credit line amounts for entries posted yesterday.
     const poolRow = (
       await this.db
-        // raw SQL: Drizzle cannot express COALESCE(SUM(...), 0) aggregate
-        .select({ total: sql<number>`COALESCE(SUM(${creditTransactions.amount}), 0)` })
-        .from(creditTransactions)
+        .select({ total: sql<string>`COALESCE(SUM(${journalLines.amount}), 0)` })
+        .from(journalLines)
+        .innerJoin(journalEntries, eq(journalEntries.id, journalLines.journalEntryId))
         .where(
           and(
-            eq(creditTransactions.type, "purchase"),
+            eq(journalEntries.entryType, "purchase"),
+            eq(journalLines.side, "credit"),
             // raw SQL: Drizzle cannot express date_trunc with interval arithmetic
-            sql`${creditTransactions.createdAt}::timestamp >= date_trunc('day', timezone('UTC', now())) - INTERVAL '1 day'`,
-            sql`${creditTransactions.createdAt}::timestamp < date_trunc('day', timezone('UTC', now()))`,
+            sql`${journalEntries.postedAt}::timestamp >= date_trunc('day', timezone('UTC', now())) - INTERVAL '1 day'`,
+            sql`${journalEntries.postedAt}::timestamp < date_trunc('day', timezone('UTC', now()))`,
           ),
         )
     )[0];
-    const poolCents = poolRow?.total ?? 0;
-    const pool = Credit.fromCents(poolCents);
+    const pool = Credit.fromRaw(Number(poolRow?.total ?? 0));
 
     // 2. Active users = distinct tenants with a purchase in the last 7 days
     const activeRow = (
       await this.db
-        // raw SQL: Drizzle cannot express COUNT(DISTINCT col)
-        .select({ count: sql<number>`COUNT(DISTINCT ${creditTransactions.tenantId})` })
-        .from(creditTransactions)
+        .select({ count: sql<number>`COUNT(DISTINCT ${journalEntries.tenantId})` })
+        .from(journalEntries)
         .where(
           and(
-            eq(creditTransactions.type, "purchase"),
+            eq(journalEntries.entryType, "purchase"),
             // raw SQL: Drizzle cannot express timestamp comparison with interval arithmetic
-            sql`${creditTransactions.createdAt}::timestamp >= timezone('UTC', now()) - INTERVAL '7 days'`,
+            sql`${journalEntries.postedAt}::timestamp >= timezone('UTC', now()) - INTERVAL '7 days'`,
           ),
         )
     )[0];
@@ -75,10 +76,10 @@ export class DrizzleDividendRepository implements IDividendRepository {
     // 5. User eligibility — last purchase within 7 days
     const userPurchaseRow = (
       await this.db
-        .select({ createdAt: creditTransactions.createdAt })
-        .from(creditTransactions)
-        .where(and(eq(creditTransactions.tenantId, tenantId), eq(creditTransactions.type, "purchase")))
-        .orderBy(desc(creditTransactions.createdAt))
+        .select({ postedAt: journalEntries.postedAt })
+        .from(journalEntries)
+        .where(and(eq(journalEntries.tenantId, tenantId), eq(journalEntries.entryType, "purchase")))
+        .orderBy(desc(journalEntries.postedAt))
         .limit(1)
     )[0];
 
@@ -87,10 +88,7 @@ export class DrizzleDividendRepository implements IDividendRepository {
     let userWindowExpiresAt: string | null = null;
 
     if (userPurchaseRow) {
-      const rawTs = userPurchaseRow.createdAt;
-      // Parse the timestamp directly. PGlite may return ISO strings with or without
-      // timezone suffix. JavaScript's Date constructor handles ISO 8601 strings natively.
-      const lastPurchase = new Date(rawTs);
+      const lastPurchase = new Date(userPurchaseRow.postedAt);
       userLastPurchaseAt = lastPurchase.toISOString();
 
       const windowExpiry = new Date(lastPurchase.getTime() + 7 * 24 * 60 * 60 * 1000);

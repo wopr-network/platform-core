@@ -7,7 +7,7 @@
 
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { CreditLedger } from "../../credits/credit-ledger.js";
+import { DrizzleLedger } from "../../credits/ledger.js";
 import type { PlatformDb } from "../../db/index.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
 import { DrizzleWebhookSeenRepository } from "../drizzle-webhook-seen-repository.js";
@@ -41,13 +41,15 @@ afterAll(async () => {
 
 describe("handlePayRamWebhook", () => {
   let chargeStore: PayRamChargeRepository;
-  let creditLedger: CreditLedger;
+  let creditLedger: DrizzleLedger;
   let deps: PayRamWebhookDeps;
 
   beforeEach(async () => {
     await truncateAllTables(pool);
     chargeStore = new PayRamChargeRepository(db);
-    creditLedger = new CreditLedger(db);
+    creditLedger = new DrizzleLedger(db);
+
+    await creditLedger.seedSystemAccounts();
     deps = { chargeStore, creditLedger, replayGuard: noOpReplayGuard };
 
     // Create a default test charge
@@ -77,14 +79,14 @@ describe("handlePayRamWebhook", () => {
       const history = await creditLedger.history("tenant-a");
       expect(history).toHaveLength(1);
       expect(history[0].referenceId).toBe("payram:ref-test-001");
-      expect(history[0].type).toBe("purchase");
+      expect(history[0].entryType).toBe("purchase");
     });
 
     it("records fundingSource as payram", async () => {
       await handlePayRamWebhook(deps, makePayload({ status: "FILLED" }));
 
       const history = await creditLedger.history("tenant-a");
-      expect(history[0].fundingSource).toBe("payram");
+      expect(history[0].metadata?.fundingSource).toBe("payram");
     });
 
     it("marks the charge as credited after FILLED", async () => {

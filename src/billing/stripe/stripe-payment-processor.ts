@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import { chargeAutoTopup } from "../../credits/auto-topup-charge.js";
 import type { IAutoTopupEventLogRepository } from "../../credits/auto-topup-event-log-repository.js";
 import { Credit } from "../../credits/credit.js";
-import type { ICreditLedger } from "../../credits/credit-ledger.js";
+import type { ILedger } from "../../credits/ledger.js";
 import {
   type ChargeOpts,
   type ChargeResult,
@@ -37,7 +37,7 @@ export interface StripePaymentProcessorDeps {
   tenantRepo: ITenantCustomerRepository;
   webhookSecret: string;
   priceMap?: CreditPriceMap;
-  creditLedger: ICreditLedger;
+  creditLedger: ILedger;
   autoTopupEventLog?: IAutoTopupEventLogRepository;
   /** Consumer-supplied webhook handler (handles domain-specific event processing). */
   webhookHandler?: (event: Stripe.Event) => Promise<StripeWebhookHandlerResult>;
@@ -50,7 +50,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
   private readonly tenantRepo: ITenantCustomerRepository;
   private readonly webhookSecret: string;
   private readonly priceMap: CreditPriceMap;
-  private readonly creditLedger: ICreditLedger;
+  private readonly creditLedger: ILedger;
   private readonly autoTopupEventLog?: IAutoTopupEventLogRepository;
   private readonly webhookHandler?: (event: Stripe.Event) => Promise<StripeWebhookHandlerResult>;
 

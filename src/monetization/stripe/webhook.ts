@@ -3,7 +3,7 @@ import type {
   IWebhookSeenRepository,
   TenantCustomerRepository,
 } from "@wopr-network/platform-core/billing";
-import type { CreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { NotificationService } from "@wopr-network/platform-core/email";
 import type Stripe from "stripe";
@@ -43,7 +43,7 @@ export interface WebhookResult {
  */
 export interface WebhookDeps {
   tenantRepo: TenantCustomerRepository;
-  creditLedger: CreditLedger;
+  creditLedger: ILedger;
   /** Map of Stripe Price ID -> CreditPricePoint for bonus calculation. */
   priceMap?: CreditPriceMap;
   /** Bot billing manager for reactivation after credit purchase (WOP-447). */
@@ -60,6 +60,46 @@ export interface WebhookDeps {
   vpsRepo?: IVpsRepository;
   /** Promotion engine for bonus_on_purchase grants. */
   promotionEngine?: PromotionEngine;
+}
+
+/**
+ * Extract the card fingerprint from a Stripe webhook payload object.
+ * Works for PaymentIntent (via latest_charge or charges.data[0]) and
+ * Invoice (via charge) objects where the Charge is expanded.
+ * Returns undefined when the nested object is only a string ID (not expanded).
+ */
+function extractStripeFingerprint(obj: unknown): string | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const o = obj as Record<string, unknown>;
+
+  // PaymentIntent: pi.latest_charge expanded → Charge.payment_method_details.card.fingerprint
+  const latestCharge = o.latest_charge;
+  if (latestCharge && typeof latestCharge === "object") {
+    const pmd = (latestCharge as Record<string, unknown>).payment_method_details as Record<string, unknown> | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  // PaymentIntent (older API): pi.charges.data[0].payment_method_details.card.fingerprint
+  const charges = o.charges as { data?: Array<Record<string, unknown>> } | undefined;
+  const charge0 = charges?.data?.[0];
+  if (charge0) {
+    const pmd = charge0.payment_method_details as Record<string, unknown> | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  // Invoice: invoice.charge expanded → Charge.payment_method_details.card.fingerprint
+  const invoiceCharge = o.charge;
+  if (invoiceCharge && typeof invoiceCharge === "object") {
+    const pmd = (invoiceCharge as Record<string, unknown>).payment_method_details as
+      | Record<string, unknown>
+      | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  return undefined;
 }
 
 /**
@@ -133,14 +173,12 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
       }
 
       // Credit the ledger with session ID as reference for idempotency.
-      await deps.creditLedger.credit(
-        tenant,
-        Credit.fromCents(creditCents),
-        "purchase",
-        `Stripe credit purchase (session: ${stripeSessionId})`,
-        stripeSessionId,
-        "stripe",
-      );
+      await deps.creditLedger.credit(tenant, Credit.fromCents(creditCents), "purchase", {
+        description: `Stripe credit purchase (session: ${stripeSessionId})`,
+        referenceId: stripeSessionId,
+        fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(session),
+      });
 
       // New-user first-purchase bonus for referred users (WOP-950).
       // Must run before credit match so markFirstPurchase hasn't been called yet.
@@ -292,14 +330,12 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
 
       // Fallback grant — inline path failed or process crashed before granting.
       const source = pi.metadata?.wopr_source ?? "auto_topup_webhook_fallback";
-      await deps.creditLedger.credit(
-        tenant,
-        Credit.fromCents(pi.amount),
-        "purchase",
-        `Auto-topup webhook fallback (${source})`,
-        pi.id,
-        "stripe",
-      );
+      await deps.creditLedger.credit(tenant, Credit.fromCents(pi.amount), "purchase", {
+        description: `Auto-topup webhook fallback (${source})`,
+        referenceId: pi.id,
+        fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(pi),
+      });
 
       result = {
         handled: true,
@@ -379,14 +415,12 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
         break;
       }
 
-      await deps.creditLedger.credit(
-        tenant,
-        Credit.fromCents(amountPaid),
-        "purchase",
-        `Stripe subscription renewal (invoice: ${invoice.id})`,
-        invoice.id,
-        "stripe",
-      );
+      await deps.creditLedger.credit(tenant, Credit.fromCents(amountPaid), "purchase", {
+        description: `Stripe subscription renewal (invoice: ${invoice.id})`,
+        referenceId: invoice.id,
+        fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(invoice),
+      });
 
       // Reactivate suspended bots now that balance is positive (WOP-447).
       let reactivatedBots: string[] | undefined;
@@ -437,14 +471,11 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
       }
 
       // Debit the ledger. Allow negative balance — refund must always succeed.
-      await deps.creditLedger.debit(
-        tenant,
-        Credit.fromCents(refundedCents),
-        "refund",
-        `Stripe refund (charge: ${charge.id})`,
-        event.id,
-        true, // allowNegative
-      );
+      await deps.creditLedger.debit(tenant, Credit.fromCents(refundedCents), "refund", {
+        description: `Stripe refund (charge: ${charge.id})`,
+        referenceId: event.id,
+        allowNegative: true,
+      });
 
       logger.warn("Charge refunded — credits debited", { tenant, customerId, chargeId: charge.id, refundedCents });
 
@@ -483,14 +514,11 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
 
       // Debit disputed amount (allow negative). Idempotent via disputeId.
       if (disputedCents > 0 && !(await deps.creditLedger.hasReferenceId(disputeId))) {
-        await deps.creditLedger.debit(
-          tenant,
-          Credit.fromCents(disputedCents),
-          "correction",
-          `Stripe dispute (dispute: ${disputeId}, reason: ${dispute.reason})`,
-          disputeId,
-          true, // allowNegative
-        );
+        await deps.creditLedger.debit(tenant, Credit.fromCents(disputedCents), "correction", {
+          description: `Stripe dispute (dispute: ${disputeId}, reason: ${dispute.reason})`,
+          referenceId: disputeId,
+          allowNegative: true,
+        });
       }
 
       // Suspend all bots (non-fatal if botBilling not provided).
@@ -554,14 +582,11 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
         // Re-credit the disputed amount. Idempotent via reversal referenceId.
         const reversalRef = `${disputeId}:reversal`;
         if (disputedCents > 0 && !(await deps.creditLedger.hasReferenceId(reversalRef))) {
-          await deps.creditLedger.credit(
-            tenant,
-            Credit.fromCents(disputedCents),
-            "correction",
-            `Stripe dispute won — credits restored (dispute: ${disputeId})`,
-            reversalRef,
-            "stripe",
-          );
+          await deps.creditLedger.credit(tenant, Credit.fromCents(disputedCents), "correction", {
+            description: `Stripe dispute won — credits restored (dispute: ${disputeId})`,
+            referenceId: reversalRef,
+            fundingSource: "stripe",
+          });
         }
 
         // Reactivate bots (non-fatal).

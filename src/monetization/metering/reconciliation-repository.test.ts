@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DrizzleDb } from "../../db/index.js";
 import { createTestDb, seedUsageSummary, truncateAllTables } from "../../test/db.js";
@@ -125,12 +125,14 @@ describe("DrizzleUsageSummaryRepository", () => {
 
 describe("DrizzleAdapterUsageRepository", () => {
   let repo: DrizzleAdapterUsageRepository;
-  let ledger: CreditLedger;
+  let ledger: DrizzleLedger;
 
   beforeEach(async () => {
     await truncateAllTables(pool);
     repo = new DrizzleAdapterUsageRepository(db);
-    ledger = new CreditLedger(db);
+    ledger = new DrizzleLedger(db);
+
+    await ledger.seedSystemAccounts();
   });
 
   it("returns empty array when no adapter_usage debits exist", async () => {
@@ -146,9 +148,9 @@ describe("DrizzleAdapterUsageRepository", () => {
     await ledger.credit("t1", Credit.fromCents(1000), "purchase");
     await ledger.credit("t2", Credit.fromCents(1000), "purchase");
 
-    await ledger.debit("t1", Credit.fromCents(30), "adapter_usage", "t1-debit-1");
-    await ledger.debit("t1", Credit.fromCents(20), "adapter_usage", "t1-debit-2");
-    await ledger.debit("t2", Credit.fromCents(50), "adapter_usage", "t2-debit-1");
+    await ledger.debit("t1", Credit.fromCents(30), "adapter_usage", { description: "t1-debit-1" });
+    await ledger.debit("t1", Credit.fromCents(20), "adapter_usage", { description: "t1-debit-2" });
+    await ledger.debit("t2", Credit.fromCents(50), "adapter_usage", { description: "t2-debit-1" });
 
     // Query window covering today
     const today = new Date().toISOString().slice(0, 10);
@@ -167,8 +169,8 @@ describe("DrizzleAdapterUsageRepository", () => {
 
   it("excludes non-adapter_usage debit types", async () => {
     await ledger.credit("t1", Credit.fromCents(1000), "purchase");
-    await ledger.debit("t1", Credit.fromCents(30), "adapter_usage", "adapter debit");
-    await ledger.debit("t1", Credit.fromCents(20), "bot_runtime", "runtime debit");
+    await ledger.debit("t1", Credit.fromCents(30), "adapter_usage", { description: "adapter debit" });
+    await ledger.debit("t1", Credit.fromCents(20), "bot_runtime", { description: "runtime debit" });
 
     const today = new Date().toISOString().slice(0, 10);
     const startIso = `${today}T00:00:00Z`;
@@ -181,7 +183,7 @@ describe("DrizzleAdapterUsageRepository", () => {
 
   it("excludes credit transactions (positive amounts are not debits)", async () => {
     await ledger.credit("t1", Credit.fromCents(1000), "purchase");
-    await ledger.debit("t1", Credit.fromCents(10), "adapter_usage", "real debit");
+    await ledger.debit("t1", Credit.fromCents(10), "adapter_usage", { description: "real debit" });
 
     const today = new Date().toISOString().slice(0, 10);
     const startIso = `${today}T00:00:00Z`;

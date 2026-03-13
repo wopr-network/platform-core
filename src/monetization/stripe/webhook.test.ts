@@ -11,7 +11,7 @@ import {
   noOpReplayGuard,
   TenantCustomerRepository,
 } from "@wopr-network/platform-core/billing";
-import { Credit, CreditLedger } from "@wopr-network/platform-core/credits";
+import { Credit, DrizzleLedger } from "@wopr-network/platform-core/credits";
 import type Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
@@ -28,7 +28,7 @@ function makeReplayGuard() {
 
 describe("handleWebhookEvent (credit model)", () => {
   let tenantRepo: TenantCustomerRepository;
-  let creditLedger: CreditLedger;
+  let creditLedger: DrizzleLedger;
   let deps: WebhookDeps;
 
   beforeAll(async () => {
@@ -44,7 +44,9 @@ describe("handleWebhookEvent (credit model)", () => {
   beforeEach(async () => {
     await truncateAllTables(pool);
     tenantRepo = new TenantCustomerRepository(db);
-    creditLedger = new CreditLedger(db);
+    creditLedger = new DrizzleLedger(db);
+
+    await creditLedger.seedSystemAccounts();
     deps = { tenantRepo, creditLedger, replayGuard: noOpReplayGuard };
   });
 
@@ -227,7 +229,7 @@ describe("handleWebhookEvent (credit model)", () => {
       const txns = await creditLedger.history("tenant-123");
       expect(txns).toHaveLength(1);
       expect(txns[0].description).toContain("cs_test_abc");
-      expect(txns[0].type).toBe("purchase");
+      expect(txns[0].entryType).toBe("purchase");
       expect(txns[0].referenceId).toBe("cs_test_abc");
     });
 
@@ -870,7 +872,7 @@ describe("handleWebhookEvent (credit model)", () => {
       const txns = await creditLedger.history("tenant-renew-ref");
       expect(txns).toHaveLength(1);
       expect(txns[0].referenceId).toBe("in_renewal_abc");
-      expect(txns[0].type).toBe("purchase");
+      expect(txns[0].entryType).toBe("purchase");
       expect(txns[0].description).toContain("in_renewal_abc");
     });
 
@@ -913,7 +915,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("debits the credit ledger for the refunded amount", async () => {
       await tenantRepo.upsert({ tenant: "tenant-ref-1", processorCustomerId: "cus_ref_abc" });
-      await creditLedger.credit("tenant-ref-1", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-ref-1", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const result = await handleWebhookEvent(deps, makeChargeRefundedEvent());
 
@@ -940,7 +942,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("is idempotent — skips duplicate refund for same charge ID", async () => {
       await tenantRepo.upsert({ tenant: "tenant-ref-idem", processorCustomerId: "cus_ref_idem" });
-      await creditLedger.credit("tenant-ref-idem", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-ref-idem", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const event = makeChargeRefundedEvent({ customer: "cus_ref_idem" });
 
@@ -973,7 +975,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("handles customer object instead of string", async () => {
       await tenantRepo.upsert({ tenant: "tenant-ref-obj", processorCustomerId: "cus_ref_obj" });
-      await creditLedger.credit("tenant-ref-obj", Credit.fromCents(3000), "purchase", "seed");
+      await creditLedger.credit("tenant-ref-obj", Credit.fromCents(3000), "purchase", { description: "seed" });
 
       const result = await handleWebhookEvent(
         deps,
@@ -986,14 +988,14 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("records event ID as referenceId in the ledger transaction", async () => {
       await tenantRepo.upsert({ tenant: "tenant-ref-txn", processorCustomerId: "cus_ref_txn" });
-      await creditLedger.credit("tenant-ref-txn", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-ref-txn", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       await handleWebhookEvent(deps, makeChargeRefundedEvent({ customer: "cus_ref_txn", id: "ch_ref_txn_123" }));
 
       const txns = await creditLedger.history("tenant-ref-txn", { type: "refund" });
       expect(txns).toHaveLength(1);
       expect(txns[0].referenceId).toBe("evt_charge_ref_1");
-      expect(txns[0].type).toBe("refund");
+      expect(txns[0].entryType).toBe("refund");
       expect(txns[0].description).toContain("ch_ref_txn_123");
     });
   });
@@ -1076,7 +1078,11 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("skips credit when referenceId already exists (inline grant ran first)", async () => {
       // Simulate inline grant already happened
-      await creditLedger.credit("t1", Credit.fromCents(500), "purchase", "Auto-topup", "pi_already_granted", "stripe");
+      await creditLedger.credit("t1", Credit.fromCents(500), "purchase", {
+        description: "Auto-topup",
+        referenceId: "pi_already_granted",
+        fundingSource: "stripe",
+      });
 
       const event = {
         id: "evt_pi_success_2",
@@ -1172,7 +1178,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("freezes tenant credits and suspends bots on dispute", async () => {
       await tenantRepo.upsert({ tenant: "tenant-dispute-1", processorCustomerId: "cus_dispute_abc" });
-      await creditLedger.credit("tenant-dispute-1", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-dispute-1", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const botBilling = {
         suspendAllForTenant: vi.fn(async () => ["bot-d1"]),
@@ -1201,7 +1207,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("is idempotent — skips duplicate debit for same dispute ID", async () => {
       await tenantRepo.upsert({ tenant: "tenant-dispute-idem", processorCustomerId: "cus_dispute_idem" });
-      await creditLedger.credit("tenant-dispute-idem", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-dispute-idem", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const event = makeDisputeCreatedEvent("cus_dispute_idem");
 
@@ -1214,7 +1220,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("sends admin notification when notificationService is available", async () => {
       await tenantRepo.upsert({ tenant: "tenant-dispute-notify", processorCustomerId: "cus_dispute_notify" });
-      await creditLedger.credit("tenant-dispute-notify", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-dispute-notify", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const notifyFn = vi.fn();
       const notificationService = {
@@ -1267,7 +1273,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("handles customer object (expanded) inside charge", async () => {
       await tenantRepo.upsert({ tenant: "tenant-dispute-obj", processorCustomerId: "cus_dispute_obj" });
-      await creditLedger.credit("tenant-dispute-obj", Credit.fromCents(3000), "purchase", "seed");
+      await creditLedger.credit("tenant-dispute-obj", Credit.fromCents(3000), "purchase", { description: "seed" });
 
       const result = await handleWebhookEvent(deps, makeDisputeCreatedEvent({ id: "cus_dispute_obj" }));
 
@@ -1277,7 +1283,7 @@ describe("handleWebhookEvent (credit model)", () => {
 
     it("works without botBilling (no suspension, still handled)", async () => {
       await tenantRepo.upsert({ tenant: "tenant-dispute-no-bb", processorCustomerId: "cus_dispute_no_bb" });
-      await creditLedger.credit("tenant-dispute-no-bb", Credit.fromCents(5000), "purchase", "seed");
+      await creditLedger.credit("tenant-dispute-no-bb", Credit.fromCents(5000), "purchase", { description: "seed" });
 
       const result = await handleWebhookEvent(deps, makeDisputeCreatedEvent("cus_dispute_no_bb"));
 

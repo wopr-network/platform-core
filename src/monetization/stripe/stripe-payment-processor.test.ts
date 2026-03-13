@@ -4,7 +4,7 @@ import type {
   IWebhookSeenRepository,
 } from "@wopr-network/platform-core/billing";
 import { PaymentMethodOwnershipError } from "@wopr-network/platform-core/billing";
-import type { CreditTransaction, ICreditLedger } from "@wopr-network/platform-core/credits";
+import type { ILedger, JournalEntry } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,7 +61,8 @@ function createMocks() {
     buildCustomerIdMap: vi.fn(),
   };
 
-  const creditLedger: ICreditLedger = {
+  const creditLedger: ILedger = {
+    post: vi.fn(),
     credit: vi.fn(),
     debit: vi.fn(),
     balance: vi.fn(),
@@ -72,6 +73,12 @@ function createMocks() {
     expiredCredits: vi.fn(),
     lifetimeSpend: vi.fn(),
     lifetimeSpendBatch: vi.fn().mockResolvedValue(new Map()),
+    trialBalance: vi.fn(),
+    accountBalance: vi.fn(),
+    seedSystemAccounts: vi.fn(),
+    existsByReferenceIdLike: vi.fn(),
+    sumPurchasesForPeriod: vi.fn(),
+    getActiveTenantIdsInWindow: vi.fn(),
   };
 
   const replayGuard: IWebhookSeenRepository = {
@@ -340,7 +347,7 @@ describe("StripePaymentProcessor", () => {
         status: "succeeded",
       } as unknown as Stripe.Response<Stripe.PaymentIntent>);
       vi.mocked(mocks.creditLedger.hasReferenceId).mockResolvedValue(false);
-      vi.mocked(mocks.creditLedger.credit).mockResolvedValue({} as unknown as CreditTransaction);
+      vi.mocked(mocks.creditLedger.credit).mockResolvedValue({} as unknown as JournalEntry);
       vi.mocked(mocks.autoTopupEventLog.writeEvent).mockResolvedValue(undefined);
 
       const result = await processor.charge({
