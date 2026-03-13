@@ -73,12 +73,14 @@ export default function PluginsPage() {
   const [catalog, setCatalog] = useState<PluginManifest[]>([]);
   const [loading, setLoading] = useState(true);
   const [installed, setInstalled] = useState<InstalledPlugin[]>([]);
+  const installedRef = useRef<InstalledPlugin[]>([]);
   const [search, setSearch] = useState("");
   const [bots, setBots] = useState<BotSummary[]>([]);
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const selectedBotIdRef = useRef<string | null>(null);
   const [botsLoading, setBotsLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
+  const togglingRef = useRef<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [installedPage, setInstalledPage] = useState(1);
   const [catalogPage, setCatalogPage] = useState(1);
@@ -128,6 +130,9 @@ export default function PluginsPage() {
     loadCatalog();
   }, [loadCatalog]);
 
+  // Keep installedRef current so togglePlugin can read installed without being in useCallback deps
+  installedRef.current = installed;
+
   // Load installed plugins when bot changes
   useEffect(() => {
     if (!selectedBotId) {
@@ -139,36 +144,43 @@ export default function PluginsPage() {
       .catch(() => setInstalled([]));
   }, [selectedBotId]);
 
-  async function togglePlugin(pluginId: string) {
-    if (!selectedBotId || toggling) return;
-    const plugin = installed.find((p) => p.pluginId === pluginId);
-    if (!plugin) return;
+  const togglePlugin = useCallback(
+    async (pluginId: string) => {
+      if (!selectedBotId || togglingRef.current) return;
+      const plugin = installedRef.current.find((p) => p.pluginId === pluginId);
+      if (!plugin) return;
 
-    const previousEnabled = plugin.enabled;
-    const newEnabled = !previousEnabled;
-    setToggling(pluginId);
-    setToggleError(null);
+      // Set ref synchronously BEFORE any await — prevents race
+      togglingRef.current = pluginId;
 
-    // Optimistic update
-    setInstalled((prev) =>
-      prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: newEnabled } : p)),
-    );
+      const previousEnabled = plugin.enabled;
+      const newEnabled = !previousEnabled;
+      setToggling(pluginId);
+      setToggleError(null);
 
-    try {
-      await togglePluginEnabled(selectedBotId, pluginId, newEnabled);
-      // Refetch from server to confirm state (handles side effects like dependency enabling)
-      const refreshed = await listInstalledPlugins(selectedBotId);
-      setInstalled(refreshed);
-    } catch {
-      // Revert on failure
+      // Optimistic update
       setInstalled((prev) =>
-        prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: previousEnabled } : p)),
+        prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: newEnabled } : p)),
       );
-      setToggleError("Failed to update plugin. Please try again.");
-    } finally {
-      setToggling(null);
-    }
-  }
+
+      try {
+        await togglePluginEnabled(selectedBotId, pluginId, newEnabled);
+        // Refetch from server to confirm state (handles side effects like dependency enabling)
+        const refreshed = await listInstalledPlugins(selectedBotId);
+        setInstalled(refreshed);
+      } catch {
+        // Revert on failure
+        setInstalled((prev) =>
+          prev.map((p) => (p.pluginId === pluginId ? { ...p, enabled: previousEnabled } : p)),
+        );
+        setToggleError("Failed to update plugin. Please try again.");
+      } finally {
+        togglingRef.current = null;
+        setToggling(null);
+      }
+    },
+    [selectedBotId],
+  );
 
   const installedManifests = useMemo(() => {
     const manifestMap = new Map(catalog.map((m) => [m.id, m]));
