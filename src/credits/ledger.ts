@@ -66,6 +66,12 @@ export interface PostEntryInput {
   /** Override the posted_at timestamp (useful in tests to backdate entries). */
   postedAt?: string;
   lines: JournalLine[];
+  /**
+   * When set, verifies inside the transaction (after acquiring row locks) that
+   * the tenant's balance >= amount. Throws InsufficientBalanceError otherwise.
+   * Use this instead of a pre-check outside the transaction (TOCTOU-safe).
+   */
+  balanceCheck?: { tenantId: string; amount: Credit };
 }
 
 export interface JournalEntry {
@@ -285,33 +291,40 @@ export class DrizzleLedger implements ILedger {
   }
 
   /**
-   * Get or create the per-tenant unearned_revenue liability account.
+   * Get or create the per-tenant unearned_revenue liability account, then lock
+   * it for the duration of the surrounding transaction.
    * Code format: `2000:<tenantId>`
+   *
+   * Uses INSERT ON CONFLICT DO NOTHING so concurrent first-time calls for the
+   * same tenant are idempotent (no unique-constraint crash on the second writer).
    */
-  private async ensureTenantAccount(
+  private async ensureTenantAccountLocked(
     tx: Parameters<Parameters<PlatformDb["transaction"]>[0]>[0],
     tenantId: string,
   ): Promise<string> {
     const code = `2000:${tenantId}`;
-    const existing = await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, code)).limit(1);
-
-    if (existing[0]) return existing[0].id;
-
-    const id = crypto.randomUUID();
-    await tx.insert(accounts).values({
-      id,
-      code,
-      name: `Unearned Revenue: ${tenantId}`,
-      type: "liability",
-      normalSide: "credit",
-      tenantId,
-    });
-    // Initialize balance row
-    await tx.insert(accountBalances).values({ accountId: id, balance: 0 });
-    return id;
+    // Idempotent upsert — safe under concurrent first-time creation.
+    await tx
+      .insert(accounts)
+      .values({
+        id: crypto.randomUUID(),
+        code,
+        name: `Unearned Revenue: ${tenantId}`,
+        type: "liability",
+        normalSide: "credit",
+        tenantId,
+      })
+      .onConflictDoNothing({ target: accounts.code });
+    // resolveAccountLocked acquires FOR UPDATE on the account row and ensures
+    // the account_balances row exists, serializing concurrent balance updates.
+    return this.resolveAccountLocked(tx, code);
   }
 
-  /** Resolve account code → account id, with row lock for balance update. */
+  /**
+   * Resolve account code → account id.
+   * Acquires FOR UPDATE locks on both the accounts row and the account_balances
+   * row so concurrent transactions are fully serialized on balance reads/writes.
+   */
   private async resolveAccountLocked(
     tx: Parameters<Parameters<PlatformDb["transaction"]>[0]>[0],
     code: string,
@@ -323,11 +336,12 @@ export class DrizzleLedger implements ILedger {
     const id = rows.rows[0]?.id;
     if (!id) throw new Error(`Account not found: ${code}`);
 
-    // Ensure balance row exists
+    // Ensure balance row exists then lock it — serializes concurrent balance updates.
     await tx
       .insert(accountBalances)
       .values({ accountId: id, balance: 0 })
       .onConflictDoNothing({ target: accountBalances.accountId });
+    await tx.execute(sql`SELECT balance FROM account_balances WHERE account_id = ${id} FOR UPDATE`);
 
     return id;
   }
@@ -371,17 +385,39 @@ export class DrizzleLedger implements ILedger {
         createdBy: input.createdBy ?? null,
       });
 
-      // Insert lines + update balances
-      const resultLines: JournalEntry["lines"] = [];
+      // Phase 1: resolve all account IDs with row locks so concurrent transactions
+      // are serialized before any balance check or update.
+      const resolvedLines: Array<JournalLine & { accountId: string }> = [];
       for (const line of input.lines) {
-        // For tenant accounts (2000:xxx), ensure they exist
         let accountId: string;
         if (line.accountCode.startsWith("2000:")) {
-          const tid = line.accountCode.slice(5);
-          accountId = await this.ensureTenantAccount(tx, tid);
+          accountId = await this.ensureTenantAccountLocked(tx, line.accountCode.slice(5));
         } else {
           accountId = await this.resolveAccountLocked(tx, line.accountCode);
         }
+        resolvedLines.push({ ...line, accountId });
+      }
+
+      // Phase 2: balance check inside the transaction (TOCTOU-safe).
+      // Locks are already held on both the account and account_balances rows.
+      if (input.balanceCheck) {
+        const { tenantId, amount } = input.balanceCheck;
+        const tenantAccountCode = `2000:${tenantId}`;
+        const balRows = (await tx.execute(
+          sql`SELECT ab.balance FROM account_balances ab
+              INNER JOIN accounts a ON a.id = ab.account_id
+              WHERE a.code = ${tenantAccountCode}`,
+        )) as unknown as { rows: Array<{ balance: number }> };
+        const currentBalance = Credit.fromRaw(Number(balRows.rows[0]?.balance ?? 0));
+        if (currentBalance.lessThan(amount)) {
+          throw new InsufficientBalanceError(currentBalance, amount);
+        }
+      }
+
+      // Phase 3: insert lines + update balances
+      const resultLines: JournalEntry["lines"] = [];
+      for (const line of resolvedLines) {
+        const { accountId } = line;
 
         const lineId = crypto.randomUUID();
         await tx.insert(journalLines).values({
@@ -466,13 +502,6 @@ export class DrizzleLedger implements ILedger {
       throw new Error("amount must be positive for debits");
     }
 
-    if (!opts?.allowNegative) {
-      const bal = await this.balance(tenantId);
-      if (bal.lessThan(amount)) {
-        throw new InsufficientBalanceError(bal, amount);
-      }
-    }
-
     const creditAccount = DEBIT_TYPE_ACCOUNT[type];
     const tenantAccount = `2000:${tenantId}`;
 
@@ -485,6 +514,9 @@ export class DrizzleLedger implements ILedger {
         attributedUserId: opts?.attributedUserId ?? null,
       },
       createdBy: opts?.createdBy ?? "system",
+      // Balance check happens inside the transaction after acquiring row locks
+      // (TOCTOU-safe: prevents overdraft under concurrent debit operations).
+      balanceCheck: opts?.allowNegative ? undefined : { tenantId, amount },
       lines: [
         { accountCode: tenantAccount, amount, side: "debit" },
         { accountCode: creditAccount, amount, side: "credit" },
@@ -628,7 +660,8 @@ export class DrizzleLedger implements ILedger {
       .map((r) => ({
         userId: r.userId,
         totalDebit: Credit.fromRaw(Number(r.totalDebitRaw)),
-        transactionCount: r.transactionCount,
+        // COUNT(*) returns bigint (serialized as string by the PG driver) — coerce to number.
+        transactionCount: Number(r.transactionCount),
       }));
   }
 
@@ -753,11 +786,17 @@ export class DrizzleLedger implements ILedger {
           eq(journalEntries.entryType, "purchase"),
           eq(journalLines.side, "credit"),
           eq(accounts.type, "liability"),
-          sql`${journalEntries.postedAt} >= ${startTs}`,
-          sql`${journalEntries.postedAt} < ${endTs}`,
+          // Cast to timestamptz for correct chronological comparison regardless of format/TZ.
+          sql`${journalEntries.postedAt}::timestamptz >= ${startTs}::timestamptz`,
+          sql`${journalEntries.postedAt}::timestamptz < ${endTs}::timestamptz`,
         ),
       );
-    return Credit.fromRaw(Math.round(Number(rows[0]?.total ?? 0)));
+    // Use BigInt to avoid silent precision loss for large totals (same pattern as lifetimeSpend).
+    const raw = BigInt(String(rows[0]?.total ?? 0));
+    if (raw > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new Error(`sumPurchasesForPeriod overflow: ${raw}`);
+    }
+    return Credit.fromRaw(Number(raw));
   }
 
   async getActiveTenantIdsInWindow(startTs: string, endTs: string): Promise<string[]> {
@@ -767,8 +806,9 @@ export class DrizzleLedger implements ILedger {
       .where(
         and(
           eq(journalEntries.entryType, "purchase"),
-          sql`${journalEntries.postedAt} >= ${startTs}`,
-          sql`${journalEntries.postedAt} < ${endTs}`,
+          // Cast to timestamptz for correct chronological comparison.
+          sql`${journalEntries.postedAt}::timestamptz >= ${startTs}::timestamptz`,
+          sql`${journalEntries.postedAt}::timestamptz < ${endTs}::timestamptz`,
         ),
       );
     return rows.map((r) => r.tenantId);

@@ -63,6 +63,46 @@ export interface WebhookDeps {
 }
 
 /**
+ * Extract the card fingerprint from a Stripe webhook payload object.
+ * Works for PaymentIntent (via latest_charge or charges.data[0]) and
+ * Invoice (via charge) objects where the Charge is expanded.
+ * Returns undefined when the nested object is only a string ID (not expanded).
+ */
+function extractStripeFingerprint(obj: unknown): string | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const o = obj as Record<string, unknown>;
+
+  // PaymentIntent: pi.latest_charge expanded → Charge.payment_method_details.card.fingerprint
+  const latestCharge = o.latest_charge;
+  if (latestCharge && typeof latestCharge === "object") {
+    const pmd = (latestCharge as Record<string, unknown>).payment_method_details as Record<string, unknown> | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  // PaymentIntent (older API): pi.charges.data[0].payment_method_details.card.fingerprint
+  const charges = o.charges as { data?: Array<Record<string, unknown>> } | undefined;
+  const charge0 = charges?.data?.[0];
+  if (charge0) {
+    const pmd = charge0.payment_method_details as Record<string, unknown> | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  // Invoice: invoice.charge expanded → Charge.payment_method_details.card.fingerprint
+  const invoiceCharge = o.charge;
+  if (invoiceCharge && typeof invoiceCharge === "object") {
+    const pmd = (invoiceCharge as Record<string, unknown>).payment_method_details as
+      | Record<string, unknown>
+      | undefined;
+    const fp = (pmd?.card as Record<string, unknown> | undefined)?.fingerprint;
+    if (typeof fp === "string") return fp;
+  }
+
+  return undefined;
+}
+
+/**
  * Process a Stripe webhook event.
  *
  * Handles the events WOPR cares about:
@@ -137,6 +177,7 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
         description: `Stripe credit purchase (session: ${stripeSessionId})`,
         referenceId: stripeSessionId,
         fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(session),
       });
 
       // New-user first-purchase bonus for referred users (WOP-950).
@@ -293,6 +334,7 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
         description: `Auto-topup webhook fallback (${source})`,
         referenceId: pi.id,
         fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(pi),
       });
 
       result = {
@@ -377,6 +419,7 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
         description: `Stripe subscription renewal (invoice: ${invoice.id})`,
         referenceId: invoice.id,
         fundingSource: "stripe",
+        stripeFingerprint: extractStripeFingerprint(invoice),
       });
 
       // Reactivate suspended bots now that balance is positive (WOP-447).
