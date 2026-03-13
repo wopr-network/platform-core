@@ -268,7 +268,10 @@ export async function runAuthMigrations(): Promise<void> {
   let getMigrations: DbModule["getMigrations"];
   try {
     ({ getMigrations } = (await import("better-auth/db/migration")) as unknown as DbModule);
-  } catch {
+  } catch (err: unknown) {
+    // Only fall back if the module path doesn't exist (ERR_MODULE_NOT_FOUND / ERR_PACKAGE_PATH_NOT_EXPORTED)
+    const code = (err as { code?: string }).code;
+    if (code !== "ERR_MODULE_NOT_FOUND" && code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw err;
     ({ getMigrations } = (await import("better-auth/db")) as unknown as DbModule);
   }
   const { runMigrations } = await getMigrations(authOptions(_config));
