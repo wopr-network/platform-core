@@ -95,6 +95,9 @@ export class InsufficientBalanceError extends Error {
   }
 }
 
+/** @deprecated Use ILedger from ledger.ts (double-entry). This alias preserves backwards compatibility. */
+export type ICreditLedger = ILedger;
+
 export interface ILedger {
   credit(
     tenantId: string,

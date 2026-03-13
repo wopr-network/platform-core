@@ -12,6 +12,8 @@ export {
 export { Credit } from "./credit.js";
 export type { CreditExpiryCronConfig, CreditExpiryCronResult } from "./credit-expiry-cron.js";
 export { runCreditExpiryCron } from "./credit-expiry-cron.js";
+export type { CreditTransaction, ICreditLedger } from "./credit-ledger.js";
+export { CreditLedger, DrizzleCreditLedger } from "./credit-ledger.js";
 // -- Double-entry ledger (new) --
 export type {
   AccountType,
