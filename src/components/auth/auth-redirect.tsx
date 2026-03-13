@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
+import { getBrandConfig } from "@/lib/brand-config";
 
 export function AuthRedirect() {
   const { data: session, isPending } = useSession();
@@ -10,7 +11,7 @@ export function AuthRedirect() {
 
   useEffect(() => {
     if (!isPending && session) {
-      router.replace("/marketplace");
+      router.replace(getBrandConfig().homePath);
     }
   }, [isPending, session, router]);
 

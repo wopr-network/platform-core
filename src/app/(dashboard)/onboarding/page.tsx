@@ -23,6 +23,7 @@ import {
   saveOnboardingState,
 } from "@/lib/onboarding-store";
 
+const homePath = () => getBrandConfig().homePath;
 const MAX_STEP = 2;
 
 export default function OnboardingPage() {
@@ -34,7 +35,7 @@ export default function OnboardingPage() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: router.push is stable; using [router] causes infinite re-renders
   useEffect(() => {
     if (isOnboardingComplete()) {
-      router.push("/marketplace");
+      router.push(homePath());
       return;
     }
     const saved = loadOnboardingState();
@@ -85,12 +86,12 @@ export default function OnboardingPage() {
       plugins: preset?.plugins ?? state.plugins,
     });
     markOnboardingComplete();
-    router.push("/marketplace");
+    router.push(homePath());
   }
 
   function handleSkip() {
     markOnboardingComplete();
-    router.push("/marketplace");
+    router.push(homePath());
   }
 
   const selectedPresetData = presets.find((p) => p.id === selectedPreset);

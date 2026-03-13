@@ -53,6 +53,19 @@ export interface BrandConfig {
 
   /** Base pricing display string (e.g. "$5/month") */
   price: string;
+
+  /**
+   * Post-auth redirect path (default "/marketplace").
+   *
+   * The Next.js middleware reads this from NEXT_PUBLIC_BRAND_HOME_PATH
+   * at build time. setBrandConfig({ homePath }) only affects client-side
+   * redirects. Brand shells must set the env var AND call setBrandConfig
+   * to keep both paths in sync.
+   */
+  homePath: string;
+
+  /** Sidebar navigation items. Each has a label and href. */
+  navItems: Array<{ label: string; href: string }>;
 }
 
 /**
@@ -87,6 +100,22 @@ function envDefaults(): BrandConfig {
     tenantCookieName: env("NEXT_PUBLIC_BRAND_TENANT_COOKIE") || `${storagePrefix}_tenant_id`,
     companyLegalName: env("NEXT_PUBLIC_BRAND_COMPANY_LEGAL") || "Platform Inc.",
     price: env("NEXT_PUBLIC_BRAND_PRICE"),
+    homePath: env("NEXT_PUBLIC_BRAND_HOME_PATH") || "/marketplace",
+    navItems: [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Chat", href: "/chat" },
+      { label: "Marketplace", href: "/marketplace" },
+      { label: "Channels", href: "/channels" },
+      { label: "Plugins", href: "/plugins" },
+      { label: "Instances", href: "/instances" },
+      { label: "Changesets", href: "/changesets" },
+      { label: "Network", href: "/dashboard/network" },
+      { label: "Fleet Health", href: "/fleet/health" },
+      { label: "Credits", href: "/billing/credits" },
+      { label: "Billing", href: "/billing/plans" },
+      { label: "Settings", href: "/settings/profile" },
+      { label: "Admin", href: "/admin/tenants" },
+    ],
   };
 }
 

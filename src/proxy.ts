@@ -82,6 +82,13 @@ const PLATFORM_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3
 
 const TENANT_COOKIE_NAME = getBrandConfig().tenantCookieName;
 
+/** Post-auth landing page — configurable per brand (default: /marketplace). */
+const HOME_PATH = (() => {
+  const p = (process.env.NEXT_PUBLIC_BRAND_HOME_PATH || "/marketplace").trim();
+  if (!p || /^https?:\/\//i.test(p)) return "/marketplace";
+  return p.startsWith("/") ? p : `/${p}`;
+})();
+
 /**
  * Validate that a state-changing request originates from this application.
  * Checks the Origin header (preferred) with Referer as fallback.
@@ -198,7 +205,7 @@ export default async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users from "/" to the app subdomain if on the marketing domain.
-  // On the app subdomain, redirect to /marketplace. On the base domain, redirect to app subdomain.
+  // On the app subdomain, redirect to HOME_PATH. On the base domain, redirect to app subdomain.
   // NOTE: This check requires the Better Auth server to set the session cookie with
   // domain=".<base-domain>" so it is visible on both the app and marketing subdomains.
   // See: wopr-platform/src/auth/better-auth.ts advanced.cookies.session_token.attributes.domain
@@ -211,10 +218,12 @@ export default async function middleware(request: NextRequest) {
         process.env.NEXT_PUBLIC_BRAND_APP_DOMAIN || process.env.NEXT_PUBLIC_APP_DOMAIN;
       if (appDomain && !host.startsWith("app.")) {
         // On marketing domain — redirect to the app subdomain
-        return withCsp(NextResponse.redirect(new URL(`https://${appDomain}/marketplace`)));
+        const appUrl = new URL(`https://${appDomain}`);
+        appUrl.pathname = HOME_PATH;
+        return withCsp(NextResponse.redirect(appUrl));
       }
-      // On app subdomain (or no configured app domain) — redirect to /marketplace
-      return withCsp(NextResponse.redirect(new URL("/marketplace", request.url)));
+      // On app subdomain (or no configured app domain) — redirect to home
+      return withCsp(NextResponse.redirect(new URL(HOME_PATH, request.url)));
     }
   }
 
@@ -228,7 +237,7 @@ export default async function middleware(request: NextRequest) {
     if (sessionCookie?.value.trim()) {
       const role = await getSessionRole(request);
       if (role !== "platform_admin") {
-        return withCsp(NextResponse.redirect(new URL("/marketplace", request.url)));
+        return withCsp(NextResponse.redirect(new URL(HOME_PATH, request.url)));
       }
       // Admin confirmed — serve page with anti-cache headers so revocation
       // is detected on the very next navigation (browser must revalidate).

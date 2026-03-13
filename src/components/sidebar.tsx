@@ -17,25 +17,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCreditBalance } from "@/lib/api";
 import { signOut, useSession } from "@/lib/auth-client";
-import { productName } from "@/lib/brand-config";
+import { getBrandConfig, productName } from "@/lib/brand-config";
 import { formatCreditStandard } from "@/lib/format-credit";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Chat", href: "/chat" },
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "Channels", href: "/channels" },
-  { label: "Plugins", href: "/plugins" },
-  { label: "Instances", href: "/instances" },
-  { label: "Changesets", href: "/changesets" },
-  { label: "Network", href: "/dashboard/network" },
-  { label: "Fleet Health", href: "/fleet/health" },
-  { label: "Credits", href: "/billing/credits" },
-  { label: "Billing", href: "/billing/plans" },
-  { label: "Settings", href: "/settings/profile" },
-  { label: "Admin", href: "/admin/tenants" },
-];
+function getNavItems() {
+  return getBrandConfig().navItems;
+}
 
 function isNavActive(href: string, pathname: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -104,7 +92,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <AccountSwitcher />
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems
+        {getNavItems()
           .filter(
             (item) =>
               item.href !== "/admin/tenants" ||
