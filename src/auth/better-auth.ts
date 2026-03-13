@@ -264,7 +264,13 @@ export function initBetterAuth(config: BetterAuthConfig): void {
 export async function runAuthMigrations(): Promise<void> {
   if (!_config) throw new Error("BetterAuth not initialized — call initBetterAuth() first");
   type DbModule = { getMigrations: (opts: BetterAuthOptions) => Promise<{ runMigrations: () => Promise<void> }> };
-  const { getMigrations } = (await import("better-auth/db")) as unknown as DbModule;
+  // better-auth 1.5.x moved getMigrations from "better-auth/db" to "better-auth/db/migration"
+  let getMigrations: DbModule["getMigrations"];
+  try {
+    ({ getMigrations } = (await import("better-auth/db/migration")) as unknown as DbModule);
+  } catch {
+    ({ getMigrations } = (await import("better-auth/db")) as unknown as DbModule);
+  }
   const { runMigrations } = await getMigrations(authOptions(_config));
   await runMigrations();
   if (_config.twoFactor !== false) {
