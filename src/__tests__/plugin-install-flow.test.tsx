@@ -43,24 +43,57 @@ vi.mock("framer-motion", () => {
 });
 
 // vi.hoisted runs before module imports so TEST_PLUGINS and mocks are available in vi.mock factories
-const { TEST_PLUGINS, mockInstallPlugin, mockListBots, mockListInstalledPlugins } = vi.hoisted(
-  () => {
-    const mockInstallPlugin = vi.fn();
-    const mockListBots = vi
-      .fn()
-      .mockResolvedValue([{ id: "bot-001", name: "My Bot", state: "running" }]);
-    const mockListInstalledPlugins = vi.fn().mockResolvedValue([]);
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { INSTALL_FLOW_TEST_PLUGINS } =
-      require("./fixtures/mock-manifests-data") as typeof import("./fixtures/mock-manifests");
-    return {
-      TEST_PLUGINS: INSTALL_FLOW_TEST_PLUGINS,
-      mockInstallPlugin,
-      mockListBots,
-      mockListInstalledPlugins,
-    };
-  },
-);
+const {
+  TEST_PLUGINS,
+  ALL_PLUGINS,
+  mockInstallPlugin,
+  mockListBots,
+  mockListInstalledPlugins,
+  injectPathlessZodError,
+} = vi.hoisted(() => {
+  const mockInstallPlugin = vi.fn();
+  const mockListBots = vi
+    .fn()
+    .mockResolvedValue([{ id: "bot-001", name: "My Bot", state: "running" }]);
+  const mockListInstalledPlugins = vi.fn().mockResolvedValue([]);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { INSTALL_FLOW_TEST_PLUGINS, MARKETPLACE_TEST_PLUGINS } =
+    require("./fixtures/mock-manifests-data") as typeof import("./fixtures/mock-manifests");
+  // Flag to conditionally inject a path-less Zod error in the mocked z.object
+  const injectPathlessZodError = { value: false };
+  return {
+    TEST_PLUGINS: INSTALL_FLOW_TEST_PLUGINS,
+    ALL_PLUGINS: MARKETPLACE_TEST_PLUGINS,
+    mockInstallPlugin,
+    mockListBots,
+    mockListInstalledPlugins,
+    injectPathlessZodError,
+  };
+});
+
+// Mock zod with a conditional wrapper: when injectPathlessZodError.value is true,
+// z.object() adds a superRefine that produces a path-less ZodIssue.
+// Only inject on schemas with fields (Object.keys(shape).length > 0) so empty
+// setup steps (no fields) pass through without triggering the fake error.
+vi.mock("zod", async () => {
+  const realZod = await vi.importActual<typeof import("zod")>("zod");
+  const originalObject = realZod.z.object.bind(realZod.z);
+  const wrappedObject = (
+    shape?: Record<string, unknown>,
+    params?: string | Record<string, unknown>,
+  ) => {
+    const schema = originalObject(shape, params as undefined);
+    if (!injectPathlessZodError.value || !shape || Object.keys(shape).length === 0) return schema;
+    return schema.superRefine((_val, ctx) => {
+      ctx.addIssue({
+        code: realZod.z.ZodIssueCode.custom,
+        message: "Cross-field validation failed",
+        path: [],
+      });
+    });
+  };
+  return { ...realZod, z: { ...realZod.z, object: wrappedObject } };
+});
 
 const mockPush = vi.fn();
 const mockParams: { plugin?: string } = {};
@@ -440,6 +473,46 @@ describe("Plugin Toggle (Enable/Disable)", () => {
       expect(screen.getByText(/No bots found/i)).toBeInTheDocument();
     });
     expect(screen.getByText("Create a Bot")).toBeInTheDocument();
+  });
+
+  it("validateFields surfaces path-less Zod errors visibly instead of swallowing them", async () => {
+    // Enable the path-less error injection on z.object (mocked at file level)
+    injectPathlessZodError.value = true;
+
+    const user = userEvent.setup();
+    const { InstallWizard } = await import("../components/marketplace/install-wizard");
+
+    // Use the Discord plugin which has a setup step with fields
+    const discordPlugin = ALL_PLUGINS.find(
+      (p: Record<string, unknown>) => p.id === "discord",
+    ) as unknown as PluginManifest;
+
+    render(<InstallWizard plugin={discordPlugin} onComplete={vi.fn()} onCancel={vi.fn()} />);
+
+    // Select bot and advance to setup
+    const botButton = await screen.findByText("My Bot");
+    await user.click(botButton);
+    await user.click(screen.getByText("Continue"));
+
+    // Skip the first setup step (no fields — "Create a Discord Bot")
+    await user.click(screen.getByText("Continue"));
+
+    // Now on "Enter Bot Token" step — fill in a valid token so the only
+    // error left is the path-less superRefine issue we injected.
+    const tokenInput = screen.getByPlaceholderText("Paste your Discord bot token");
+    await user.type(tokenInput, "valid-token-123");
+    await user.click(screen.getByText("Continue"));
+
+    // The path-less error should surface as a _form-level banner, not be silently dropped
+    await waitFor(() => {
+      expect(screen.getByText("Cross-field validation failed")).toBeInTheDocument();
+    });
+
+    // After typing in any field the _form banner should clear immediately
+    await user.type(tokenInput, "x");
+    expect(screen.queryByText("Cross-field validation failed")).not.toBeInTheDocument();
+
+    injectPathlessZodError.value = false;
   });
 });
 
