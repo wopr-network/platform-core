@@ -1,6 +1,6 @@
 {
   "name": "@wopr-network/platform-ui-core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Brand-agnostic AI agent platform UI — deploy as any brand via env vars",
   "repository": {
     "type": "git",
