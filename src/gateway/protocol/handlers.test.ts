@@ -1,4 +1,4 @@
-import type { Credit } from "@wopr-network/platform-core/credits";
+import { Credit, type ILedger } from "@wopr-network/platform-core/credits";
 import type { MeterEvent } from "@wopr-network/platform-core/metering";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -189,6 +189,25 @@ describe("Anthropic protocol handler", () => {
   });
 
   describe("format translation", () => {
+    it("injects Authorization: Bearer with provider API key in upstream request", async () => {
+      deps.fetchFn = mockFetchOk(openaiChatResponse("Hello!"));
+
+      await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hello" }],
+          max_tokens: 1024,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      const fetchCall = vi.mocked(deps.fetchFn).mock.calls[0];
+      const headers = fetchCall[1]?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer or-test-key");
+      expect(headers["Content-Type"]).toBe("application/json");
+    });
+
     it("translates Anthropic request to OpenAI and response back", async () => {
       deps.fetchFn = mockFetchOk(openaiChatResponse("Translated response!"));
 
@@ -294,6 +313,79 @@ describe("Anthropic protocol handler", () => {
       const body = await res.json();
       expect(body.type).toBe("error");
     });
+
+    it("maps upstream 400 to Anthropic invalid_request_error", async () => {
+      deps.fetchFn = mockFetchError(400, "Bad request from provider");
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.type).toBe("error");
+      expect(body.error.type).toBe("invalid_request_error");
+    });
+
+    it("maps upstream 401 to Anthropic authentication_error", async () => {
+      deps.fetchFn = mockFetchError(401, "Invalid API key");
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error.type).toBe("authentication_error");
+    });
+
+    it("maps upstream 429 to Anthropic rate_limit_error", async () => {
+      deps.fetchFn = mockFetchError(429, "Rate limited");
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(429);
+      const body = await res.json();
+      expect(body.error.type).toBe("rate_limit_error");
+    });
+
+    it("maps upstream 502 to Anthropic 529 overloaded", async () => {
+      deps.fetchFn = mockFetchError(502, "Bad gateway");
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(529);
+      const body = await res.json();
+      expect(body.type).toBe("error");
+    });
   });
 
   describe("streaming", () => {
@@ -339,6 +431,64 @@ describe("Anthropic protocol handler", () => {
       const body = await res.text();
       expect(body).toContain("[DONE]");
     });
+
+    it("sets correct SSE response headers for streaming", async () => {
+      const ssePayload = 'data: {"type":"content_block_delta"}\n\ndata: [DONE]\n\n';
+      deps.fetchFn = mockFetchStream(ssePayload);
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+          stream: true,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.headers.get("Transfer-Encoding")).toBe("chunked");
+      expect(res.headers.get("Cache-Control")).toBe("no-cache");
+      expect(res.headers.get("Connection")).toBe("keep-alive");
+    });
+
+    it("meters streaming cost when x-openrouter-cost header is present", async () => {
+      const ssePayload = 'data: {"type":"content_block_delta"}\n\ndata: [DONE]\n\n';
+      deps.fetchFn = mockFetchStream(ssePayload, { "x-openrouter-cost": "0.004" });
+
+      await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+          stream: true,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(deps.meterEvents).toHaveLength(1);
+      expect(deps.meterEvents[0].cost.toDollars()).toBe(0.004);
+      expect(deps.meterEvents[0].capability).toBe("chat-completions");
+    });
+
+    it("does not meter streaming when cost is zero", async () => {
+      const ssePayload = 'data: {"type":"content_block_delta"}\n\ndata: [DONE]\n\n';
+      deps.fetchFn = mockFetchStream(ssePayload);
+
+      await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+          stream: true,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(deps.meterEvents).toHaveLength(0);
+    });
   });
 
   describe("provider not configured", () => {
@@ -356,6 +506,93 @@ describe("Anthropic protocol handler", () => {
       });
 
       expect(res.status).toBe(529);
+    });
+  });
+
+  describe("fetch exception handling", () => {
+    it("returns 500 in Anthropic format when fetchFn throws an Error", async () => {
+      deps.fetchFn = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.type).toBe("error");
+      expect(body.error.type).toBe("api_error");
+      expect(body.error.message).toBe("ECONNREFUSED");
+    });
+
+    it("handles non-Error thrown values", async () => {
+      deps.fetchFn = vi.fn().mockRejectedValue("string error");
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.message).toBe("string error");
+    });
+  });
+
+  describe("cost fallback without x-openrouter-cost header", () => {
+    it("estimates cost from Anthropic usage when no cost header", async () => {
+      deps.fetchFn = mockFetchOk(openaiChatResponse("Hello!"));
+
+      await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      // estimateAnthropicCost: 10 * 0.000003 + 5 * 0.000015 = 0.0000300 + 0.0000750 = 0.000105
+      expect(deps.meterEvents).toHaveLength(1);
+      expect(deps.meterEvents[0].cost.toDollars()).toBeCloseTo(0.000105, 6);
+    });
+  });
+
+  describe("credit balance check", () => {
+    it("returns 402 in Anthropic format when credits are exhausted", async () => {
+      deps = createMockDeps({
+        creditLedger: {
+          balance: vi.fn(async () => Credit.fromCents(-100)),
+          debit: vi.fn(),
+        } as unknown as ILedger,
+      });
+      app = new Hono();
+      app.route("/v1/anthropic", createAnthropicRoutes(deps));
+
+      const res = await app.request("/v1/anthropic/v1/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 100,
+        }),
+        headers: { "Content-Type": "application/json", "x-api-key": VALID_KEY },
+      });
+
+      expect(res.status).toBe(402);
+      const body = await res.json();
+      expect(body.type).toBe("error");
     });
   });
 });
@@ -409,6 +646,21 @@ describe("OpenAI protocol handler", () => {
       expect(res.status).toBe(401);
       const body = await res.json();
       expect(body.error.code).toBe("invalid_api_key");
+    });
+
+    it("rejects empty Bearer token (only whitespace after Bearer)", async () => {
+      // "Bearer  " with extra space — trim() strips trailing space so it becomes "Bearer"
+      // which doesn't match "bearer " prefix check → invalid_auth_format
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: "{}",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " },
+      });
+
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      // "Bearer " trims to "Bearer" which doesn't pass the startsWith("bearer ") check
+      expect(body.error.code).toBe("invalid_auth_format");
     });
 
     it("accepts valid Bearer key", async () => {
@@ -470,6 +722,53 @@ describe("OpenAI protocol handler", () => {
       expect(fetchCall[0]).toBe("https://mock-openrouter.test/v1/chat/completions");
       expect(fetchCall[1]?.body).toBe(requestBody);
     });
+
+    it("injects Authorization: Bearer with provider API key in upstream request", async () => {
+      deps.fetchFn = mockFetchOk(openaiChatResponse("x"));
+
+      await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hello" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      const fetchCall = vi.mocked(deps.fetchFn).mock.calls[0];
+      const headers = fetchCall[1]?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer or-test-key");
+      expect(headers["Content-Type"]).toBe("application/json");
+    });
+
+    it("passes through upstream error status without metering", async () => {
+      deps.fetchFn = mockFetchError(429, '{"error":{"message":"Rate limited"}}');
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(429);
+      expect(deps.meterEvents).toHaveLength(0);
+    });
+
+    it("handles invalid JSON in request body gracefully", async () => {
+      deps.fetchFn = mockFetchOk(openaiChatResponse("works"));
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: "not valid json",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      // Handler reads body as text and forwards it — invalid JSON doesn't cause a 400
+      expect(res.status).toBe(200);
+    });
   });
 
   describe("embeddings", () => {
@@ -491,6 +790,116 @@ describe("OpenAI protocol handler", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.data[0].embedding).toEqual([0.1, 0.2, 0.3]);
+    });
+
+    it("sends Authorization header to upstream for embeddings", async () => {
+      const embeddingResponse = {
+        object: "list",
+        data: [{ object: "embedding", embedding: [0.1], index: 0 }],
+        model: "text-embedding-3-small",
+        usage: { prompt_tokens: 1, total_tokens: 1 },
+      };
+      deps.fetchFn = mockFetchOk(embeddingResponse);
+
+      await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hi" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      const fetchCall = vi.mocked(deps.fetchFn).mock.calls[0];
+      expect(fetchCall[0]).toBe("https://mock-openrouter.test/v1/embeddings");
+      const headers = fetchCall[1]?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer or-test-key");
+    });
+
+    it("meters embeddings with x-openrouter-cost header", async () => {
+      const embeddingResponse = {
+        object: "list",
+        data: [{ object: "embedding", embedding: [0.1], index: 0 }],
+        model: "text-embedding-3-small",
+        usage: { prompt_tokens: 5, total_tokens: 5 },
+      };
+      deps.fetchFn = mockFetchOk(embeddingResponse, { "x-openrouter-cost": "0.0001" });
+
+      await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hello" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(deps.meterEvents).toHaveLength(1);
+      expect(deps.meterEvents[0].cost.toDollars()).toBe(0.0001);
+      expect(deps.meterEvents[0].capability).toBe("embeddings");
+      expect(deps.meterEvents[0].provider).toBe("openrouter");
+    });
+
+    it("uses 0.0001 default cost when no cost header on embeddings", async () => {
+      const embeddingResponse = {
+        object: "list",
+        data: [{ object: "embedding", embedding: [0.1], index: 0 }],
+        model: "text-embedding-3-small",
+        usage: { prompt_tokens: 5, total_tokens: 5 },
+      };
+      deps.fetchFn = mockFetchOk(embeddingResponse);
+
+      await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hello" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(deps.meterEvents).toHaveLength(1);
+      expect(deps.meterEvents[0].cost.toDollars()).toBe(0.0001);
+    });
+
+    it("returns 429 when budget exceeded for embeddings", async () => {
+      deps.budgetChecker.check = vi.fn(async () => ({
+        allowed: false,
+        reason: "Budget exceeded",
+        httpStatus: 429,
+        currentHourlySpend: 100,
+        currentMonthlySpend: 1000,
+        maxSpendPerHour: 100,
+        maxSpendPerMonth: 1000,
+      }));
+
+      const res = await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hello" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(429);
+      const body = await res.json();
+      expect(body.error.code).toBe("insufficient_quota");
+    });
+
+    it("returns 503 when no provider configured for embeddings", async () => {
+      deps.providers = {};
+
+      const res = await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hello" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(503);
+      const body = await res.json();
+      expect(body.error.code).toBe("service_unavailable");
+    });
+
+    it("returns upstream error status for embeddings without metering", async () => {
+      deps.fetchFn = mockFetchError(400, "Bad embedding request");
+
+      const res = await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hello" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(400);
+      expect(deps.meterEvents).toHaveLength(0);
     });
   });
 
@@ -527,6 +936,46 @@ describe("OpenAI protocol handler", () => {
       });
 
       expect(deps.meterEvents).toHaveLength(0);
+    });
+
+    it("falls back to token-based cost estimation when no cost header", async () => {
+      deps.fetchFn = mockFetchOk(openaiChatResponse("Hello!"));
+
+      await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(deps.meterEvents).toHaveLength(1);
+      expect(deps.meterEvents[0].tenant).toBe("tenant-001");
+      // Cost estimated from token counts — should be > 0
+      expect(deps.meterEvents[0].cost.toDollars()).toBeGreaterThan(0);
+    });
+
+    it("estimates cost as 0.001 when response body is invalid JSON and no cost header", async () => {
+      deps.fetchFn = vi.fn().mockResolvedValue(
+        new Response("not json at all", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(deps.meterEvents).toHaveLength(1);
+      // estimateTokenCostFromBody catches JSON parse error and returns 0.001
+      expect(deps.meterEvents[0].cost.toDollars()).toBe(0.001);
     });
   });
 
@@ -615,6 +1064,25 @@ describe("OpenAI protocol handler", () => {
       expect(deps.meterEvents).toHaveLength(1);
       expect(deps.meterEvents[0].cost.toDollars()).toBe(0.002);
     });
+
+    it("sets correct SSE response headers for streaming", async () => {
+      const ssePayload = 'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n';
+      deps.fetchFn = mockFetchStream(ssePayload);
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hello" }],
+          stream: true,
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.headers.get("Transfer-Encoding")).toBe("chunked");
+      expect(res.headers.get("Cache-Control")).toBe("no-cache");
+      expect(res.headers.get("Connection")).toBe("keep-alive");
+    });
   });
 
   describe("provider not configured", () => {
@@ -631,6 +1099,86 @@ describe("OpenAI protocol handler", () => {
       });
 
       expect(res.status).toBe(503);
+    });
+  });
+
+  describe("fetch exception handling", () => {
+    it("returns 500 in OpenAI format when fetchFn throws on chat completions", async () => {
+      deps.fetchFn = vi.fn().mockRejectedValue(new Error("Connection refused"));
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.type).toBe("server_error");
+      expect(body.error.code).toBe("internal_error");
+      expect(body.error.message).toBe("Connection refused");
+    });
+
+    it("handles non-Error thrown values in chat completions", async () => {
+      deps.fetchFn = vi.fn().mockRejectedValue(42);
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.message).toBe("42");
+    });
+
+    it("returns 500 in OpenAI format when fetchFn throws on embeddings", async () => {
+      deps.fetchFn = vi.fn().mockRejectedValue(new Error("Embed network error"));
+
+      const res = await app.request("/v1/openai/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "Hi" }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.type).toBe("server_error");
+      expect(body.error.code).toBe("internal_error");
+      expect(body.error.message).toBe("Embed network error");
+    });
+  });
+
+  describe("credit balance check", () => {
+    it("returns 402 in OpenAI format when credits are exhausted", async () => {
+      deps = createMockDeps({
+        creditLedger: {
+          balance: vi.fn(async () => Credit.fromCents(-100)),
+          debit: vi.fn(),
+        } as unknown as ILedger,
+      });
+      app = new Hono();
+      app.route("/v1/openai", createOpenAIRoutes(deps));
+
+      const res = await app.request("/v1/openai/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${VALID_KEY}` },
+      });
+
+      expect(res.status).toBe(402);
+      const body = await res.json();
+      expect(body.error.type).toBe("billing_error");
     });
   });
 });
