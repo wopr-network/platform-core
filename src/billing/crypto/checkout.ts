@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Credit } from "../../credits/credit.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { BTCPayClient } from "./client.js";
@@ -24,7 +25,7 @@ export async function createCryptoCheckout(
     throw new Error(`Minimum payment amount is $${MIN_PAYMENT_USD}`);
   }
 
-  const orderId = `crypto:${opts.tenant}:${Date.now()}`;
+  const orderId = `crypto:${opts.tenant}:${crypto.randomUUID()}`;
 
   const invoice = await client.createInvoice({
     amountUsd: opts.amountUsd,

@@ -36,14 +36,17 @@ export async function handleCryptoWebhook(
 ): Promise<CryptoWebhookResult> {
   const { chargeStore, creditLedger } = deps;
 
-  // Map BTCPay event type to a CryptoPaymentState (throws on unknown types).
-  const status = mapBtcPayEventToStatus(payload.type);
-
-  // Replay guard: deduplicate by invoiceId + event type.
+  // Replay guard FIRST: deduplicate by invoiceId + event type.
+  // Must run before mapBtcPayEventToStatus() — unknown event types throw,
+  // and BTCPay retries webhooks on failure. Without this ordering, an unknown
+  // event type causes an infinite retry loop.
   const dedupeKey = `${payload.invoiceId}:${payload.type}`;
   if (await deps.replayGuard.isDuplicate(dedupeKey, "crypto")) {
-    return { handled: true, status, duplicate: true };
+    return { handled: true, status: "New", duplicate: true };
   }
+
+  // Map BTCPay event type to a CryptoPaymentState (throws on unknown types).
+  const status = mapBtcPayEventToStatus(payload.type);
 
   // Look up the charge record to find the tenant.
   const charge = await chargeStore.getByReferenceId(payload.invoiceId);
