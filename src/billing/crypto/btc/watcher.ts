@@ -12,7 +12,8 @@ export interface BtcWatcherOpts {
   onPayment: (event: BtcPaymentEvent) => void | Promise<void>;
   /** Price oracle for BTC/USD conversion. */
   oracle: IPriceOracle;
-  cursorStore?: IWatcherCursorStore;
+  /** Required — BTC has no block cursor, so txid dedup must be persisted. */
+  cursorStore: IWatcherCursorStore;
 }
 
 interface ReceivedByAddress {
@@ -28,7 +29,7 @@ export class BtcWatcher {
   private readonly onPayment: BtcWatcherOpts["onPayment"];
   private readonly minConfirmations: number;
   private readonly oracle: IPriceOracle;
-  private readonly cursorStore?: IWatcherCursorStore;
+  private readonly cursorStore: IWatcherCursorStore;
   private readonly watcherId: string;
 
   constructor(opts: BtcWatcherOpts) {
@@ -70,7 +71,7 @@ export class BtcWatcher {
 
       for (const txid of entry.txids) {
         // Skip already-processed txids (persisted to DB, survives restart)
-        if (this.cursorStore && (await this.cursorStore.hasProcessedTx(this.watcherId, txid))) continue;
+        if (await this.cursorStore.hasProcessedTx(this.watcherId, txid)) continue;
 
         // Get transaction details for the exact amount sent to this address
         const tx = (await this.rpc("gettransaction", [txid, true])) as {
@@ -95,7 +96,7 @@ export class BtcWatcher {
 
         await this.onPayment(event);
         // Persist AFTER successful onPayment — survives restart, no unbounded memory
-        if (this.cursorStore) await this.cursorStore.markProcessedTx(this.watcherId, txid);
+        await this.cursorStore.markProcessedTx(this.watcherId, txid);
       }
     }
   }
