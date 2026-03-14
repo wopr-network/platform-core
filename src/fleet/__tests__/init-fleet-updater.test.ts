@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { initFleetUpdater } from "../init-fleet-updater.js";
-import type { FleetManager } from "../fleet-manager.js";
-import type { IProfileStore } from "../profile-store.js";
 import type Docker from "dockerode";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { FleetManager } from "../fleet-manager.js";
+import { initFleetUpdater } from "../init-fleet-updater.js";
+import type { IProfileStore } from "../profile-store.js";
 
 function mockDocker(): Docker {
   return {} as Docker;
