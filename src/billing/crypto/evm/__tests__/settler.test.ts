@@ -112,6 +112,31 @@ describe("settleEvmPayment", () => {
     expect(result.creditedCents).toBe(1000); // charge amount, NOT transfer amount
   });
 
+  it("rejects underpayment — does not credit if transfer < charge", async () => {
+    const underpaidEvent = { ...mockEvent, amountUsdCents: 500 }; // sent $5
+    const deps = {
+      chargeStore: {
+        getByDepositAddress: vi.fn().mockResolvedValue({
+          referenceId: "sc:x",
+          tenantId: "t",
+          amountUsdCents: 1000, // charge was for $10
+          status: "New",
+          creditedAt: null,
+        }),
+        updateStatus: vi.fn().mockResolvedValue(undefined),
+        markCredited: vi.fn().mockResolvedValue(undefined),
+      },
+      creditLedger: {
+        hasReferenceId: vi.fn().mockResolvedValue(false),
+        credit: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const result = await settleEvmPayment(deps as never, underpaidEvent);
+    expect(result.creditedCents).toBe(0);
+    expect(deps.creditLedger.credit).not.toHaveBeenCalled();
+  });
+
   it("uses correct ledger referenceId format", async () => {
     const deps = {
       chargeStore: {

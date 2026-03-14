@@ -68,8 +68,8 @@ export class EvmWatcher {
     ])) as RpcLog[];
 
     for (const log of logs) {
-      const to = `0x${log.topics[2].slice(26)}`;
-      const from = `0x${log.topics[1].slice(26)}`;
+      const to = `0x${log.topics[2].slice(26)}`.toLowerCase();
+      const from = `0x${log.topics[1].slice(26)}`.toLowerCase();
       const rawAmount = BigInt(log.data);
       const amountUsdCents = centsFromTokenAmount(rawAmount, this.decimals);
 

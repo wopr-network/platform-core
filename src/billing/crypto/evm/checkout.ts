@@ -34,7 +34,7 @@ export async function createStablecoinCheckout(
   deps: StablecoinCheckoutDeps,
   opts: StablecoinCheckoutOpts,
 ): Promise<StablecoinCheckoutResult> {
-  if (opts.amountUsd < MIN_STABLECOIN_USD) {
+  if (!Number.isFinite(opts.amountUsd) || opts.amountUsd < MIN_STABLECOIN_USD) {
     throw new Error(`Minimum payment amount is $${MIN_STABLECOIN_USD}`);
   }
 

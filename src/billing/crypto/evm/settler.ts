@@ -40,6 +40,11 @@ export async function settleEvmPayment(deps: EvmSettlerDeps, event: EvmPaymentEv
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
   }
 
+  // Reject underpayment — transfer must cover the charge amount.
+  if (event.amountUsdCents < charge.amountUsdCents) {
+    return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
+  }
+
   // Credit the CHARGE amount (NOT the transfer amount — overpayment stays in wallet).
   // charge.amountUsdCents is in USD cents (integer).
   // Credit.fromCents() converts to nanodollars for the ledger.

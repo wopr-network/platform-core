@@ -7,6 +7,7 @@ import { publicKeyToAddress } from "viem/accounts";
  * Returns a checksummed Ethereum address. No private keys involved.
  */
 export function deriveDepositAddress(xpub: string, index: number): `0x${string}` {
+  if (!Number.isInteger(index) || index < 0) throw new Error(`Invalid derivation index: ${index}`);
   const master = HDKey.fromExtendedKey(xpub);
   const child = master.deriveChild(0).deriveChild(index);
   if (!child.publicKey) throw new Error("Failed to derive public key");
