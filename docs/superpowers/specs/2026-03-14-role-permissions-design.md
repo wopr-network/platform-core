@@ -256,7 +256,7 @@ Paperclip's UI already has a permission system, but some controls need hostedMod
 Already gated by the `agent.create` permission grant. Members without the grant won't see create/edit/delete agent buttons. No additional hostedMode guard needed — the permission system handles it.
 
 **Cost page:**
-Gate behind `cost.view` permission. Members without it see a "Contact your admin" message or the page is hidden from navigation entirely.
+Gate behind `costs:view` permission. Members without it see a "Contact your admin" message or the page is hidden from navigation entirely.
 
 **Company deletion:**
 Already behind instance admin check. Members are never instance admin. No change needed.

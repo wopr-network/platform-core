@@ -192,6 +192,20 @@ interface TenantUpdateConfig {
 
 Default for new tenants: `{ mode: "manual", preferredHourUtc: 3 }`.
 
+**Repository interface** (follows the `IFooRepository` pattern used throughout platform-core):
+
+```typescript
+export interface ITenantUpdateConfigRepository {
+  get(tenantId: string): Promise<TenantUpdateConfig | null>;
+  upsert(tenantId: string, config: TenantUpdateConfig): Promise<void>;
+  listAutoEnabled(): Promise<Array<{ tenantId: string; config: TenantUpdateConfig }>>;
+}
+```
+
+`DrizzleTenantUpdateConfigRepository` implements this against a `tenant_update_configs` table with columns `(tenant_id TEXT PK, mode TEXT, preferred_hour_utc INTEGER, updated_at BIGINT)`.
+
+**Audit logging:** All config changes (mode switch, hour change) are logged via `logger.info("Tenant update config changed", { tenantId, oldConfig, newConfig, actorUserId })`. Admin-triggered updates via the `/admin/updates` route include the actor in the log entry.
+
 Admin panel can override per-tenant or set global defaults.
 
 **Precedence: tenant config overrides per-bot `updatePolicy`.** The existing `BotProfile.updatePolicy` field (per-bot: `on-push`, `nightly`, `manual`, `cron:*`) is superseded by `TenantUpdateConfig` for hosted deployments. The `RolloutOrchestrator` reads tenant config, not bot-level policy. `ImagePoller.shouldAutoUpdate()` is refactored to always return `false` — the poller's only job is to detect new digests and notify the orchestrator, which makes the auto/manual decision based on tenant config.
