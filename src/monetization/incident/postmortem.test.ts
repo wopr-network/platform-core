@@ -121,4 +121,51 @@ describe("generatePostMortemTemplate", () => {
     expect(report.sections.actionItems).not.toContain("TODO");
     expect(report.sections.lessonsLearned).not.toContain("TODO");
   });
+
+  it("action items derive due dates from resolvedAt for resolved incidents", () => {
+    const report = generatePostMortemTemplate(
+      makeIncident({
+        resolvedAt: new Date("2026-01-15T13:00:00Z"),
+        severity: "SEV1",
+      }),
+    );
+    // SEV1: 7-day offset from resolvedAt → 2026-01-22
+    expect(report.sections.actionItems).toContain("2026-01-22");
+    expect(report.sections.actionItems).not.toContain("TBD");
+  });
+
+  it("action items derive due dates from startedAt for ongoing incidents", () => {
+    const report = generatePostMortemTemplate(
+      makeIncident({
+        resolvedAt: null,
+        startedAt: new Date("2026-01-15T12:00:00Z"),
+        severity: "SEV1",
+      }),
+    );
+    // SEV1: 7-day offset from startedAt → 2026-01-22
+    expect(report.sections.actionItems).toContain("2026-01-22");
+    expect(report.sections.actionItems).not.toContain("TBD");
+  });
+
+  it("SEV2 action items use 14-day offset", () => {
+    const report = generatePostMortemTemplate(
+      makeIncident({
+        resolvedAt: new Date("2026-01-15T13:00:00Z"),
+        severity: "SEV2",
+      }),
+    );
+    // SEV2: 14-day offset from resolvedAt → 2026-01-29
+    expect(report.sections.actionItems).toContain("2026-01-29");
+  });
+
+  it("SEV3 action items use 14-day offset", () => {
+    const report = generatePostMortemTemplate(
+      makeIncident({
+        resolvedAt: new Date("2026-01-15T13:00:00Z"),
+        severity: "SEV3",
+      }),
+    );
+    // SEV3: 14-day offset from resolvedAt → 2026-01-29
+    expect(report.sections.actionItems).toContain("2026-01-29");
+  });
 });
