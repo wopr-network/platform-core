@@ -9,10 +9,10 @@ import type { Provider } from "../security/types.js";
  *   DISCORD_API_URL, ELEVENLABS_API_URL, DEEPGRAM_API_URL
  */
 export const PROVIDER_API_URLS: Record<Provider, string> = {
-  anthropic: process.env.ANTHROPIC_API_URL ?? "https://api.anthropic.com/v1/models",
-  openai: process.env.OPENAI_API_URL ?? "https://api.openai.com/v1/models",
-  google: process.env.GOOGLE_API_URL ?? "https://generativelanguage.googleapis.com/v1/models",
-  discord: process.env.DISCORD_API_URL ?? "https://discord.com/api/v10/users/@me",
-  elevenlabs: process.env.ELEVENLABS_API_URL ?? "https://api.elevenlabs.io/v1/user",
-  deepgram: process.env.DEEPGRAM_API_URL ?? "https://api.deepgram.com/v1/projects",
+  anthropic: process.env.ANTHROPIC_API_URL || "https://api.anthropic.com/v1/models",
+  openai: process.env.OPENAI_API_URL || "https://api.openai.com/v1/models",
+  google: process.env.GOOGLE_API_URL || "https://generativelanguage.googleapis.com/v1/models",
+  discord: process.env.DISCORD_API_URL || "https://discord.com/api/v10/users/@me",
+  elevenlabs: process.env.ELEVENLABS_API_URL || "https://api.elevenlabs.io/v1/user",
+  deepgram: process.env.DEEPGRAM_API_URL || "https://api.deepgram.com/v1/projects",
 };

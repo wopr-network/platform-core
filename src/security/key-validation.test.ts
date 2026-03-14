@@ -1,16 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PROVIDER_API_URLS } from "../config/provider-endpoints.js";
 import { PROVIDER_ENDPOINTS, validateProviderKey } from "./key-validation.js";
 
 describe("key-validation", () => {
   describe("PROVIDER_API_URLS", () => {
-    it("exports a URL for every supported provider", () => {
-      expect(PROVIDER_API_URLS.anthropic).toBe("https://api.anthropic.com/v1/models");
-      expect(PROVIDER_API_URLS.openai).toBe("https://api.openai.com/v1/models");
-      expect(PROVIDER_API_URLS.google).toBe("https://generativelanguage.googleapis.com/v1/models");
-      expect(PROVIDER_API_URLS.discord).toBe("https://discord.com/api/v10/users/@me");
-      expect(PROVIDER_API_URLS.elevenlabs).toBe("https://api.elevenlabs.io/v1/user");
-      expect(PROVIDER_API_URLS.deepgram).toBe("https://api.deepgram.com/v1/projects");
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    it("exports a URL for every supported provider", async () => {
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.anthropic).toBe("https://api.anthropic.com/v1/models");
+      expect(urls.openai).toBe("https://api.openai.com/v1/models");
+      expect(urls.google).toBe("https://generativelanguage.googleapis.com/v1/models");
+      expect(urls.discord).toBe("https://discord.com/api/v10/users/@me");
+      expect(urls.elevenlabs).toBe("https://api.elevenlabs.io/v1/user");
+      expect(urls.deepgram).toBe("https://api.deepgram.com/v1/projects");
     });
   });
 
@@ -127,6 +133,34 @@ describe("key-validation", () => {
       vi.resetModules();
       const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
       expect(urls.openai).toBe("https://custom-openai.example.com/v1/models");
+    });
+
+    it("uses GOOGLE_API_URL when set", async () => {
+      vi.stubEnv("GOOGLE_API_URL", "https://custom-google.example.com/v1/models");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.google).toBe("https://custom-google.example.com/v1/models");
+    });
+
+    it("uses DISCORD_API_URL when set", async () => {
+      vi.stubEnv("DISCORD_API_URL", "https://custom-discord.example.com/api/v10/users/@me");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.discord).toBe("https://custom-discord.example.com/api/v10/users/@me");
+    });
+
+    it("uses ELEVENLABS_API_URL when set", async () => {
+      vi.stubEnv("ELEVENLABS_API_URL", "https://custom-elevenlabs.example.com/v1/user");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.elevenlabs).toBe("https://custom-elevenlabs.example.com/v1/user");
+    });
+
+    it("uses DEEPGRAM_API_URL when set", async () => {
+      vi.stubEnv("DEEPGRAM_API_URL", "https://custom-deepgram.example.com/v1/projects");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.deepgram).toBe("https://custom-deepgram.example.com/v1/projects");
     });
 
     it("falls back to defaults when env vars are not set", async () => {
