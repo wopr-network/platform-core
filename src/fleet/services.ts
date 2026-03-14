@@ -12,6 +12,8 @@ import { RestoreService } from "../backup/restore-service.js";
 import { SnapshotManager } from "../backup/snapshot-manager.js";
 import { DrizzleSnapshotRepository } from "../backup/snapshot-repository.js";
 import { SpacesClient } from "../backup/spaces-client.js";
+import { RolloutOrchestrator } from "./rollout-orchestrator.js";
+import { VolumeSnapshotManager } from "./volume-snapshot-manager.js";
 import { EvidenceCollector } from "../compliance/evidence-collector.js";
 import { logger } from "../config/logger.js";
 import { createDb, type DrizzleDb } from "../db/index.js";
@@ -136,6 +138,8 @@ let _restoreLogStore: IRestoreLogStore | null = null;
 let _restoreService: RestoreService | null = null;
 let _backupStatusStore: IBackupStatusStore | null = null;
 let _snapshotManager: SnapshotManager | null = null;
+let _volumeSnapshotManager: VolumeSnapshotManager | null = null;
+let _rolloutOrchestrator: RolloutOrchestrator | null = null;
 
 const S3_BUCKET = process.env.S3_BUCKET || "wopr-backups";
 
@@ -537,6 +541,28 @@ export function getSnapshotManager(): SnapshotManager {
   return _snapshotManager;
 }
 
+export function getVolumeSnapshotManager(): VolumeSnapshotManager {
+  if (!_volumeSnapshotManager) {
+    throw new Error("VolumeSnapshotManager not initialized — call setVolumeSnapshotManager() first");
+  }
+  return _volumeSnapshotManager;
+}
+
+export function setVolumeSnapshotManager(mgr: VolumeSnapshotManager): void {
+  _volumeSnapshotManager = mgr;
+}
+
+export function getRolloutOrchestrator(): RolloutOrchestrator {
+  if (!_rolloutOrchestrator) {
+    throw new Error("RolloutOrchestrator not initialized — call setRolloutOrchestrator() first");
+  }
+  return _rolloutOrchestrator;
+}
+
+export function setRolloutOrchestrator(orch: RolloutOrchestrator): void {
+  _rolloutOrchestrator = orch;
+}
+
 export function getRestoreService(): RestoreService {
   if (!_restoreService) {
     _restoreService = new RestoreService({
@@ -877,6 +903,8 @@ export function _resetForTest(): void {
   _restoreService = null;
   _backupStatusStore = null;
   _snapshotManager = null;
+  _volumeSnapshotManager = null;
+  _rolloutOrchestrator = null;
   _botBilling = null;
   _phoneNumberRepo = null;
   _affiliateRepo = null;
