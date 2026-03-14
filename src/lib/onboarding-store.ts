@@ -2,6 +2,7 @@
  * Client-side onboarding state with localStorage persistence.
  * Enables resume from last completed step.
  */
+import { PROVIDER_DOC_URLS } from "../config/provider-docs";
 import { storageKey } from "./brand-config";
 
 export interface ProviderConfig {
@@ -137,7 +138,7 @@ export const AI_PROVIDERS = [
     recommended: true,
     keyPattern: "^sk-ant-[a-zA-Z0-9_-]+$",
     keyPlaceholder: "sk-ant-api03-...",
-    keyHelpUrl: "https://console.anthropic.com/settings/keys",
+    keyHelpUrl: PROVIDER_DOC_URLS.anthropic,
   },
   {
     id: "openai",
@@ -148,7 +149,7 @@ export const AI_PROVIDERS = [
     recommended: false,
     keyPattern: "^sk-[a-zA-Z0-9_-]+$",
     keyPlaceholder: "sk-proj-...",
-    keyHelpUrl: "https://platform.openai.com/api-keys",
+    keyHelpUrl: PROVIDER_DOC_URLS.openai,
   },
   {
     id: "google",
@@ -159,7 +160,7 @@ export const AI_PROVIDERS = [
     recommended: false,
     keyPattern: "^AIza[a-zA-Z0-9_-]+$",
     keyPlaceholder: "AIzaSy...",
-    keyHelpUrl: "https://aistudio.google.com/apikey",
+    keyHelpUrl: PROVIDER_DOC_URLS.google,
   },
   {
     id: "xai",
@@ -170,7 +171,7 @@ export const AI_PROVIDERS = [
     recommended: false,
     keyPattern: "^xai-[a-zA-Z0-9_-]+$",
     keyPlaceholder: "xai-...",
-    keyHelpUrl: "https://console.x.ai/",
+    keyHelpUrl: PROVIDER_DOC_URLS.xai,
   },
   {
     id: "local",
@@ -181,7 +182,7 @@ export const AI_PROVIDERS = [
     recommended: false,
     keyPattern: ".*",
     keyPlaceholder: "http://localhost:11434",
-    keyHelpUrl: "https://ollama.com/download",
+    keyHelpUrl: PROVIDER_DOC_URLS.local,
   },
 ] as const;
 
