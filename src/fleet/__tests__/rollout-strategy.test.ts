@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  createRolloutStrategy,
   ImmediateStrategy,
   RollingWaveStrategy,
   SingleBotStrategy,
-  createRolloutStrategy,
 } from "../rollout-strategy.js";
 import type { BotProfile } from "../types.js";
 

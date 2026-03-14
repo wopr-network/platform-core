@@ -55,10 +55,7 @@ describe("VolumeSnapshotManager", () => {
           Image: "alpine:latest",
           Cmd: expect.arrayContaining(["tar", "cf"]),
           HostConfig: expect.objectContaining({
-            Binds: expect.arrayContaining([
-              "my-volume:/source:ro",
-              "/data/fleet/snapshots:/backup",
-            ]),
+            Binds: expect.arrayContaining(["my-volume:/source:ro", "/data/fleet/snapshots:/backup"]),
             AutoRemove: true,
           }),
         }),
@@ -102,16 +99,9 @@ describe("VolumeSnapshotManager", () => {
       expect(docker.createContainer).toHaveBeenCalledWith(
         expect.objectContaining({
           Image: "alpine:latest",
-          Cmd: [
-            "sh",
-            "-c",
-            `cd /target && rm -rf ./* ./.??* && tar xf /backup/${snapshotId}.tar -C /target`,
-          ],
+          Cmd: ["sh", "-c", `cd /target && rm -rf ./* ./.??* && tar xf /backup/${snapshotId}.tar -C /target`],
           HostConfig: expect.objectContaining({
-            Binds: expect.arrayContaining([
-              "my-volume:/target",
-              "/data/fleet/snapshots:/backup:ro",
-            ]),
+            Binds: expect.arrayContaining(["my-volume:/target", "/data/fleet/snapshots:/backup:ro"]),
             AutoRemove: true,
           }),
         }),
@@ -129,9 +119,7 @@ describe("VolumeSnapshotManager", () => {
     });
 
     it("throws if archive does not exist", async () => {
-      (stat as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-      );
+      (stat as ReturnType<typeof vi.fn>).mockRejectedValueOnce(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
       await expect(manager.restore("nonexistent-2026-03-14T10-00-00-000Z")).rejects.toThrow("ENOENT");
     });
@@ -174,9 +162,7 @@ describe("VolumeSnapshotManager", () => {
     });
 
     it("returns empty array when backup dir does not exist", async () => {
-      (readdir as ReturnType<typeof vi.fn>).mockRejectedValue(
-        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-      );
+      (readdir as ReturnType<typeof vi.fn>).mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
       const result = await manager.list("my-volume");
       expect(result).toEqual([]);
@@ -187,10 +173,7 @@ describe("VolumeSnapshotManager", () => {
     it("removes the archive file", async () => {
       await manager.delete("my-volume-2026-03-14T10-00-00-000Z");
 
-      expect(rm).toHaveBeenCalledWith(
-        "/data/fleet/snapshots/my-volume-2026-03-14T10-00-00-000Z.tar",
-        { force: true },
-      );
+      expect(rm).toHaveBeenCalledWith("/data/fleet/snapshots/my-volume-2026-03-14T10-00-00-000Z.tar", { force: true });
     });
   });
 
@@ -214,26 +197,18 @@ describe("VolumeSnapshotManager", () => {
 
       expect(deleted).toBe(1);
       expect(rm).toHaveBeenCalledTimes(1);
-      expect(rm).toHaveBeenCalledWith(
-        "/data/fleet/snapshots/vol-2026-03-14T08-00-00-000Z.tar",
-        { force: true },
-      );
+      expect(rm).toHaveBeenCalledWith("/data/fleet/snapshots/vol-2026-03-14T08-00-00-000Z.tar", { force: true });
     });
 
     it("returns 0 when backup dir does not exist", async () => {
-      (readdir as ReturnType<typeof vi.fn>).mockRejectedValue(
-        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-      );
+      (readdir as ReturnType<typeof vi.fn>).mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
       const result = await manager.cleanup(60_000);
       expect(result).toBe(0);
     });
 
     it("skips non-tar files", async () => {
-      (readdir as ReturnType<typeof vi.fn>).mockResolvedValue([
-        "readme.txt",
-        ".gitkeep",
-      ]);
+      (readdir as ReturnType<typeof vi.fn>).mockResolvedValue(["readme.txt", ".gitkeep"]);
 
       const result = await manager.cleanup(60_000);
       expect(result).toBe(0);
