@@ -13,6 +13,15 @@ export interface VolumeSnapshot {
 
 const ALPINE_IMAGE = "alpine:latest";
 
+/** Strict validation for snapshot IDs — prevents path traversal and shell injection. */
+const SNAPSHOT_ID_RE = /^[A-Za-z0-9._-]+$/;
+
+function validateSnapshotId(snapshotId: string): void {
+  if (!SNAPSHOT_ID_RE.test(snapshotId)) {
+    throw new Error(`Invalid snapshot ID: ${snapshotId}`);
+  }
+}
+
 /**
  * Snapshots and restores Docker named volumes using temporary alpine containers.
  * Used for nuclear rollback during fleet updates — if a container update fails,
@@ -46,7 +55,10 @@ export class VolumeSnapshotManager {
 
     try {
       await container.start();
-      await container.wait();
+      const result = await container.wait();
+      if (result.StatusCode !== 0) {
+        throw new Error(`Snapshot container exited with code ${result.StatusCode}`);
+      }
     } catch (err) {
       // AutoRemove handles cleanup, but if start failed the container may still exist
       try {
@@ -73,6 +85,7 @@ export class VolumeSnapshotManager {
 
   /** Restore a volume from a snapshot */
   async restore(snapshotId: string): Promise<void> {
+    validateSnapshotId(snapshotId);
     const archivePath = join(this.backupDir, `${snapshotId}.tar`);
 
     // Verify archive exists
@@ -83,7 +96,7 @@ export class VolumeSnapshotManager {
 
     const container = await this.docker.createContainer({
       Image: ALPINE_IMAGE,
-      Cmd: ["sh", "-c", `rm -rf /target/* && tar xf /backup/${snapshotId}.tar -C /target`],
+      Cmd: ["sh", "-c", `cd /target && rm -rf ./* ./.??* && tar xf /backup/${snapshotId}.tar -C /target`],
       HostConfig: {
         Binds: [`${volumeName}:/target`, `${this.backupDir}:/backup:ro`],
         AutoRemove: true,
@@ -92,7 +105,10 @@ export class VolumeSnapshotManager {
 
     try {
       await container.start();
-      await container.wait();
+      const result = await container.wait();
+      if (result.StatusCode !== 0) {
+        throw new Error(`Restore container exited with code ${result.StatusCode}`);
+      }
     } catch (err) {
       try {
         await container.remove({ force: true });
@@ -142,6 +158,7 @@ export class VolumeSnapshotManager {
 
   /** Delete a snapshot archive */
   async delete(snapshotId: string): Promise<void> {
+    validateSnapshotId(snapshotId);
     const archivePath = join(this.backupDir, `${snapshotId}.tar`);
     await rm(archivePath, { force: true });
     logger.info(`Volume snapshot deleted: ${snapshotId}`);

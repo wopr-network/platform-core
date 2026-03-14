@@ -238,8 +238,9 @@ describe("rollbackPluginOnVolume", () => {
 });
 
 describe("npm package validation", () => {
-  const validExec = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: (...args: never) => unknown) =>
-    cb(null, "", ""),
+  const validExec = vi.fn(
+    (_cmd: unknown, _args: unknown, _opts: unknown, cb: (err: unknown, stdout: string, stderr: string) => void) =>
+      cb(null, "", ""),
   );
 
   beforeEach(() => {
@@ -352,8 +353,9 @@ describe("npm package validation", () => {
   });
 
   it("passes -- separator before package name to prevent flag injection", async () => {
-    const execFn = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: (...args: never) => unknown) =>
-      cb(null, "", ""),
+    const execFn = vi.fn(
+      (_cmd: unknown, _args: unknown, _opts: unknown, cb: (err: unknown, stdout: string, stderr: string) => void) =>
+        cb(null, "", ""),
     );
     await installPluginToVolume({
       pluginId: "p1",

@@ -19,6 +19,11 @@ export interface RollingWaveOptions {
   maxFailures?: number;
 }
 
+/**
+ * Rolling wave strategy — processes bots in configurable percentage batches.
+ * Create a new instance per rollout; totalFailures accumulates across waves
+ * within a single rollout. Call reset() if reusing across rollouts.
+ */
 export class RollingWaveStrategy implements IRolloutStrategy {
   private readonly batchPercent: number;
   private readonly pauseMs: number;
@@ -55,6 +60,11 @@ export class RollingWaveStrategy implements IRolloutStrategy {
   healthCheckTimeout(): number {
     return 120_000;
   }
+
+  /** Reset failure counters for reuse across rollouts. */
+  reset(): void {
+    this.totalFailures = 0;
+  }
 }
 
 export class SingleBotStrategy implements IRolloutStrategy {
@@ -69,7 +79,7 @@ export class SingleBotStrategy implements IRolloutStrategy {
 
   onBotFailure(_botId: string, _error: Error, attempt: number): "abort" | "skip" | "retry" {
     if (attempt < this.maxRetries()) return "retry";
-    return "retry";
+    return "abort";
   }
 
   maxRetries(): number {

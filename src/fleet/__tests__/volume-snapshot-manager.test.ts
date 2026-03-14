@@ -105,7 +105,7 @@ describe("VolumeSnapshotManager", () => {
           Cmd: [
             "sh",
             "-c",
-            `rm -rf /target/* && tar xf /backup/${snapshotId}.tar -C /target`,
+            `cd /target && rm -rf ./* ./.??* && tar xf /backup/${snapshotId}.tar -C /target`,
           ],
           HostConfig: expect.objectContaining({
             Binds: expect.arrayContaining([

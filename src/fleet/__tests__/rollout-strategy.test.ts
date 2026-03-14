@@ -115,7 +115,8 @@ describe("SingleBotStrategy", () => {
     expect(s.onBotFailure("b1", err, 0)).toBe("retry");
     expect(s.onBotFailure("b1", err, 1)).toBe("retry");
     expect(s.onBotFailure("b1", err, 2)).toBe("retry");
-    expect(s.onBotFailure("b1", err, 99)).toBe("retry");
+    // After maxRetries (3), aborts instead of retrying forever
+    expect(s.onBotFailure("b1", err, 99)).toBe("abort");
   });
 
   it("has maxRetries of 3", () => {
