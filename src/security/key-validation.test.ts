@@ -108,4 +108,36 @@ describe("key-validation", () => {
       );
     });
   });
+
+  describe("PROVIDER_API_URLS env overrides", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    it("uses ANTHROPIC_API_URL when set", async () => {
+      vi.stubEnv("ANTHROPIC_API_URL", "https://custom-anthropic.example.com/v1/models");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.anthropic).toBe("https://custom-anthropic.example.com/v1/models");
+    });
+
+    it("uses OPENAI_API_URL when set", async () => {
+      vi.stubEnv("OPENAI_API_URL", "https://custom-openai.example.com/v1/models");
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.openai).toBe("https://custom-openai.example.com/v1/models");
+    });
+
+    it("falls back to defaults when env vars are not set", async () => {
+      vi.resetModules();
+      const { PROVIDER_API_URLS: urls } = await import("../config/provider-endpoints.js");
+      expect(urls.anthropic).toBe("https://api.anthropic.com/v1/models");
+      expect(urls.openai).toBe("https://api.openai.com/v1/models");
+      expect(urls.google).toBe("https://generativelanguage.googleapis.com/v1/models");
+      expect(urls.discord).toBe("https://discord.com/api/v10/users/@me");
+      expect(urls.elevenlabs).toBe("https://api.elevenlabs.io/v1/user");
+      expect(urls.deepgram).toBe("https://api.deepgram.com/v1/projects");
+    });
+  });
 });
