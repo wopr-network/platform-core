@@ -238,7 +238,9 @@ describe("rollbackPluginOnVolume", () => {
 });
 
 describe("npm package validation", () => {
-  const validExec = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: Function) => cb(null, "", ""));
+  const validExec = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: (...args: never) => unknown) =>
+    cb(null, "", ""),
+  );
 
   beforeEach(() => {
     validExec.mockClear();
@@ -350,7 +352,9 @@ describe("npm package validation", () => {
   });
 
   it("passes -- separator before package name to prevent flag injection", async () => {
-    const execFn = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: Function) => cb(null, "", ""));
+    const execFn = vi.fn((_cmd: unknown, _args: unknown, _opts: unknown, cb: (...args: never) => unknown) =>
+      cb(null, "", ""),
+    );
     await installPluginToVolume({
       pluginId: "p1",
       npmPackage: "lodash",
