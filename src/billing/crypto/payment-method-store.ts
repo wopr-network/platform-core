@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
 import { paymentMethods } from "../../db/schema/crypto.js";
 
@@ -57,9 +57,9 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
     const rows = await this.db
       .select()
       .from(paymentMethods)
-      .where(eq(paymentMethods.type, type))
+      .where(and(eq(paymentMethods.type, type), eq(paymentMethods.enabled, true)))
       .orderBy(paymentMethods.displayOrder);
-    return rows.filter((r) => r.enabled).map(toRecord);
+    return rows.map(toRecord);
   }
 
   async upsert(method: PaymentMethodRecord): Promise<void> {
