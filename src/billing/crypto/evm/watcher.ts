@@ -11,6 +11,8 @@ export interface EvmWatcherOpts {
   rpcCall: RpcCall;
   fromBlock: number;
   onPayment: (event: EvmPaymentEvent) => void | Promise<void>;
+  /** Active deposit addresses to watch. Filters eth_getLogs by topic[2] (to address). */
+  watchedAddresses?: string[];
 }
 
 interface RpcLog {
@@ -31,6 +33,7 @@ export class EvmWatcher {
   private readonly confirmations: number;
   private readonly contractAddress: string;
   private readonly decimals: number;
+  private _watchedAddresses: string[];
 
   constructor(opts: EvmWatcherOpts) {
     this.chain = opts.chain;
@@ -38,12 +41,18 @@ export class EvmWatcher {
     this.rpc = opts.rpcCall;
     this._cursor = opts.fromBlock;
     this.onPayment = opts.onPayment;
+    this._watchedAddresses = (opts.watchedAddresses ?? []).map((a) => a.toLowerCase());
 
     const chainCfg = getChainConfig(opts.chain);
     const tokenCfg = getTokenConfig(opts.token, opts.chain);
     this.confirmations = chainCfg.confirmations;
     this.contractAddress = tokenCfg.contractAddress.toLowerCase();
     this.decimals = tokenCfg.decimals;
+  }
+
+  /** Update the set of watched deposit addresses (e.g. after a new checkout). */
+  setWatchedAddresses(addresses: string[]): void {
+    this._watchedAddresses = addresses.map((a) => a.toLowerCase());
   }
 
   get cursor(): number {
@@ -58,10 +67,18 @@ export class EvmWatcher {
 
     if (confirmed < this._cursor) return;
 
+    // Filter by topic[2] (to address) when watched addresses are set.
+    // This avoids fetching ALL USDC transfers on the chain (millions/day on Base).
+    // topic[2] values are 32-byte zero-padded: 0x000000000000000000000000<address>
+    const toFilter =
+      this._watchedAddresses.length > 0
+        ? this._watchedAddresses.map((a) => `0x000000000000000000000000${a.slice(2)}`)
+        : null;
+
     const logs = (await this.rpc("eth_getLogs", [
       {
         address: this.contractAddress,
-        topics: [TRANSFER_TOPIC],
+        topics: [TRANSFER_TOPIC, null, toFilter],
         fromBlock: `0x${this._cursor.toString(16)}`,
         toBlock: `0x${confirmed.toString(16)}`,
       },
