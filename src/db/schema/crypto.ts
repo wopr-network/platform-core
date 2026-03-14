@@ -31,7 +31,7 @@ export const cryptoCharges = pgTable(
     index("idx_crypto_charges_status").on(table.status),
     index("idx_crypto_charges_created").on(table.createdAt),
     index("idx_crypto_charges_deposit_address").on(table.depositAddress),
-    // uniqueIndex would be ideal but drizzle pgTable helper doesn't support it inline.
+    // Unique indexes use WHERE IS NOT NULL partial indexes (declared in migration SQL).
     // Enforced via migration: CREATE UNIQUE INDEX.
   ],
 );
