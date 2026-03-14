@@ -4,6 +4,7 @@ import type {
   ICryptoChargeRepository,
   IWebhookSeenRepository,
 } from "@wopr-network/platform-core/billing";
+import { mapBtcPayEventToStatus } from "@wopr-network/platform-core/billing";
 import type { ILedger } from "@wopr-network/platform-core/credits";
 import { Credit } from "@wopr-network/platform-core/credits";
 import type { BotBilling } from "../credits/bot-billing.js";
@@ -21,6 +22,11 @@ export interface CryptoWebhookDeps {
  * Only credits the ledger on InvoiceSettled.
  * Uses botBilling.checkReactivation for WOPR bot suspension recovery.
  *
+ * Idempotency strategy (matches Stripe webhook pattern):
+ *   Primary: `creditLedger.hasReferenceId("crypto:<invoiceId>")` — atomic,
+ *   checked inside the ledger's serialized transaction.
+ *   Secondary: `chargeStore.markCredited()` — advisory flag for queries.
+ *
  * CRITICAL: charge.amountUsdCents is in USD cents (integer).
  * Credit.fromCents() converts cents → nanodollars for the ledger.
  */
@@ -30,7 +36,8 @@ export async function handleCryptoWebhook(
 ): Promise<CryptoWebhookResult> {
   const { chargeStore, creditLedger } = deps;
 
-  const status = mapEventTypeToStatus(payload.type);
+  // Map BTCPay event type to a CryptoPaymentState (throws on unknown types).
+  const status = mapBtcPayEventToStatus(payload.type);
 
   // Replay guard: deduplicate by invoiceId + event type.
   const dedupeKey = `${payload.invoiceId}:${payload.type}`;
@@ -45,13 +52,16 @@ export async function handleCryptoWebhook(
   }
 
   // Update charge status regardless of event type.
-  await chargeStore.updateStatus(payload.invoiceId, status as "New" | "Processing" | "Expired" | "Invalid" | "Settled");
+  await chargeStore.updateStatus(payload.invoiceId, status);
 
   let result: CryptoWebhookResult;
 
   if (payload.type === "InvoiceSettled") {
-    // Idempotency: skip if already credited.
-    if (await chargeStore.isCredited(payload.invoiceId)) {
+    // Idempotency: use ledger referenceId check (same pattern as Stripe webhook).
+    // This is atomic — the referenceId is checked inside the ledger's serialized
+    // transaction, eliminating the TOCTOU race of isCredited() + creditLedger().
+    const creditRef = `crypto:${payload.invoiceId}`;
+    if (await creditLedger.hasReferenceId(creditRef)) {
       result = {
         handled: true,
         status,
@@ -66,10 +76,11 @@ export async function handleCryptoWebhook(
 
       await creditLedger.credit(charge.tenantId, Credit.fromCents(creditCents), "purchase", {
         description: `Crypto credit purchase via BTCPay (invoice: ${payload.invoiceId})`,
-        referenceId: `crypto:${payload.invoiceId}`,
+        referenceId: creditRef,
         fundingSource: "crypto",
       });
 
+      // Mark credited (advisory — primary idempotency is the ledger referenceId above).
       await chargeStore.markCredited(payload.invoiceId);
 
       // Reactivate suspended bots (same as Stripe webhook).
@@ -98,23 +109,4 @@ export async function handleCryptoWebhook(
 
   await deps.replayGuard.markSeen(dedupeKey, "crypto");
   return result;
-}
-
-function mapEventTypeToStatus(eventType: string): string {
-  switch (eventType) {
-    case "InvoiceCreated":
-      return "New";
-    case "InvoiceReceivedPayment":
-    case "InvoiceProcessing":
-      return "Processing";
-    case "InvoiceSettled":
-    case "InvoicePaymentSettled":
-      return "Settled";
-    case "InvoiceExpired":
-      return "Expired";
-    case "InvoiceInvalid":
-      return "Invalid";
-    default:
-      return eventType;
-  }
 }

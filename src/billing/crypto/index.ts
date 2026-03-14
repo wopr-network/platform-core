@@ -10,5 +10,6 @@ export type {
   CryptoWebhookPayload,
   CryptoWebhookResult,
 } from "./types.js";
+export { mapBtcPayEventToStatus } from "./types.js";
 export type { CryptoWebhookDeps } from "./webhook.js";
 export { handleCryptoWebhook, verifyCryptoWebhookSignature } from "./webhook.js";

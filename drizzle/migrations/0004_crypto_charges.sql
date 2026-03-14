@@ -1,4 +1,8 @@
--- Replace payram_charges with crypto_charges (BTCPay Server)
+-- Replace payram_charges with crypto_charges (BTCPay Server).
+-- payram_charges existed only in the initial schema (0000) and was never used
+-- in production — no data migration is needed. The table is dropped and replaced
+-- with crypto_charges which has the same column structure but uses BTCPay-specific
+-- naming (reference_id = BTCPay invoice ID).
 --> statement-breakpoint
 DROP TABLE IF EXISTS "payram_charges";
 --> statement-breakpoint

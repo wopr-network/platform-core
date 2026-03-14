@@ -56,3 +56,28 @@ export interface CryptoWebhookResult {
   reactivatedBots?: string[];
   duplicate?: boolean;
 }
+
+/**
+ * Map BTCPay webhook event type string to a CryptoPaymentState.
+ *
+ * Shared between the core (billing) and consumer (monetization) webhook handlers.
+ * Throws on unrecognized event types to surface integration errors early.
+ */
+export function mapBtcPayEventToStatus(eventType: string): CryptoPaymentState {
+  switch (eventType) {
+    case "InvoiceCreated":
+      return "New";
+    case "InvoiceReceivedPayment":
+    case "InvoiceProcessing":
+      return "Processing";
+    case "InvoiceSettled":
+    case "InvoicePaymentSettled":
+      return "Settled";
+    case "InvoiceExpired":
+      return "Expired";
+    case "InvoiceInvalid":
+      return "Invalid";
+    default:
+      throw new Error(`Unknown BTCPay event type: ${eventType}`);
+  }
+}

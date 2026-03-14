@@ -4,6 +4,7 @@ import type { ILedger } from "../../credits/ledger.js";
 import type { IWebhookSeenRepository } from "../webhook-seen-repository.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { CryptoWebhookPayload, CryptoWebhookResult } from "./types.js";
+import { mapBtcPayEventToStatus } from "./types.js";
 
 export interface CryptoWebhookDeps {
   chargeStore: ICryptoChargeRepository;
@@ -24,7 +25,7 @@ export function verifyCryptoWebhookSignature(
   secret: string,
 ): boolean {
   if (!sigHeader) return false;
-  const expectedSig = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expectedSig = `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`;
 
   const expected = Buffer.from(expectedSig, "utf8");
   const received = Buffer.from(sigHeader, "utf8");
@@ -40,6 +41,11 @@ export function verifyCryptoWebhookSignature(
  * Uses the BTCPay invoice ID mapped to the stored charge record
  * for tenant resolution and idempotency.
  *
+ * Idempotency strategy (matches Stripe webhook pattern):
+ *   Primary: `creditLedger.hasReferenceId("crypto:<invoiceId>")` — atomic,
+ *   checked inside the ledger's serialized transaction.
+ *   Secondary: `chargeStore.markCredited()` — advisory flag for queries.
+ *
  * CRITICAL: The charge store holds amountUsdCents (USD cents, integer).
  * Credit.fromCents() converts cents → nanodollars for the ledger.
  * Never pass raw cents to the ledger — always go through Credit.fromCents().
@@ -50,8 +56,8 @@ export async function handleCryptoWebhook(
 ): Promise<CryptoWebhookResult> {
   const { chargeStore, creditLedger } = deps;
 
-  // Map BTCPay event type to a status string for the charge store.
-  const status = mapEventTypeToStatus(payload.type);
+  // Map BTCPay event type to a CryptoPaymentState (throws on unknown types).
+  const status = mapBtcPayEventToStatus(payload.type);
 
   // Replay guard: deduplicate by invoiceId + event type.
   const dedupeKey = `${payload.invoiceId}:${payload.type}`;
@@ -66,13 +72,16 @@ export async function handleCryptoWebhook(
   }
 
   // Update charge status regardless of event type.
-  await chargeStore.updateStatus(payload.invoiceId, status as "New" | "Processing" | "Expired" | "Invalid" | "Settled");
+  await chargeStore.updateStatus(payload.invoiceId, status);
 
   let result: CryptoWebhookResult;
 
   if (payload.type === "InvoiceSettled") {
-    // Idempotency: skip if already credited.
-    if (await chargeStore.isCredited(payload.invoiceId)) {
+    // Idempotency: use ledger referenceId check (same pattern as Stripe webhook).
+    // This is atomic — the referenceId is checked inside the ledger's serialized
+    // transaction, eliminating the TOCTOU race of isCredited() + creditLedger().
+    const creditRef = `crypto:${payload.invoiceId}`;
+    if (await creditLedger.hasReferenceId(creditRef)) {
       result = {
         handled: true,
         status,
@@ -88,10 +97,11 @@ export async function handleCryptoWebhook(
 
       await creditLedger.credit(charge.tenantId, Credit.fromCents(creditCents), "purchase", {
         description: `Crypto credit purchase via BTCPay (invoice: ${payload.invoiceId})`,
-        referenceId: `crypto:${payload.invoiceId}`,
+        referenceId: creditRef,
         fundingSource: "crypto",
       });
 
+      // Mark credited (advisory — primary idempotency is the ledger referenceId above).
       await chargeStore.markCredited(payload.invoiceId);
 
       // Reactivate suspended resources after credit purchase.
@@ -120,24 +130,4 @@ export async function handleCryptoWebhook(
 
   await deps.replayGuard.markSeen(dedupeKey, "crypto");
   return result;
-}
-
-/** Map BTCPay event type string to a CryptoPaymentState. */
-function mapEventTypeToStatus(eventType: string): string {
-  switch (eventType) {
-    case "InvoiceCreated":
-      return "New";
-    case "InvoiceReceivedPayment":
-    case "InvoiceProcessing":
-      return "Processing";
-    case "InvoiceSettled":
-    case "InvoicePaymentSettled":
-      return "Settled";
-    case "InvoiceExpired":
-      return "Expired";
-    case "InvoiceInvalid":
-      return "Invalid";
-    default:
-      return eventType;
-  }
 }

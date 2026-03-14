@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Credit } from "../../credits/credit.js";
 
 /**
  * Regression tests for crypto cents/credits boundary.
@@ -11,10 +12,10 @@ import { describe, expect, it } from "vitest";
  * USD cents. See src/credits/credit-ledger.ts for naming convention.
  */
 describe("Crypto cents/credits boundary", () => {
-  it("USD to cents conversion is correct (mirrors checkout.ts pattern)", () => {
-    // This mirrors the conversion in crypto/checkout.ts: Math.round(opts.amountUsd * 100)
+  it("USD to cents conversion is correct (mirrors checkout.ts Credit.fromDollars pattern)", () => {
+    // This mirrors the conversion in crypto/checkout.ts: Credit.fromDollars(amountUsd).toCentsRounded()
     const amountUsd = 25;
-    const amountUsdCents = Math.round(amountUsd * 100);
+    const amountUsdCents = Credit.fromDollars(amountUsd).toCentsRounded();
     expect(amountUsdCents).toBe(2500);
     // Must NOT be nanodollar scale
     expect(amountUsdCents).toBeLessThan(1_000_000);
@@ -22,7 +23,7 @@ describe("Crypto cents/credits boundary", () => {
 
   it("minimum payment amount converts to valid cents", () => {
     const MIN_PAYMENT_USD = 10;
-    const cents = Math.round(MIN_PAYMENT_USD * 100);
+    const cents = Credit.fromDollars(MIN_PAYMENT_USD).toCentsRounded();
     expect(cents).toBe(1000);
     expect(Number.isInteger(cents)).toBe(true);
     // Sanity: $10 is 1000 cents, NOT 10_000_000_000 nanodollars
@@ -31,7 +32,7 @@ describe("Crypto cents/credits boundary", () => {
 
   it("fractional USD amounts round correctly to cents", () => {
     const amountUsd = 10.99;
-    const cents = Math.round(amountUsd * 100);
+    const cents = Credit.fromDollars(amountUsd).toCentsRounded();
     expect(cents).toBe(1099);
     expect(cents).toBeLessThan(1_000_000);
   });
@@ -45,7 +46,7 @@ describe("Crypto cents/credits boundary", () => {
     ];
 
     for (const { usd, expectedCents } of testCases) {
-      const amountUsdCents = Math.round(usd * 100);
+      const amountUsdCents = Credit.fromDollars(usd).toCentsRounded();
       expect(amountUsdCents).toBe(expectedCents);
       // CREDIT SCALE = 1_000_000_000. If this value approaches that, unit confusion occurred.
       expect(amountUsdCents).toBeLessThan(1_000_000);

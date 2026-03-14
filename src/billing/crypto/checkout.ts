@@ -1,3 +1,4 @@
+import { Credit } from "../../credits/credit.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { BTCPayClient } from "./client.js";
 import type { CryptoCheckoutOpts } from "./types.js";
@@ -33,7 +34,11 @@ export async function createCryptoCheckout(
 
   // Store the charge record for webhook correlation.
   // amountUsdCents = USD * 100 (cents, NOT nanodollars).
-  await chargeStore.create(invoice.id, opts.tenant, Math.round(opts.amountUsd * 100));
+  // Credit.fromDollars() handles the float → integer boundary safely via Math.round
+  // on the nanodollar scale, then toCentsRounded() converts back to integer cents.
+  // This avoids direct floating-point multiplication for the cents conversion.
+  const amountUsdCents = Credit.fromDollars(opts.amountUsd).toCentsRounded();
+  await chargeStore.create(invoice.id, opts.tenant, amountUsdCents);
 
   return {
     referenceId: invoice.id,

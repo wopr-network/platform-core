@@ -8,6 +8,7 @@ import { DrizzleWebhookSeenRepository } from "../drizzle-webhook-seen-repository
 import { noOpReplayGuard } from "../webhook-seen-repository.js";
 import { CryptoChargeRepository } from "./charge-store.js";
 import type { CryptoWebhookPayload } from "./types.js";
+import { mapBtcPayEventToStatus } from "./types.js";
 import type { CryptoWebhookDeps } from "./webhook.js";
 import { handleCryptoWebhook, verifyCryptoWebhookSignature } from "./webhook.js";
 
@@ -226,6 +227,18 @@ describe("handleCryptoWebhook", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Unknown event type
+  // ---------------------------------------------------------------------------
+
+  describe("unknown event type", () => {
+    it("throws on unrecognized BTCPay event type", async () => {
+      await expect(handleCryptoWebhook(deps, makePayload({ type: "SomeUnknownEvent" }))).rejects.toThrow(
+        "Unknown BTCPay event type: SomeUnknownEvent",
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Resource reactivation
   // ---------------------------------------------------------------------------
 
@@ -266,7 +279,7 @@ describe("verifyCryptoWebhookSignature", () => {
   const body = '{"type":"InvoiceSettled","invoiceId":"inv-001"}';
 
   it("returns true for valid signature", () => {
-    const sig = "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex");
+    const sig = `sha256=${crypto.createHmac("sha256", secret).update(body).digest("hex")}`;
     expect(verifyCryptoWebhookSignature(body, sig, secret)).toBe(true);
   });
 
@@ -275,19 +288,39 @@ describe("verifyCryptoWebhookSignature", () => {
   });
 
   it("returns false for wrong secret", () => {
-    const sig = "sha256=" + crypto.createHmac("sha256", "wrong-secret").update(body).digest("hex");
+    const sig = `sha256=${crypto.createHmac("sha256", "wrong-secret").update(body).digest("hex")}`;
     expect(verifyCryptoWebhookSignature(body, sig, secret)).toBe(false);
   });
 
   it("returns false for tampered body", () => {
-    const sig = "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex");
-    expect(verifyCryptoWebhookSignature(body + "tampered", sig, secret)).toBe(false);
+    const sig = `sha256=${crypto.createHmac("sha256", secret).update(body).digest("hex")}`;
+    expect(verifyCryptoWebhookSignature(`${body}tampered`, sig, secret)).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------------------
 // Replay guard unit tests
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// mapBtcPayEventToStatus
+// ---------------------------------------------------------------------------
+
+describe("mapBtcPayEventToStatus", () => {
+  it("maps known event types to CryptoPaymentState", () => {
+    expect(mapBtcPayEventToStatus("InvoiceCreated")).toBe("New");
+    expect(mapBtcPayEventToStatus("InvoiceReceivedPayment")).toBe("Processing");
+    expect(mapBtcPayEventToStatus("InvoiceProcessing")).toBe("Processing");
+    expect(mapBtcPayEventToStatus("InvoiceSettled")).toBe("Settled");
+    expect(mapBtcPayEventToStatus("InvoicePaymentSettled")).toBe("Settled");
+    expect(mapBtcPayEventToStatus("InvoiceExpired")).toBe("Expired");
+    expect(mapBtcPayEventToStatus("InvoiceInvalid")).toBe("Invalid");
+  });
+
+  it("throws on unknown event type", () => {
+    expect(() => mapBtcPayEventToStatus("SomethingElse")).toThrow("Unknown BTCPay event type: SomethingElse");
+  });
+});
 
 describe("DrizzleWebhookSeenRepository (crypto replay guard)", () => {
   beforeEach(async () => {

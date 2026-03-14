@@ -176,6 +176,7 @@ export {
   handleCryptoWebhook,
   loadCryptoConfig,
   MIN_PAYMENT_USD,
+  mapBtcPayEventToStatus,
   verifyCryptoWebhookSignature,
 } from "./crypto/index.js";
 // Feature gating middleware (WOP-384 — replaced tier gates with balance gates)
