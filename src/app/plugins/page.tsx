@@ -82,6 +82,8 @@ export default function PluginsPage() {
   const [toggling, setToggling] = useState<string | null>(null);
   const togglingRef = useRef<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [installedPage, setInstalledPage] = useState(1);
   const [catalogPage, setCatalogPage] = useState(1);
 
@@ -114,15 +116,24 @@ export default function PluginsPage() {
       });
   }, []);
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
+  const loadCatalog = useCallback(async (isRetry = false) => {
+    setCatalogError(false);
+    if (isRetry) {
+      setCatalogLoading(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const data = await listMarketplacePlugins();
       setCatalog(data);
     } catch {
-      // Keep previous catalog on error
+      setCatalogError(true);
     } finally {
-      setLoading(false);
+      if (isRetry) {
+        setCatalogLoading(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -446,7 +457,43 @@ export default function PluginsPage() {
             className="max-w-sm bg-black/50 border-terminal/30 placeholder:text-terminal/30 focus-visible:border-terminal focus-visible:ring-terminal/20"
           />
 
-          {catalogTotal === 0 ? (
+          {catalogLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }, (_, n) => `csk-${n}`).map((skId) => (
+                <Card key={skId}>
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-28" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-5 w-10 rounded-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : catalogError ? (
+            <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-red-500/25 bg-red-500/5">
+              <p className="font-mono text-sm text-red-500">
+                &gt; CATALOG LOAD FAILED. CHECK CONNECTION AND RETRY.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-500/30 text-red-500 hover:bg-red-500/10"
+                onClick={() => loadCatalog(true)}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : catalogTotal === 0 ? (
             <div className="flex h-40 items-center justify-center rounded-sm border border-dashed border-terminal/20">
               <p className="font-mono text-sm text-terminal/60">&gt; NO MATCHING PLUGINS FOUND.</p>
             </div>
