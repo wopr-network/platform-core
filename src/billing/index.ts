@@ -1,3 +1,5 @@
+// Crypto (BTCPay Server)
+export * from "./crypto/index.js";
 export { DrizzleWebhookSeenRepository } from "./drizzle-webhook-seen-repository.js";
 export type {
   ChargeOpts,
@@ -12,8 +14,6 @@ export type {
   WebhookResult,
 } from "./payment-processor.js";
 export { PaymentMethodOwnershipError } from "./payment-processor.js";
-// Crypto (BTCPay Server)
-export * from "./crypto/index.js";
 // Stripe
 export * from "./stripe/index.js";
 export type { IWebhookSeenRepository } from "./webhook-seen-repository.js";

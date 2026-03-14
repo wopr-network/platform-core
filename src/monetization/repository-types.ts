@@ -1,9 +1,9 @@
 // Re-export all monetization repository interfaces for callers that want a single import point.
 
 export type {
+  CryptoChargeRecord,
   ICryptoChargeRepository,
   ITenantCustomerRepository,
-  CryptoChargeRecord,
 } from "@wopr-network/platform-core/billing";
 export type { IAutoTopupSettingsRepository, ILedger } from "@wopr-network/platform-core/credits";
 export type { IMeterAggregator, IMeterEmitter } from "@wopr-network/platform-core/metering";

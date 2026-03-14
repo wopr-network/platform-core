@@ -1,5 +1,5 @@
+import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { BTCPayClient } from "./client.js";
-import type { CryptoChargeRepository } from "./charge-store.js";
 import type { CryptoCheckoutOpts } from "./types.js";
 
 /** Minimum payment amount in USD. */
@@ -16,7 +16,7 @@ export const MIN_PAYMENT_USD = 10;
  */
 export async function createCryptoCheckout(
   client: BTCPayClient,
-  chargeStore: CryptoChargeRepository,
+  chargeStore: ICryptoChargeRepository,
   opts: CryptoCheckoutOpts,
 ): Promise<{ referenceId: string; url: string }> {
   if (opts.amountUsd < MIN_PAYMENT_USD) {
@@ -33,11 +33,7 @@ export async function createCryptoCheckout(
 
   // Store the charge record for webhook correlation.
   // amountUsdCents = USD * 100 (cents, NOT nanodollars).
-  await chargeStore.create(
-    invoice.id,
-    opts.tenant,
-    Math.round(opts.amountUsd * 100),
-  );
+  await chargeStore.create(invoice.id, opts.tenant, Math.round(opts.amountUsd * 100));
 
   return {
     referenceId: invoice.id,

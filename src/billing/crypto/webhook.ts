@@ -2,11 +2,11 @@ import crypto from "node:crypto";
 import { Credit } from "../../credits/credit.js";
 import type { ILedger } from "../../credits/ledger.js";
 import type { IWebhookSeenRepository } from "../webhook-seen-repository.js";
-import type { CryptoChargeRepository } from "./charge-store.js";
+import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { CryptoWebhookPayload, CryptoWebhookResult } from "./types.js";
 
 export interface CryptoWebhookDeps {
-  chargeStore: CryptoChargeRepository;
+  chargeStore: ICryptoChargeRepository;
   creditLedger: ILedger;
   replayGuard: IWebhookSeenRepository;
   /** Called after credits are purchased — consumer can reactivate suspended resources. Returns reactivated resource IDs. */
@@ -18,7 +18,12 @@ export interface CryptoWebhookDeps {
  *
  * BTCPay sends the signature in the BTCPAY-SIG header as "sha256=<hex>".
  */
-export function verifyCryptoWebhookSignature(rawBody: Buffer | string, sigHeader: string, secret: string): boolean {
+export function verifyCryptoWebhookSignature(
+  rawBody: Buffer | string,
+  sigHeader: string | undefined,
+  secret: string,
+): boolean {
+  if (!sigHeader) return false;
   const expectedSig = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
   const expected = Buffer.from(expectedSig, "utf8");

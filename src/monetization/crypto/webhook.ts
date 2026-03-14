@@ -1,7 +1,7 @@
 import type {
-  CryptoChargeRepository,
   CryptoWebhookPayload,
   CryptoWebhookResult,
+  ICryptoChargeRepository,
   IWebhookSeenRepository,
 } from "@wopr-network/platform-core/billing";
 import type { ILedger } from "@wopr-network/platform-core/credits";
@@ -9,7 +9,7 @@ import { Credit } from "@wopr-network/platform-core/credits";
 import type { BotBilling } from "../credits/bot-billing.js";
 
 export interface CryptoWebhookDeps {
-  chargeStore: CryptoChargeRepository;
+  chargeStore: ICryptoChargeRepository;
   creditLedger: ILedger;
   botBilling?: BotBilling;
   replayGuard: IWebhookSeenRepository;

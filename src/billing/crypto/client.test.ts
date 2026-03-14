@@ -4,9 +4,9 @@ import { BTCPayClient, loadCryptoConfig } from "./client.js";
 describe("BTCPayClient", () => {
   it("createInvoice sends correct request and returns id + checkoutLink", async () => {
     const mockResponse = { id: "inv-001", checkoutLink: "https://btcpay.example.com/i/inv-001" };
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify(mockResponse), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const client = new BTCPayClient({
       apiKey: "test-key",
@@ -44,32 +44,36 @@ describe("BTCPayClient", () => {
 
   it("createInvoice includes redirectURL when provided", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ id: "inv-002", checkoutLink: "https://btcpay.example.com/i/inv-002" }), { status: 200 }),
+      new Response(JSON.stringify({ id: "inv-002", checkoutLink: "https://btcpay.example.com/i/inv-002" }), {
+        status: 200,
+      }),
     );
 
     const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://btcpay.example.com", storeId: "s" });
     await client.createInvoice({ amountUsd: 10, orderId: "o", redirectURL: "https://app.example.com/success" });
 
-    const body = JSON.parse((fetchSpy.mock.calls[0][1]?.body as string));
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
     expect(body.checkout.redirectURL).toBe("https://app.example.com/success");
 
     fetchSpy.mockRestore();
   });
 
   it("createInvoice throws on non-ok response", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("Unauthorized", { status: 401 }),
-    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
     const client = new BTCPayClient({ apiKey: "bad-key", baseUrl: "https://btcpay.example.com", storeId: "s" });
-    await expect(client.createInvoice({ amountUsd: 10, orderId: "o" })).rejects.toThrow("BTCPay createInvoice failed (401)");
+    await expect(client.createInvoice({ amountUsd: 10, orderId: "o" })).rejects.toThrow(
+      "BTCPay createInvoice failed (401)",
+    );
 
     fetchSpy.mockRestore();
   });
 
   it("getInvoice sends correct request", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ id: "inv-001", status: "Settled", amount: "25", currency: "USD" }), { status: 200 }),
+      new Response(JSON.stringify({ id: "inv-001", status: "Settled", amount: "25", currency: "USD" }), {
+        status: 200,
+      }),
     );
 
     const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://btcpay.example.com", storeId: "store-abc" });
