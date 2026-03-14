@@ -8,8 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CreditOption } from "@/lib/api";
 import { createCreditCheckout, getCreditOptions } from "@/lib/api";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { isAllowedRedirectUrl } from "@/lib/validate-redirect-url";
+
+const log = logger("billing:buy-credits");
 
 export function BuyCreditsPanel() {
   const [tiers, setTiers] = useState<CreditOption[]>([]);
@@ -28,7 +31,7 @@ export function BuyCreditsPanel() {
         setTiersLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to load credit options:", err);
+        log.error("Failed to load credit options:", err);
         setLoadError(true);
         setTiersLoading(false);
       });
@@ -47,7 +50,7 @@ export function BuyCreditsPanel() {
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error("Failed to load credit options:", err);
+          log.error("Failed to load credit options:", err);
           setLoadError(true);
           setTiersLoading(false);
         }
