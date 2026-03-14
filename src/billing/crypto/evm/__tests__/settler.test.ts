@@ -189,4 +189,30 @@ describe("settleEvmPayment", () => {
     expect(onPurchased).toHaveBeenCalledOnce();
     expect(result.reactivatedBots).toEqual(["bot-1", "bot-2"]);
   });
+
+  it("rejects second transfer to already-credited charge (no double-credit)", async () => {
+    const secondTxEvent = { ...mockEvent, txHash: "0xsecondtx", logIndex: 0 };
+    const deps = {
+      chargeStore: {
+        getByDepositAddress: vi.fn().mockResolvedValue({
+          referenceId: "sc:base:usdc:abc",
+          tenantId: "tenant-1",
+          amountUsdCents: 1000,
+          status: "Settled",
+          creditedAt: "2026-01-01T00:00:00Z", // already credited by first tx
+        }),
+        updateStatus: vi.fn().mockResolvedValue(undefined),
+        markCredited: vi.fn().mockResolvedValue(undefined),
+      },
+      creditLedger: {
+        hasReferenceId: vi.fn().mockResolvedValue(false), // new txHash, so this returns false
+        credit: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const result = await settleEvmPayment(deps as never, secondTxEvent);
+    expect(result.handled).toBe(true);
+    expect(result.creditedCents).toBe(0);
+    expect(deps.creditLedger.credit).not.toHaveBeenCalled(); // must NOT double-credit
+  });
 });

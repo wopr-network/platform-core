@@ -34,7 +34,13 @@ export async function settleEvmPayment(deps: EvmSettlerDeps, event: EvmPaymentEv
   // Update charge status to Settled.
   await chargeStore.updateStatus(charge.referenceId, "Settled");
 
-  // Idempotency: check if ledger already has this reference.
+  // Charge-level idempotency: if this charge was already credited (by any transfer),
+  // reject. Prevents double-credit when a user sends two transactions to the same address.
+  if (charge.creditedAt != null) {
+    return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
+  }
+
+  // Transfer-level idempotency: if this specific tx was already processed, skip.
   const creditRef = `evm:${event.chain}:${event.txHash}:${event.logIndex}`;
   if (await creditLedger.hasReferenceId(creditRef)) {
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
