@@ -2,11 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ChatMessage } from "@/components/chat/chat-message";
 import type { ChatMessage as ChatMessageType } from "@/lib/chat/types";
+import { uuid } from "@/lib/uuid";
 
 function msg(
   overrides: Partial<ChatMessageType> & { role: ChatMessageType["role"]; content: string },
 ): ChatMessageType {
-  return { id: crypto.randomUUID(), timestamp: Date.now(), ...overrides };
+  return { id: uuid(), timestamp: Date.now(), ...overrides };
 }
 
 describe("ChatMessage", () => {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch, apiFetchRaw } from "@/lib/api";
 import type { ChatMessage } from "@/lib/chat/types";
+import { uuid } from "@/lib/uuid";
 
 interface PluginSetupState {
   isOpen: boolean;
@@ -74,7 +75,7 @@ export function usePluginSetupChat(
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const sessionId = crypto.randomUUID();
+      const sessionId = uuid();
       sessionIdRef.current = sessionId;
 
       const params = new URLSearchParams({ pluginId, botId, sessionId });
@@ -125,7 +126,7 @@ export function usePluginSetupChat(
                       messages: [
                         ...s.messages,
                         {
-                          id: crypto.randomUUID(),
+                          id: uuid(),
                           role: "bot" as const,
                           content: event.delta,
                           timestamp: Date.now(),
@@ -144,7 +145,7 @@ export function usePluginSetupChat(
                     messages: [
                       ...s.messages,
                       {
-                        id: crypto.randomUUID(),
+                        id: uuid(),
                         role: "event" as const,
                         content: reason,
                         timestamp: Date.now(),
@@ -186,7 +187,7 @@ export function usePluginSetupChat(
       messages: [
         ...s.messages,
         {
-          id: crypto.randomUUID(),
+          id: uuid(),
           role: "user" as const,
           content: text,
           timestamp: Date.now(),

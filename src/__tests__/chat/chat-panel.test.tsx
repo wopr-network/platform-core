@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import type { ChatMessage as ChatMessageType } from "@/lib/chat/types";
+import { uuid } from "@/lib/uuid";
 
 // jsdom does not implement scrollIntoView — polyfill it for ChatPanel's auto-scroll useEffect
 beforeAll(() => {
@@ -12,7 +13,7 @@ beforeAll(() => {
 function msg(
   overrides: Partial<ChatMessageType> & { role: ChatMessageType["role"]; content: string },
 ): ChatMessageType {
-  return { id: crypto.randomUUID(), timestamp: Date.now(), ...overrides };
+  return { id: uuid(), timestamp: Date.now(), ...overrides };
 }
 
 const baseProps = {

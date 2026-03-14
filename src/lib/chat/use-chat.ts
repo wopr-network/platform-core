@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openChatStream, sendChatMessage } from "@/lib/api";
 import { eventName } from "@/lib/brand-config";
+import { uuid } from "@/lib/uuid";
 import { clearChatHistory, getSessionId, loadChatHistory, saveChatHistory } from "./chat-store";
 import type { ChatEvent, ChatMessage, ChatMode } from "./types";
 
@@ -76,7 +77,7 @@ export function useChat(): UseChatReturn {
         if (data.type === "text") {
           setIsTyping(true);
           if (pendingBotMsgRef.current === null) {
-            pendingBotMsgRef.current = crypto.randomUUID();
+            pendingBotMsgRef.current = uuid();
           }
           const msgId = pendingBotMsgRef.current;
           setMessages((prev) => {
@@ -105,7 +106,7 @@ export function useChat(): UseChatReturn {
           setIsTyping(false);
           pendingBotMsgRef.current = null;
           addMessage({
-            id: crypto.randomUUID(),
+            id: uuid(),
             role: "bot",
             content: `Error: ${data.message}`,
             timestamp: Date.now(),
@@ -165,7 +166,7 @@ export function useChat(): UseChatReturn {
       if (!trimmed) return;
 
       const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: uuid(),
         role: "user",
         content: trimmed,
         timestamp: Date.now(),
@@ -177,7 +178,7 @@ export function useChat(): UseChatReturn {
       sendChatMessage(sessionId.current, trimmed).catch(() => {
         setIsTyping(false);
         addMessage({
-          id: crypto.randomUUID(),
+          id: uuid(),
           role: "bot",
           content: "Sorry, your message could not be sent. Please try again.",
           timestamp: Date.now(),
@@ -190,7 +191,7 @@ export function useChat(): UseChatReturn {
   const addEventMarker = useCallback(
     (text: string) => {
       addMessage({
-        id: crypto.randomUUID(),
+        id: uuid(),
         role: "event",
         content: text,
         timestamp: Date.now(),
@@ -227,7 +228,7 @@ export function useChat(): UseChatReturn {
   const notify = useCallback(
     (text: string) => {
       addMessage({
-        id: crypto.randomUUID(),
+        id: uuid(),
         role: "bot",
         content: text,
         timestamp: Date.now(),

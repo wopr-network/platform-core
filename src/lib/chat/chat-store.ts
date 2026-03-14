@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { storageKey } from "../brand-config";
+import { uuid } from "../uuid";
 import type { ChatMessage } from "./types";
 
 const HISTORY_KEY = storageKey("chat-history");
@@ -23,12 +24,12 @@ export function getSessionId(): string {
   try {
     const existing = localStorage.getItem(SESSION_KEY);
     if (existing) return existing;
-    const id = crypto.randomUUID();
+    const id = uuid();
     localStorage.setItem(SESSION_KEY, id);
     return id;
   } catch {
     // localStorage blocked (private browsing) — use ephemeral session ID
-    return crypto.randomUUID();
+    return uuid();
   }
 }
 
