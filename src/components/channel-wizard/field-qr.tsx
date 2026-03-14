@@ -163,7 +163,7 @@ export function FieldQR({ field, value: _value, onChange, error, botId }: FieldQ
 
               {/* bg-white is intentional -- QR codes require white background for scanability */}
               <div className="h-40 w-40 rounded-sm bg-white p-3 min-[375px]:h-48 min-[375px]:w-48">
-                {/* biome-ignore lint/performance/noImgElement: QR code is a base64 data URL, not optimizable by next/image */}
+                {/* biome-ignore lint/performance/noImgElement: QR PNG is a base64 data URI from the API — next/image does not support data: URIs (cannot optimize, resize, or lazy-load inline blobs). Raw <img> is the only option here. */}
                 <img
                   src={qrPng}
                   alt="Scan this QR code with your phone"
@@ -205,7 +205,7 @@ export function FieldQR({ field, value: _value, onChange, error, botId }: FieldQ
               {/* bg-white is intentional -- QR codes require white background for scanability */}
               <div className="relative h-40 w-40 rounded-sm bg-white p-3 min-[375px]:h-48 min-[375px]:w-48">
                 {qrPng && (
-                  // biome-ignore lint/performance/noImgElement: QR code is a base64 data URL
+                  // biome-ignore lint/performance/noImgElement: base64 data URI — see comment above for rationale
                   <img src={qrPng} alt="Expired QR code" className="h-full w-full opacity-40" />
                 )}
                 {/* Dark overlay */}
