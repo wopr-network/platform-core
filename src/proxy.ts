@@ -9,7 +9,11 @@ const apiOrigin = process.env.NEXT_PUBLIC_API_URL
   ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
   : "";
 
-const isSecureOrigin = process.env.NODE_ENV === "production";
+/**
+ * Only add upgrade-insecure-requests when actually serving over HTTPS.
+ * Checking NODE_ENV breaks local dev in Docker (NODE_ENV=production but no TLS).
+ * Computed per-request in buildCsp() from the request URL protocol.
+ */
 
 /**
  * Nonce-based style-src toggle.
@@ -21,7 +25,8 @@ const isSecureOrigin = process.env.NODE_ENV === "production";
 const NONCE_STYLES_ENABLED = true;
 
 /** Build the CSP header value with a per-request nonce. */
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, requestUrl?: string): string {
+  const isHttps = requestUrl ? requestUrl.startsWith("https://") : false;
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://js.stripe.com`,
@@ -36,7 +41,7 @@ function buildCsp(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-    ...(isSecureOrigin ? ["upgrade-insecure-requests"] : []),
+    ...(isHttps ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
@@ -160,7 +165,7 @@ export default async function middleware(request: NextRequest) {
 
   // Generate a per-request nonce for CSP
   const nonce = crypto.randomUUID();
-  const cspHeaderValue = buildCsp(nonce);
+  const cspHeaderValue = buildCsp(nonce, request.url);
 
   /** Apply CSP and cache-busting headers to any response before returning it. */
   function withCsp(response: NextResponse): NextResponse {
