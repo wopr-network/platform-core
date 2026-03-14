@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
 import { cryptoCharges } from "../../db/schema/crypto.js";
+import type { EvmChain, StablecoinToken } from "./evm/types.js";
 import type { CryptoPaymentState } from "./types.js";
 
 export interface CryptoChargeRecord {
@@ -23,8 +24,8 @@ export interface StablecoinChargeInput {
   referenceId: string;
   tenantId: string;
   amountUsdCents: number;
-  chain: string;
-  token: string;
+  chain: EvmChain;
+  token: StablecoinToken;
   depositAddress: string;
   derivationIndex: number;
 }
