@@ -61,6 +61,8 @@ export class EvmWatcher {
 
   /** Poll for new Transfer events. Call on an interval. */
   async poll(): Promise<void> {
+    if (this._watchedAddresses.length === 0) return; // nothing to watch
+
     const latestHex = (await this.rpc("eth_blockNumber", [])) as string;
     const latest = Number.parseInt(latestHex, 16);
     const confirmed = latest - this.confirmations;

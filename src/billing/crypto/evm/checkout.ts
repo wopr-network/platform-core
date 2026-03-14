@@ -72,8 +72,10 @@ export async function createStablecoinCheckout(
     } catch (err: unknown) {
       // Unique constraint violation = another checkout claimed this index concurrently.
       // Retry with the next available index.
-      const msg = err instanceof Error ? err.message : "";
-      const isConflict = msg.includes("unique") || msg.includes("duplicate") || msg.includes("23505");
+      // PostgreSQL error code 23505 = unique_violation.
+      // Check structured code first, fall back to message for other drivers.
+      const code = (err as { code?: string }).code;
+      const isConflict = code === "23505" || (err instanceof Error && err.message.includes("unique_violation"));
       if (!isConflict || attempt === maxRetries) throw err;
     }
   }
