@@ -5,6 +5,7 @@ export { createCryptoCheckout, MIN_PAYMENT_USD } from "./checkout.js";
 export type { CryptoConfig } from "./client.js";
 export { BTCPayClient, loadCryptoConfig } from "./client.js";
 export * from "./evm/index.js";
+export * from "./oracle/index.js";
 export type {
   CryptoBillingConfig,
   CryptoCheckoutOpts,
