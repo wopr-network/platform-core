@@ -8,6 +8,8 @@ export type { IWatcherCursorStore } from "./cursor-store.js";
 export { DrizzleWatcherCursorStore } from "./cursor-store.js";
 export * from "./evm/index.js";
 export * from "./oracle/index.js";
+export type { IPaymentMethodStore, PaymentMethodRecord } from "./payment-method-store.js";
+export { DrizzlePaymentMethodStore } from "./payment-method-store.js";
 export type {
   CryptoBillingConfig,
   CryptoCheckoutOpts,
@@ -16,5 +18,7 @@ export type {
   CryptoWebhookResult,
 } from "./types.js";
 export { mapBtcPayEventToStatus } from "./types.js";
+export type { UnifiedCheckoutDeps, UnifiedCheckoutResult } from "./unified-checkout.js";
+export { createUnifiedCheckout, MIN_CHECKOUT_USD } from "./unified-checkout.js";
 export type { CryptoWebhookDeps } from "./webhook.js";
 export { handleCryptoWebhook, verifyCryptoWebhookSignature } from "./webhook.js";
