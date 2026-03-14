@@ -4,6 +4,7 @@ import { ArrowDownToLine, Loader2, MoreHorizontal, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { UpdateAvailableBadge } from "@/components/instances/update-available-badge";
 import { StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
@@ -285,7 +286,14 @@ export function InstanceListClient() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={inst.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={inst.status} />
+                      <InstanceUpdateBadge
+                        instanceId={inst.id}
+                        instanceName={inst.name}
+                        onUpdated={refetch}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{inst.provider}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -536,5 +544,34 @@ export function InstanceRowActions({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/* --- Instance Update Badge — inline "Update" pill next to status --- */
+
+function InstanceUpdateBadge({
+  instanceId,
+  instanceName,
+  onUpdated,
+}: {
+  instanceId: string;
+  instanceName: string;
+  onUpdated?: () => void;
+}) {
+  const { updateAvailable } = useImageStatus(instanceId);
+  const { data: changelog } = trpc.fleet.getChangelog.useQuery(
+    { instanceId },
+    { enabled: updateAvailable },
+  );
+
+  if (!updateAvailable) return null;
+
+  return (
+    <UpdateAvailableBadge
+      instanceId={instanceId}
+      instanceName={instanceName}
+      changelog={changelog ?? null}
+      onUpdated={onUpdated}
+    />
   );
 }
