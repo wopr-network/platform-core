@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 /**
  * Crypto payment charges — tracks the lifecycle of each BTCPay invoice.
@@ -34,4 +34,25 @@ export const cryptoCharges = pgTable(
     // Unique indexes use WHERE IS NOT NULL partial indexes (declared in migration SQL).
     // Enforced via migration: CREATE UNIQUE INDEX.
   ],
+);
+
+/**
+ * Watcher cursor persistence — tracks the last processed block per watcher.
+ * Eliminates in-memory processedTxids and enables clean restart recovery.
+ */
+export const watcherCursors = pgTable("watcher_cursors", {
+  watcherId: text("watcher_id").primaryKey(),
+  cursorBlock: integer("cursor_block").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`(now())`),
+});
+
+/** Processed transaction IDs for watchers without block cursors (e.g. BTC). */
+export const watcherProcessed = pgTable(
+  "watcher_processed",
+  {
+    watcherId: text("watcher_id").notNull(),
+    txId: text("tx_id").notNull(),
+    processedAt: text("processed_at").notNull().default(sql`(now())`),
+  },
+  (table) => [primaryKey({ columns: [table.watcherId, table.txId] })],
 );

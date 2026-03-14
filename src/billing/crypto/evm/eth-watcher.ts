@@ -1,3 +1,4 @@
+import type { IWatcherCursorStore } from "../cursor-store.js";
 import { nativeToCents } from "../oracle/convert.js";
 import type { IPriceOracle } from "../oracle/types.js";
 import { getChainConfig } from "./config.js";
@@ -25,6 +26,7 @@ export interface EthWatcherOpts {
   fromBlock: number;
   onPayment: (event: EthPaymentEvent) => void | Promise<void>;
   watchedAddresses?: string[];
+  cursorStore?: IWatcherCursorStore;
 }
 
 interface RpcTransaction {
@@ -42,7 +44,9 @@ interface RpcTransaction {
  * this scans blocks for transactions where `to` matches a watched deposit
  * address and `value > 0`.
  *
- * Uses the price oracle to convert wei → USD cents at detection time.
+ * Processes one block at a time and persists cursor after each block.
+ * On restart, resumes from the last committed cursor — no replay, no
+ * unbounded in-memory state.
  */
 export class EthWatcher {
   private _cursor: number;
@@ -51,8 +55,9 @@ export class EthWatcher {
   private readonly oracle: IPriceOracle;
   private readonly onPayment: EthWatcherOpts["onPayment"];
   private readonly confirmations: number;
+  private readonly cursorStore?: IWatcherCursorStore;
+  private readonly watcherId: string;
   private _watchedAddresses: Set<string>;
-  private readonly processedTxids = new Set<string>();
 
   constructor(opts: EthWatcherOpts) {
     this.chain = opts.chain;
@@ -61,7 +66,16 @@ export class EthWatcher {
     this._cursor = opts.fromBlock;
     this.onPayment = opts.onPayment;
     this.confirmations = getChainConfig(opts.chain).confirmations;
+    this.cursorStore = opts.cursorStore;
+    this.watcherId = `eth:${opts.chain}`;
     this._watchedAddresses = new Set((opts.watchedAddresses ?? []).map((a) => a.toLowerCase()));
+  }
+
+  /** Load cursor from DB. Call once at startup before first poll. */
+  async init(): Promise<void> {
+    if (!this.cursorStore) return;
+    const saved = await this.cursorStore.get(this.watcherId);
+    if (saved !== null) this._cursor = saved;
   }
 
   setWatchedAddresses(addresses: string[]): void {
@@ -75,8 +89,9 @@ export class EthWatcher {
   /**
    * Poll for new native ETH transfers to watched addresses.
    *
-   * Scans each confirmed block's transactions. Only processes txs
-   * where `to` is in the watched set and `value > 0`.
+   * Processes one block at a time. After each block is fully processed,
+   * the cursor is persisted to the DB. If onPayment fails mid-block,
+   * the cursor hasn't advanced — the entire block is retried on next poll.
    */
   async poll(): Promise<void> {
     if (this._watchedAddresses.size === 0) return;
@@ -104,8 +119,6 @@ export class EthWatcher {
         const valueWei = BigInt(tx.value);
         if (valueWei === 0n) continue;
 
-        if (this.processedTxids.has(tx.hash)) continue;
-
         const amountUsdCents = nativeToCents(valueWei, priceCents, 18);
 
         const event: EthPaymentEvent = {
@@ -119,11 +132,13 @@ export class EthWatcher {
         };
 
         await this.onPayment(event);
-        // Add to processed AFTER successful onPayment to avoid skipping on failure
-        this.processedTxids.add(tx.hash);
+      }
+
+      // Block fully processed — persist cursor so we never re-scan it.
+      this._cursor = blockNum + 1;
+      if (this.cursorStore) {
+        await this.cursorStore.save(this.watcherId, this._cursor);
       }
     }
-
-    this._cursor = confirmed + 1;
   }
 }

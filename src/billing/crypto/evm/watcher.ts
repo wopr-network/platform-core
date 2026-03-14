@@ -1,3 +1,4 @@
+import type { IWatcherCursorStore } from "../cursor-store.js";
 import { centsFromTokenAmount, getChainConfig, getTokenConfig } from "./config.js";
 import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./types.js";
 
@@ -13,6 +14,7 @@ export interface EvmWatcherOpts {
   onPayment: (event: EvmPaymentEvent) => void | Promise<void>;
   /** Active deposit addresses to watch. Filters eth_getLogs by topic[2] (to address). */
   watchedAddresses?: string[];
+  cursorStore?: IWatcherCursorStore;
 }
 
 interface RpcLog {
@@ -33,6 +35,8 @@ export class EvmWatcher {
   private readonly confirmations: number;
   private readonly contractAddress: string;
   private readonly decimals: number;
+  private readonly cursorStore?: IWatcherCursorStore;
+  private readonly watcherId: string;
   private _watchedAddresses: string[];
 
   constructor(opts: EvmWatcherOpts) {
@@ -41,6 +45,8 @@ export class EvmWatcher {
     this.rpc = opts.rpcCall;
     this._cursor = opts.fromBlock;
     this.onPayment = opts.onPayment;
+    this.cursorStore = opts.cursorStore;
+    this.watcherId = `evm:${opts.chain}:${opts.token}`;
     this._watchedAddresses = (opts.watchedAddresses ?? []).map((a) => a.toLowerCase());
 
     const chainCfg = getChainConfig(opts.chain);
@@ -48,6 +54,13 @@ export class EvmWatcher {
     this.confirmations = chainCfg.confirmations;
     this.contractAddress = tokenCfg.contractAddress.toLowerCase();
     this.decimals = tokenCfg.decimals;
+  }
+
+  /** Load cursor from DB. Call once at startup before first poll. */
+  async init(): Promise<void> {
+    if (!this.cursorStore) return;
+    const saved = await this.cursorStore.get(this.watcherId);
+    if (saved !== null) this._cursor = saved;
   }
 
   /** Update the set of watched deposit addresses (e.g. after a new checkout). */
@@ -108,6 +121,9 @@ export class EvmWatcher {
     }
 
     this._cursor = confirmed + 1;
+    if (this.cursorStore) {
+      await this.cursorStore.save(this.watcherId, this._cursor);
+    }
   }
 }
 

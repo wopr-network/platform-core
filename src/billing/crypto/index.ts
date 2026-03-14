@@ -4,6 +4,8 @@ export { CryptoChargeRepository, DrizzleCryptoChargeRepository } from "./charge-
 export { createCryptoCheckout, MIN_PAYMENT_USD } from "./checkout.js";
 export type { CryptoConfig } from "./client.js";
 export { BTCPayClient, loadCryptoConfig } from "./client.js";
+export type { IWatcherCursorStore } from "./cursor-store.js";
+export { DrizzleWatcherCursorStore } from "./cursor-store.js";
 export * from "./evm/index.js";
 export * from "./oracle/index.js";
 export type {
