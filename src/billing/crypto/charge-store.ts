@@ -1,7 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
 import { cryptoCharges } from "../../db/schema/crypto.js";
-import type { EvmChain, StablecoinToken } from "./evm/types.js";
 import type { CryptoPaymentState } from "./types.js";
 
 export interface CryptoChargeRecord {
@@ -20,12 +19,12 @@ export interface CryptoChargeRecord {
   derivationIndex: number | null;
 }
 
-export interface StablecoinChargeInput {
+export interface CryptoDepositChargeInput {
   referenceId: string;
   tenantId: string;
   amountUsdCents: number;
-  chain: EvmChain;
-  token: StablecoinToken;
+  chain: string;
+  token: string;
   depositAddress: string;
   derivationIndex: number;
 }
@@ -41,7 +40,7 @@ export interface ICryptoChargeRepository {
   ): Promise<void>;
   markCredited(referenceId: string): Promise<void>;
   isCredited(referenceId: string): Promise<boolean>;
-  createStablecoinCharge(input: StablecoinChargeInput): Promise<void>;
+  createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void>;
   getByDepositAddress(address: string): Promise<CryptoChargeRecord | null>;
   getNextDerivationIndex(): Promise<number>;
 }
@@ -135,7 +134,7 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
   }
 
   /** Create a stablecoin charge with chain/token/deposit address. */
-  async createStablecoinCharge(input: StablecoinChargeInput): Promise<void> {
+  async createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void> {
     await this.db.insert(cryptoCharges).values({
       referenceId: input.referenceId,
       tenantId: input.tenantId,
