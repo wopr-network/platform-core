@@ -1,5 +1,5 @@
 export * from "./btc/index.js";
-export type { CryptoChargeRecord, ICryptoChargeRepository, StablecoinChargeInput } from "./charge-store.js";
+export type { CryptoChargeRecord, CryptoDepositChargeInput, ICryptoChargeRepository } from "./charge-store.js";
 export { CryptoChargeRepository, DrizzleCryptoChargeRepository } from "./charge-store.js";
 export { createCryptoCheckout, MIN_PAYMENT_USD } from "./checkout.js";
 export type { CryptoConfig } from "./client.js";
