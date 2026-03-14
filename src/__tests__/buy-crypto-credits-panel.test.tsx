@@ -103,7 +103,7 @@ describe("BuyCryptoCreditPanel", () => {
     });
 
     mockCreateCryptoCheckout.mockResolvedValue({
-      url: "https://payram.io/checkout/abc123",
+      url: "https://btcpay.example.com/i/abc123",
       referenceId: "ref-abc123",
     });
     mockIsAllowedRedirectUrl.mockReturnValue(true);
@@ -116,8 +116,8 @@ describe("BuyCryptoCreditPanel", () => {
     await user.click(screen.getByRole("button", { name: "Pay with crypto" }));
 
     expect(mockCreateCryptoCheckout).toHaveBeenCalledWith(50);
-    expect(mockIsAllowedRedirectUrl).toHaveBeenCalledWith("https://payram.io/checkout/abc123");
-    expect(hrefSetter).toHaveBeenCalledWith("https://payram.io/checkout/abc123");
+    expect(mockIsAllowedRedirectUrl).toHaveBeenCalledWith("https://btcpay.example.com/i/abc123");
+    expect(hrefSetter).toHaveBeenCalledWith("https://btcpay.example.com/i/abc123");
   });
 
   it("shows error when redirect URL is not allowed", async () => {
@@ -139,7 +139,7 @@ describe("BuyCryptoCreditPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Opening PayRam... while checkout is in progress", async () => {
+  it("shows Opening checkout... while checkout is in progress", async () => {
     mockCreateCryptoCheckout.mockReturnValue(
       new Promise(() => {
         /* intentionally pending */
@@ -153,7 +153,7 @@ describe("BuyCryptoCreditPanel", () => {
     await user.click(screen.getByText("$100"));
     await user.click(screen.getByRole("button", { name: "Pay with crypto" }));
 
-    expect(await screen.findByText("Opening PayRam...")).toBeInTheDocument();
+    expect(await screen.findByText("Opening checkout...")).toBeInTheDocument();
   });
 
   it("shows error when crypto checkout API call fails", async () => {

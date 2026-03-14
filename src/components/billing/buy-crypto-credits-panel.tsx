@@ -52,7 +52,7 @@ export function BuyCryptoCreditPanel() {
             Pay with Crypto
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Pay with ETH, USDC, USDT, or other cryptocurrencies via PayRam. Minimum $10.
+            Pay with BTC or other cryptocurrencies. Minimum $10.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -87,7 +87,7 @@ export function BuyCryptoCreditPanel() {
             variant="outline"
             className="w-full sm:w-auto"
           >
-            {loading ? "Opening PayRam..." : "Pay with crypto"}
+            {loading ? "Opening checkout..." : "Pay with crypto"}
           </Button>
         </CardContent>
       </Card>

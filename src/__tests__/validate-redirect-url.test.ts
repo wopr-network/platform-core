@@ -19,18 +19,9 @@ describe("isAllowedRedirectUrl", () => {
     expect(isAllowedRedirectUrl("https://billing.stripe.com/p/session/test_abc")).toBe(true);
   });
 
-  it("allows Coinbase Commerce URLs", () => {
-    expect(isAllowedRedirectUrl("https://commerce.coinbase.com/charges/ABC123")).toBe(true);
-  });
-
-  it("allows PayRam URLs", () => {
-    expect(isAllowedRedirectUrl("https://payram.io/checkout/abc")).toBe(true);
-    expect(isAllowedRedirectUrl("https://app.payram.io/pay/abc")).toBe(true);
-  });
-
-  it("allows same-origin URLs", () => {
-    // jsdom defaults to http://localhost
+  it("allows same-origin URLs (BTCPay checkout is same-origin in local dev)", () => {
     expect(isAllowedRedirectUrl("http://localhost/billing/success")).toBe(true);
+    expect(isAllowedRedirectUrl("http://localhost/i/invoice123")).toBe(true);
     expect(isAllowedRedirectUrl("/billing/success")).toBe(true);
   });
 
@@ -57,5 +48,9 @@ describe("isAllowedRedirectUrl", () => {
   it("exports the allowlist set", () => {
     expect(ALLOWED_REDIRECT_ORIGINS).toBeInstanceOf(Set);
     expect(ALLOWED_REDIRECT_ORIGINS.has("https://checkout.stripe.com")).toBe(true);
+  });
+
+  it("does not include defunct payment providers", () => {
+    expect(ALLOWED_REDIRECT_ORIGINS.has("https://payram.io")).toBe(false);
   });
 });
