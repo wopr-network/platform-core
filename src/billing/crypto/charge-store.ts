@@ -13,6 +13,20 @@ export interface CryptoChargeRecord {
   creditedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  chain: string | null;
+  token: string | null;
+  depositAddress: string | null;
+  derivationIndex: number | null;
+}
+
+export interface StablecoinChargeInput {
+  referenceId: string;
+  tenantId: string;
+  amountUsdCents: number;
+  chain: string;
+  token: string;
+  depositAddress: string;
+  derivationIndex: number;
 }
 
 export interface ICryptoChargeRepository {
@@ -26,6 +40,9 @@ export interface ICryptoChargeRepository {
   ): Promise<void>;
   markCredited(referenceId: string): Promise<void>;
   isCredited(referenceId: string): Promise<boolean>;
+  createStablecoinCharge(input: StablecoinChargeInput): Promise<void>;
+  getByDepositAddress(address: string): Promise<CryptoChargeRecord | null>;
+  getNextDerivationIndex(): Promise<number>;
 }
 
 /**
@@ -55,6 +72,10 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
   async getByReferenceId(referenceId: string): Promise<CryptoChargeRecord | null> {
     const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.referenceId, referenceId)))[0];
     if (!row) return null;
+    return this.toRecord(row);
+  }
+
+  private toRecord(row: typeof cryptoCharges.$inferSelect): CryptoChargeRecord {
     return {
       referenceId: row.referenceId,
       tenantId: row.tenantId,
@@ -65,6 +86,10 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       creditedAt: row.creditedAt ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      chain: row.chain ?? null,
+      token: row.token ?? null,
+      depositAddress: row.depositAddress ?? null,
+      derivationIndex: row.derivationIndex ?? null,
     };
   }
 
@@ -106,6 +131,35 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
         .where(eq(cryptoCharges.referenceId, referenceId))
     )[0];
     return row?.creditedAt != null;
+  }
+
+  /** Create a stablecoin charge with chain/token/deposit address. */
+  async createStablecoinCharge(input: StablecoinChargeInput): Promise<void> {
+    await this.db.insert(cryptoCharges).values({
+      referenceId: input.referenceId,
+      tenantId: input.tenantId,
+      amountUsdCents: input.amountUsdCents,
+      status: "New",
+      chain: input.chain,
+      token: input.token,
+      depositAddress: input.depositAddress,
+      derivationIndex: input.derivationIndex,
+    });
+  }
+
+  /** Look up a charge by its deposit address. */
+  async getByDepositAddress(address: string): Promise<CryptoChargeRecord | null> {
+    const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.depositAddress, address)))[0];
+    if (!row) return null;
+    return this.toRecord(row);
+  }
+
+  /** Get the next available HD derivation index (max + 1, or 0 if empty). */
+  async getNextDerivationIndex(): Promise<number> {
+    const result = await this.db
+      .select({ maxIdx: sql<number>`coalesce(max(${cryptoCharges.derivationIndex}), -1)` })
+      .from(cryptoCharges);
+    return (result[0]?.maxIdx ?? -1) + 1;
   }
 }
 

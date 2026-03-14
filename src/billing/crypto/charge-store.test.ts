@@ -78,4 +78,65 @@ describe("CryptoChargeRepository", () => {
     await store.markCredited("inv-006");
     expect(await store.isCredited("inv-006")).toBe(true);
   });
+
+  describe("stablecoin charges", () => {
+    it("creates a stablecoin charge with chain/token/address", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "sc:base:usdc:0x123",
+        tenantId: "tenant-1",
+        amountUsdCents: 1000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xabc123",
+        derivationIndex: 42,
+      });
+      const charge = await store.getByReferenceId("sc:base:usdc:0x123");
+      expect(charge).not.toBeNull();
+      expect(charge?.chain).toBe("base");
+      expect(charge?.token).toBe("USDC");
+      expect(charge?.depositAddress).toBe("0xabc123");
+      expect(charge?.derivationIndex).toBe(42);
+      expect(charge?.amountUsdCents).toBe(1000);
+    });
+
+    it("looks up charge by deposit address", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "sc:base:usdc:0x456",
+        tenantId: "tenant-2",
+        amountUsdCents: 5000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xdef456",
+        derivationIndex: 43,
+      });
+      const charge = await store.getByDepositAddress("0xdef456");
+      expect(charge).not.toBeNull();
+      expect(charge?.tenantId).toBe("tenant-2");
+      expect(charge?.amountUsdCents).toBe(5000);
+    });
+
+    it("returns null for unknown deposit address", async () => {
+      const charge = await store.getByDepositAddress("0xnonexistent");
+      expect(charge).toBeNull();
+    });
+
+    it("gets next derivation index (0 when empty)", async () => {
+      const idx = await store.getNextDerivationIndex();
+      expect(idx).toBe(0);
+    });
+
+    it("gets next derivation index (max + 1)", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "sc:idx-test",
+        tenantId: "t",
+        amountUsdCents: 100,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xidxtest",
+        derivationIndex: 5,
+      });
+      const idx = await store.getNextDerivationIndex();
+      expect(idx).toBe(6);
+    });
+  });
 });
