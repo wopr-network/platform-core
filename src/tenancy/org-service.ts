@@ -253,9 +253,17 @@ export class OrgService {
     const invite = await this.memberRepo.findInviteByToken(token);
     if (!invite) throw new TRPCError({ code: "NOT_FOUND", message: "Invite not found" });
     if (invite.acceptedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already accepted" });
+    // revokedAt guard — currently no UI sets this field, but the schema supports it
+    // for future use (e.g., admin revokes an outstanding invite).
     if (invite.revokedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has been revoked" });
     if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has expired" });
+    }
+
+    // Guard: reject if user is already a member (prevents consuming the invite silently)
+    const existing = await this.memberRepo.findMember(invite.orgId, userId);
+    if (existing) {
+      throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this organization" });
     }
 
     await this.memberRepo.addMember({
