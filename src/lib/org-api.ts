@@ -72,3 +72,13 @@ export async function createOrganization(data: {
 }): Promise<{ id: string; name: string; slug: string }> {
   return trpcVanilla.org.createOrganization.mutate(data);
 }
+
+export async function listMyOrganizations(): Promise<
+  Array<{ id: string; name: string; slug: string; role: "owner" | "admin" | "member" }>
+> {
+  return trpcVanilla.org.listMyOrganizations.query(undefined);
+}
+
+export async function acceptInvite(token: string): Promise<{ orgId: string; orgName: string }> {
+  return trpcVanilla.org.acceptInvite.mutate({ token });
+}

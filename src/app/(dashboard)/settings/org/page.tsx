@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useIsAdminOrOwner } from "@/hooks/use-my-org-role";
 import type { Organization, OrgMember } from "@/lib/api";
 import {
   changeRole,
@@ -58,6 +59,7 @@ export default function OrgPage() {
   const routerRef = useRef(router);
   routerRef.current = router;
   const [org, setOrg] = useState<Organization | null>(null);
+  const isAdminOrOwner = useIsAdminOrOwner(org);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -219,82 +221,102 @@ export default function OrgPage() {
         )}
       </AnimatePresence>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization Details</CardTitle>
-          <CardDescription>Update your organization name and billing email</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSave} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="org-name">Organization name</Label>
-              <Input
-                id="org-name"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="org-slug">Slug</Label>
-              <Input
-                id="org-slug"
-                value={orgSlug}
-                onChange={(e) => setOrgSlug(e.target.value)}
-                placeholder="my-org"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="billing-email">Billing email</Label>
-              <Input
-                id="billing-email"
-                type="email"
-                value={billingEmail}
-                onChange={(e) => setBillingEmail(e.target.value)}
-                required
-              />
-            </div>
-            <AnimatePresence>
-              {saveMsg && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="text-sm text-terminal"
-                >
-                  {saveMsg}
-                </motion.p>
-              )}
-            </AnimatePresence>
-            <Button type="submit" variant="terminal" className="w-fit" disabled={saving}>
-              <AnimatePresence mode="wait">
-                {saveSuccess ? (
-                  <motion.span
-                    key="success"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-1"
+      {isAdminOrOwner ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization Details</CardTitle>
+            <CardDescription>Update your organization name and billing email</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSave} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="org-name">Organization name</Label>
+                <Input
+                  id="org-name"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="org-slug">Slug</Label>
+                <Input
+                  id="org-slug"
+                  value={orgSlug}
+                  onChange={(e) => setOrgSlug(e.target.value)}
+                  placeholder="my-org"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="billing-email">Billing email</Label>
+                <Input
+                  id="billing-email"
+                  type="email"
+                  value={billingEmail}
+                  onChange={(e) => setBillingEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <AnimatePresence>
+                {saveMsg && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-sm text-terminal"
                   >
-                    <CheckIcon className="size-4" />
-                    Saved
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="save"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {saving ? "Saving..." : "Save changes"}
-                  </motion.span>
+                    {saveMsg}
+                  </motion.p>
                 )}
               </AnimatePresence>
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" variant="terminal" className="w-fit" disabled={saving}>
+                <AnimatePresence mode="wait">
+                  {saveSuccess ? (
+                    <motion.span
+                      key="success"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1"
+                    >
+                      <CheckIcon className="size-4" />
+                      Saved
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="save"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {saving ? "Saving..." : "Save changes"}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization Details</CardTitle>
+            <CardDescription>You are a member of this organization</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2 text-sm">
+              <div>
+                <span className="font-medium text-muted-foreground">Name:</span> {org.name}
+              </div>
+              <div>
+                <span className="font-medium text-muted-foreground">Slug:</span>{" "}
+                {org.slug ?? <span className="text-muted-foreground italic">not set</span>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
@@ -326,7 +348,7 @@ export default function OrgPage() {
             {org.members.length} member{org.members.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <InviteDialog orgId={org.id} onInvited={load} />
+        {isAdminOrOwner && <InviteDialog orgId={org.id} onInvited={load} />}
       </div>
 
       <div className="rounded-md border overflow-x-auto">
@@ -337,7 +359,7 @@ export default function OrgPage() {
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Joined</TableHead>
-              <TableHead className="w-[160px]" />
+              {isAdminOrOwner && <TableHead className="w-[160px]" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -355,31 +377,33 @@ export default function OrgPage() {
                     year: "numeric",
                   })}
                 </TableCell>
-                <TableCell>
-                  {member.role !== "owner" && (
-                    <div className="flex gap-1">
-                      <ChangeRoleSelect
-                        currentRole={member.role}
-                        onChangeRole={(role) => handleChangeRole(member.userId, role)}
-                      />
-                      <TransferDialog
-                        memberName={member.name}
-                        onTransfer={() => handleTransfer(member.userId)}
-                      />
-                      <RemoveMemberDialog
-                        memberName={member.name}
-                        onRemove={() => handleRemove(member.userId)}
-                      />
-                    </div>
-                  )}
-                </TableCell>
+                {isAdminOrOwner && (
+                  <TableCell>
+                    {member.role !== "owner" && (
+                      <div className="flex gap-1">
+                        <ChangeRoleSelect
+                          currentRole={member.role}
+                          onChangeRole={(role) => handleChangeRole(member.userId, role)}
+                        />
+                        <TransferDialog
+                          memberName={member.name}
+                          onTransfer={() => handleTransfer(member.userId)}
+                        />
+                        <RemoveMemberDialog
+                          memberName={member.name}
+                          onRemove={() => handleRemove(member.userId)}
+                        />
+                      </div>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
 
-      {org.invites.length > 0 && (
+      {isAdminOrOwner && org.invites.length > 0 && (
         <>
           <Separator />
           <div>

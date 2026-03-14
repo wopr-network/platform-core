@@ -157,6 +157,7 @@ type AppRouterRecord = {
     transferOwnership: AnyTRPCMutationProcedure;
     deleteOrganization: AnyTRPCMutationProcedure;
     listMyOrganizations: AnyTRPCQueryProcedure;
+    acceptInvite: AnyTRPCMutationProcedure;
     orgBillingBalance: AnyTRPCQueryProcedure;
     orgMemberUsage: AnyTRPCQueryProcedure;
     orgBillingInfo: AnyTRPCQueryProcedure;
