@@ -23,6 +23,9 @@ export interface StablecoinCheckoutResult {
 /**
  * Create a stablecoin checkout — derive a unique deposit address, store the charge.
  *
+ * Race safety: the unique constraint on derivation_index prevents two concurrent
+ * checkouts from claiming the same index. On conflict, we retry with the next index.
+ *
  * CRITICAL: amountUsd is converted to integer cents via Credit.fromDollars().toCentsRounded().
  * The charge store holds USD cents (integer). Credit.fromCents() handles the
  * cents → nanodollars conversion when crediting the ledger in the settler.
@@ -41,27 +44,39 @@ export async function createStablecoinCheckout(
   const amountUsdCents = Credit.fromDollars(opts.amountUsd).toCentsRounded();
   const rawAmount = tokenAmountFromCents(amountUsdCents, tokenCfg.decimals);
 
-  const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
-  const depositAddress = deriveDepositAddress(deps.xpub, derivationIndex);
+  const maxRetries = 3;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
+    const depositAddress = deriveDepositAddress(deps.xpub, derivationIndex);
+    const referenceId = `sc:${opts.chain}:${opts.token.toLowerCase()}:${depositAddress.toLowerCase()}`;
 
-  const referenceId = `sc:${opts.chain}:${opts.token.toLowerCase()}:${depositAddress.toLowerCase()}`;
+    try {
+      await deps.chargeStore.createStablecoinCharge({
+        referenceId,
+        tenantId: opts.tenant,
+        amountUsdCents,
+        chain: opts.chain,
+        token: opts.token,
+        depositAddress: depositAddress.toLowerCase(),
+        derivationIndex,
+      });
 
-  await deps.chargeStore.createStablecoinCharge({
-    referenceId,
-    tenantId: opts.tenant,
-    amountUsdCents,
-    chain: opts.chain,
-    token: opts.token,
-    depositAddress: depositAddress.toLowerCase(),
-    derivationIndex,
-  });
+      return {
+        depositAddress,
+        amountRaw: rawAmount.toString(),
+        amountUsd: opts.amountUsd,
+        chain: opts.chain,
+        token: opts.token,
+        referenceId,
+      };
+    } catch (err: unknown) {
+      // Unique constraint violation = another checkout claimed this index concurrently.
+      // Retry with the next available index.
+      const msg = err instanceof Error ? err.message : "";
+      const isConflict = msg.includes("unique") || msg.includes("duplicate") || msg.includes("23505");
+      if (!isConflict || attempt === maxRetries) throw err;
+    }
+  }
 
-  return {
-    depositAddress,
-    amountRaw: rawAmount.toString(),
-    amountUsd: opts.amountUsd,
-    chain: opts.chain,
-    token: opts.token,
-    referenceId,
-  };
+  throw new Error("Failed to claim derivation index after retries");
 }
