@@ -9,9 +9,14 @@ import type {
 } from "./repository-types.js";
 
 // Re-export domain types so existing consumers don't break
-export type { Node, NodeTransition };
-export type { NodeRegistration, SelfHostedNodeRegistration };
-export type { NewProvisioningNode, ProvisionDataUpdate };
+export type {
+  NewProvisioningNode,
+  Node,
+  NodeRegistration,
+  NodeTransition,
+  ProvisionDataUpdate,
+  SelfHostedNodeRegistration,
+};
 
 export interface INodeRepository {
   getById(id: string): Promise<Node | null>;
