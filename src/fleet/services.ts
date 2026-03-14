@@ -12,8 +12,6 @@ import { RestoreService } from "../backup/restore-service.js";
 import { SnapshotManager } from "../backup/snapshot-manager.js";
 import { DrizzleSnapshotRepository } from "../backup/snapshot-repository.js";
 import { SpacesClient } from "../backup/spaces-client.js";
-import { RolloutOrchestrator } from "./rollout-orchestrator.js";
-import { VolumeSnapshotManager } from "./volume-snapshot-manager.js";
 import { EvidenceCollector } from "../compliance/evidence-collector.js";
 import { logger } from "../config/logger.js";
 import { createDb, type DrizzleDb } from "../db/index.js";
@@ -34,6 +32,8 @@ import { SystemResourceMonitor } from "../observability/system-resources.js";
 // Stub re-exports so existing references compile; consumers must call initPlatformServices().
 // TODO: Replace with proper DI / service-locator pattern in platform-core.
 import { DrizzleTwoFactorRepository } from "../security/two-factor-repository.js";
+import type { RolloutOrchestrator } from "./rollout-orchestrator.js";
+import type { VolumeSnapshotManager } from "./volume-snapshot-manager.js";
 
 // Platform singletons (getAdminAuditLog, getCreditLedger, etc.) are wired by
 // the consuming application's own composition root (e.g. wopr-platform's
