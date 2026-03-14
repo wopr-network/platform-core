@@ -2,7 +2,7 @@
 export type EvmChain = "base";
 
 /** Supported stablecoin tokens. */
-export type StablecoinToken = "USDC";
+export type StablecoinToken = "USDC" | "USDT" | "DAI";
 
 /** Chain configuration. */
 export interface ChainConfig {
