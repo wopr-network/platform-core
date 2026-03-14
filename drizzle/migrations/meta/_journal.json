@@ -29,6 +29,13 @@
       "when": 1741881600000,
       "tag": "0003_double_entry_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1741968000000,
+      "tag": "0004_crypto_charges",
+      "breakpoints": true
     }
   ]
 }
