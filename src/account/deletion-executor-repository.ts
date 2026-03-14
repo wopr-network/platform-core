@@ -10,11 +10,11 @@ import {
   botInstances,
   creditBalances,
   creditTransactions,
+  cryptoCharges,
   emailNotifications,
   meterEvents,
   notificationPreferences,
   notificationQueue,
-  payramCharges,
   snapshots,
   stripeUsageReports,
   tenantCustomers,
@@ -55,7 +55,7 @@ export interface IDeletionExecutorRepository {
   listSnapshotS3Keys(tenantId: string): Promise<{ id: string; s3Key: string | null }[]>;
   deleteSnapshots(tenantId: string): Promise<number>;
   deleteBackupStatus(tenantId: string): Promise<number>;
-  deletePayramCharges(tenantId: string): Promise<number>;
+  deleteCryptoCharges(tenantId: string): Promise<number>;
   deleteTenantStatus(tenantId: string): Promise<number>;
   deleteUserRolesByUser(tenantId: string): Promise<number>;
   deleteUserRolesByTenant(tenantId: string): Promise<number>;
@@ -259,11 +259,11 @@ export class DrizzleDeletionExecutorRepository implements IDeletionExecutorRepos
     return result.length;
   }
 
-  async deletePayramCharges(tenantId: string): Promise<number> {
+  async deleteCryptoCharges(tenantId: string): Promise<number> {
     const result = await this.db
-      .delete(payramCharges)
-      .where(eq(payramCharges.tenantId, tenantId))
-      .returning({ referenceId: payramCharges.referenceId });
+      .delete(cryptoCharges)
+      .where(eq(cryptoCharges.tenantId, tenantId))
+      .returning({ referenceId: cryptoCharges.referenceId });
     return result.length;
   }
 

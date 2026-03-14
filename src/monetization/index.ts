@@ -158,6 +158,27 @@ export {
   SIGNUP_GRANT,
   SUSPENSION_GRACE_DAYS,
 } from "./credits/index.js";
+// Crypto payments (BTCPay Server)
+export type {
+  CryptoBillingConfig,
+  CryptoCheckoutOpts,
+  CryptoConfig,
+  CryptoPaymentState,
+  CryptoWebhookDeps,
+  CryptoWebhookPayload,
+  CryptoWebhookResult,
+} from "./crypto/index.js";
+export {
+  BTCPayClient,
+  CryptoChargeRepository,
+  createCryptoCheckout,
+  DrizzleCryptoChargeRepository,
+  handleCryptoWebhook,
+  loadCryptoConfig,
+  MIN_PAYMENT_USD,
+  mapBtcPayEventToStatus,
+  verifyCryptoWebhookSignature,
+} from "./crypto/index.js";
 // Feature gating middleware (WOP-384 — replaced tier gates with balance gates)
 export {
   type CreditGateConfig,
@@ -181,25 +202,6 @@ export {
   MeterAggregator,
   MeterEmitter,
 } from "./metering/index.js";
-// PayRam crypto payments (WOP-407)
-export type {
-  PayRamBillingConfig,
-  PayRamCheckoutOpts,
-  PayRamConfig,
-  PayRamPaymentState,
-  PayRamWebhookDeps,
-  PayRamWebhookPayload,
-  PayRamWebhookResult,
-} from "./payram/index.js";
-export {
-  createPayRamCheckout,
-  createPayRamClient,
-  DrizzlePayRamChargeRepository,
-  handlePayRamWebhook,
-  loadPayRamConfig,
-  MIN_PAYMENT_USD,
-  PayRamChargeRepository,
-} from "./payram/index.js";
 export {
   checkInstanceQuota,
   DEFAULT_INSTANCE_LIMITS,
@@ -214,13 +216,13 @@ export {
 } from "./quotas/resource-limits.js";
 // Repository interfaces (WOP-899)
 export type {
+  CryptoChargeRecord,
   IBotBilling,
   IBudgetChecker,
+  ICryptoChargeRepository,
   IMeterAggregator,
   IMeterEmitter,
-  IPayRamChargeRepository,
   ITenantCustomerRepository,
-  PayRamChargeRecord,
 } from "./repository-types.js";
 // Socket layer — adapter orchestrator (WOP-376)
 export { AdapterSocket, type SocketConfig, type SocketRequest } from "./socket/socket.js";
