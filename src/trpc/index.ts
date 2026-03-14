@@ -1,3 +1,4 @@
+export { createFleetUpdateConfigRouter } from "./fleet-update-config-router.js";
 export {
   adminProcedure,
   createCallerFactory,

@@ -1,7 +1,14 @@
 import { logger } from "../config/logger.js";
 import type { IFleetEventRepository } from "./fleet-event-repository.js";
 
-export type BotEventType = "bot.started" | "bot.stopped" | "bot.created" | "bot.removed" | "bot.restarted";
+export type BotEventType =
+  | "bot.started"
+  | "bot.stopped"
+  | "bot.created"
+  | "bot.removed"
+  | "bot.restarted"
+  | "bot.updated"
+  | "bot.update_failed";
 
 export type NodeEventType =
   | "node.provisioned"

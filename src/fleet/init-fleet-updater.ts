@@ -14,11 +14,13 @@
 import type Docker from "dockerode";
 import { logger } from "../config/logger.js";
 import type { IBotProfileRepository } from "./bot-profile-repository.js";
+import type { FleetEventEmitter } from "./fleet-event-emitter.js";
 import type { FleetManager } from "./fleet-manager.js";
 import { ImagePoller } from "./image-poller.js";
 import type { IProfileStore } from "./profile-store.js";
 import { RolloutOrchestrator, type RolloutResult } from "./rollout-orchestrator.js";
 import { createRolloutStrategy, type RollingWaveOptions } from "./rollout-strategy.js";
+import type { ITenantUpdateConfigRepository } from "./tenant-update-config-repository.js";
 import { ContainerUpdater } from "./updater.js";
 import { VolumeSnapshotManager } from "./volume-snapshot-manager.js";
 
@@ -33,6 +35,10 @@ export interface FleetUpdaterConfig {
   onBotUpdated?: (result: { botId: string; success: boolean; volumeRestored: boolean }) => void;
   /** Called when a rollout completes */
   onRolloutComplete?: (result: RolloutResult) => void;
+  /** Optional per-tenant update config repository. When provided, tenants with mode=manual are excluded. */
+  configRepo?: ITenantUpdateConfigRepository;
+  /** Optional fleet event emitter. When provided, bot.updated / bot.update_failed events are emitted. */
+  eventEmitter?: FleetEventEmitter;
 }
 
 export interface FleetUpdaterHandle {
@@ -69,6 +75,8 @@ export function initFleetUpdater(
     snapshotDir = "/data/fleet/snapshots",
     onBotUpdated,
     onRolloutComplete,
+    configRepo,
+    eventEmitter,
   } = config;
 
   const poller = new ImagePoller(docker, profileStore);
@@ -82,10 +90,37 @@ export function initFleetUpdater(
     strategy,
     getUpdatableProfiles: async () => {
       const profiles = await profileRepo.list();
-      return profiles.filter((p) => p.updatePolicy !== "manual");
+      const nonManualPolicy = profiles.filter((p) => p.updatePolicy !== "manual");
+
+      if (!configRepo) return nonManualPolicy;
+
+      // Filter out tenants whose per-tenant config is set to manual
+      const results = await Promise.all(
+        nonManualPolicy.map(async (p) => {
+          const tenantCfg = await configRepo.get(p.tenantId);
+          // If tenant has an explicit config with mode=manual, exclude
+          if (tenantCfg && tenantCfg.mode === "manual") return null;
+          return p;
+        }),
+      );
+      return results.filter((p) => p !== null);
     },
-    onBotUpdated,
-    onRolloutComplete,
+    onBotUpdated: (result) => {
+      // Emit fleet events if emitter is provided
+      if (eventEmitter) {
+        eventEmitter.emit({
+          type: result.success ? "bot.updated" : "bot.update_failed",
+          botId: result.botId,
+          tenantId: "",
+          timestamp: new Date().toISOString(),
+        });
+      }
+      // Chain user-provided callback
+      onBotUpdated?.(result);
+    },
+    onRolloutComplete: (result) => {
+      onRolloutComplete?.(result);
+    },
   });
 
   // Wire the detection → orchestration pipeline.
