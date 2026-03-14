@@ -1,3 +1,4 @@
+import type { IPriceOracle } from "../oracle/types.js";
 import type { BitcoindConfig, BtcPaymentEvent } from "./types.js";
 
 type RpcCall = (method: string, params: unknown[]) => Promise<unknown>;
@@ -8,8 +9,8 @@ export interface BtcWatcherOpts {
   /** Addresses to watch (must be imported into bitcoind wallet first). */
   watchedAddresses: string[];
   onPayment: (event: BtcPaymentEvent) => void | Promise<void>;
-  /** Current BTC/USD price for conversion. */
-  getBtcPrice: () => Promise<number>;
+  /** Price oracle for BTC/USD conversion. */
+  oracle: IPriceOracle;
 }
 
 interface ReceivedByAddress {
@@ -19,22 +20,20 @@ interface ReceivedByAddress {
   txids: string[];
 }
 
-/** Track which txids we've already processed to avoid double-crediting. */
-const processedTxids = new Set<string>();
-
 export class BtcWatcher {
   private readonly rpc: RpcCall;
   private readonly addresses: Set<string>;
   private readonly onPayment: BtcWatcherOpts["onPayment"];
   private readonly minConfirmations: number;
-  private readonly getBtcPrice: () => Promise<number>;
+  private readonly oracle: IPriceOracle;
+  private readonly processedTxids = new Set<string>();
 
   constructor(opts: BtcWatcherOpts) {
     this.rpc = opts.rpcCall;
     this.addresses = new Set(opts.watchedAddresses);
     this.onPayment = opts.onPayment;
     this.minConfirmations = opts.config.confirmations;
-    this.getBtcPrice = opts.getBtcPrice;
+    this.oracle = opts.oracle;
   }
 
   /** Update the set of watched addresses. */
@@ -59,14 +58,13 @@ export class BtcWatcher {
       true, // include_watchonly
     ])) as ReceivedByAddress[];
 
-    const btcPrice = await this.getBtcPrice();
+    const { priceCents } = await this.oracle.getPrice("BTC");
 
     for (const entry of received) {
       if (!this.addresses.has(entry.address)) continue;
 
       for (const txid of entry.txids) {
-        if (processedTxids.has(txid)) continue;
-        processedTxids.add(txid);
+        if (this.processedTxids.has(txid)) continue;
 
         // Get transaction details for the exact amount sent to this address
         const tx = (await this.rpc("gettransaction", [txid, true])) as {
@@ -78,7 +76,8 @@ export class BtcWatcher {
         if (!detail) continue;
 
         const amountSats = Math.round(detail.amount * 100_000_000);
-        const amountUsdCents = Math.round(detail.amount * btcPrice * 100);
+        // priceCents is cents per 1 BTC. detail.amount is in BTC.
+        const amountUsdCents = Math.round((amountSats * priceCents) / 100_000_000);
 
         const event: BtcPaymentEvent = {
           address: entry.address,
@@ -89,6 +88,8 @@ export class BtcWatcher {
         };
 
         await this.onPayment(event);
+        // Add AFTER successful onPayment to avoid skipping on failure
+        this.processedTxids.add(txid);
       }
     }
   }

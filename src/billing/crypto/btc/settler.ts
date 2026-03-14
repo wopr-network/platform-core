@@ -28,7 +28,7 @@ export async function settleBtcPayment(deps: BtcSettlerDeps, event: BtcPaymentEv
 
   const charge = await chargeStore.getByDepositAddress(event.address);
   if (!charge) {
-    return { handled: false, status: "Settled" };
+    return { handled: false, status: "Invalid" };
   }
 
   await chargeStore.updateStatus(charge.referenceId, "Settled");
