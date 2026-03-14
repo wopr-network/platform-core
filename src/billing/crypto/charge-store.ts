@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
-import { payramCharges } from "../../db/schema/payram.js";
-import type { PayRamPaymentState } from "./types.js";
+import { cryptoCharges } from "../../db/schema/crypto.js";
+import type { CryptoPaymentState } from "./types.js";
 
-export interface PayRamChargeRecord {
+export interface CryptoChargeRecord {
   referenceId: string;
   tenantId: string;
   amountUsdCents: number;
@@ -15,12 +15,12 @@ export interface PayRamChargeRecord {
   updatedAt: string;
 }
 
-export interface IPayRamChargeRepository {
+export interface ICryptoChargeRepository {
   create(referenceId: string, tenantId: string, amountUsdCents: number): Promise<void>;
-  getByReferenceId(referenceId: string): Promise<PayRamChargeRecord | null>;
+  getByReferenceId(referenceId: string): Promise<CryptoChargeRecord | null>;
   updateStatus(
     referenceId: string,
-    status: PayRamPaymentState,
+    status: CryptoPaymentState,
     currency?: string,
     filledAmount?: string,
   ): Promise<void>;
@@ -29,27 +29,31 @@ export interface IPayRamChargeRepository {
 }
 
 /**
- * Manages PayRam charge records in PostgreSQL.
+ * Manages crypto charge records in PostgreSQL.
  *
- * Each charge maps a PayRam reference_id to a tenant and tracks
- * the payment lifecycle (OPEN -> VERIFYING -> FILLED/CANCELLED).
+ * Each charge maps a BTCPay invoice ID to a tenant and tracks
+ * the payment lifecycle (New → Processing → Settled/Expired/Invalid).
+ *
+ * amountUsdCents stores the requested amount in USD cents (integer).
+ * This is NOT nanodollars — Credit.fromCents() handles the conversion
+ * when crediting the ledger in the webhook handler.
  */
-export class DrizzlePayRamChargeRepository implements IPayRamChargeRepository {
+export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
   constructor(private readonly db: PlatformDb) {}
 
-  /** Create a new charge record when a payment session is initiated. */
+  /** Create a new charge record when an invoice is created. */
   async create(referenceId: string, tenantId: string, amountUsdCents: number): Promise<void> {
-    await this.db.insert(payramCharges).values({
+    await this.db.insert(cryptoCharges).values({
       referenceId,
       tenantId,
       amountUsdCents,
-      status: "OPEN",
+      status: "New",
     });
   }
 
   /** Get a charge by reference ID. Returns null if not found. */
-  async getByReferenceId(referenceId: string): Promise<PayRamChargeRecord | null> {
-    const row = (await this.db.select().from(payramCharges).where(eq(payramCharges.referenceId, referenceId)))[0];
+  async getByReferenceId(referenceId: string): Promise<CryptoChargeRecord | null> {
+    const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.referenceId, referenceId)))[0];
     if (!row) return null;
     return {
       referenceId: row.referenceId,
@@ -67,43 +71,42 @@ export class DrizzlePayRamChargeRepository implements IPayRamChargeRepository {
   /** Update charge status and payment details from webhook. */
   async updateStatus(
     referenceId: string,
-    status: PayRamPaymentState,
+    status: CryptoPaymentState,
     currency?: string,
     filledAmount?: string,
   ): Promise<void> {
     await this.db
-      .update(payramCharges)
+      .update(cryptoCharges)
       .set({
         status,
         currency,
         filledAmount,
         updatedAt: sql`now()`,
       })
-      .where(eq(payramCharges.referenceId, referenceId));
+      .where(eq(cryptoCharges.referenceId, referenceId));
   }
 
   /** Mark a charge as credited (idempotency flag). */
   async markCredited(referenceId: string): Promise<void> {
     await this.db
-      .update(payramCharges)
+      .update(cryptoCharges)
       .set({
         creditedAt: sql`now()`,
         updatedAt: sql`now()`,
       })
-      .where(eq(payramCharges.referenceId, referenceId));
+      .where(eq(cryptoCharges.referenceId, referenceId));
   }
 
   /** Check if a charge has already been credited (for idempotency). */
   async isCredited(referenceId: string): Promise<boolean> {
     const row = (
       await this.db
-        .select({ creditedAt: payramCharges.creditedAt })
-        .from(payramCharges)
-        .where(eq(payramCharges.referenceId, referenceId))
+        .select({ creditedAt: cryptoCharges.creditedAt })
+        .from(cryptoCharges)
+        .where(eq(cryptoCharges.referenceId, referenceId))
     )[0];
     return row?.creditedAt != null;
   }
 }
 
-// Backward-compat alias.
-export { DrizzlePayRamChargeRepository as PayRamChargeRepository };
+export { DrizzleCryptoChargeRepository as CryptoChargeRepository };

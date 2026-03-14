@@ -69,9 +69,6 @@ importers:
       lru-cache:
         specifier: ^11.2.6
         version: 11.2.6
-      payram:
-        specifier: ^1.0.1
-        version: 1.0.1
       pg:
         specifier: ^8.20.0
         version: 8.20.0
@@ -2840,9 +2837,6 @@ packages:
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
-
-  payram@1.0.1:
-    resolution: {integrity: sha512-CynLVEAwApIQtFiJQJKE/TSMlvuXKH2bZ8ner2aUSt9sFlVlCnC6Pa42EAiWhigb02aCuCbN6pcyzeDl8g9xrQ==}
 
   perfect-debounce@1.0.0:
     resolution: {integrity: sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==}
@@ -5984,8 +5978,6 @@ snapshots:
   path-type@4.0.0: {}
 
   pathe@2.0.3: {}
-
-  payram@1.0.1: {}
 
   perfect-debounce@1.0.0: {}
 

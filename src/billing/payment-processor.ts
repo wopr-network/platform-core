@@ -11,7 +11,7 @@ export class PaymentMethodOwnershipError extends Error {
 
 /** A saved payment method on file for a tenant (processor-agnostic). */
 export interface SavedPaymentMethod {
-  /** Processor-specific payment method ID (e.g. Stripe pm_xxx, PayRam wallet address). */
+  /** Processor-specific payment method ID (e.g. Stripe pm_xxx, BTCPay wallet address). */
   id: string;
   /** Human-readable label (e.g. "Visa ending 4242", "ETH wallet"). */
   label: string;
@@ -90,12 +90,12 @@ export interface WebhookResult {
 /**
  * Processor-agnostic payment interface.
  *
- * Each payment processor (Stripe, PayRam, future processors) implements
+ * Each payment processor (Stripe, BTCPay, future processors) implements
  * this interface. The platform layer programs against IPaymentProcessor
  * and never imports processor-specific types.
  */
 export interface IPaymentProcessor {
-  /** Human-readable processor name (e.g. "stripe", "payram"). */
+  /** Human-readable processor name (e.g. "stripe", "crypto"). */
   readonly name: string;
 
   /** Create a checkout session for a one-time credit purchase. */

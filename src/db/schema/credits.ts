@@ -16,7 +16,7 @@ export const creditTransactions = pgTable(
     type: text("type").notNull(), // signup_grant | purchase | bounty | referral | promo | community_dividend | bot_runtime | adapter_usage | addon | refund | correction
     description: text("description"),
     referenceId: text("reference_id").unique(),
-    fundingSource: text("funding_source"), // "stripe" | "payram" | null (null = legacy/signup)
+    fundingSource: text("funding_source"), // "stripe" | "crypto" | null (null = legacy/signup)
     attributedUserId: text("attributed_user_id"), // nullable — null for system/bot charges
     createdAt: text("created_at").notNull().default(sql`(now())`),
     expiresAt: text("expires_at"), // nullable — null means never expires

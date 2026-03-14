@@ -12,8 +12,8 @@ export type {
   WebhookResult,
 } from "./payment-processor.js";
 export { PaymentMethodOwnershipError } from "./payment-processor.js";
-// PayRam
-export * from "./payram/index.js";
+// Crypto (BTCPay Server)
+export * from "./crypto/index.js";
 // Stripe
 export * from "./stripe/index.js";
 export type { IWebhookSeenRepository } from "./webhook-seen-repository.js";

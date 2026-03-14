@@ -181,25 +181,26 @@ export {
   MeterAggregator,
   MeterEmitter,
 } from "./metering/index.js";
-// PayRam crypto payments (WOP-407)
+// Crypto payments (BTCPay Server)
 export type {
-  PayRamBillingConfig,
-  PayRamCheckoutOpts,
-  PayRamConfig,
-  PayRamPaymentState,
-  PayRamWebhookDeps,
-  PayRamWebhookPayload,
-  PayRamWebhookResult,
-} from "./payram/index.js";
+  CryptoBillingConfig,
+  CryptoCheckoutOpts,
+  CryptoConfig,
+  CryptoPaymentState,
+  CryptoWebhookDeps,
+  CryptoWebhookPayload,
+  CryptoWebhookResult,
+} from "./crypto/index.js";
 export {
-  createPayRamCheckout,
-  createPayRamClient,
-  DrizzlePayRamChargeRepository,
-  handlePayRamWebhook,
-  loadPayRamConfig,
+  BTCPayClient,
+  createCryptoCheckout,
+  CryptoChargeRepository,
+  DrizzleCryptoChargeRepository,
+  handleCryptoWebhook,
+  loadCryptoConfig,
   MIN_PAYMENT_USD,
-  PayRamChargeRepository,
-} from "./payram/index.js";
+  verifyCryptoWebhookSignature,
+} from "./crypto/index.js";
 export {
   checkInstanceQuota,
   DEFAULT_INSTANCE_LIMITS,
@@ -218,9 +219,9 @@ export type {
   IBudgetChecker,
   IMeterAggregator,
   IMeterEmitter,
-  IPayRamChargeRepository,
+  ICryptoChargeRepository,
   ITenantCustomerRepository,
-  PayRamChargeRecord,
+  CryptoChargeRecord,
 } from "./repository-types.js";
 // Socket layer — adapter orchestrator (WOP-376)
 export { AdapterSocket, type SocketConfig, type SocketRequest } from "./socket/socket.js";
