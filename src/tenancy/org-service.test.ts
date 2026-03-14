@@ -382,6 +382,8 @@ describe("OrgService", () => {
         token: "tok-d3",
         expiresAt: Date.now() + 86400000,
         createdAt: Date.now(),
+        acceptedAt: null,
+        revokedAt: null,
       });
 
       await svc.deleteOrg(org.id, owner);
@@ -629,6 +631,264 @@ describe("OrgService", () => {
 
       // Owner counts as admin/owner too (count = 2), so removing the admin succeeds
       await expect(svc.removeMember(org.id, owner, admin)).resolves.not.toThrow();
+    });
+  });
+
+  describe("listOrgsForUser", () => {
+    it("returns orgs the user is a member of", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-lof1";
+
+      const org1 = await orgRepo.createOrg(owner, "List Org 1", "list-org-1");
+      await memberRepo.addMember({
+        id: "mlof1",
+        orgId: org1.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const org2 = await orgRepo.createOrg(owner, "List Org 2", "list-org-2");
+      await memberRepo.addMember({
+        id: "mlof2",
+        orgId: org2.id,
+        userId: owner,
+        role: "admin",
+        joinedAt: Date.now(),
+      });
+
+      const result = await svc.listOrgsForUser(owner);
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.orgId).sort()).toEqual([org1.id, org2.id].sort());
+    });
+
+    it("returns empty array for unknown user", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+
+      const result = await svc.listOrgsForUser("totally-unknown-user");
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("acceptInvite", () => {
+    it("accepts a valid invite and creates membership", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-ai1";
+      const org = await orgRepo.createOrg(owner, "Accept Org", "accept-org");
+      await memberRepo.addMember({
+        id: "mai1",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const invite = await svc.inviteMember(org.id, owner, "new@example.com", "admin");
+      const result = await svc.acceptInvite(invite.token, "new-user-ai1");
+
+      expect(result).toEqual({ orgId: org.id, role: "admin" });
+
+      // Verify membership was created
+      const member = await memberRepo.findMember(org.id, "new-user-ai1");
+      expect(member).not.toBeNull();
+      expect(member?.role).toBe("admin");
+
+      // Verify invite was marked accepted
+      const updatedInvite = await memberRepo.findInviteByToken(invite.token);
+      expect(updatedInvite?.acceptedAt).not.toBeNull();
+    });
+
+    it("throws NOT_FOUND for unknown token", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+
+      await expect(svc.acceptInvite("bad-token", "user-1")).rejects.toThrow(
+        expect.objectContaining({ code: "NOT_FOUND" }),
+      );
+    });
+
+    it("throws BAD_REQUEST for already-accepted invite", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-ai2";
+      const org = await orgRepo.createOrg(owner, "Accept Org 2", "accept-org-2");
+      await memberRepo.addMember({
+        id: "mai2",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      const invite = await svc.inviteMember(org.id, owner, "dup@example.com", "member");
+      await svc.acceptInvite(invite.token, "first-user");
+
+      await expect(svc.acceptInvite(invite.token, "second-user")).rejects.toThrow(
+        expect.objectContaining({ code: "BAD_REQUEST", message: "Invite already accepted" }),
+      );
+    });
+
+    it("throws BAD_REQUEST for expired invite", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-ai3";
+      const org = await orgRepo.createOrg(owner, "Accept Org 3", "accept-org-3");
+      await memberRepo.addMember({
+        id: "mai3",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      // Create an expired invite directly
+      await memberRepo.createInvite({
+        id: "inv-expired",
+        orgId: org.id,
+        email: "expired@example.com",
+        role: "member",
+        invitedBy: owner,
+        token: "tok-expired",
+        expiresAt: Date.now() - 1000, // already expired
+        createdAt: Date.now() - 86400000,
+        acceptedAt: null,
+        revokedAt: null,
+      });
+
+      await expect(svc.acceptInvite("tok-expired", "late-user")).rejects.toThrow(
+        expect.objectContaining({ code: "BAD_REQUEST", message: "Invite has expired" }),
+      );
+    });
+  });
+
+  describe("requireAdminOrOwner", () => {
+    it("passes for admin", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-rao1";
+      const admin = "admin-rao1";
+      const org = await orgRepo.createOrg(owner, "RAO Org", "rao-org");
+      await memberRepo.addMember({
+        id: "mrao1",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+      await memberRepo.addMember({
+        id: "mrao2",
+        orgId: org.id,
+        userId: admin,
+        role: "admin",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireAdminOrOwner(org.id, admin)).resolves.toBeUndefined();
+    });
+
+    it("passes for owner", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-rao2";
+      const org = await orgRepo.createOrg(owner, "RAO Org 2", "rao-org-2");
+      await memberRepo.addMember({
+        id: "mrao3",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireAdminOrOwner(org.id, owner)).resolves.toBeUndefined();
+    });
+
+    it("throws FORBIDDEN for regular member", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-rao3";
+      const member = "member-rao3";
+      const org = await orgRepo.createOrg(owner, "RAO Org 3", "rao-org-3");
+      await memberRepo.addMember({
+        id: "mrao4",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+      await memberRepo.addMember({
+        id: "mrao5",
+        orgId: org.id,
+        userId: member,
+        role: "member",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireAdminOrOwner(org.id, member)).rejects.toThrow(
+        expect.objectContaining({ code: "FORBIDDEN" }),
+      );
+    });
+
+    it("throws FORBIDDEN for non-member", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-rao4";
+      const org = await orgRepo.createOrg(owner, "RAO Org 4", "rao-org-4");
+      await memberRepo.addMember({
+        id: "mrao6",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireAdminOrOwner(org.id, "stranger")).rejects.toThrow(
+        expect.objectContaining({ code: "FORBIDDEN" }),
+      );
+    });
+  });
+
+  describe("requireOwner", () => {
+    it("passes for owner", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-ro1";
+      const org = await orgRepo.createOrg(owner, "RO Org", "ro-org");
+      await memberRepo.addMember({
+        id: "mro1",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireOwner(org.id, owner)).resolves.toBeUndefined();
+    });
+
+    it("throws FORBIDDEN for admin", async () => {
+      const { orgRepo, memberRepo } = await setup(db);
+      const svc = new OrgService(orgRepo, memberRepo, db);
+      const owner = "owner-ro2";
+      const admin = "admin-ro2";
+      const org = await orgRepo.createOrg(owner, "RO Org 2", "ro-org-2");
+      await memberRepo.addMember({
+        id: "mro2",
+        orgId: org.id,
+        userId: owner,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+      await memberRepo.addMember({
+        id: "mro3",
+        orgId: org.id,
+        userId: admin,
+        role: "admin",
+        joinedAt: Date.now(),
+      });
+
+      await expect(svc.requireOwner(org.id, admin)).rejects.toThrow(expect.objectContaining({ code: "FORBIDDEN" }));
     });
   });
 

@@ -179,6 +179,8 @@ export class OrgService {
       token,
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
       createdAt: Date.now(),
+      acceptedAt: null,
+      revokedAt: null,
     };
     await this.memberRepo.createInvite(invite);
     return invite;
@@ -247,6 +249,38 @@ export class OrgService {
     await this.orgRepo.updateOwner(orgId, targetUserId);
   }
 
+  async acceptInvite(token: string, userId: string): Promise<{ orgId: string; role: string }> {
+    const invite = await this.memberRepo.findInviteByToken(token);
+    if (!invite) throw new TRPCError({ code: "NOT_FOUND", message: "Invite not found" });
+    if (invite.acceptedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already accepted" });
+    // revokedAt guard — currently no UI sets this field, but the schema supports it
+    // for future use (e.g., admin revokes an outstanding invite).
+    if (invite.revokedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has been revoked" });
+    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has expired" });
+    }
+
+    // Guard: reject if user is already a member (prevents consuming the invite silently)
+    const existing = await this.memberRepo.findMember(invite.orgId, userId);
+    if (existing) {
+      throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this organization" });
+    }
+
+    await this.memberRepo.addMember({
+      id: crypto.randomUUID(),
+      orgId: invite.orgId,
+      userId,
+      role: invite.role ?? "member",
+      joinedAt: Date.now(),
+    });
+    await this.memberRepo.markInviteAccepted(invite.id);
+    return { orgId: invite.orgId, role: invite.role ?? "member" };
+  }
+
+  async listOrgsForUser(userId: string): Promise<Array<{ orgId: string; role: string }>> {
+    return this.memberRepo.listOrgsByUser(userId);
+  }
+
   validateSlug(slug: string): void {
     if (!/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(slug)) {
       throw new TRPCError({
@@ -304,10 +338,17 @@ export class OrgService {
     return org;
   }
 
-  private async requireAdminOrOwner(orgId: string, userId: string): Promise<void> {
+  async requireAdminOrOwner(orgId: string, userId: string): Promise<void> {
     const member = await this.memberRepo.findMember(orgId, userId);
     if (!member || (member.role !== "admin" && member.role !== "owner")) {
       throw new TRPCError({ code: "FORBIDDEN", message: "Admin or owner role required" });
+    }
+  }
+
+  async requireOwner(orgId: string, userId: string): Promise<void> {
+    const member = await this.memberRepo.findMember(orgId, userId);
+    if (!member || member.role !== "owner") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Owner role required" });
     }
   }
 }

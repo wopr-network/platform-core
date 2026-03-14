@@ -152,8 +152,25 @@ const isOrgMember = t.middleware(async ({ ctx, next, getRawInput }) => {
   if (!member) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this organization" });
   }
-  return next({ ctx: { user: ctx.user, tenantId: ctx.tenantId } });
+  return next({
+    ctx: { user: ctx.user, tenantId: ctx.tenantId, orgRole: member.role as "owner" | "admin" | "member" },
+  });
 });
 
 /** Procedure that requires authentication + org membership (orgId must be in input). */
 export const orgMemberProcedure = t.procedure.use(isAuthed).use(isOrgMember);
+
+/**
+ * Middleware that enforces admin or owner role within an org.
+ * Must be chained after isOrgMember so ctx.orgRole is guaranteed.
+ */
+const isOrgAdmin = t.middleware(async ({ ctx, next }) => {
+  const role = (ctx as Record<string, unknown>).orgRole as string | undefined;
+  if (role === "member") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin or owner role required" });
+  }
+  return next({ ctx });
+});
+
+/** Procedure that requires authentication + org admin/owner role (orgId must be in input). */
+export const orgAdminProcedure = orgMemberProcedure.use(isOrgAdmin);
