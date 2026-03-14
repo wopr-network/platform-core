@@ -11,7 +11,8 @@ export function deriveDepositAddress(xpub: string, index: number): `0x${string}`
   const child = master.deriveChild(0).deriveChild(index);
   if (!child.publicKey) throw new Error("Failed to derive public key");
 
-  const hexPubKey = `0x${Buffer.from(child.publicKey).toString("hex")}` as `0x${string}`;
+  const hexPubKey =
+    `0x${Array.from(child.publicKey, (b) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
   return publicKeyToAddress(hexPubKey);
 }
 

@@ -26,7 +26,7 @@ export interface EvmSettlerDeps {
 export async function settleEvmPayment(deps: EvmSettlerDeps, event: EvmPaymentEvent): Promise<CryptoWebhookResult> {
   const { chargeStore, creditLedger } = deps;
 
-  const charge = await chargeStore.getByDepositAddress(event.to);
+  const charge = await chargeStore.getByDepositAddress(event.to.toLowerCase());
   if (!charge) {
     return { handled: false, status: "Settled" };
   }
