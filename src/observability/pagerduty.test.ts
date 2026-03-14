@@ -7,6 +7,7 @@ describe("PagerDutyNotifier", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
