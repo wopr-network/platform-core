@@ -64,6 +64,7 @@ export * from "./tenant-capability-settings.js";
 export * from "./tenant-customers.js";
 export * from "./tenant-model-selection.js";
 export * from "./tenant-status.js";
+export * from "./tenant-update-configs.js";
 export * from "./tenants.js";
 export * from "./user-roles.js";
 export * from "./vps-subscriptions.js";

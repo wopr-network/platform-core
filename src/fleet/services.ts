@@ -50,6 +50,7 @@ import { DrizzleBotProfileRepository } from "./drizzle-bot-profile-repository.js
 import { DrizzleFleetEventRepository } from "./drizzle-fleet-event-repository.js";
 import { DrizzleNodeRepository } from "./drizzle-node-repository.js";
 import { DrizzleRecoveryRepository } from "./drizzle-recovery-repository.js";
+import { DrizzleTenantUpdateConfigRepository } from "./drizzle-tenant-update-config-repository.js";
 import { FleetEventEmitter } from "./fleet-event-emitter.js";
 import type { IFleetEventRepository } from "./fleet-event-repository.js";
 import type { IGpuAllocationRepository } from "./gpu-allocation-repository.js";
@@ -76,6 +77,7 @@ import type { IRecoveryRepository } from "./recovery-repository.js";
 import type { IRegistrationTokenRepository } from "./registration-token-store.js";
 import { DrizzleRegistrationTokenRepository } from "./registration-token-store.js";
 import { DrizzleSpendingCapStore } from "./spending-cap-repository.js";
+import type { ITenantUpdateConfigRepository } from "./tenant-update-config-repository.js";
 import type { IVpsRepository } from "./vps-repository.js";
 import { DrizzleVpsRepository } from "./vps-repository.js";
 
@@ -127,6 +129,9 @@ let _fleetEventEmitter: FleetEventEmitter | null = null;
 
 // Fleet event repository
 let _fleetEventRepo: IFleetEventRepository | null = null;
+
+// Tenant update config
+let _tenantUpdateConfigRepo: ITenantUpdateConfigRepository | null = null;
 
 // Infrastructure
 let _doClient: DOClient | null = null;
@@ -401,6 +406,13 @@ export function getFleetEventRepo(): IFleetEventRepository {
     _fleetEventRepo = new DrizzleFleetEventRepository(getDb());
   }
   return _fleetEventRepo;
+}
+
+export function getTenantUpdateConfigRepo(): ITenantUpdateConfigRepository {
+  if (!_tenantUpdateConfigRepo) {
+    _tenantUpdateConfigRepo = new DrizzleTenantUpdateConfigRepository(getDb());
+  }
+  return _tenantUpdateConfigRepo;
 }
 
 // ---------------------------------------------------------------------------
@@ -894,6 +906,7 @@ export function _resetForTest(): void {
   _inferenceWatchdog = null;
   _fleetEventRepo = null;
   _fleetEventEmitter = null;
+  _tenantUpdateConfigRepo = null;
   _doClient = null;
   _nodeProvider = null;
   _nodeProvisioner = null;
