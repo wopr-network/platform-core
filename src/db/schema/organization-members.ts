@@ -32,6 +32,8 @@ export const organizationInvites = pgTable(
     createdAt: bigint("created_at", { mode: "number" })
       .notNull()
       .default(sql`(extract(epoch from now()) * 1000)::bigint`),
+    acceptedAt: bigint("accepted_at", { mode: "number" }),
+    revokedAt: bigint("revoked_at", { mode: "number" }),
   },
   (table) => [index("idx_org_invites_org_id").on(table.orgId), index("idx_org_invites_token").on(table.token)],
 );

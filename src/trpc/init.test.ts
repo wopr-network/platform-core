@@ -3,6 +3,7 @@ import type { IOrgMemberRepository } from "../tenancy/org-member-repository.js";
 import {
   adminProcedure,
   createCallerFactory,
+  orgAdminProcedure,
   orgMemberProcedure,
   protectedProcedure,
   publicProcedure,
@@ -31,6 +32,8 @@ function makeMockRepo(overrides?: Partial<IOrgMemberRepository>): IOrgMemberRepo
     deleteInvite: vi.fn().mockResolvedValue(undefined),
     deleteAllMembers: vi.fn().mockResolvedValue(undefined),
     deleteAllInvites: vi.fn().mockResolvedValue(undefined),
+    listOrgsByUser: vi.fn().mockResolvedValue([]),
+    markInviteAccepted: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -42,6 +45,7 @@ const appRouter = router({
   adminHello: adminProcedure.query(() => "admin-ok"),
   tenantHello: tenantProcedure.query(() => "tenant-ok"),
   orgAction: orgMemberProcedure.input((v: unknown) => v as { orgId: string }).mutation(() => "org-ok"),
+  orgAdminAction: orgAdminProcedure.input((v: unknown) => v as { orgId: string }).mutation(() => "org-admin-ok"),
 });
 
 const createCaller = createCallerFactory(appRouter);
@@ -238,6 +242,50 @@ describe("tRPC procedure builders", () => {
 
       const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
       expect(await caller.orgAction({ orgId: "org-1" })).toBe("org-ok");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // orgAdminProcedure
+  // -----------------------------------------------------------------------
+
+  describe("orgAdminProcedure", () => {
+    it("rejects regular members", async () => {
+      const repo = makeMockRepo({
+        findMember: vi.fn().mockResolvedValue({ id: "m1", orgId: "org-1", userId: "u1", role: "member", joinedAt: 0 }),
+      });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
+      await expect(caller.orgAdminAction({ orgId: "org-1" })).rejects.toThrow("Admin or owner role required");
+    });
+
+    it("allows admin members", async () => {
+      const repo = makeMockRepo({
+        findMember: vi.fn().mockResolvedValue({ id: "m1", orgId: "org-1", userId: "u1", role: "admin", joinedAt: 0 }),
+      });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
+      expect(await caller.orgAdminAction({ orgId: "org-1" })).toBe("org-admin-ok");
+    });
+
+    it("allows owner members", async () => {
+      const repo = makeMockRepo({
+        findMember: vi.fn().mockResolvedValue({ id: "m1", orgId: "org-1", userId: "u1", role: "owner", joinedAt: 0 }),
+      });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
+      expect(await caller.orgAdminAction({ orgId: "org-1" })).toBe("org-admin-ok");
+    });
+
+    it("rejects non-members", async () => {
+      const repo = makeMockRepo({ findMember: vi.fn().mockResolvedValue(null) });
+      setTrpcOrgMemberRepo(repo);
+
+      const caller = createCaller({ user: { id: "u1", roles: ["user"] }, tenantId: undefined });
+      await expect(caller.orgAdminAction({ orgId: "org-1" })).rejects.toThrow("Not a member of this organization");
     });
   });
 });

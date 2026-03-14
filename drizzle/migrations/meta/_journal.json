@@ -43,6 +43,13 @@
       "when": 1742054400000,
       "tag": "0005_stablecoin_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1742140800000,
+      "tag": "0006_invite_acceptance",
+      "breakpoints": true
     }
   ]
 }

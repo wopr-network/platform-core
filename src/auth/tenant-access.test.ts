@@ -17,6 +17,8 @@ function mockOrgMemberRepo(overrides: Partial<IOrgMemberRepository> = {}): IOrgM
     deleteInvite: vi.fn().mockResolvedValue(undefined),
     deleteAllMembers: vi.fn().mockResolvedValue(undefined),
     deleteAllInvites: vi.fn().mockResolvedValue(undefined),
+    listOrgsByUser: vi.fn().mockResolvedValue([]),
+    markInviteAccepted: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

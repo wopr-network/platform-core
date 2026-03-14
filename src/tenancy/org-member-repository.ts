@@ -31,6 +31,8 @@ export interface OrgInviteRow {
   token: string;
   expiresAt: number;
   createdAt: number;
+  acceptedAt: number | null;
+  revokedAt: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +54,8 @@ export interface IOrgMemberRepository {
   deleteInvite(inviteId: string): Promise<void>;
   deleteAllMembers(orgId: string): Promise<void>;
   deleteAllInvites(orgId: string): Promise<void>;
+  listOrgsByUser(userId: string): Promise<Array<{ orgId: string; role: string }>>;
+  markInviteAccepted(inviteId: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +82,8 @@ function toInvite(row: typeof organizationInvites.$inferSelect): OrgInviteRow {
     token: row.token,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
+    acceptedAt: row.acceptedAt ?? null,
+    revokedAt: row.revokedAt ?? null,
   };
 }
 
@@ -155,5 +161,19 @@ export class DrizzleOrgMemberRepository implements IOrgMemberRepository {
 
   async deleteAllInvites(orgId: string): Promise<void> {
     await this.db.delete(organizationInvites).where(eq(organizationInvites.orgId, orgId));
+  }
+
+  async listOrgsByUser(userId: string): Promise<Array<{ orgId: string; role: string }>> {
+    return this.db
+      .select({ orgId: organizationMembers.orgId, role: organizationMembers.role })
+      .from(organizationMembers)
+      .where(eq(organizationMembers.userId, userId));
+  }
+
+  async markInviteAccepted(inviteId: string): Promise<void> {
+    await this.db
+      .update(organizationInvites)
+      .set({ acceptedAt: Date.now() })
+      .where(eq(organizationInvites.id, inviteId));
   }
 }

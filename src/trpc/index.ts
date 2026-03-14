@@ -1,6 +1,7 @@
 export {
   adminProcedure,
   createCallerFactory,
+  orgAdminProcedure,
   orgMemberProcedure,
   protectedProcedure,
   publicProcedure,
