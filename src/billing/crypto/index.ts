@@ -18,5 +18,7 @@ export type {
   CryptoWebhookResult,
 } from "./types.js";
 export { mapBtcPayEventToStatus } from "./types.js";
+export type { UnifiedCheckoutDeps, UnifiedCheckoutResult } from "./unified-checkout.js";
+export { createUnifiedCheckout, MIN_CHECKOUT_USD } from "./unified-checkout.js";
 export type { CryptoWebhookDeps } from "./webhook.js";
 export { handleCryptoWebhook, verifyCryptoWebhookSignature } from "./webhook.js";
