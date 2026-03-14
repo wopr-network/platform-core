@@ -8,6 +8,8 @@ export type { IWatcherCursorStore } from "./cursor-store.js";
 export { DrizzleWatcherCursorStore } from "./cursor-store.js";
 export * from "./evm/index.js";
 export * from "./oracle/index.js";
+export type { IPaymentMethodStore, PaymentMethodRecord } from "./payment-method-store.js";
+export { DrizzlePaymentMethodStore } from "./payment-method-store.js";
 export type {
   CryptoBillingConfig,
   CryptoCheckoutOpts,

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 /**
  * Crypto payment charges — tracks the lifecycle of each BTCPay invoice.
@@ -44,6 +44,26 @@ export const watcherCursors = pgTable("watcher_cursors", {
   watcherId: text("watcher_id").primaryKey(),
   cursorBlock: integer("cursor_block").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`(now())`),
+});
+
+/**
+ * Payment method registry — runtime-configurable tokens/chains.
+ * Admin inserts a row to enable a new payment method. No deploy needed.
+ * Contract addresses are immutable on-chain but configurable here.
+ */
+export const paymentMethods = pgTable("payment_methods", {
+  id: text("id").primaryKey(), // "USDC:base", "ETH:base", "BTC:mainnet"
+  type: text("type").notNull(), // "stablecoin", "eth", "btc"
+  token: text("token").notNull(), // "USDC", "ETH", "BTC"
+  chain: text("chain").notNull(), // "base", "ethereum", "bitcoin"
+  contractAddress: text("contract_address"), // null for native (ETH, BTC)
+  decimals: integer("decimals").notNull(),
+  displayName: text("display_name").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  rpcUrl: text("rpc_url"), // override per-chain RPC (null = use default)
+  confirmations: integer("confirmations").notNull().default(1),
+  createdAt: text("created_at").notNull().default(sql`(now())`),
 });
 
 /** Processed transaction IDs for watchers without block cursors (e.g. BTC). */
