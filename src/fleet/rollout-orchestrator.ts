@@ -38,6 +38,8 @@ export interface RolloutResult {
   failed: number;
   skipped: number;
   aborted: boolean;
+  /** True when a concurrent rollout was already in progress */
+  alreadyRunning: boolean;
   results: BotUpdateResult[];
 }
 
@@ -71,7 +73,7 @@ export class RolloutOrchestrator {
   async rollout(): Promise<RolloutResult> {
     if (this.rolling) {
       logger.warn("Rollout already in progress — skipping");
-      return { totalBots: 0, succeeded: 0, failed: 0, skipped: 0, aborted: false, results: [] };
+      return { totalBots: 0, succeeded: 0, failed: 0, skipped: 0, aborted: false, alreadyRunning: true, results: [] };
     }
 
     this.rolling = true;
@@ -84,7 +86,15 @@ export class RolloutOrchestrator {
 
       if (totalBots === 0) {
         logger.info("Rollout: no bots to update");
-        return { totalBots: 0, succeeded: 0, failed: 0, skipped: 0, aborted: false, results: [] };
+        return {
+          totalBots: 0,
+          succeeded: 0,
+          failed: 0,
+          skipped: 0,
+          aborted: false,
+          alreadyRunning: false,
+          results: [],
+        };
       }
 
       logger.info(`Rollout starting: ${totalBots} bots to update`);
@@ -96,6 +106,7 @@ export class RolloutOrchestrator {
         logger.info(`Rollout wave: ${batch.length} bots (${remaining.length} remaining)`);
 
         // Process batch — each bot sequentially within a wave for safety
+        const retryProfiles: BotProfile[] = [];
         for (const profile of batch) {
           if (aborted) break;
 
@@ -108,13 +119,20 @@ export class RolloutOrchestrator {
             if (action === "abort") {
               aborted = true;
               logger.warn(`Rollout aborted after bot ${profile.id} failure`);
+            } else if (action === "retry") {
+              retryProfiles.push(profile);
             }
+            // "skip" → don't re-add, bot is dropped
           }
         }
 
-        // Remove processed bots from remaining
+        // Remove processed bots from remaining, but re-add retries
         const processedIds = new Set(batch.map((b) => b.id));
-        remaining = remaining.filter((b) => !processedIds.has(b.id));
+        const retryIds = new Set(retryProfiles.map((b) => b.id));
+        remaining = [
+          ...remaining.filter((b) => !processedIds.has(b.id)),
+          ...retryProfiles.filter((b) => retryIds.has(b.id)),
+        ];
 
         // Pause between waves (unless aborted or done)
         if (remaining.length > 0 && !aborted) {
@@ -130,7 +148,15 @@ export class RolloutOrchestrator {
       const failed = allResults.filter((r) => !r.success).length;
       const skipped = totalBots - allResults.length;
 
-      const rolloutResult: RolloutResult = { totalBots, succeeded, failed, skipped, aborted, results: allResults };
+      const rolloutResult: RolloutResult = {
+        totalBots,
+        succeeded,
+        failed,
+        skipped,
+        aborted,
+        alreadyRunning: false,
+        results: allResults,
+      };
 
       logger.info(`Rollout complete: ${succeeded} succeeded, ${failed} failed, ${skipped} skipped, aborted=${aborted}`);
       this.onRolloutComplete?.(rolloutResult);
@@ -195,14 +221,14 @@ export class RolloutOrchestrator {
    * Handle a bot failure using the strategy's failure policy.
    * Retries the update up to maxRetries before escalating.
    */
-  private handleFailure(botId: string, result: BotUpdateResult, allResults: BotUpdateResult[]): "abort" | "skip" {
+  private handleFailure(
+    botId: string,
+    result: BotUpdateResult,
+    allResults: BotUpdateResult[],
+  ): "abort" | "skip" | "retry" {
     const error = new Error(result.error ?? "Unknown error");
     const failCount = allResults.filter((r) => r.botId === botId && !r.success).length;
-    const action = this.strategy.onBotFailure(botId, error, failCount);
-
-    if (action === "abort") return "abort";
-    // "retry" and "skip" both just continue — retry is handled by the caller re-adding to remaining
-    return "skip";
+    return this.strategy.onBotFailure(botId, error, failCount);
   }
 
   private async restoreVolumes(botId: string, snapshotIds: string[]): Promise<boolean> {

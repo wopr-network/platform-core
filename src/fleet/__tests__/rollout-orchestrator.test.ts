@@ -206,12 +206,45 @@ describe("RolloutOrchestrator", () => {
 
     const [r1, r2] = await Promise.all([orch.rollout(), orch.rollout()]);
 
-    // One succeeds, one is skipped
+    // One succeeds, one is rejected as already running
     const succeeded = [r1, r2].find((r) => r.totalBots > 0);
-    const skipped = [r1, r2].find((r) => r.totalBots === 0);
+    const rejected = [r1, r2].find((r) => r.alreadyRunning);
     expect(succeeded).toBeDefined();
-    expect(skipped).toBeDefined();
-    expect(skipped?.totalBots).toBe(0);
+    expect(rejected).toBeDefined();
+    expect(rejected?.alreadyRunning).toBe(true);
+    expect(rejected?.totalBots).toBe(0);
+  });
+
+  it("retries failed bots when strategy says retry", async () => {
+    let callCount = 0;
+    updater = {
+      updateBot: vi.fn(async (botId: string) => {
+        callCount++;
+        // Fail first attempt, succeed on retry
+        if (botId === "b1" && callCount === 1) return makeResult("b1", false);
+        return makeResult(botId, true);
+      }),
+    } as unknown as ContainerUpdater;
+
+    const profiles = [makeProfile("b1")];
+    const strategy = mockStrategy({
+      nextBatch: (r) => r.slice(0, 1),
+      onBotFailure: (_botId, _err, attempt) => (attempt < 2 ? "retry" : "skip"),
+    });
+
+    const orch = new RolloutOrchestrator({
+      updater,
+      snapshotManager: snapMgr,
+      strategy,
+      getUpdatableProfiles: async () => profiles,
+    });
+
+    const result = await orch.rollout();
+
+    // b1 failed once, retried, succeeded
+    expect(updater.updateBot).toHaveBeenCalledTimes(2);
+    expect(result.succeeded).toBe(1);
+    expect(result.failed).toBe(1); // first attempt counted as failed
   });
 
   it("calls onBotUpdated callback for each bot", async () => {
