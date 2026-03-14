@@ -1,3 +1,4 @@
+import type { IWatcherCursorStore } from "../cursor-store.js";
 import type { IPriceOracle } from "../oracle/types.js";
 import type { BitcoindConfig, BtcPaymentEvent } from "./types.js";
 
@@ -11,6 +12,8 @@ export interface BtcWatcherOpts {
   onPayment: (event: BtcPaymentEvent) => void | Promise<void>;
   /** Price oracle for BTC/USD conversion. */
   oracle: IPriceOracle;
+  /** Required — BTC has no block cursor, so txid dedup must be persisted. */
+  cursorStore: IWatcherCursorStore;
 }
 
 interface ReceivedByAddress {
@@ -26,7 +29,8 @@ export class BtcWatcher {
   private readonly onPayment: BtcWatcherOpts["onPayment"];
   private readonly minConfirmations: number;
   private readonly oracle: IPriceOracle;
-  private readonly processedTxids = new Set<string>();
+  private readonly cursorStore: IWatcherCursorStore;
+  private readonly watcherId: string;
 
   constructor(opts: BtcWatcherOpts) {
     this.rpc = opts.rpcCall;
@@ -34,6 +38,8 @@ export class BtcWatcher {
     this.onPayment = opts.onPayment;
     this.minConfirmations = opts.config.confirmations;
     this.oracle = opts.oracle;
+    this.cursorStore = opts.cursorStore;
+    this.watcherId = `btc:${opts.config.network}`;
   }
 
   /** Update the set of watched addresses. */
@@ -64,7 +70,8 @@ export class BtcWatcher {
       if (!this.addresses.has(entry.address)) continue;
 
       for (const txid of entry.txids) {
-        if (this.processedTxids.has(txid)) continue;
+        // Skip already-processed txids (persisted to DB, survives restart)
+        if (await this.cursorStore.hasProcessedTx(this.watcherId, txid)) continue;
 
         // Get transaction details for the exact amount sent to this address
         const tx = (await this.rpc("gettransaction", [txid, true])) as {
@@ -88,8 +95,8 @@ export class BtcWatcher {
         };
 
         await this.onPayment(event);
-        // Add AFTER successful onPayment to avoid skipping on failure
-        this.processedTxids.add(txid);
+        // Persist AFTER successful onPayment — survives restart, no unbounded memory
+        await this.cursorStore.markProcessedTx(this.watcherId, txid);
       }
     }
   }
