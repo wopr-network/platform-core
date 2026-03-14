@@ -1,3 +1,4 @@
+export * from "./init-fleet-updater.js";
 export * from "./repository-types.js";
 export * from "./rollout-orchestrator.js";
 export * from "./rollout-strategy.js";
