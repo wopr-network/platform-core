@@ -1,7 +1,6 @@
 import { Credit } from "../../credits/credit.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import { deriveDepositAddress } from "./evm/address-gen.js";
-import { tokenAmountFromCents } from "./evm/config.js";
 import { centsToNative } from "./oracle/convert.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import type { PaymentMethodRecord } from "./payment-method-store.js";
@@ -68,7 +67,6 @@ async function handleErc20(
   amountUsdCents: number,
   amountUsd: number,
 ): Promise<UnifiedCheckoutResult> {
-  const _rawAmount = tokenAmountFromCents(amountUsdCents, method.decimals);
   const depositAddress = await deriveAndStore(deps, method, tenant, amountUsdCents);
 
   return {
