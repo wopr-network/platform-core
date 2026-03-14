@@ -4,10 +4,16 @@
  * Consumers call initFleetUpdater() with a Docker instance, FleetManager, and config.
  * The pipeline detects new image digests, batches updates via a rollout strategy,
  * snapshots volumes before updating, and restores on failure (nuclear rollback).
+ *
+ * When a new image digest is detected for ANY bot, the orchestrator triggers a
+ * fleet-wide rollout across all non-manual bots. This is intentional: the managed
+ * Paperclip image is shared across all tenants, so a single digest change means
+ * all bots need updating.
  */
 
 import type Docker from "dockerode";
 import { logger } from "../config/logger.js";
+import type { IBotProfileRepository } from "./bot-profile-repository.js";
 import type { FleetManager } from "./fleet-manager.js";
 import { ImagePoller } from "./image-poller.js";
 import type { IProfileStore } from "./profile-store.js";
@@ -34,8 +40,8 @@ export interface FleetUpdaterHandle {
   updater: ContainerUpdater;
   orchestrator: RolloutOrchestrator;
   snapshotManager: VolumeSnapshotManager;
-  /** Stop the poller and shut down the update pipeline */
-  stop: () => void;
+  /** Stop the poller and wait for any active rollout to finish */
+  stop: () => Promise<void>;
 }
 
 /**
@@ -44,12 +50,17 @@ export interface FleetUpdaterHandle {
  * Creates and wires: ImagePoller → RolloutOrchestrator → ContainerUpdater
  * with VolumeSnapshotManager for nuclear rollback.
  *
- * Call handle.stop() to shut down gracefully.
+ * @param docker - Dockerode instance for container operations
+ * @param fleet - FleetManager for container lifecycle
+ * @param profileStore - Legacy IProfileStore (used by ImagePoller/ContainerUpdater)
+ * @param profileRepo - PostgreSQL-backed IBotProfileRepository (used for updatable profile queries)
+ * @param config - Optional pipeline configuration
  */
 export function initFleetUpdater(
   docker: Docker,
   fleet: FleetManager,
-  store: IProfileStore,
+  profileStore: IProfileStore,
+  profileRepo: IBotProfileRepository,
   config: FleetUpdaterConfig = {},
 ): FleetUpdaterHandle {
   const {
@@ -60,8 +71,8 @@ export function initFleetUpdater(
     onRolloutComplete,
   } = config;
 
-  const poller = new ImagePoller(docker, store);
-  const updater = new ContainerUpdater(docker, store, fleet, poller);
+  const poller = new ImagePoller(docker, profileStore);
+  const updater = new ContainerUpdater(docker, profileStore, fleet, poller);
   const snapshotManager = new VolumeSnapshotManager(docker, snapshotDir);
   const strategy = createRolloutStrategy(strategyType, strategyOptions);
 
@@ -70,20 +81,22 @@ export function initFleetUpdater(
     snapshotManager,
     strategy,
     getUpdatableProfiles: async () => {
-      const profiles = await store.list();
+      const profiles = await profileRepo.list();
       return profiles.filter((p) => p.updatePolicy !== "manual");
     },
     onBotUpdated,
     onRolloutComplete,
   });
 
-  // Wire the detection → orchestration pipeline
+  // Wire the detection → orchestration pipeline.
+  // Any digest change triggers a fleet-wide rollout because the managed image
+  // is shared across all tenants — one new digest means all bots need updating.
   poller.onUpdateAvailable = async (_botId: string, _newDigest: string) => {
     if (orchestrator.isRolling) {
       logger.debug("Skipping update trigger — rollout already in progress");
       return;
     }
-    logger.info("New image detected — starting rollout");
+    logger.info("New image digest detected — starting fleet-wide rollout");
     await orchestrator.rollout().catch((err) => {
       logger.error("Rollout failed", { err });
     });
@@ -104,8 +117,17 @@ export function initFleetUpdater(
     updater,
     orchestrator,
     snapshotManager,
-    stop: () => {
+    stop: async () => {
       poller.stop();
+      // Wait for any in-flight rollout to complete before returning
+      if (orchestrator.isRolling) {
+        logger.info("Waiting for active rollout to finish before shutdown...");
+        // Poll until rollout finishes (max 5 minutes)
+        const deadline = Date.now() + 5 * 60 * 1000;
+        while (orchestrator.isRolling && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
       logger.info("Fleet auto-update pipeline stopped");
     },
   };
