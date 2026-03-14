@@ -23,6 +23,18 @@ describe("getTokenConfig", () => {
     expect(cfg.contractAddress).toBe("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
   });
 
+  it("returns USDT on Base", () => {
+    const cfg = getTokenConfig("USDT", "base");
+    expect(cfg.decimals).toBe(6);
+    expect(cfg.contractAddress).toBe("0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2");
+  });
+
+  it("returns DAI on Base", () => {
+    const cfg = getTokenConfig("DAI", "base");
+    expect(cfg.decimals).toBe(18);
+    expect(cfg.contractAddress).toBe("0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb");
+  });
+
   it("throws on unsupported token/chain combo", () => {
     // biome-ignore lint/suspicious/noExplicitAny: testing invalid input
     expect(() => getTokenConfig("USDC" as any, "ethereum" as any)).toThrow("Unsupported token");
