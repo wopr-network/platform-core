@@ -257,7 +257,8 @@ export class DhtBootstrapManager {
     try {
       const volume = this.docker.getVolume(name);
       await volume.inspect();
-    } catch (_inspectErr: unknown) {
+    } catch (inspectErr: unknown) {
+      logger.debug(`Volume inspect failed for ${name}, will attempt to create`, { error: inspectErr });
       try {
         await this.docker.createVolume({ Name: name });
         logger.info(`Created DHT state volume ${name}`);

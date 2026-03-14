@@ -115,6 +115,22 @@ describe("DhtBootstrapManager", () => {
       expect(docker.createVolume).toHaveBeenCalledWith({ Name: `${DHT_VOLUME_PREFIX}0` });
     });
 
+    it("logs at debug level when volume inspect fails", async () => {
+      const { logger } = await import("../config/logger.js");
+      const debugSpy = vi.spyOn(logger, "debug");
+      docker._volume.inspect.mockRejectedValue(new Error("no such volume"));
+      const container = mockContainer("c-0", `${DHT_CONTAINER_PREFIX}0`);
+      docker.createContainer.mockResolvedValue(container);
+
+      await manager.ensureNode(0);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Volume inspect failed"),
+        expect.objectContaining({ error: expect.any(Error) }),
+      );
+      debugSpy.mockRestore();
+    });
+
     it("passes DHT_PEERS env excluding self", async () => {
       const container = mockContainer("c-1", `${DHT_CONTAINER_PREFIX}1`);
       docker.createContainer.mockResolvedValue(container);
