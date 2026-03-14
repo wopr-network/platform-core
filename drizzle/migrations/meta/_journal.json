@@ -36,6 +36,13 @@
       "when": 1741968000000,
       "tag": "0004_crypto_charges",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1742054400000,
+      "tag": "0005_stablecoin_columns",
+      "breakpoints": true
     }
   ]
 }

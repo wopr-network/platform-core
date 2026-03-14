@@ -21,10 +21,15 @@ export const cryptoCharges = pgTable(
     createdAt: text("created_at").notNull().default(sql`(now())`),
     updatedAt: text("updated_at").notNull().default(sql`(now())`),
     creditedAt: text("credited_at"),
+    chain: text("chain"),
+    token: text("token"),
+    depositAddress: text("deposit_address"),
+    derivationIndex: integer("derivation_index"),
   },
   (table) => [
     index("idx_crypto_charges_tenant").on(table.tenantId),
     index("idx_crypto_charges_status").on(table.status),
     index("idx_crypto_charges_created").on(table.createdAt),
+    index("idx_crypto_charges_deposit_address").on(table.depositAddress),
   ],
 );
