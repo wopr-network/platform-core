@@ -9,6 +9,24 @@ describe("getChainConfig", () => {
     expect(cfg.blockTimeMs).toBe(2000);
   });
 
+  it("returns Ethereum config", () => {
+    const cfg = getChainConfig("ethereum");
+    expect(cfg.chainId).toBe(1);
+    expect(cfg.confirmations).toBe(12);
+  });
+
+  it("returns Arbitrum config", () => {
+    const cfg = getChainConfig("arbitrum");
+    expect(cfg.chainId).toBe(42161);
+    expect(cfg.confirmations).toBe(1);
+  });
+
+  it("returns Polygon config", () => {
+    const cfg = getChainConfig("polygon");
+    expect(cfg.chainId).toBe(137);
+    expect(cfg.confirmations).toBe(32);
+  });
+
   it("throws on unknown chain", () => {
     // biome-ignore lint/suspicious/noExplicitAny: testing invalid input
     expect(() => getChainConfig("solana" as any)).toThrow("Unsupported chain");
@@ -35,9 +53,40 @@ describe("getTokenConfig", () => {
     expect(cfg.contractAddress).toBe("0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb");
   });
 
-  it("throws on unsupported token/chain combo", () => {
+  it("returns USDC on Ethereum", () => {
+    const cfg = getTokenConfig("USDC", "ethereum");
+    expect(cfg.decimals).toBe(6);
+    expect(cfg.contractAddress).toBe("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+  });
+
+  it("returns USDT on Ethereum", () => {
+    const cfg = getTokenConfig("USDT", "ethereum");
+    expect(cfg.decimals).toBe(6);
+  });
+
+  it("returns DAI on Ethereum", () => {
+    const cfg = getTokenConfig("DAI", "ethereum");
+    expect(cfg.decimals).toBe(18);
+  });
+
+  it("returns USDC on Arbitrum", () => {
+    const cfg = getTokenConfig("USDC", "arbitrum");
+    expect(cfg.chain).toBe("arbitrum");
+    expect(cfg.decimals).toBe(6);
+  });
+
+  it("returns USDT on Polygon", () => {
+    const cfg = getTokenConfig("USDT", "polygon");
+    expect(cfg.decimals).toBe(6);
+  });
+
+  it("throws on DAI:polygon (not supported)", () => {
+    expect(() => getTokenConfig("DAI", "polygon")).toThrow("Unsupported token");
+  });
+
+  it("throws on unsupported chain", () => {
     // biome-ignore lint/suspicious/noExplicitAny: testing invalid input
-    expect(() => getTokenConfig("USDC" as any, "ethereum" as any)).toThrow("Unsupported token");
+    expect(() => getTokenConfig("USDC" as any, "solana" as any)).toThrow("Unsupported token");
   });
 });
 

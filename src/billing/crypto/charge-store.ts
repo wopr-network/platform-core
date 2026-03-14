@@ -19,7 +19,7 @@ export interface CryptoChargeRecord {
   derivationIndex: number | null;
 }
 
-export interface StablecoinChargeInput {
+export interface CryptoDepositChargeInput {
   referenceId: string;
   tenantId: string;
   amountUsdCents: number;
@@ -40,7 +40,7 @@ export interface ICryptoChargeRepository {
   ): Promise<void>;
   markCredited(referenceId: string): Promise<void>;
   isCredited(referenceId: string): Promise<boolean>;
-  createStablecoinCharge(input: StablecoinChargeInput): Promise<void>;
+  createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void>;
   getByDepositAddress(address: string): Promise<CryptoChargeRecord | null>;
   getNextDerivationIndex(): Promise<number>;
 }
@@ -134,7 +134,7 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
   }
 
   /** Create a stablecoin charge with chain/token/deposit address. */
-  async createStablecoinCharge(input: StablecoinChargeInput): Promise<void> {
+  async createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void> {
     await this.db.insert(cryptoCharges).values({
       referenceId: input.referenceId,
       tenantId: input.tenantId,

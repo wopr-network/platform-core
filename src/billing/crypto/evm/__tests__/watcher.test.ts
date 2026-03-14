@@ -20,17 +20,19 @@ function mockTransferLog(to: string, amount: bigint, blockNumber: number) {
 
 describe("EvmWatcher", () => {
   it("parses Transfer log into EvmPaymentEvent", async () => {
+    const toAddr = `0x${"cc".repeat(20)}`;
     const events: { amountUsdCents: number; to: string }[] = [];
     const mockRpc = vi
       .fn()
-      .mockResolvedValueOnce(`0x${(102).toString(16)}`) // eth_blockNumber: block 102
-      .mockResolvedValueOnce([mockTransferLog(`0x${"cc".repeat(20)}`, 10_000_000n, 99)]); // eth_getLogs
+      .mockResolvedValueOnce(`0x${(102).toString(16)}`)
+      .mockResolvedValueOnce([mockTransferLog(toAddr, 10_000_000n, 99)]);
 
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
       rpcCall: mockRpc,
       fromBlock: 99,
+      watchedAddresses: [toAddr],
       onPayment: (evt) => {
         events.push(evt);
       },
@@ -39,21 +41,22 @@ describe("EvmWatcher", () => {
     await watcher.poll();
 
     expect(events).toHaveLength(1);
-    expect(events[0].amountUsdCents).toBe(1000); // 10 USDC = $10 = 1000 cents
+    expect(events[0].amountUsdCents).toBe(1000);
     expect(events[0].to).toMatch(/^0x/);
   });
 
   it("advances cursor after processing", async () => {
     const mockRpc = vi
       .fn()
-      .mockResolvedValueOnce(`0x${(200).toString(16)}`) // block 200
-      .mockResolvedValueOnce([]); // no logs
+      .mockResolvedValueOnce(`0x${(200).toString(16)}`)
+      .mockResolvedValueOnce([]);
 
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
       rpcCall: mockRpc,
       fromBlock: 100,
+      watchedAddresses: ["0xdeadbeef"],
       onPayment: vi.fn(),
     });
 
@@ -63,15 +66,14 @@ describe("EvmWatcher", () => {
 
   it("skips blocks not yet confirmed", async () => {
     const events: unknown[] = [];
-    const mockRpc = vi.fn().mockResolvedValueOnce(`0x${(50).toString(16)}`); // current block: 50
+    const mockRpc = vi.fn().mockResolvedValueOnce(`0x${(50).toString(16)}`);
 
-    // Base needs 1 confirmation, so confirmed = 50 - 1 = 49
-    // cursor starts at 50, so confirmed (49) < cursor (50) → no poll
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
       rpcCall: mockRpc,
       fromBlock: 50,
+      watchedAddresses: ["0xdeadbeef"],
       onPayment: (evt) => {
         events.push(evt);
       },
@@ -79,25 +81,24 @@ describe("EvmWatcher", () => {
 
     await watcher.poll();
     expect(events).toHaveLength(0);
-    // eth_getLogs should not even be called
     expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 
   it("processes multiple logs in one poll", async () => {
+    const addr1 = `0x${"aa".repeat(20)}`;
+    const addr2 = `0x${"bb".repeat(20)}`;
     const events: { amountUsdCents: number }[] = [];
     const mockRpc = vi
       .fn()
-      .mockResolvedValueOnce(`0x${(110).toString(16)}`) // block 110
-      .mockResolvedValueOnce([
-        mockTransferLog(`0x${"aa".repeat(20)}`, 5_000_000n, 105), // $5
-        mockTransferLog(`0x${"bb".repeat(20)}`, 20_000_000n, 107), // $20
-      ]);
+      .mockResolvedValueOnce(`0x${(110).toString(16)}`)
+      .mockResolvedValueOnce([mockTransferLog(addr1, 5_000_000n, 105), mockTransferLog(addr2, 20_000_000n, 107)]);
 
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
       rpcCall: mockRpc,
       fromBlock: 100,
+      watchedAddresses: [addr1, addr2],
       onPayment: (evt) => {
         events.push(evt);
       },
@@ -111,18 +112,34 @@ describe("EvmWatcher", () => {
   });
 
   it("does nothing when no new blocks", async () => {
-    const mockRpc = vi.fn().mockResolvedValueOnce(`0x${(99).toString(16)}`); // block 99, confirmed = 98
+    const mockRpc = vi.fn().mockResolvedValueOnce(`0x${(99).toString(16)}`);
 
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
       rpcCall: mockRpc,
       fromBlock: 100,
+      watchedAddresses: ["0xdeadbeef"],
       onPayment: vi.fn(),
     });
 
     await watcher.poll();
-    expect(watcher.cursor).toBe(100); // unchanged
-    expect(mockRpc).toHaveBeenCalledTimes(1); // only eth_blockNumber
+    expect(watcher.cursor).toBe(100);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("early-returns when no watched addresses are set", async () => {
+    const mockRpc = vi.fn();
+
+    const watcher = new EvmWatcher({
+      chain: "base",
+      token: "USDC",
+      rpcCall: mockRpc,
+      fromBlock: 0,
+      onPayment: vi.fn(),
+    });
+
+    await watcher.poll();
+    expect(mockRpc).not.toHaveBeenCalled(); // no RPC calls at all
   });
 });

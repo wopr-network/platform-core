@@ -128,8 +128,10 @@
   },
   "packageManager": "pnpm@10.31.0",
   "dependencies": {
+    "@noble/hashes": "^2.0.1",
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
     "js-yaml": "^4.1.1",
     "viem": "^2.47.4",
     "yaml": "^2.8.2"
