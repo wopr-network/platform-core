@@ -19,10 +19,17 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings/profile",
 }));
 
-// Mock better-auth/react
+// Mock better-auth/react — session with user-001 (Alice) so role-gated org UI renders admin view
 vi.mock("better-auth/react", () => ({
   createAuthClient: () => ({
-    useSession: () => ({ data: null, isPending: false, error: null }),
+    useSession: () => ({
+      data: {
+        user: { id: "user-001", name: "Alice Johnson", email: "alice@example.com" },
+        session: { id: "sess-1", userId: "user-001", expiresAt: new Date(Date.now() + 86400000) },
+      },
+      isPending: false,
+      error: null,
+    }),
     signIn: { email: vi.fn(), social: vi.fn() },
     signUp: { email: vi.fn() },
     signOut: vi.fn(),
