@@ -79,8 +79,8 @@ _[PENDING: Describe what fixed the issue and how service was restored.]_`,
     actionItems: `| Action | Owner | Due Date | Priority |
 |--------|-------|----------|----------|
 | _[PENDING: Add action item]_ | _[PENDING: Owner]_ | _[PENDING: Date]_ | P1 |
-| Improve detection alert thresholds | on-call-engineer | TBD | P2 |
-| Add runbook link to alert notification | on-call-engineer | TBD | P2 |`,
+| Improve detection alert thresholds | on-call-engineer | ${actionItemDueDate(incident)} | P2 |
+| Add runbook link to alert notification | on-call-engineer | ${actionItemDueDate(incident)} | P2 |`,
 
     lessonsLearned: `**What went well:**
 - _[PENDING: What worked well in detection and response?]_
@@ -164,4 +164,11 @@ function formatDuration(ms: number): string {
   if (hours === 0) return `${minutes}m`;
   if (remainingMinutes === 0) return `${hours}h`;
   return `${hours}h ${remainingMinutes}m`;
+}
+
+function actionItemDueDate(incident: IncidentSummary): string {
+  const base = incident.resolvedAt ?? incident.startedAt;
+  const offsetDays = incident.severity === "SEV1" ? 7 : 14;
+  const due = new Date(base.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  return due.toISOString().split("T")[0];
 }
