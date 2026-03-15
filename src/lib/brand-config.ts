@@ -7,6 +7,13 @@
  * `setBrandConfig()` in their root layout before anything renders.
  */
 
+export interface BrandDomain {
+  /** The hostname (e.g. "holyship.wtf", "holyship.dev") */
+  host: string;
+  /** Role: "canonical" is the real site, "redirect" 301s to canonical */
+  role: "canonical" | "redirect";
+}
+
 export interface BrandConfig {
   /** Product name shown to users (e.g. "WOPR Bot", "Paperclip") */
   productName: string;
@@ -14,8 +21,25 @@ export interface BrandConfig {
   /** Short brand identifier (e.g. "WOPR", "Paperclip") */
   brandName: string;
 
-  /** Primary domain (e.g. "wopr.bot", "runpaperclip.com") */
+  /**
+   * Primary domain (e.g. "wopr.bot", "runpaperclip.com").
+   * When `domains` is set, this returns the canonical domain's host.
+   */
   domain: string;
+
+  /**
+   * All brand domains with roles. Optional — when unset, `domain` is
+   * used as the sole canonical domain.
+   *
+   * Example:
+   * ```
+   * domains: [
+   *   { host: "holyship.wtf", role: "canonical" },
+   *   { host: "holyship.dev", role: "redirect" },
+   * ]
+   * ```
+   */
+  domains?: BrandDomain[];
 
   /** App subdomain (e.g. "app.wopr.bot", "app.runpaperclip.com") */
   appDomain: string;
@@ -169,7 +193,25 @@ export function setBrandConfig(config: Partial<BrandConfig>): void {
     if (!config.eventPrefix) base.eventPrefix = sp;
     if (!config.tenantCookieName) base.tenantCookieName = `${sp}_tenant_id`;
   }
+  // When domains[] is provided, derive domain from the canonical entry.
+  if (config.domains?.length) {
+    const canonical = config.domains.find((d) => d.role === "canonical");
+    if (canonical) {
+      base.domain = canonical.host;
+    }
+  }
   _config = base;
+}
+
+/** Get all redirect domains (non-canonical). Empty if domains[] not set. */
+export function getRedirectDomains(): BrandDomain[] {
+  return (_config.domains ?? []).filter((d) => d.role === "redirect");
+}
+
+/** Get the canonical domain entry, or synthesize one from `domain`. */
+export function getCanonicalDomain(): BrandDomain {
+  const canonical = (_config.domains ?? []).find((d) => d.role === "canonical");
+  return canonical ?? { host: _config.domain, role: "canonical" };
 }
 
 /** Get the current brand configuration. */
