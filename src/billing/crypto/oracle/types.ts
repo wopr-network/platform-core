@@ -1,5 +1,5 @@
 /** Assets with Chainlink price feeds. */
-export type PriceAsset = "ETH" | "BTC";
+export type PriceAsset = string;
 
 /** Result from a price oracle query. */
 export interface PriceResult {

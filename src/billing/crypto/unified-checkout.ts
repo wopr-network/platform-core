@@ -1,4 +1,5 @@
 import { Credit } from "../../credits/credit.js";
+import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import { deriveDepositAddress } from "./evm/address-gen.js";
 import { centsToNative } from "./oracle/convert.js";
@@ -50,11 +51,11 @@ export async function createUnifiedCheckout(
   if (method.type === "erc20") {
     return handleErc20(deps, method, opts.tenant, amountUsdCents, opts.amountUsd);
   }
-  if (method.token === "ETH") {
-    return handleNativeEth(deps, method, opts.tenant, amountUsdCents, opts.amountUsd);
+  if (method.type === "native" && method.chain === "base") {
+    return handleNativeEvm(deps, method, opts.tenant, amountUsdCents, opts.amountUsd);
   }
-  if (method.token === "BTC") {
-    return handleNativeBtc(deps, method, opts.tenant, amountUsdCents, opts.amountUsd);
+  if (method.type === "native") {
+    return handleNativeUtxo(deps, method, opts.tenant, amountUsdCents, opts.amountUsd);
   }
 
   throw new Error(`Unsupported payment method type: ${method.type}/${method.token}`);
@@ -79,7 +80,7 @@ async function handleErc20(
   };
 }
 
-async function handleNativeEth(
+async function handleNativeEvm(
   deps: UnifiedCheckoutDeps,
   method: PaymentMethodRecord,
   tenant: string,
@@ -105,44 +106,57 @@ async function handleNativeEth(
   };
 }
 
-async function handleNativeBtc(
+/**
+ * Handle native UTXO coins (BTC, LTC, DOGE, BCH, etc.).
+ * Uses the xpub from the payment method record (DB-driven).
+ * Derives bech32 addresses for BTC/LTC, Base58 P2PKH for DOGE.
+ */
+async function handleNativeUtxo(
   deps: UnifiedCheckoutDeps,
-  _method: PaymentMethodRecord,
+  method: PaymentMethodRecord,
   tenant: string,
   amountUsdCents: number,
   amountUsd: number,
 ): Promise<UnifiedCheckoutResult> {
-  const { priceCents } = await deps.oracle.getPrice("BTC");
-  const expectedSats = centsToNative(amountUsdCents, priceCents, 8);
+  const xpub = method.xpub ?? deps.btcXpub;
+  if (!xpub) throw new Error(`${method.token} payments not configured (no xpub)`);
 
-  // BTC address derivation uses btcXpub — import from btc module
-  const { deriveBtcAddress } = await import("./btc/address-gen.js");
-  if (!deps.btcXpub) throw new Error("BTC payments not configured (no BTC_XPUB)");
+  const { priceCents } = await deps.oracle.getPrice(method.token);
+  const rawAmount = centsToNative(amountUsdCents, priceCents, method.decimals);
 
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
-    const depositAddress = deriveBtcAddress(deps.btcXpub, derivationIndex, "mainnet");
-    const referenceId = `btc:${depositAddress}`;
+
+    // Derive address by chain type
+    let depositAddress: string;
+    if (method.chain === "dogecoin") {
+      depositAddress = deriveP2pkhAddress(xpub, derivationIndex, "dogecoin");
+    } else {
+      depositAddress = deriveAddress(xpub, derivationIndex, "mainnet", method.chain as "bitcoin" | "litecoin");
+    }
+
+    const referenceId = `${method.token.toLowerCase()}:${depositAddress}`;
 
     try {
       await deps.chargeStore.createStablecoinCharge({
         referenceId,
         tenantId: tenant,
         amountUsdCents,
-        chain: "bitcoin",
-        token: "BTC",
+        chain: method.chain,
+        token: method.token,
         depositAddress,
         derivationIndex,
       });
 
-      const btcAmount = Number(expectedSats) / 100_000_000;
+      const divisor = 10 ** method.decimals;
+      const displayAmt = (Number(rawAmount) / divisor).toFixed(method.decimals);
       return {
         depositAddress,
-        displayAmount: `${btcAmount.toFixed(8)} BTC`,
+        displayAmount: `${displayAmt} ${method.token}`,
         amountUsd,
-        token: "BTC",
-        chain: "bitcoin",
+        token: method.token,
+        chain: method.chain,
         referenceId,
         priceCents,
       };
