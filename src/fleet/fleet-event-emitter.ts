@@ -26,6 +26,8 @@ export interface BotFleetEvent {
   botId: string;
   tenantId: string;
   timestamp: string;
+  /** Image tag or version string, when available (e.g. from update events). */
+  version?: string;
 }
 
 export interface NodeFleetEvent {

@@ -105,14 +105,28 @@ export function initFleetUpdater(
       );
       return results.filter((p) => p !== null);
     },
-    onBotUpdated: (result) => {
+    onBotUpdated: async (result) => {
       // Emit fleet events if emitter is provided
       if (eventEmitter) {
+        // Resolve tenantId from profile repo (botId → tenantId)
+        let tenantId = "";
+        try {
+          const profiles = await profileRepo.list();
+          const profile = profiles.find((p) => p.id === result.botId);
+          if (profile) tenantId = profile.tenantId;
+        } catch {
+          // Best-effort — event still fires with empty tenantId
+        }
+
+        // Extract version tag from image name (e.g. "ghcr.io/org/image:v1.2.3" → "v1.2.3")
+        const version = result.newImage.includes(":") ? (result.newImage.split(":").pop() ?? "latest") : "latest";
+
         eventEmitter.emit({
           type: result.success ? "bot.updated" : "bot.update_failed",
           botId: result.botId,
-          tenantId: "",
+          tenantId,
           timestamp: new Date().toISOString(),
+          version,
         });
       }
       // Chain user-provided callback

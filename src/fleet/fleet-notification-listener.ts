@@ -15,6 +15,7 @@ export interface FleetNotificationListenerDeps {
 
 interface PendingRollout {
   tenantId: string;
+  version: string;
   succeeded: number;
   failed: number;
   timer: ReturnType<typeof setTimeout>;
@@ -40,9 +41,13 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
         return;
       }
 
-      // TODO: Surface actual target version from RolloutOrchestrator context.
-      // BotFleetEvent doesn't carry version info; "latest" is a placeholder.
-      notificationService.notifyFleetUpdateComplete(tenantId, email, "latest", rollout.succeeded, rollout.failed);
+      notificationService.notifyFleetUpdateComplete(
+        tenantId,
+        email,
+        rollout.version,
+        rollout.succeeded,
+        rollout.failed,
+      );
     } catch (err) {
       logger.error("Fleet notification flush error", { err, tenantId });
     }
@@ -57,6 +62,7 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
     if (!rollout) {
       rollout = {
         tenantId: botEvent.tenantId,
+        version: botEvent.version ?? "latest",
         succeeded: 0,
         failed: 0,
         timer: setTimeout(() => flush(botEvent.tenantId), debounceMs),
