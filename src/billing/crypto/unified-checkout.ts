@@ -13,6 +13,8 @@ export interface UnifiedCheckoutDeps {
   oracle: IPriceOracle;
   evmXpub: string;
   btcXpub?: string;
+  /** UTXO network override (auto-detected from node in production). Default: "mainnet". */
+  utxoNetwork?: "mainnet" | "testnet" | "regtest";
 }
 
 export interface UnifiedCheckoutResult {
@@ -133,7 +135,12 @@ async function handleNativeUtxo(
     if (method.chain === "dogecoin") {
       depositAddress = deriveP2pkhAddress(xpub, derivationIndex, "dogecoin");
     } else {
-      depositAddress = deriveAddress(xpub, derivationIndex, "mainnet", method.chain as "bitcoin" | "litecoin");
+      depositAddress = deriveAddress(
+        xpub,
+        derivationIndex,
+        deps.utxoNetwork ?? "mainnet",
+        method.chain as "bitcoin" | "litecoin",
+      );
     }
 
     const referenceId = `${method.token.toLowerCase()}:${depositAddress}`;
