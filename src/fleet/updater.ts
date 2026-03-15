@@ -6,7 +6,7 @@ import { getContainerDigest } from "./image-poller.js";
 import type { IProfileStore } from "./profile-store.js";
 
 /** How long to wait for a container to become healthy after update (ms) */
-const HEALTH_CHECK_TIMEOUT_MS = 60_000;
+const HEALTH_CHECK_TIMEOUT_MS = 120_000;
 /** How often to check container health during update verification (ms) */
 const HEALTH_CHECK_POLL_MS = 5_000;
 
@@ -41,7 +41,7 @@ export class ContainerUpdater {
 
   /**
    * Update a bot's container to the latest image available for its release channel.
-   * Rolls back if the new container fails health checks within 60s.
+   * Rolls back if the new container fails health checks within 120s.
    */
   async updateBot(botId: string): Promise<UpdateResult> {
     if (this.updating.has(botId)) {
