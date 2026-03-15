@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
 import { cryptoCharges } from "../../db/schema/crypto.js";
 import type { CryptoPaymentState } from "./types.js";
@@ -43,6 +43,8 @@ export interface ICryptoChargeRepository {
   createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void>;
   getByDepositAddress(address: string): Promise<CryptoChargeRecord | null>;
   getNextDerivationIndex(): Promise<number>;
+  /** List deposit addresses with pending (uncredited) charges, grouped by chain. */
+  listActiveDepositAddresses(): Promise<{ chain: string; address: string }[]>;
 }
 
 /**
@@ -152,6 +154,17 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
     const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.depositAddress, address)))[0];
     if (!row) return null;
     return this.toRecord(row);
+  }
+
+  /** List deposit addresses with pending (uncredited) charges. */
+  async listActiveDepositAddresses(): Promise<{ chain: string; address: string }[]> {
+    const rows = await this.db
+      .select({ chain: cryptoCharges.chain, address: cryptoCharges.depositAddress })
+      .from(cryptoCharges)
+      .where(
+        and(isNull(cryptoCharges.creditedAt), isNotNull(cryptoCharges.depositAddress), isNotNull(cryptoCharges.chain)),
+      );
+    return rows.filter((r): r is { chain: string; address: string } => r.chain !== null && r.address !== null);
   }
 
   /** Get the next available HD derivation index (max + 1, or 0 if empty). */

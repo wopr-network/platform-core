@@ -13,6 +13,8 @@ export interface PaymentMethodRecord {
   enabled: boolean;
   displayOrder: number;
   rpcUrl: string | null;
+  oracleAddress: string | null;
+  xpub: string | null;
   confirmations: number;
 }
 
@@ -76,6 +78,8 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         enabled: method.enabled,
         displayOrder: method.displayOrder,
         rpcUrl: method.rpcUrl,
+        oracleAddress: method.oracleAddress,
+        xpub: method.xpub,
         confirmations: method.confirmations,
       })
       .onConflictDoUpdate({
@@ -90,6 +94,8 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
           enabled: method.enabled,
           displayOrder: method.displayOrder,
           rpcUrl: method.rpcUrl,
+          oracleAddress: method.oracleAddress,
+          xpub: method.xpub,
           confirmations: method.confirmations,
         },
       });
@@ -112,6 +118,8 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     enabled: row.enabled,
     displayOrder: row.displayOrder,
     rpcUrl: row.rpcUrl,
+    oracleAddress: row.oracleAddress,
+    xpub: row.xpub,
     confirmations: row.confirmations,
   };
 }

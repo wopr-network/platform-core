@@ -61,7 +61,9 @@ export const paymentMethods = pgTable("payment_methods", {
   displayName: text("display_name").notNull(),
   enabled: boolean("enabled").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
-  rpcUrl: text("rpc_url"), // override per-chain RPC (null = use default)
+  rpcUrl: text("rpc_url"), // chain node RPC endpoint
+  oracleAddress: text("oracle_address"), // Chainlink feed address for price (null = 1:1 stablecoin)
+  xpub: text("xpub"), // HD wallet extended public key for deposit address derivation
   confirmations: integer("confirmations").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`(now())`),
 });
