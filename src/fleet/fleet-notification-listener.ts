@@ -9,48 +9,79 @@ export interface FleetNotificationListenerDeps {
   preferences: INotificationPreferencesRepository;
   /** Resolve tenant ID to owner email. Return null if no email found. */
   resolveEmail: (tenantId: string) => Promise<string | null>;
+  /** Debounce window in ms before sending summary email. Default 60_000. */
+  debounceMs?: number;
+}
+
+interface PendingRollout {
+  tenantId: string;
+  succeeded: number;
+  failed: number;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 export function initFleetNotificationListener(deps: FleetNotificationListenerDeps): () => void {
   const { eventEmitter, notificationService, preferences, resolveEmail } = deps;
+  const debounceMs = deps.debounceMs ?? 60_000;
+  const pending = new Map<string, PendingRollout>();
+
+  async function flush(tenantId: string): Promise<void> {
+    const rollout = pending.get(tenantId);
+    if (!rollout) return;
+    pending.delete(tenantId);
+
+    try {
+      const prefs = await preferences.get(tenantId);
+      if (!prefs.fleet_updates) return;
+
+      const email = await resolveEmail(tenantId);
+      if (!email) {
+        logger.warn("Fleet notification skipped: no email for tenant", { tenantId });
+        return;
+      }
+
+      // TODO: Surface actual target version from RolloutOrchestrator context.
+      // BotFleetEvent doesn't carry version info; "latest" is a placeholder.
+      notificationService.notifyFleetUpdateComplete(tenantId, email, "latest", rollout.succeeded, rollout.failed);
+    } catch (err) {
+      logger.error("Fleet notification flush error", { err, tenantId });
+    }
+  }
 
   const unsubscribe = eventEmitter.subscribe((event) => {
-    // Only handle bot events with tenantId
     if (!("tenantId" in event)) return;
     const botEvent = event as BotFleetEvent;
-
     if (botEvent.type !== "bot.updated" && botEvent.type !== "bot.update_failed") return;
 
-    // Fire-and-forget async work; errors are caught inside.
-    void (async () => {
-      try {
-        // Check preference
-        const prefs = await preferences.get(botEvent.tenantId);
-        if (!prefs.fleet_updates) return;
+    let rollout = pending.get(botEvent.tenantId);
+    if (!rollout) {
+      rollout = {
+        tenantId: botEvent.tenantId,
+        succeeded: 0,
+        failed: 0,
+        timer: setTimeout(() => flush(botEvent.tenantId), debounceMs),
+      };
+      pending.set(botEvent.tenantId, rollout);
+    } else {
+      // Reset timer on each new event (sliding window)
+      clearTimeout(rollout.timer);
+      rollout.timer = setTimeout(() => flush(botEvent.tenantId), debounceMs);
+    }
 
-        // Resolve email
-        const email = await resolveEmail(botEvent.tenantId);
-        if (!email) {
-          logger.warn("Fleet notification skipped: no email for tenant", {
-            tenantId: botEvent.tenantId,
-          });
-          return;
-        }
-
-        if (botEvent.type === "bot.updated") {
-          notificationService.notifyFleetUpdateComplete(botEvent.tenantId, email, "latest", 1, 0);
-        } else {
-          notificationService.notifyFleetUpdateComplete(botEvent.tenantId, email, "latest", 0, 1);
-        }
-      } catch (err) {
-        logger.error("Fleet notification listener error", {
-          err,
-          event: botEvent.type,
-          tenantId: botEvent.tenantId,
-        });
-      }
-    })();
+    if (botEvent.type === "bot.updated") {
+      rollout.succeeded++;
+    } else {
+      rollout.failed++;
+    }
   });
 
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    // Flush all pending on shutdown
+    for (const [tenantId, rollout] of pending) {
+      clearTimeout(rollout.timer);
+      void flush(tenantId);
+    }
+    pending.clear();
+  };
 }
