@@ -101,7 +101,7 @@ async function handleNativeEvm(
     amountUsd,
     token: "ETH",
     chain: method.chain,
-    referenceId: `eth:${method.chain}:${depositAddress}`,
+    referenceId: `${method.type}:${method.chain}:${depositAddress}`,
     priceCents,
   };
 }
