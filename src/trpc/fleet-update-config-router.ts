@@ -3,10 +3,10 @@ import { logger } from "../config/logger.js";
 import type { ITenantUpdateConfigRepository } from "../fleet/tenant-update-config-repository.js";
 import { protectedProcedure, router } from "./init.js";
 
-export function createFleetUpdateConfigRouter(configRepo: ITenantUpdateConfigRepository) {
+export function createFleetUpdateConfigRouter(getConfigRepo: () => ITenantUpdateConfigRepository) {
   return router({
     getUpdateConfig: protectedProcedure.input(z.object({ tenantId: z.string().min(1) })).query(async ({ input }) => {
-      return configRepo.get(input.tenantId);
+      return getConfigRepo().get(input.tenantId);
     }),
 
     setUpdateConfig: protectedProcedure
@@ -18,7 +18,7 @@ export function createFleetUpdateConfigRouter(configRepo: ITenantUpdateConfigRep
         }),
       )
       .mutation(async ({ input }) => {
-        await configRepo.upsert(input.tenantId, {
+        await getConfigRepo().upsert(input.tenantId, {
           mode: input.mode,
           preferredHourUtc: input.preferredHourUtc ?? 3,
         });
