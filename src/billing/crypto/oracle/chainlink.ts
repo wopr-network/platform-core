@@ -36,17 +36,17 @@ export interface ChainlinkOracleOpts {
  */
 export class ChainlinkOracle implements IPriceOracle {
   private readonly rpc: RpcCall;
-  private readonly feeds: Record<PriceAsset, `0x${string}`>;
+  private readonly feeds: Map<string, `0x${string}`>;
   private readonly maxStalenessMs: number;
 
   constructor(opts: ChainlinkOracleOpts) {
     this.rpc = opts.rpcCall;
-    this.feeds = { ...FEED_ADDRESSES, ...opts.feedAddresses };
+    this.feeds = new Map(Object.entries({ ...FEED_ADDRESSES, ...opts.feedAddresses })) as Map<string, `0x${string}`>;
     this.maxStalenessMs = opts.maxStalenessMs ?? DEFAULT_MAX_STALENESS_MS;
   }
 
   async getPrice(asset: PriceAsset): Promise<PriceResult> {
-    const feedAddress = this.feeds[asset];
+    const feedAddress = this.feeds.get(asset);
     if (!feedAddress) throw new Error(`No price feed for asset: ${asset}`);
 
     const result = (await this.rpc("eth_call", [{ to: feedAddress, data: LATEST_ROUND_DATA }, "latest"])) as string;
