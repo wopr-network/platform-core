@@ -40,7 +40,7 @@ export interface FleetUpdaterConfig {
   /** Optional fleet event emitter. When provided, bot.updated / bot.update_failed events are emitted. */
   eventEmitter?: FleetEventEmitter;
   /** Called with manual-mode tenant IDs when a new image is available but they are excluded from rollout. */
-  onManualTenantsSkipped?: (tenantIds: string[]) => void;
+  onManualTenantsSkipped?: (tenantIds: string[], imageTag: string) => void;
 }
 
 export interface FleetUpdaterHandle {
@@ -91,6 +91,11 @@ export function initFleetUpdater(
   const snapshotManager = new VolumeSnapshotManager(docker, snapshotDir);
   const strategy = createRolloutStrategy(strategyType, strategyOptions);
 
+  // Captured by the onUpdateAvailable handler and read by getUpdatableProfiles.
+  // Set before each orchestrator.rollout() call so the callback receives the
+  // image tag that triggered this rollout rather than a stale "latest" placeholder.
+  let currentImageTag = "latest";
+
   const orchestrator = new RolloutOrchestrator({
     updater,
     snapshotManager,
@@ -110,7 +115,7 @@ export function initFleetUpdater(
 
       if (!configRepo) {
         if (manualPolicyIds.length > 0 && onManualTenantsSkipped) {
-          onManualTenantsSkipped([...new Set(manualPolicyIds)]);
+          onManualTenantsSkipped([...new Set(manualPolicyIds)], currentImageTag);
         }
         return nonManualPolicy;
       }
@@ -131,7 +136,7 @@ export function initFleetUpdater(
 
       const allManualIds = [...manualPolicyIds, ...configManualIds];
       if (allManualIds.length > 0 && onManualTenantsSkipped) {
-        onManualTenantsSkipped([...new Set(allManualIds)]);
+        onManualTenantsSkipped([...new Set(allManualIds)], currentImageTag);
       }
 
       return results.filter((p) => p !== null);
@@ -169,11 +174,24 @@ export function initFleetUpdater(
   // Wire the detection → orchestration pipeline.
   // Any digest change triggers a fleet-wide rollout because the managed image
   // is shared across all tenants — one new digest means all bots need updating.
-  poller.onUpdateAvailable = async (_botId: string, _newDigest: string) => {
+  poller.onUpdateAvailable = async (botId: string, _newDigest: string) => {
     if (orchestrator.isRolling) {
       logger.debug("Skipping update trigger — rollout already in progress");
       return;
     }
+
+    // Resolve the image tag from the bot that triggered the update so that
+    // onManualTenantsSkipped receives the real version instead of "latest".
+    try {
+      const triggeringProfile = await profileStore.get(botId);
+      if (triggeringProfile) {
+        const img = triggeringProfile.image;
+        currentImageTag = img.includes(":") ? (img.split(":").pop() ?? "latest") : "latest";
+      }
+    } catch {
+      // Best-effort — currentImageTag stays at previous value
+    }
+
     logger.info("New image digest detected — starting fleet-wide rollout");
     await orchestrator.rollout().catch((err) => {
       logger.error("Rollout failed", { err });

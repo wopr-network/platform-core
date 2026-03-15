@@ -100,7 +100,8 @@ function makeMockStrategy(): IRolloutStrategy {
 function buildGetUpdatableProfiles(
   profileRepo: IBotProfileRepository,
   configRepo: ITenantUpdateConfigRepository | undefined,
-  onManualTenantsSkipped: ((tenantIds: string[]) => void) | undefined,
+  onManualTenantsSkipped: ((tenantIds: string[], imageTag: string) => void) | undefined,
+  imageTag = "v1.2.3",
 ): () => Promise<BotProfile[]> {
   return async () => {
     const profiles = await profileRepo.list();
@@ -116,7 +117,7 @@ function buildGetUpdatableProfiles(
 
     if (!configRepo) {
       if (manualPolicyIds.length > 0 && onManualTenantsSkipped) {
-        onManualTenantsSkipped([...new Set(manualPolicyIds)]);
+        onManualTenantsSkipped([...new Set(manualPolicyIds)], imageTag);
       }
       return nonManualPolicy;
     }
@@ -135,7 +136,7 @@ function buildGetUpdatableProfiles(
 
     const allManualIds = [...manualPolicyIds, ...configManualIds];
     if (allManualIds.length > 0 && onManualTenantsSkipped) {
-      onManualTenantsSkipped([...new Set(allManualIds)]);
+      onManualTenantsSkipped([...new Set(allManualIds)], imageTag);
     }
 
     return results.filter((p): p is BotProfile => p !== null);
@@ -164,7 +165,7 @@ describe("initFleetUpdater — onManualTenantsSkipped", () => {
 
     await orchestrator.rollout();
 
-    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-manual"]);
+    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-manual"], "v1.2.3");
   });
 
   it("callback deduplicates tenant IDs", async () => {
@@ -185,7 +186,7 @@ describe("initFleetUpdater — onManualTenantsSkipped", () => {
 
     await orchestrator.rollout();
 
-    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-dup"]);
+    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-dup"], "v1.2.3");
   });
 
   it("callback not called when no manual tenants exist", async () => {
@@ -228,6 +229,6 @@ describe("initFleetUpdater — onManualTenantsSkipped", () => {
 
     await orchestrator.rollout();
 
-    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-cfg-manual"]);
+    expect(onManualTenantsSkipped).toHaveBeenCalledWith(["t-cfg-manual"], "v1.2.3");
   });
 });
