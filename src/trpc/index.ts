@@ -1,3 +1,4 @@
+export { createAdminFleetUpdateRouter } from "./admin-fleet-update-router.js";
 export { createFleetUpdateConfigRouter } from "./fleet-update-config-router.js";
 export {
   adminProcedure,
