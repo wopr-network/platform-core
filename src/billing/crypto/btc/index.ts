@@ -1,4 +1,5 @@
-export { deriveBtcAddress, deriveBtcTreasury } from "./address-gen.js";
+export type { UtxoChain, UtxoNetwork } from "./address-gen.js";
+export { deriveAddress, deriveBtcAddress, deriveBtcTreasury, deriveTreasury } from "./address-gen.js";
 export type { BtcCheckoutDeps, BtcCheckoutResult } from "./checkout.js";
 export { createBtcCheckout, MIN_BTC_USD } from "./checkout.js";
 export { centsToSats, loadBitcoindConfig, satsToCents } from "./config.js";
