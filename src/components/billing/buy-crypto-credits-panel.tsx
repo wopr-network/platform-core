@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type CheckoutResult,
   createCheckout,
+  getChargeStatus,
   getSupportedPaymentMethods,
   type SupportedPaymentMethod,
 } from "@/lib/api";
@@ -43,6 +44,32 @@ export function BuyCryptoCreditPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkout, setCheckout] = useState<CheckoutResult | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<"waiting" | "detected" | "credited" | null>(
+    null,
+  );
+
+  // Poll charge status after checkout
+  useEffect(() => {
+    if (!checkout?.referenceId) {
+      setPaymentStatus(null);
+      return;
+    }
+    setPaymentStatus("waiting");
+    const interval = setInterval(async () => {
+      try {
+        const status = await getChargeStatus(checkout.referenceId);
+        if (status.credited) {
+          setPaymentStatus("credited");
+          clearInterval(interval);
+        } else if (status.status === "Settled" || status.status === "Processing") {
+          setPaymentStatus("detected");
+        }
+      } catch {
+        // Ignore poll errors
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [checkout?.referenceId]);
 
   // Fetch available payment methods from backend on mount
   useEffect(() => {
@@ -148,10 +175,27 @@ export function BuyCryptoCreditPanel() {
                 <p className="text-xs text-muted-foreground">
                   Only send {checkout.token} on the {checkout.chain} network.
                 </p>
+                {paymentStatus === "waiting" && (
+                  <p className="text-xs text-yellow-500 animate-pulse">Waiting for payment...</p>
+                )}
+                {paymentStatus === "detected" && (
+                  <p className="text-xs text-blue-500">Payment detected, confirming...</p>
+                )}
+                {paymentStatus === "credited" && (
+                  <p className="text-xs text-green-500 font-medium">
+                    Payment confirmed! Credits added to your account.
+                  </p>
+                )}
               </div>
-              <Button variant="ghost" size="sm" onClick={handleReset}>
-                Cancel
-              </Button>
+              {paymentStatus === "credited" ? (
+                <Button variant="outline" size="sm" onClick={handleReset}>
+                  Done
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={handleReset}>
+                  Cancel
+                </Button>
+              )}
             </motion.div>
           ) : (
             <>

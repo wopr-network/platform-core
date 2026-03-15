@@ -1362,6 +1362,20 @@ export async function createCheckout(methodId: string, amountUsd: number): Promi
   return trpcVanilla.billing.checkout.mutate({ methodId, amountUsd });
 }
 
+// --- Charge status polling ---
+
+export interface ChargeStatusResult {
+  status: string;
+  credited: boolean;
+  amountUsdCents: number;
+  token: string | null;
+  chain: string | null;
+}
+
+export async function getChargeStatus(referenceId: string): Promise<ChargeStatusResult> {
+  return trpcVanilla.billing.chargeStatus.query({ referenceId });
+}
+
 // --- Admin payment method management ---
 
 export interface PaymentMethodAdmin {
