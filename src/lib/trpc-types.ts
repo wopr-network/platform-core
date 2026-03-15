@@ -170,6 +170,11 @@ type AppRouterRecord = {
     orgTopupCheckout: AnyTRPCMutationProcedure;
     orgSetupIntent: AnyTRPCMutationProcedure;
   };
+  /** Separate from `fleet` — backed by createFleetUpdateConfigRouter in platform-core. */
+  fleetUpdateConfig: {
+    getUpdateConfig: AnyTRPCQueryProcedure;
+    setUpdateConfig: AnyTRPCMutationProcedure;
+  };
   adminMarketplace: {
     listPlugins: AnyTRPCQueryProcedure;
     updatePlugin: AnyTRPCMutationProcedure;

@@ -3,8 +3,29 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InstanceListClient } from "../app/instances/instance-list-client";
 
+vi.mock("@/lib/tenant-context", () => ({
+  useTenant: vi.fn().mockReturnValue({
+    activeTenantId: "tenant-001",
+    tenants: [],
+    isLoading: false,
+    switchTenant: vi.fn(),
+  }),
+  getActiveTenantId: vi.fn().mockReturnValue("tenant-001"),
+}));
+
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    fleetUpdateConfig: {
+      getUpdateConfig: {
+        useQuery: vi.fn().mockReturnValue({
+          data: null,
+          isLoading: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }),
+      },
+    },
     fleet: {
       getChangelog: {
         useQuery: vi.fn().mockReturnValue({ data: null, isLoading: false, error: null }),
