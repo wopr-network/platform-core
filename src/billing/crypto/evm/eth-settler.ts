@@ -42,7 +42,9 @@ export async function settleEthPayment(deps: EthSettlerDeps, event: EthPaymentEv
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
   }
 
-  if (event.amountUsdCents < charge.amountUsdCents) {
+  // 2% underpayment tolerance for oracle price drift between checkout and settlement.
+  const UNDERPAYMENT_TOLERANCE = 0.98;
+  if (event.amountUsdCents < charge.amountUsdCents * UNDERPAYMENT_TOLERANCE) {
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
   }
 

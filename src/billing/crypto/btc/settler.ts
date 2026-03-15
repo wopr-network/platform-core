@@ -44,8 +44,9 @@ export async function settleBtcPayment(deps: BtcSettlerDeps, event: BtcPaymentEv
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
   }
 
-  // Underpayment check
-  if (event.amountUsdCents < charge.amountUsdCents) {
+  // 2% underpayment tolerance for oracle price drift between checkout and settlement.
+  const UNDERPAYMENT_TOLERANCE = 0.98;
+  if (event.amountUsdCents < charge.amountUsdCents * UNDERPAYMENT_TOLERANCE) {
     return { handled: true, status: "Settled", tenant: charge.tenantId, creditedCents: 0 };
   }
 
