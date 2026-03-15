@@ -144,14 +144,16 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       status: "New",
       chain: input.chain,
       token: input.token,
-      depositAddress: input.depositAddress,
+      depositAddress: input.depositAddress.toLowerCase(),
       derivationIndex: input.derivationIndex,
     });
   }
 
   /** Look up a charge by its deposit address. */
   async getByDepositAddress(address: string): Promise<CryptoChargeRecord | null> {
-    const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.depositAddress, address)))[0];
+    const row = (
+      await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.depositAddress, address.toLowerCase()))
+    )[0];
     if (!row) return null;
     return this.toRecord(row);
   }
