@@ -875,6 +875,7 @@ describe("Notifications page - no team language", () => {
       agent_status_changes: true,
       account_role_changes: true,
       account_team_invites: true,
+      fleet_updates: true,
     });
 
     const { default: NotificationsPage } = await import(

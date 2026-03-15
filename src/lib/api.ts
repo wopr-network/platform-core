@@ -1692,6 +1692,7 @@ export interface NotificationPreferences {
   agent_status_changes: boolean;
   account_role_changes: boolean;
   account_team_invites: boolean;
+  fleet_updates: boolean;
 }
 
 // --- Public platform health (no auth required) ---

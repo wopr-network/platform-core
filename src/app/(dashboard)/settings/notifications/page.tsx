@@ -76,6 +76,16 @@ const PREF_GROUPS: PrefGroup[] = [
       },
     ],
   },
+  {
+    title: "Fleet Updates",
+    items: [
+      {
+        key: "fleet_updates",
+        label: "Fleet Updates",
+        description: "Get notified when updates are available or applied to your fleet.",
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
