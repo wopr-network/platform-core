@@ -13,8 +13,11 @@ export type { BillingEmailServiceConfig, BillingEmailType } from "./billing-emai
 export { BillingEmailService } from "./billing-emails.js";
 export type { EmailClientConfig, EmailSendResult, SendTemplateEmailOpts } from "./client.js";
 export { EmailClient, getEmailClient, resetEmailClient, setEmailClient } from "./client.js";
+export { DEFAULT_TEMPLATES } from "./default-templates.js";
 export type { IBillingEmailRepository } from "./drizzle-billing-email-repository.js";
 export { DrizzleBillingEmailRepository } from "./drizzle-billing-email-repository.js";
+export { DrizzleNotificationTemplateRepository } from "./drizzle-notification-template-repository.js";
+export { HandlebarsRenderer } from "./handlebars-renderer.js";
 export type { INotificationPreferencesRepository } from "./notification-preferences-store.js";
 export { DrizzleNotificationPreferencesStore } from "./notification-preferences-store.js";
 export type { INotificationQueueRepository } from "./notification-queue-store.js";
@@ -28,6 +31,7 @@ export type {
   QueuedNotification,
 } from "./notification-repository-types.js";
 export { NotificationService } from "./notification-service.js";
+export type { INotificationTemplateRepository, NotificationTemplateRow } from "./notification-template-repository.js";
 export type { TemplateName as NotificationTemplateName } from "./notification-templates.js";
 export { renderNotificationTemplate } from "./notification-templates.js";
 export { NotificationWorker } from "./notification-worker.js";

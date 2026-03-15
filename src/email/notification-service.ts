@@ -256,6 +256,37 @@ export class NotificationService {
   }
 
   // ---------------------------------------------------------------------------
+  // Fleet Updates
+  // ---------------------------------------------------------------------------
+
+  notifyFleetUpdateAvailable(
+    tenantId: string,
+    email: string,
+    version: string,
+    changelogDate: string,
+    changelogSummary: string,
+  ): void {
+    this.queue.enqueue(tenantId, "fleet-update-available", {
+      email,
+      version,
+      changelogDate,
+      changelogSummary,
+      fleetUrl: `${this.appBaseUrl}/fleet`,
+    });
+  }
+
+  notifyFleetUpdateComplete(tenantId: string, email: string, version: string, succeeded: number, failed: number): void {
+    this.queue.enqueue(tenantId, "fleet-update-complete", {
+      email,
+      version,
+      succeeded,
+      failed,
+      total: succeeded + failed,
+      fleetUrl: `${this.appBaseUrl}/fleet`,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Admin custom email
   // ---------------------------------------------------------------------------
 

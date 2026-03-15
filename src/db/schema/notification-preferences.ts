@@ -15,5 +15,6 @@ export const notificationPreferences = pgTable("notification_preferences", {
   agentStatusChanges: boolean("agent_status_changes").notNull().default(false),
   accountRoleChanges: boolean("account_role_changes").notNull().default(true),
   accountTeamInvites: boolean("account_team_invites").notNull().default(true),
+  fleetUpdates: boolean("fleet_updates").notNull().default(true),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull().default(sql`(extract(epoch from now()))::bigint`),
 });

@@ -39,6 +39,9 @@ export type NotificationTemplateName =
   | "dividend-weekly-digest"
   | "affiliate-credit-match"
   | "spend-alert"
+  // Fleet updates
+  | "fleet-update-available"
+  | "fleet-update-complete"
   // Passthrough to existing templates
   | "low-balance"
   | "credit-purchase-receipt"
@@ -657,6 +660,64 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
       return accountDeletionCancelledTemplate(data);
     case "account-deletion-completed":
       return accountDeletionCompletedTemplate(data);
+    case "fleet-update-available": {
+      const version = escapeHtml((data.version as string) || "");
+      const changelogDate = escapeHtml((data.changelogDate as string) || "");
+      const changelogSummary = escapeHtml((data.changelogSummary as string) || "");
+      const fleetUrl = (data.fleetUrl as string) || "";
+      const faParts = [
+        heading(`Fleet Update Available: ${version}`),
+        paragraph(
+          `<p>A new version <strong>${version}</strong> is available for your fleet.</p>` +
+            (changelogDate ? `<p style="color: #718096; font-size: 14px;">Released: ${changelogDate}</p>` : "") +
+            (changelogSummary
+              ? `<div style="background: #f7fafc; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 16px 0; color: #4a5568; font-size: 14px; line-height: 22px;">${changelogSummary}</div>`
+              : ""),
+        ),
+      ];
+      if (fleetUrl) faParts.push(button(fleetUrl, "View Fleet Dashboard"));
+      faParts.push(footer("Review the changelog and update when ready."));
+      return {
+        subject: `Fleet update available: ${data.version}`,
+        html: wrapHtml("Fleet Update Available", faParts.join("\n")),
+        text: `Fleet Update Available: ${data.version}\n\nA new version ${data.version} is available for your fleet.\n${changelogDate ? `Released: ${data.changelogDate}\n` : ""}${changelogSummary ? `Changelog: ${data.changelogSummary}\n` : ""}${fleetUrl ? `\nFleet dashboard: ${fleetUrl}\n` : ""}${copyright()}`,
+      };
+    }
+    case "fleet-update-complete": {
+      const fcVersion = escapeHtml((data.version as string) || "");
+      const succeeded = Number(data.succeeded) || 0;
+      const failed = Number(data.failed) || 0;
+      const total = succeeded + failed;
+      const fleetUrl2 = (data.fleetUrl as string) || "";
+      const statusText = failed === 0 ? "all instances healthy" : `${failed} instance(s) failed`;
+      const fcParts = [
+        heading(`Fleet Updated to ${fcVersion}`),
+        paragraph(
+          `<p>Your fleet update to <strong>${fcVersion}</strong> has completed.</p>` +
+            `<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">` +
+            `<tr><td style="padding: 8px 0; color: #4a5568;">Succeeded</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #22c55e;">${succeeded}</td></tr>` +
+            `<tr><td style="padding: 8px 0; color: #4a5568;">Failed</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${failed > 0 ? "#dc2626" : "#22c55e"};">${failed}</td></tr>` +
+            `<tr style="border-top: 2px solid #e2e8f0;"><td style="padding: 12px 0; color: #4a5568; font-weight: 600;">Total</td><td style="padding: 12px 0; text-align: right; font-weight: 700; color: #1a1a1a;">${total}</td></tr>` +
+            `</table>` +
+            (failed > 0
+              ? `<p style="color: #dc2626;">Some instances failed to update. Check the fleet dashboard for details.</p>`
+              : ""),
+        ),
+      ];
+      if (fleetUrl2) fcParts.push(button(fleetUrl2, "View Fleet Dashboard"));
+      fcParts.push(
+        footer(
+          failed === 0
+            ? "All instances are running the latest version."
+            : "Review failed instances and retry if needed.",
+        ),
+      );
+      return {
+        subject: `Fleet updated to ${data.version} \u2014 ${statusText}`,
+        html: wrapHtml("Fleet Update Complete", fcParts.join("\n")),
+        text: `Fleet Updated to ${data.version}\n\nSucceeded: ${succeeded}\nFailed: ${failed}\nTotal: ${total}\n${failed > 0 ? "\nSome instances failed to update.\n" : ""}${fleetUrl2 ? `\nFleet dashboard: ${fleetUrl2}\n` : ""}${copyright()}`,
+      };
+    }
     case "low-balance":
       return {
         subject: "Your WOPR credits are running low",

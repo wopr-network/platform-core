@@ -23,6 +23,7 @@ const DEFAULTS: NotificationPrefs = {
   agent_status_changes: false,
   account_role_changes: true,
   account_team_invites: true,
+  fleet_updates: true,
 };
 
 export class DrizzleNotificationPreferencesStore implements INotificationPreferencesRepository {
@@ -46,6 +47,7 @@ export class DrizzleNotificationPreferencesStore implements INotificationPrefere
       agent_status_changes: row.agentStatusChanges,
       account_role_changes: row.accountRoleChanges,
       account_team_invites: row.accountTeamInvites,
+      fleet_updates: row.fleetUpdates,
     };
   }
 
@@ -60,6 +62,7 @@ export class DrizzleNotificationPreferencesStore implements INotificationPrefere
     if (prefs.agent_status_changes !== undefined) values.agentStatusChanges = prefs.agent_status_changes;
     if (prefs.account_role_changes !== undefined) values.accountRoleChanges = prefs.account_role_changes;
     if (prefs.account_team_invites !== undefined) values.accountTeamInvites = prefs.account_team_invites;
+    if (prefs.fleet_updates !== undefined) values.fleetUpdates = prefs.fleet_updates;
 
     // Get existing row to merge with defaults
     const existing = await this.db
@@ -81,6 +84,7 @@ export class DrizzleNotificationPreferencesStore implements INotificationPrefere
         agentStatusChanges: DEFAULTS.agent_status_changes,
         accountRoleChanges: DEFAULTS.account_role_changes,
         accountTeamInvites: DEFAULTS.account_team_invites,
+        fleetUpdates: DEFAULTS.fleet_updates,
         updatedAt: Math.floor(Date.now() / 1000),
         ...values,
       };

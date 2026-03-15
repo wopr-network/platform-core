@@ -35,6 +35,7 @@ describe("DrizzleNotificationPreferencesStore", () => {
         agent_status_changes: false,
         account_role_changes: true,
         account_team_invites: true,
+        fleet_updates: true,
       });
     });
 

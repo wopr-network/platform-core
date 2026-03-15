@@ -11,3 +11,4 @@ export {
   type TRPCContext,
   tenantProcedure,
 } from "./init.js";
+export { createNotificationTemplateRouter } from "./notification-template-router.js";
