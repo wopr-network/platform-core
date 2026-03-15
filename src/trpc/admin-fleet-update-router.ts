@@ -20,7 +20,7 @@ export function createAdminFleetUpdateRouter(
     /** Force trigger a rollout for all auto-update tenants */
     forceRollout: adminProcedure.mutation(async () => {
       const orchestrator = getOrchestrator();
-      logger.info("Admin triggered force rollout");
+      logger.info("Admin: fleet.forceRollout");
       // Fire and forget — don't block the admin request
       orchestrator.rollout().catch((err: unknown) => {
         logger.error("Force rollout failed", {
@@ -47,13 +47,15 @@ export function createAdminFleetUpdateRouter(
       )
       .mutation(async ({ input }) => {
         const repo = getConfigRepo();
+        const existing = await repo.get(input.tenantId);
         await repo.upsert(input.tenantId, {
           mode: input.mode,
-          preferredHourUtc: input.preferredHourUtc ?? 3,
+          preferredHourUtc: input.preferredHourUtc ?? existing?.preferredHourUtc ?? 3,
         });
-        logger.info("Admin override tenant update config", {
+        logger.info("Admin: fleet.setTenantConfig", {
           tenantId: input.tenantId,
           mode: input.mode,
+          preferredHourUtc: input.preferredHourUtc ?? existing?.preferredHourUtc ?? 3,
         });
       }),
   });
