@@ -54,9 +54,10 @@ export class HandlebarsRenderer {
     const template = await this.templateRepo.getByName(templateName);
     if (!template || !template.active) return null;
 
-    const subject = Handlebars.compile(template.subject)(data);
-    const html = Handlebars.compile(template.htmlBody)(data);
-    const text = Handlebars.compile(template.textBody)(data);
+    const ctx = { currentYear: new Date().getFullYear(), ...data };
+    const subject = Handlebars.compile(template.subject)(ctx);
+    const html = Handlebars.compile(template.htmlBody)(ctx);
+    const text = Handlebars.compile(template.textBody)(ctx);
 
     return { subject, html, text };
   }

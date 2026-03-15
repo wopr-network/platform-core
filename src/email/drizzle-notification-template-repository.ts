@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import { notificationTemplates } from "../db/schema/notification-templates.js";
-import type { INotificationTemplateRepository, NotificationTemplateRow } from "./notification-template-repository.js";
+import type { INotificationTemplateRepository, NotificationTemplateRow } from "./notification-repository-types.js";
 
 export class DrizzleNotificationTemplateRepository implements INotificationTemplateRepository {
   constructor(private readonly db: PgDatabase<never>) {}
