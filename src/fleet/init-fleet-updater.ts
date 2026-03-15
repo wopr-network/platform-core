@@ -39,6 +39,8 @@ export interface FleetUpdaterConfig {
   configRepo?: ITenantUpdateConfigRepository;
   /** Optional fleet event emitter. When provided, bot.updated / bot.update_failed events are emitted. */
   eventEmitter?: FleetEventEmitter;
+  /** Called with manual-mode tenant IDs when a new image is available but they are excluded from rollout. */
+  onManualTenantsSkipped?: (tenantIds: string[]) => void;
 }
 
 export interface FleetUpdaterHandle {
@@ -79,6 +81,7 @@ export function initFleetUpdater(
     onRolloutComplete,
     configRepo,
     eventEmitter: configEventEmitter,
+    onManualTenantsSkipped,
   } = config;
 
   const emitter = configEventEmitter ?? new FleetEventEmitter();
@@ -94,19 +97,43 @@ export function initFleetUpdater(
     strategy,
     getUpdatableProfiles: async () => {
       const profiles = await profileRepo.list();
-      const nonManualPolicy = profiles.filter((p) => p.updatePolicy !== "manual");
 
-      if (!configRepo) return nonManualPolicy;
+      // Separate profiles by updatePolicy
+      const manualPolicyIds: string[] = [];
+      const nonManualPolicy = profiles.filter((p) => {
+        if (p.updatePolicy === "manual") {
+          manualPolicyIds.push(p.tenantId);
+          return false;
+        }
+        return true;
+      });
+
+      if (!configRepo) {
+        if (manualPolicyIds.length > 0 && onManualTenantsSkipped) {
+          onManualTenantsSkipped([...new Set(manualPolicyIds)]);
+        }
+        return nonManualPolicy;
+      }
 
       // Filter out tenants whose per-tenant config is set to manual
+      const configManualIds: string[] = [];
       const results = await Promise.all(
         nonManualPolicy.map(async (p) => {
           const tenantCfg = await configRepo.get(p.tenantId);
           // If tenant has an explicit config with mode=manual, exclude
-          if (tenantCfg && tenantCfg.mode === "manual") return null;
+          if (tenantCfg && tenantCfg.mode === "manual") {
+            configManualIds.push(p.tenantId);
+            return null;
+          }
           return p;
         }),
       );
+
+      const allManualIds = [...manualPolicyIds, ...configManualIds];
+      if (allManualIds.length > 0 && onManualTenantsSkipped) {
+        onManualTenantsSkipped([...new Set(allManualIds)]);
+      }
+
       return results.filter((p) => p !== null);
     },
     onBotUpdated: (result) => {
