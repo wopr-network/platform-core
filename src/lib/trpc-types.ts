@@ -175,6 +175,14 @@ type AppRouterRecord = {
     getUpdateConfig: AnyTRPCQueryProcedure;
     setUpdateConfig: AnyTRPCMutationProcedure;
   };
+  /** Admin-only: DB-driven email template management. */
+  notificationTemplates: {
+    listTemplates: AnyTRPCQueryProcedure;
+    getTemplate: AnyTRPCQueryProcedure;
+    updateTemplate: AnyTRPCMutationProcedure;
+    previewTemplate: AnyTRPCMutationProcedure;
+    seedDefaults: AnyTRPCMutationProcedure;
+  };
   adminMarketplace: {
     listPlugins: AnyTRPCQueryProcedure;
     updatePlugin: AnyTRPCMutationProcedure;
