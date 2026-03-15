@@ -15,12 +15,13 @@ export interface FleetNotificationListenerDeps {
 
 interface PendingRollout {
   tenantId: string;
+  version: string;
   succeeded: number;
   failed: number;
   timer: ReturnType<typeof setTimeout>;
 }
 
-export function initFleetNotificationListener(deps: FleetNotificationListenerDeps): () => void {
+export function initFleetNotificationListener(deps: FleetNotificationListenerDeps): () => Promise<void> {
   const { eventEmitter, notificationService, preferences, resolveEmail } = deps;
   const debounceMs = deps.debounceMs ?? 60_000;
   const pending = new Map<string, PendingRollout>();
@@ -40,9 +41,13 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
         return;
       }
 
-      // TODO: Surface actual target version from RolloutOrchestrator context.
-      // BotFleetEvent doesn't carry version info; "latest" is a placeholder.
-      notificationService.notifyFleetUpdateComplete(tenantId, email, "latest", rollout.succeeded, rollout.failed);
+      notificationService.notifyFleetUpdateComplete(
+        tenantId,
+        email,
+        rollout.version,
+        rollout.succeeded,
+        rollout.failed,
+      );
     } catch (err) {
       logger.error("Fleet notification flush error", { err, tenantId });
     }
@@ -57,6 +62,7 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
     if (!rollout) {
       rollout = {
         tenantId: botEvent.tenantId,
+        version: botEvent.version ?? "latest",
         succeeded: 0,
         failed: 0,
         timer: setTimeout(() => flush(botEvent.tenantId), debounceMs),
@@ -66,6 +72,7 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
       // Reset timer on each new event (sliding window)
       clearTimeout(rollout.timer);
       rollout.timer = setTimeout(() => flush(botEvent.tenantId), debounceMs);
+      if (botEvent.version) rollout.version = botEvent.version;
     }
 
     if (botEvent.type === "bot.updated") {
@@ -75,13 +82,14 @@ export function initFleetNotificationListener(deps: FleetNotificationListenerDep
     }
   });
 
-  return () => {
+  return async () => {
     unsubscribe();
-    // Flush all pending on shutdown
+    const flushes: Promise<void>[] = [];
     for (const [tenantId, rollout] of pending) {
       clearTimeout(rollout.timer);
-      void flush(tenantId);
+      flushes.push(flush(tenantId));
     }
     pending.clear();
+    await Promise.allSettled(flushes);
   };
 }

@@ -14,7 +14,7 @@
 import type Docker from "dockerode";
 import { logger } from "../config/logger.js";
 import type { IBotProfileRepository } from "./bot-profile-repository.js";
-import type { FleetEventEmitter } from "./fleet-event-emitter.js";
+import { FleetEventEmitter } from "./fleet-event-emitter.js";
 import type { FleetManager } from "./fleet-manager.js";
 import { ImagePoller } from "./image-poller.js";
 import type { IProfileStore } from "./profile-store.js";
@@ -46,6 +46,8 @@ export interface FleetUpdaterHandle {
   updater: ContainerUpdater;
   orchestrator: RolloutOrchestrator;
   snapshotManager: VolumeSnapshotManager;
+  /** Fleet event emitter for subscribing to bot/node lifecycle events */
+  eventEmitter: FleetEventEmitter;
   /** Stop the poller and wait for any active rollout to finish */
   stop: () => Promise<void>;
 }
@@ -76,8 +78,10 @@ export function initFleetUpdater(
     onBotUpdated,
     onRolloutComplete,
     configRepo,
-    eventEmitter,
+    eventEmitter: configEventEmitter,
   } = config;
+
+  const emitter = configEventEmitter ?? new FleetEventEmitter();
 
   const poller = new ImagePoller(docker, profileStore);
   const updater = new ContainerUpdater(docker, profileStore, fleet, poller);
@@ -106,16 +110,28 @@ export function initFleetUpdater(
       return results.filter((p) => p !== null);
     },
     onBotUpdated: (result) => {
-      // Emit fleet events if emitter is provided
-      if (eventEmitter) {
-        eventEmitter.emit({
+      // Fire-and-forget: resolve tenantId + emit event asynchronously
+      // The orchestrator callback is sync (void return) — async work must not block rollout progress
+      void (async () => {
+        let tenantId = "";
+        try {
+          const profile = await profileRepo.get(result.botId);
+          if (profile) tenantId = profile.tenantId;
+        } catch {
+          // Best-effort — event still fires with empty tenantId
+        }
+
+        // Extract version tag from image name (e.g. "ghcr.io/org/image:v1.2.3" → "v1.2.3")
+        const version = result.newImage.includes(":") ? (result.newImage.split(":").pop() ?? "latest") : "latest";
+
+        emitter.emit({
           type: result.success ? "bot.updated" : "bot.update_failed",
           botId: result.botId,
-          tenantId: "",
+          tenantId,
           timestamp: new Date().toISOString(),
+          version,
         });
-      }
-      // Chain user-provided callback
+      })();
       onBotUpdated?.(result);
     },
     onRolloutComplete: (result) => {
@@ -152,6 +168,7 @@ export function initFleetUpdater(
     updater,
     orchestrator,
     snapshotManager,
+    eventEmitter: emitter,
     stop: async () => {
       poller.stop();
       // Wait for any in-flight rollout to complete before returning
