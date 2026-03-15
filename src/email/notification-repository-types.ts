@@ -36,6 +36,7 @@ export interface NotificationPrefs {
   agent_status_changes: boolean;
   account_role_changes: boolean;
   account_team_invites: boolean;
+  fleet_updates: boolean;
 }
 
 // ---------------------------------------------------------------------------
