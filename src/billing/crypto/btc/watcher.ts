@@ -48,9 +48,27 @@ export class BtcWatcher {
     for (const a of addresses) this.addresses.add(a);
   }
 
-  /** Import an address into bitcoind's wallet (watch-only, no rescan). */
+  /**
+   * Import an address into bitcoind's wallet (watch-only).
+   * Uses `importdescriptors` (modern bitcoind v24+) with fallback to legacy `importaddress`.
+   */
   async importAddress(address: string): Promise<void> {
-    await this.rpc("importaddress", [address, "", false]);
+    try {
+      // Modern bitcoind: get descriptor checksum, then import
+      const info = (await this.rpc("getdescriptorinfo", [`addr(${address})`])) as {
+        descriptor: string;
+      };
+      const result = (await this.rpc("importdescriptors", [[{ desc: info.descriptor, timestamp: 0 }]])) as Array<{
+        success: boolean;
+        error?: { message: string };
+      }>;
+      if (result[0] && !result[0].success) {
+        throw new Error(result[0].error?.message ?? "importdescriptors failed");
+      }
+    } catch {
+      // Fallback: legacy importaddress (bitcoind <v24)
+      await this.rpc("importaddress", [address, "", false]);
+    }
     this.addresses.add(address);
   }
 
