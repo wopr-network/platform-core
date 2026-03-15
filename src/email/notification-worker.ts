@@ -7,17 +7,20 @@
 
 import { logger } from "../config/logger.js";
 import type { EmailClient } from "./client.js";
+import type { HandlebarsRenderer } from "./handlebars-renderer.js";
 import type {
   INotificationPreferencesRepository,
   INotificationQueueRepository,
 } from "./notification-repository-types.js";
 import { renderNotificationTemplate, type TemplateName } from "./notification-templates.js";
+import type { TemplateResult } from "./templates.js";
 
 export interface NotificationWorkerConfig {
   queue: INotificationQueueRepository;
   emailClient: EmailClient;
   preferences: INotificationPreferencesRepository;
   batchSize?: number;
+  handlebarsRenderer?: HandlebarsRenderer;
 }
 
 /** Templates that bypass user preference checks — always sent. */
@@ -50,6 +53,8 @@ const PREF_MAP: Record<string, string> = {
   "dividend-weekly-digest": "billing_receipts",
   "role-changed": "account_role_changes",
   "team-invite": "account_team_invites",
+  "fleet-update-available": "fleet_updates",
+  "fleet-update-complete": "fleet_updates",
 };
 
 export class NotificationWorker {
@@ -57,12 +62,14 @@ export class NotificationWorker {
   private readonly emailClient: EmailClient;
   private readonly preferences: INotificationPreferencesRepository;
   private readonly batchSize: number;
+  private readonly handlebarsRenderer: HandlebarsRenderer | undefined;
 
   constructor(config: NotificationWorkerConfig) {
     this.queue = config.queue;
     this.emailClient = config.emailClient;
     this.preferences = config.preferences;
     this.batchSize = config.batchSize ?? 10;
+    this.handlebarsRenderer = config.handlebarsRenderer;
   }
 
   /** Process one batch of pending notifications. Returns count of processed items. */
@@ -96,8 +103,14 @@ export class NotificationWorker {
           }
         }
 
-        // Render the template
-        const rendered = renderNotificationTemplate(notif.template as TemplateName, data);
+        // Try DB-driven Handlebars first, fall back to code templates
+        let rendered: TemplateResult | null = null;
+        if (this.handlebarsRenderer) {
+          rendered = await this.handlebarsRenderer.render(notif.template, data);
+        }
+        if (!rendered) {
+          rendered = renderNotificationTemplate(notif.template as TemplateName, data);
+        }
 
         // Send via email client
         await this.emailClient.send({
