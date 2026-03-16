@@ -387,8 +387,11 @@ export class DrizzleLedger implements ILedger {
 
       // Phase 1: resolve all account IDs with row locks so concurrent transactions
       // are serialized before any balance check or update.
+      // Sort by accountCode to establish a consistent global lock ordering and
+      // prevent deadlocks when concurrent transactions lock overlapping accounts.
+      const sortedLines = [...input.lines].sort((a, b) => a.accountCode.localeCompare(b.accountCode));
       const resolvedLines: Array<JournalLine & { accountId: string }> = [];
-      for (const line of input.lines) {
+      for (const line of sortedLines) {
         let accountId: string;
         if (line.accountCode.startsWith("2000:")) {
           accountId = await this.ensureTenantAccountLocked(tx, line.accountCode.slice(5));
