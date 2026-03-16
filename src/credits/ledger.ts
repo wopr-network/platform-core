@@ -287,12 +287,7 @@ export interface ILedger {
    * Reads balance inside the transaction (TOCTOU-safe). Returns null if
    * balance is zero (nothing to debit).
    */
-  debitCapped(
-    tenantId: string,
-    maxAmount: Credit,
-    type: DebitType,
-    opts?: DebitOpts,
-  ): Promise<JournalEntry | null>;
+  debitCapped(tenantId: string, maxAmount: Credit, type: DebitType, opts?: DebitOpts): Promise<JournalEntry | null>;
 }
 
 // ---------------------------------------------------------------------------
