@@ -281,6 +281,18 @@ export interface ILedger {
 
   /** Get distinct tenantIds with a purchase entry in [startTs, endTs). */
   getActiveTenantIdsInWindow(startTs: string, endTs: string): Promise<string[]>;
+
+  /**
+   * Debit up to maxAmount from a tenant, capped at their current balance.
+   * Reads balance inside the transaction (TOCTOU-safe). Returns null if
+   * balance is zero (nothing to debit).
+   */
+  debitCapped(
+    tenantId: string,
+    maxAmount: Credit,
+    type: DebitType,
+    opts?: DebitOpts,
+  ): Promise<JournalEntry | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,6 +561,69 @@ export class DrizzleLedger implements ILedger {
       lines: [
         { accountCode: tenantAccount, amount, side: "debit" },
         { accountCode: creditAccount, amount, side: "credit" },
+      ],
+    });
+  }
+
+  async debitCapped(
+    tenantId: string,
+    maxAmount: Credit,
+    type: DebitType,
+    opts?: DebitOpts,
+  ): Promise<JournalEntry | null> {
+    const creditAccount = DEBIT_TYPE_ACCOUNT[type];
+    const tenantAccount = `2000:${tenantId}`;
+
+    // Read balance inside a transaction under row lock (TOCTOU-safe).
+    // Uses a nested transaction so the lock is held while we compute the capped amount.
+    const debitAmount = await this.db.transaction(async (tx) => {
+      // Ensure tenant account exists, then acquire FOR UPDATE lock.
+      await tx
+        .insert(accounts)
+        .values({
+          id: crypto.randomUUID(),
+          code: tenantAccount,
+          name: `Unearned Revenue: ${tenantId}`,
+          type: "liability",
+          normalSide: "credit",
+          tenantId,
+        })
+        .onConflictDoNothing({ target: accounts.code });
+
+      // Lock the account row + ensure balance row exists.
+      await this.resolveAccountLocked(tx, tenantAccount);
+
+      // Read balance while holding the lock.
+      const balRows = (await tx.execute(
+        sql`SELECT ab.balance FROM account_balances ab
+            INNER JOIN accounts a ON a.id = ab.account_id
+            WHERE a.code = ${tenantAccount}`,
+      )) as unknown as { rows: Array<{ balance: number }> };
+      const currentBalance = Credit.fromRaw(Number(balRows.rows[0]?.balance ?? 0));
+
+      if (currentBalance.isZero()) {
+        return null;
+      }
+
+      // Cap at lesser of maxAmount and currentBalance.
+      return currentBalance.lessThan(maxAmount) ? currentBalance : maxAmount;
+    });
+
+    if (debitAmount === null) {
+      return null;
+    }
+
+    // Post the capped debit using the standard post() path (handles all locking/balance updates).
+    return this.post({
+      entryType: type,
+      tenantId,
+      description: opts?.description,
+      referenceId: opts?.referenceId,
+      metadata: { attributedUserId: opts?.attributedUserId ?? null },
+      createdBy: opts?.createdBy ?? "system",
+      lines: [
+        { accountCode: tenantAccount, amount: debitAmount, side: "debit" },
+        { accountCode: creditAccount, amount: debitAmount, side: "credit" },
       ],
     });
   }

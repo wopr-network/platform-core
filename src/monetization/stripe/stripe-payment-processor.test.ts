@@ -79,6 +79,7 @@ function createMocks() {
     existsByReferenceIdLike: vi.fn(),
     sumPurchasesForPeriod: vi.fn(),
     getActiveTenantIdsInWindow: vi.fn(),
+    debitCapped: vi.fn(),
   };
 
   const replayGuard: IWebhookSeenRepository = {
