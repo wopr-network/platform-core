@@ -172,6 +172,24 @@ export const DEBIT_TYPE_ACCOUNT: Record<DebitType, string> = {
   correction: "5070", // CR expense:correction
 };
 
+/**
+ * Entry types eligible for credit expiry (allowlist).
+ * Only journal entries with these types can be returned by expiredCredits().
+ * Derived from CreditType — if you add a new CreditType, add it here too.
+ */
+export const EXPIRABLE_CREDIT_TYPES: readonly string[] = [
+  "signup_grant",
+  "admin_grant",
+  "purchase",
+  "bounty",
+  "referral",
+  "promo",
+  "community_dividend",
+  "affiliate_bonus",
+  "affiliate_match",
+  "correction",
+] as const;
+
 // ---------------------------------------------------------------------------
 // System account seeds
 // ---------------------------------------------------------------------------
@@ -745,7 +763,10 @@ export class DrizzleLedger implements ILedger {
         and(
           isNotNull(sql`${journalEntries.metadata}->>'expiresAt'`),
           sql`(${journalEntries.metadata}->>'expiresAt') <= ${now}`,
-          sql`${journalEntries.entryType} NOT IN ('credit_expiry', 'bot_runtime', 'adapter_usage', 'addon', 'refund')`,
+          sql`${journalEntries.entryType} IN (${sql.join(
+            EXPIRABLE_CREDIT_TYPES.map((t) => sql`${t}`),
+            sql`, `,
+          )})`,
         ),
       );
 

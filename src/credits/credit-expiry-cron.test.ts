@@ -103,4 +103,33 @@ describe("runCreditExpiryCron", () => {
     const balanceAfterSecond = await ledger.balance("tenant-1");
     expect(balanceAfterSecond.toCents()).toBe(balanceAfterFirst.toCents());
   });
+
+  it("does not return unknown entry type even with expiresAt metadata", async () => {
+    // Simulate a hypothetical new entry type that has expiresAt in metadata.
+    // With the old denylist approach, this would be incorrectly returned.
+    // With the allowlist, it must be excluded.
+    const entry = await ledger.post({
+      entryType: "marketplace_fee",
+      tenantId: "tenant-1",
+      description: "Hypothetical new debit type with expiresAt",
+      metadata: { expiresAt: "2026-01-10T00:00:00Z" },
+      lines: [
+        { accountCode: "2000:tenant-1", amount: Credit.fromCents(100), side: "debit" },
+        { accountCode: "4000", amount: Credit.fromCents(100), side: "credit" },
+      ],
+    });
+
+    // Give tenant a balance first so it's not filtered by zero-balance
+    await ledger.credit("tenant-1", Credit.fromCents(500), "purchase", {
+      description: "Top-up",
+    });
+
+    const expired = await ledger.expiredCredits("2026-01-15T00:00:00Z");
+    const ids = expired.map((e) => e.entryId);
+    expect(ids).not.toContain(entry.id);
+
+    // Full cron should also not touch it
+    const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
+    expect(result.processed).toBe(0);
+  });
 });
