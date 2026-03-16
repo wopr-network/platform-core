@@ -77,7 +77,6 @@ function mockDocker(container: ReturnType<typeof mockContainer> | null = null) {
 function mockFleet() {
   return {
     update: vi.fn().mockResolvedValue(undefined),
-    start: vi.fn().mockResolvedValue(undefined),
   } as unknown as FleetManager;
 }
 
@@ -154,7 +153,6 @@ describe("ContainerUpdater", () => {
       // Verify the update pipeline was called
       expect(docker.pull).toHaveBeenCalledWith("ghcr.io/wopr-network/wopr:stable");
       expect(fleet.update).toHaveBeenCalledWith("bot-1", { image: "ghcr.io/wopr-network/wopr:stable" });
-      expect(fleet.start).toHaveBeenCalledWith("bot-1");
     });
 
     it("skips start and health check when container was not running", async () => {
@@ -182,7 +180,6 @@ describe("ContainerUpdater", () => {
 
       expect(result.success).toBe(true);
       expect(fleet.update).toHaveBeenCalled();
-      expect(fleet.start).not.toHaveBeenCalled();
     });
 
     it("considers container healthy when no HEALTHCHECK is configured", async () => {
@@ -259,8 +256,6 @@ describe("ContainerUpdater", () => {
       expect(fleet.update).toHaveBeenLastCalledWith("bot-1", {
         image: "ghcr.io/wopr-network/wopr@sha256:abc123",
       });
-      // Rollback starts the container since it was running
-      expect(fleet.start).toHaveBeenCalledTimes(2);
     });
 
     it("rolls back when health check times out (stays in starting)", async () => {
@@ -301,8 +296,8 @@ describe("ContainerUpdater", () => {
 
   // --- Rollback on startup failure ---
 
-  describe("rollback on startup failure", () => {
-    it("rolls back when fleet.start throws", async () => {
+  describe("rollback on update failure", () => {
+    it("rolls back when fleet.update throws (start embedded in update)", async () => {
       // getContainerDigest
       docker.listContainers.mockResolvedValueOnce([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValueOnce(container);
@@ -310,8 +305,10 @@ describe("ContainerUpdater", () => {
       docker.listContainers.mockResolvedValueOnce([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValueOnce(container);
 
-      // fleet.start fails after fleet.update succeeds
-      (fleet.start as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Container start failed"));
+      // fleet.update fails (which now includes starting the container)
+      (fleet.update as ReturnType<typeof vi.fn>)
+        .mockRejectedValueOnce(new Error("Container start failed"))
+        .mockResolvedValueOnce(undefined); // rollback update succeeds
 
       const result = await updater.updateBot("bot-1");
 
@@ -331,12 +328,10 @@ describe("ContainerUpdater", () => {
       docker.listContainers.mockResolvedValueOnce([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValueOnce(container);
 
-      // fleet.start fails
-      (fleet.start as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Container start failed"));
-      // fleet.update (rollback) also fails
+      // fleet.update fails, then rollback fleet.update also fails
       (fleet.update as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce(undefined) // initial update succeeds
-        .mockRejectedValueOnce(new Error("Rollback recreate failed")); // rollback fails
+        .mockRejectedValueOnce(new Error("Container start failed"))
+        .mockRejectedValueOnce(new Error("Rollback recreate failed"));
 
       const result = await updater.updateBot("bot-1");
 
@@ -666,8 +661,6 @@ describe("ContainerUpdater", () => {
 
       expect(result.success).toBe(false);
       expect(result.rolledBack).toBe(true);
-      // fleet.start should NOT be called at all — container was stopped
-      expect(fleet.start).not.toHaveBeenCalled();
     });
   });
 
@@ -687,8 +680,6 @@ describe("ContainerUpdater", () => {
       const result = await updater.updateBot("bot-1");
 
       expect(result.success).toBe(true);
-      // Since wasRunning defaults to false on error, start and health check are skipped
-      expect(fleet.start).not.toHaveBeenCalled();
     });
   });
 });
