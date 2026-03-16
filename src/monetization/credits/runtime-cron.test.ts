@@ -356,4 +356,130 @@ describe("runRuntimeDeductions", () => {
     // Balance unchanged after second run
     expect((await ledger.balance("tenant-1")).toCents()).toBe(500 - 17);
   });
+
+  it("bills surcharges on retry when runtime was already billed (crash recovery)", async () => {
+    // Setup: tenant with enough balance for runtime + tier + storage + addon
+    await ledger.credit("tenant-1", Credit.fromCents(1000), "purchase", { description: "top-up" });
+
+    const cfg = {
+      ledger,
+      date: "2025-07-01",
+      getActiveBotCount: async () => 1,
+      getResourceTierCosts: async () => Credit.fromCents(10),
+      getStorageTierCosts: async () => Credit.fromCents(8),
+      getAddonCosts: async () => Credit.fromCents(5),
+    };
+
+    // First run — bills everything
+    const first = await runRuntimeDeductions(cfg);
+    expect(first.processed).toBe(1);
+    // 1000 - 17 (runtime) - 10 (tier) - 8 (storage) - 5 (addon) = 960
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(960);
+
+    // Second run — all already billed, should skip
+    const second = await runRuntimeDeductions(cfg);
+    expect(second.skipped).toContain("tenant-1");
+    expect(second.processed).toBe(0);
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(960);
+  });
+
+  it("bills remaining surcharges when runtime was billed but surcharges were not (simulated crash)", async () => {
+    // Setup: tenant with enough balance
+    await ledger.credit("tenant-1", Credit.fromCents(1000), "purchase", { description: "top-up" });
+
+    // Simulate crash: manually debit only the runtime charge (as if the cron crashed after this)
+    await ledger.debit("tenant-1", DAILY_BOT_COST, "bot_runtime", {
+      description: "Daily runtime: 1 bot(s) x $0.17",
+      referenceId: `runtime:2025-07-02:tenant-1`,
+    });
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(983); // 1000 - 17
+
+    // Retry run — runtime already billed, but surcharges should still be billed
+    const result = await runRuntimeDeductions({
+      ledger,
+      date: "2025-07-02",
+      getActiveBotCount: async () => 1,
+      getResourceTierCosts: async () => Credit.fromCents(10),
+      getStorageTierCosts: async () => Credit.fromCents(8),
+      getAddonCosts: async () => Credit.fromCents(5),
+    });
+
+    expect(result.processed).toBe(1);
+    expect(result.skipped).not.toContain("tenant-1");
+    // 983 - 10 (tier) - 8 (storage) - 5 (addon) = 960
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(960);
+  });
+
+  it("bills only missing surcharges when some were already committed (simulated partial crash)", async () => {
+    await ledger.credit("tenant-1", Credit.fromCents(1000), "purchase", { description: "top-up" });
+
+    // Simulate: runtime + tier already billed, storage + addon not yet
+    await ledger.debit("tenant-1", DAILY_BOT_COST, "bot_runtime", {
+      description: "Daily runtime: 1 bot(s) x $0.17",
+      referenceId: `runtime:2025-07-03:tenant-1`,
+    });
+    await ledger.debit("tenant-1", Credit.fromCents(10), "resource_upgrade", {
+      description: "Daily resource tier surcharge",
+      referenceId: `runtime-tier:2025-07-03:tenant-1`,
+    });
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(973); // 1000 - 17 - 10
+
+    const result = await runRuntimeDeductions({
+      ledger,
+      date: "2025-07-03",
+      getActiveBotCount: async () => 1,
+      getResourceTierCosts: async () => Credit.fromCents(10),
+      getStorageTierCosts: async () => Credit.fromCents(8),
+      getAddonCosts: async () => Credit.fromCents(5),
+    });
+
+    expect(result.processed).toBe(1);
+    // 973 - 8 (storage) - 5 (addon) = 960
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(960);
+  });
+
+  it("does not double-debit runtime on retry after partial deduction + crash", async () => {
+    await ledger.credit("tenant-1", Credit.fromCents(10), "purchase", { description: "top-up" });
+
+    // Simulate: partial runtime debit already committed (balance was 10, cost was 17)
+    await ledger.debit("tenant-1", Credit.fromCents(10), "bot_runtime", {
+      description: "Partial daily runtime (balance exhausted): 1 bot(s)",
+      referenceId: `runtime:2025-07-04:tenant-1`,
+      allowNegative: true,
+    });
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(0);
+
+    // Retry — runtime already billed, balance is 0, nothing should happen
+    const result = await runRuntimeDeductions({
+      ledger,
+      date: "2025-07-04",
+      getActiveBotCount: async () => 1,
+    });
+
+    // Tenant still has 0 balance (tenantsWithBalance returns only positive), so won't be processed
+    expect(result.processed).toBe(0);
+    expect((await ledger.balance("tenant-1")).toCents()).toBe(0);
+  });
+
+  it("trial balance remains balanced after crash-recovery billing", async () => {
+    await ledger.credit("tenant-1", Credit.fromCents(1000), "purchase", { description: "top-up" });
+
+    // Simulate crash: only runtime billed
+    await ledger.debit("tenant-1", DAILY_BOT_COST, "bot_runtime", {
+      description: "Daily runtime: 1 bot(s) x $0.17",
+      referenceId: `runtime:2025-07-05:tenant-1`,
+    });
+
+    // Retry — surcharges billed
+    await runRuntimeDeductions({
+      ledger,
+      date: "2025-07-05",
+      getActiveBotCount: async () => 1,
+      getResourceTierCosts: async () => Credit.fromCents(10),
+      getStorageTierCosts: async () => Credit.fromCents(8),
+    });
+
+    const tb = await ledger.trialBalance();
+    expect(tb.balanced).toBe(true);
+  });
 });
