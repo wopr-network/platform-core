@@ -124,6 +124,45 @@ describe("Credit", () => {
     it("multiply by zero gives zero", () => {
       expect(Credit.fromDollars(5).multiply(0).isZero()).toBe(true);
     });
+
+    it("add throws RangeError on positive overflow", () => {
+      const a = Credit.fromRaw(Number.MAX_SAFE_INTEGER);
+      const b = Credit.fromRaw(1);
+      expect(() => a.add(b)).toThrow(RangeError);
+    });
+
+    it("subtract throws RangeError on negative overflow", () => {
+      const a = Credit.fromRaw(-Number.MAX_SAFE_INTEGER);
+      const b = Credit.fromRaw(1);
+      expect(() => a.subtract(b)).toThrow(RangeError);
+    });
+
+    it("multiply throws RangeError on overflow", () => {
+      const a = Credit.fromRaw(Number.MAX_SAFE_INTEGER);
+      expect(() => a.multiply(2)).toThrow(RangeError);
+    });
+
+    it("multiply throws RangeError on Infinity factor", () => {
+      const a = Credit.fromRaw(1);
+      expect(() => a.multiply(Infinity)).toThrow(RangeError);
+    });
+
+    it("multiply throws RangeError on NaN factor", () => {
+      const a = Credit.fromRaw(1);
+      expect(() => a.multiply(NaN)).toThrow(RangeError);
+    });
+
+    it("add does not throw for values within safe range", () => {
+      const a = Credit.fromRaw(Number.MAX_SAFE_INTEGER - 1);
+      const b = Credit.fromRaw(1);
+      expect(a.add(b).toRaw()).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it("subtract does not throw for values within safe range", () => {
+      const a = Credit.fromRaw(-(Number.MAX_SAFE_INTEGER - 1));
+      const b = Credit.fromRaw(1);
+      expect(a.subtract(b).toRaw()).toBe(-Number.MAX_SAFE_INTEGER);
+    });
   });
 
   describe("comparison", () => {

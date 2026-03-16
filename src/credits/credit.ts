@@ -101,17 +101,29 @@ export class Credit {
 
   /** Add another Credit, returning a new Credit. */
   add(other: Credit): Credit {
-    return new Credit(this.raw + other.raw);
+    const result = this.raw + other.raw;
+    if (!Number.isSafeInteger(result)) {
+      throw new RangeError(`Credit.add overflow: ${this.raw} + ${other.raw} = ${result}`);
+    }
+    return new Credit(result);
   }
 
   /** Subtract another Credit, returning a new Credit (may be negative). */
   subtract(other: Credit): Credit {
-    return new Credit(this.raw - other.raw);
+    const result = this.raw - other.raw;
+    if (!Number.isSafeInteger(result)) {
+      throw new RangeError(`Credit.subtract overflow: ${this.raw} - ${other.raw} = ${result}`);
+    }
+    return new Credit(result);
   }
 
   /** Multiply by a factor, rounding to nearest raw unit. */
   multiply(factor: number): Credit {
-    return new Credit(Math.round(this.raw * factor));
+    const result = Math.round(this.raw * factor);
+    if (!Number.isSafeInteger(result)) {
+      throw new RangeError(`Credit.multiply overflow: ${this.raw} * ${factor} = ${result}`);
+    }
+    return new Credit(result);
   }
 
   /** True if this credit is negative. */
