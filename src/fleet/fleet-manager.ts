@@ -123,6 +123,18 @@ export class FleetManager {
               restart: profile.restartPolicy,
             },
           });
+          // Remote bots have no local container — return a remote Instance
+          const containerName = `wopr-${profile.name.replace(/_/g, "-")}`;
+          return new Instance({
+            docker: this.docker,
+            profile,
+            containerId: `remote:${remote.nodeId}`,
+            containerName,
+            url: `remote://${remote.nodeId}/${containerName}`,
+            instanceRepo: this.instanceRepo,
+            proxyManager: this.proxyManager,
+            eventEmitter: this.eventEmitter,
+          });
         } else {
           await this.pullImage(profile.image);
           await this.createContainer(profile, resourceLimits);

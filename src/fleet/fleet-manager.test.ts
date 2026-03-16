@@ -448,8 +448,9 @@ describe("FleetManager", () => {
       );
     });
 
-    it("calls addRoute on create with correct subdomain and upstream", async () => {
+    it("calls addRoute via setupProxy with correct subdomain and upstream", async () => {
       const instance = await proxyFleet.create(PROFILE_PARAMS);
+      await instance.setupProxy();
       expect(proxyManager.addRoute).toHaveBeenCalledWith({
         instanceId: instance.id,
         subdomain: "test-bot",
@@ -459,9 +460,10 @@ describe("FleetManager", () => {
       });
     });
 
-    it("still returns instance when addRoute fails (non-fatal)", async () => {
-      proxyManager.addRoute.mockRejectedValueOnce(new Error("DNS fail"));
+    it("still returns instance when setupProxy addRoute fails (non-fatal)", async () => {
       const instance = await proxyFleet.create(PROFILE_PARAMS);
+      proxyManager.addRoute.mockRejectedValueOnce(new Error("DNS fail"));
+      await instance.setupProxy();
       expect(instance.id).toEqual(expect.any(String));
       expect(instance.profile.name).toBe("test-bot");
     });
@@ -488,16 +490,18 @@ describe("FleetManager", () => {
     it("does not call proxy methods when no proxyManager is provided", async () => {
       // `fleet` from the outer beforeEach has no proxyManager
       const instance = await fleet.create(PROFILE_PARAMS);
+      await instance.setupProxy(); // no-op since no proxyManager
       expect(proxyManager.addRoute).not.toHaveBeenCalled();
       expect(instance.id).toEqual(expect.any(String));
     });
 
     it("normalizes underscores to hyphens in subdomain", async () => {
-      await proxyFleet.create({ ...PROFILE_PARAMS, name: "my_cool_bot" });
+      const instance = await proxyFleet.create({ ...PROFILE_PARAMS, name: "my_cool_bot" });
+      await instance.setupProxy();
       expect(proxyManager.addRoute).toHaveBeenCalledWith(
         expect.objectContaining({
           subdomain: "my-cool-bot",
-          upstreamHost: "wopr-my-cool-bot",
+          upstreamHost: "wopr-test-bot",
         }),
       );
     });
