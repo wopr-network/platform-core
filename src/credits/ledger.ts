@@ -568,33 +568,22 @@ export class DrizzleLedger implements ILedger {
     type: DebitType,
     opts?: DebitOpts,
   ): Promise<JournalEntry | null> {
-    const creditAccount = DEBIT_TYPE_ACCOUNT[type];
-    const tenantAccount = `2000:${tenantId}`;
+    const creditAccountCode = DEBIT_TYPE_ACCOUNT[type];
+    const tenantAccountCode = `2000:${tenantId}`;
 
-    // Read balance inside a transaction under row lock (TOCTOU-safe).
-    // Uses a nested transaction so the lock is held while we compute the capped amount.
-    const debitAmount = await this.db.transaction(async (tx) => {
-      // Ensure tenant account exists, then acquire FOR UPDATE lock.
-      await tx
-        .insert(accounts)
-        .values({
-          id: crypto.randomUUID(),
-          code: tenantAccount,
-          name: `Unearned Revenue: ${tenantId}`,
-          type: "liability",
-          normalSide: "credit",
-          tenantId,
-        })
-        .onConflictDoNothing({ target: accounts.code });
+    // Everything happens inside ONE transaction so the FOR UPDATE lock is held
+    // continuously from balance read through journal posting. Previous attempts
+    // used two sequential transactions, releasing the lock between read and write.
+    return this.db.transaction(async (tx) => {
+      // Step 1: Ensure tenant account exists and lock it.
+      const tenantAccountId = await this.ensureTenantAccountLocked(tx, tenantId);
 
-      // Lock the account row + ensure balance row exists.
-      await this.resolveAccountLocked(tx, tenantAccount);
-
-      // Read balance while holding the lock.
+      // Step 2: Read balance while holding the lock.
+      // raw SQL: Drizzle cannot express JOIN in a FOR-UPDATE-locked balance read
       const balRows = (await tx.execute(
         sql`SELECT ab.balance FROM account_balances ab
             INNER JOIN accounts a ON a.id = ab.account_id
-            WHERE a.code = ${tenantAccount}`,
+            WHERE a.code = ${tenantAccountCode}`,
       )) as unknown as { rows: Array<{ balance: number }> };
       const currentBalance = Credit.fromRaw(Number(balRows.rows[0]?.balance ?? 0));
 
@@ -602,26 +591,91 @@ export class DrizzleLedger implements ILedger {
         return null;
       }
 
-      // Cap at lesser of maxAmount and currentBalance.
-      return currentBalance.lessThan(maxAmount) ? currentBalance : maxAmount;
-    });
+      // Step 3: Cap at lesser of maxAmount and currentBalance.
+      const debitAmount = currentBalance.lessThan(maxAmount) ? currentBalance : maxAmount;
 
-    if (debitAmount === null) {
-      return null;
-    }
+      // Step 4: Insert journal entry header.
+      const entryId = crypto.randomUUID();
+      const now = opts?.createdBy ? new Date().toISOString() : new Date().toISOString();
 
-    // Post the capped debit using the standard post() path (handles all locking/balance updates).
-    return this.post({
-      entryType: type,
-      tenantId,
-      description: opts?.description,
-      referenceId: opts?.referenceId,
-      metadata: { attributedUserId: opts?.attributedUserId ?? null },
-      createdBy: opts?.createdBy ?? "system",
-      lines: [
-        { accountCode: tenantAccount, amount: debitAmount, side: "debit" },
-        { accountCode: creditAccount, amount: debitAmount, side: "credit" },
-      ],
+      await tx.insert(journalEntries).values({
+        id: entryId,
+        postedAt: now,
+        entryType: type,
+        description: opts?.description ?? null,
+        referenceId: opts?.referenceId ?? null,
+        tenantId,
+        metadata: { attributedUserId: opts?.attributedUserId ?? null },
+        createdBy: opts?.createdBy ?? "system",
+      });
+
+      // Step 5: Resolve credit-side account with lock (tenant account already locked).
+      const creditAccountId = await this.resolveAccountLocked(tx, creditAccountCode);
+
+      // Step 6: Insert journal lines.
+      // Debit line (tenant liability account — reduces balance)
+      const debitLineId = crypto.randomUUID();
+      await tx.insert(journalLines).values({
+        id: debitLineId,
+        journalEntryId: entryId,
+        accountId: tenantAccountId,
+        amount: debitAmount.toRaw(),
+        side: "debit",
+      });
+
+      // Credit line (revenue/target account — increases balance)
+      const creditLineId = crypto.randomUUID();
+      await tx.insert(journalLines).values({
+        id: creditLineId,
+        journalEntryId: entryId,
+        accountId: creditAccountId,
+        amount: debitAmount.toRaw(),
+        side: "credit",
+      });
+
+      // Step 7: Update materialized balances.
+      // Tenant account is liability (normal_side=credit): debit decreases balance.
+      await tx
+        .update(accountBalances)
+        .set({
+          balance: sql`${accountBalances.balance} + ${-debitAmount.toRaw()}`,
+          lastUpdated: sql`(now())`,
+        })
+        .where(eq(accountBalances.accountId, tenantAccountId));
+
+      // Credit-side account: look up its normal_side to determine delta direction.
+      const acctRow = (await tx.execute(
+        sql`SELECT normal_side FROM accounts WHERE id = ${creditAccountId}`,
+      )) as unknown as {
+        rows: Array<{ normal_side: Side }>;
+      };
+      const normalSide = acctRow.rows[0]?.normal_side;
+      if (!normalSide) throw new Error(`Account ${creditAccountId} missing normal_side`);
+
+      const creditDelta = "credit" === normalSide ? debitAmount.toRaw() : -debitAmount.toRaw();
+
+      await tx
+        .update(accountBalances)
+        .set({
+          balance: sql`${accountBalances.balance} + ${creditDelta}`,
+          lastUpdated: sql`(now())`,
+        })
+        .where(eq(accountBalances.accountId, creditAccountId));
+
+      // Step 8: Return the journal entry.
+      return {
+        id: entryId,
+        postedAt: now,
+        entryType: type,
+        tenantId,
+        description: opts?.description ?? null,
+        referenceId: opts?.referenceId ?? null,
+        metadata: { attributedUserId: opts?.attributedUserId ?? null } as Record<string, unknown>,
+        lines: [
+          { accountCode: tenantAccountCode, amount: debitAmount, side: "debit" as Side },
+          { accountCode: creditAccountCode, amount: debitAmount, side: "credit" as Side },
+        ],
+      };
     });
   }
 
