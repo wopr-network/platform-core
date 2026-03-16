@@ -389,7 +389,9 @@ export class DrizzleLedger implements ILedger {
       // are serialized before any balance check or update.
       // Sort by accountCode to establish a consistent global lock ordering and
       // prevent deadlocks when concurrent transactions lock overlapping accounts.
-      const sortedLines = [...input.lines].sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+      const sortedLines = [...input.lines].sort((a, b) =>
+        a.accountCode < b.accountCode ? -1 : a.accountCode > b.accountCode ? 1 : 0,
+      );
       const resolvedLines: Array<JournalLine & { accountId: string }> = [];
       for (const line of sortedLines) {
         let accountId: string;
