@@ -70,6 +70,9 @@ export const journalLines = pgTable(
     accountId: text("account_id")
       .notNull()
       .references(() => accounts.id),
+    // mode: "number" truncates values > Number.MAX_SAFE_INTEGER (≈$9.007M in nanodollars).
+    // Credit.fromRaw() guards against this with a RangeError.
+    // If balances approach $9M, migrate to mode: "bigint" (returns string from Drizzle).
     amount: bigint("amount", { mode: "number" }).notNull(), // nanodollars, always positive
     side: entrySideEnum("side").notNull(),
   },
@@ -89,6 +92,9 @@ export const accountBalances = pgTable("account_balances", {
   accountId: text("account_id")
     .primaryKey()
     .references(() => accounts.id),
+  // mode: "number" truncates values > Number.MAX_SAFE_INTEGER (≈$9.007M in nanodollars).
+  // Credit.fromRaw() guards against this with a RangeError.
+  // If balances approach $9M, migrate to mode: "bigint" (returns string from Drizzle).
   balance: bigint("balance", { mode: "number" }).notNull().default(0), // net balance in nanodollars
   lastUpdated: text("last_updated").notNull().default(sql`(now())`),
 });

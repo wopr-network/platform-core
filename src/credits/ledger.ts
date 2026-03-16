@@ -372,19 +372,25 @@ export class DrizzleLedger implements ILedger {
     }
 
     // Verify balance before hitting DB
-    let totalDebit = 0;
-    let totalCredit = 0;
+    let totalDebit = 0n;
+    let totalCredit = 0n;
     for (const line of input.lines) {
       if (line.amount.isZero() || line.amount.isNegative()) {
         throw new Error("Journal line amounts must be positive");
       }
-      if (line.side === "debit") totalDebit += line.amount.toRaw();
-      else totalCredit += line.amount.toRaw();
+      if (line.side === "debit") totalDebit += BigInt(line.amount.toRaw());
+      else totalCredit += BigInt(line.amount.toRaw());
     }
     if (totalDebit !== totalCredit) {
-      throw new Error(
-        `Unbalanced entry: debits=${Credit.fromRaw(totalDebit).toDisplayString()}, credits=${Credit.fromRaw(totalCredit).toDisplayString()}`,
-      );
+      const fmtDebit =
+        totalDebit <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? Credit.fromRaw(Number(totalDebit)).toDisplayString()
+          : `${totalDebit} raw`;
+      const fmtCredit =
+        totalCredit <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? Credit.fromRaw(Number(totalCredit)).toDisplayString()
+          : `${totalCredit} raw`;
+      throw new Error(`Unbalanced entry: debits=${fmtDebit}, credits=${fmtCredit}`);
     }
 
     return this.db.transaction(async (tx) => {
