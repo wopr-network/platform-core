@@ -74,6 +74,10 @@ export const botProfileSchema = z.object({
   discovery: discoveryConfigSchema.optional(),
   /** Node this bot was placed on at creation time (optional, for future multi-node routing). */
   nodeId: z.string().uuid().optional(),
+  /** Docker network to attach the container to (bypasses NetworkPolicy). */
+  network: z.string().min(1).optional(),
+  /** When true, disables ReadonlyRootfs and CapDrop for containers that need write access (e.g., ephemeral workers). */
+  ephemeral: z.boolean().optional(),
 });
 
 export type BotProfile = z.infer<typeof botProfileSchema>;
@@ -96,6 +100,10 @@ export const createBotSchema = z.object({
   discovery: discoveryConfigSchema.optional(),
   /** Node this bot was placed on at creation time (optional, for future multi-node routing). */
   nodeId: z.string().uuid().optional(),
+  /** Docker network to attach the container to. */
+  network: z.string().min(1).optional(),
+  /** When true, disables ReadonlyRootfs and CapDrop for ephemeral workers. */
+  ephemeral: z.boolean().optional(),
 });
 
 /** Schema for updating a bot via the API */

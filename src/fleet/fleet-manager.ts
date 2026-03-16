@@ -160,6 +160,19 @@ export class FleetManager {
   }
 
   /**
+   * Create and immediately start a bot container in one call.
+   * Combines create() + start() for ephemeral container workflows.
+   */
+  async createAndStart(
+    params: Omit<BotProfile, "id"> & { id?: string },
+    resourceLimits?: ContainerResourceLimits,
+  ): Promise<BotProfile> {
+    const profile = await this.create(params, resourceLimits);
+    await this.start(profile.id);
+    return profile;
+  }
+
+  /**
    * Start a stopped bot container.
    * Valid from: stopped, created, exited, dead, error states.
    * Throws InvalidStateTransitionError if the container is already running.
@@ -608,23 +621,29 @@ export class FleetManager {
       binds.push(`${sharedVolConfig.volumeName}:${sharedVolConfig.mountPath}:ro`);
     }
 
+    const isEphemeral = profile.ephemeral === true;
+
     const hostConfig: Docker.ContainerCreateOptions["HostConfig"] = {
       RestartPolicy: {
         Name: restartPolicyMap[profile.restartPolicy] || "",
       },
       Binds: binds.length > 0 ? binds : undefined,
-      SecurityOpt: ["no-new-privileges"],
-      CapDrop: ["ALL"],
-      CapAdd: ["NET_BIND_SERVICE"],
-      ReadonlyRootfs: true,
-      Tmpfs: {
-        "/tmp": "rw,noexec,nosuid,size=64m",
-        "/var/tmp": "rw,noexec,nosuid,size=64m",
-      },
+      SecurityOpt: isEphemeral ? undefined : ["no-new-privileges"],
+      CapDrop: isEphemeral ? undefined : ["ALL"],
+      CapAdd: isEphemeral ? undefined : ["NET_BIND_SERVICE"],
+      ReadonlyRootfs: isEphemeral ? false : true,
+      Tmpfs: isEphemeral
+        ? undefined
+        : {
+            "/tmp": "rw,noexec,nosuid,size=64m",
+            "/var/tmp": "rw,noexec,nosuid,size=64m",
+          },
     };
 
-    // Set tenant network isolation if NetworkPolicy is configured
-    if (this.networkPolicy) {
+    // Set network: explicit profile.network takes precedence, then NetworkPolicy
+    if (profile.network) {
+      hostConfig.NetworkMode = profile.network;
+    } else if (this.networkPolicy) {
       const networkMode = await this.networkPolicy.prepareForContainer(profile.tenantId);
       hostConfig.NetworkMode = networkMode;
     }
