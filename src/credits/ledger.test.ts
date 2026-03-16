@@ -53,6 +53,24 @@ describe("DrizzleLedger", () => {
       ).rejects.toThrow("Unbalanced");
     });
 
+    it("throws Unbalanced entry (not RangeError) when BigInt totals exceed MAX_SAFE_INTEGER", async () => {
+      // Two debit lines each at MAX_SAFE_INTEGER raw — their BigInt sum exceeds MAX_SAFE_INTEGER.
+      // Before the fix, Credit.fromRaw(Number(totalDebit)) would throw RangeError, masking the real error.
+      const big = Credit.fromRaw(Number.MAX_SAFE_INTEGER);
+      const small = Credit.fromRaw(1);
+      await expect(
+        ledger.post({
+          entryType: "purchase",
+          tenantId: "t1",
+          lines: [
+            { accountCode: "1000", amount: big, side: "debit" },
+            { accountCode: "1000", amount: big, side: "debit" },
+            { accountCode: "2000:t1", amount: small, side: "credit" },
+          ],
+        }),
+      ).rejects.toThrow("Unbalanced entry");
+    });
+
     it("rejects zero-amount lines", async () => {
       await expect(
         ledger.post({
