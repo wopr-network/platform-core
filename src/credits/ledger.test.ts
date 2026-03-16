@@ -425,6 +425,71 @@ describe("DrizzleLedger", () => {
   });
 
   // -----------------------------------------------------------------------
+  // expiredCredits()
+  // -----------------------------------------------------------------------
+
+  describe("expiredCredits()", () => {
+    it("returns entries with expirable types whose expiresAt has passed", async () => {
+      // Post a signup_grant (in EXPIRABLE_CREDIT_TYPES) with an expiresAt in the past
+      await ledger.credit("t1", Credit.fromCents(100), "signup_grant", {
+        expiresAt: "2020-01-01T00:00:00Z",
+      });
+
+      const expired = await ledger.expiredCredits(new Date().toISOString());
+      expect(expired).toHaveLength(1);
+      expect(expired[0].tenantId).toBe("t1");
+      expect(expired[0].amount.toCentsRounded()).toBe(100);
+    });
+
+    it("excludes entries whose type is not in EXPIRABLE_CREDIT_TYPES", async () => {
+      // Post a credit-side entry on the liability account with an unknown entry type
+      // so the liability credit line is present (the subquery finds an amount) but
+      // the allowlist filter must exclude it.
+      await ledger.post({
+        entryType: "marketplace_fee", // NOT in EXPIRABLE_CREDIT_TYPES
+        tenantId: "t1",
+        metadata: { expiresAt: "2020-01-01T00:00:00Z" },
+        lines: [
+          { accountCode: "1000", amount: Credit.fromCents(100), side: "debit" },
+          { accountCode: "2000:t1", amount: Credit.fromCents(100), side: "credit" },
+        ],
+      });
+
+      const expired = await ledger.expiredCredits(new Date().toISOString());
+      expect(expired).toHaveLength(0);
+    });
+
+    it("excludes entries whose expiresAt is in the future", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase", {
+        expiresAt: "2099-01-01T00:00:00Z",
+      });
+
+      const expired = await ledger.expiredCredits(new Date().toISOString());
+      expect(expired).toHaveLength(0);
+    });
+
+    it("excludes entries already clawed back (idempotency)", async () => {
+      const entry = await ledger.credit("t1", Credit.fromCents(100), "purchase", {
+        expiresAt: "2020-01-01T00:00:00Z",
+      });
+
+      // Simulate a prior expiry entry by posting with the expiry referenceId
+      await ledger.post({
+        entryType: "credit_expiry",
+        tenantId: "t1",
+        referenceId: `expiry:${entry.id}`,
+        lines: [
+          { accountCode: "2000:t1", amount: Credit.fromCents(100), side: "debit" },
+          { accountCode: "4060", amount: Credit.fromCents(100), side: "credit" },
+        ],
+      });
+
+      const expired = await ledger.expiredCredits(new Date().toISOString());
+      expect(expired).toHaveLength(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // memberUsage()
   // -----------------------------------------------------------------------
 

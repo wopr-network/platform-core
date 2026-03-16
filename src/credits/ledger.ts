@@ -177,7 +177,7 @@ export const DEBIT_TYPE_ACCOUNT: Record<DebitType, string> = {
  * Only journal entries with these types can be returned by expiredCredits().
  * Derived from CreditType — if you add a new CreditType, add it here too.
  */
-export const EXPIRABLE_CREDIT_TYPES: readonly string[] = [
+export const EXPIRABLE_CREDIT_TYPES = [
   "signup_grant",
   "admin_grant",
   "purchase",
@@ -188,7 +188,7 @@ export const EXPIRABLE_CREDIT_TYPES: readonly string[] = [
   "affiliate_bonus",
   "affiliate_match",
   "correction",
-] as const;
+] as const satisfies readonly CreditType[];
 
 // ---------------------------------------------------------------------------
 // System account seeds
