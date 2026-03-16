@@ -470,7 +470,9 @@ export class DrizzleLedger implements ILedger {
         // We store balance in "normal" direction, so:
         const acctRow = (await tx.execute(
           sql`SELECT normal_side FROM accounts WHERE id = ${accountId}`,
-        )) as unknown as { rows: Array<{ normal_side: Side }> };
+        )) as unknown as {
+          rows: Array<{ normal_side: Side }>;
+        };
         const normalSide = acctRow.rows[0]?.normal_side;
         if (!normalSide) throw new Error(`Account ${accountId} missing normal_side`);
 
