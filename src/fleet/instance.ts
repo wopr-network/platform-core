@@ -49,6 +49,10 @@ export class Instance {
     this.instanceRepo = deps.instanceRepo;
     this.proxyManager = deps.proxyManager;
     this.eventEmitter = deps.eventEmitter;
+  }
+
+  /** Emit bot.created — call only from FleetManager.create(), not getInstance() */
+  emitCreated(): void {
     this.emit("bot.created");
   }
 
@@ -139,11 +143,13 @@ export class Instance {
     }
     try {
       const subdomain = this.profile.name.toLowerCase().replace(/_/g, "-");
+      const envPort = this.profile.env?.PORT;
+      const upstreamPort = envPort ? Number.parseInt(envPort, 10) || 7437 : 7437;
       await this.proxyManager.addRoute({
         instanceId: this.id,
         subdomain,
         upstreamHost: this.containerName,
-        upstreamPort: 7437,
+        upstreamPort,
         healthy: true,
       });
       logger.info("Proxy route registered", { id: this.id, subdomain });

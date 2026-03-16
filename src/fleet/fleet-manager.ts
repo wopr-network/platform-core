@@ -125,7 +125,7 @@ export class FleetManager {
           });
           // Remote bots have no local container — return a remote Instance
           const containerName = `wopr-${profile.name.replace(/_/g, "-")}`;
-          return new Instance({
+          const remoteInstance = new Instance({
             docker: this.docker,
             profile,
             containerId: `remote:${remote.nodeId}`,
@@ -135,6 +135,8 @@ export class FleetManager {
             proxyManager: this.proxyManager,
             eventEmitter: this.eventEmitter,
           });
+          remoteInstance.emitCreated();
+          return remoteInstance;
         } else {
           await this.pullImage(profile.image);
           await this.createContainer(profile, resourceLimits);
@@ -147,7 +149,9 @@ export class FleetManager {
         throw err;
       }
 
-      return this.buildInstance(profile);
+      const instance = await this.buildInstance(profile);
+      instance.emitCreated();
+      return instance;
     };
 
     return hasExplicitId ? this.withLock(id, doCreate) : doCreate();
@@ -396,6 +400,8 @@ export class FleetManager {
     "volumeName",
     "name",
     "discovery",
+    "network",
+    "ephemeral",
   ]);
 
   /**
@@ -578,7 +584,7 @@ export class FleetManager {
         Name: restartPolicyMap[profile.restartPolicy] || "",
       },
       Binds: binds.length > 0 ? binds : undefined,
-      SecurityOpt: isEphemeral ? undefined : ["no-new-privileges"],
+      SecurityOpt: ["no-new-privileges"],
       CapDrop: isEphemeral ? undefined : ["ALL"],
       CapAdd: isEphemeral ? undefined : ["NET_BIND_SERVICE"],
       ReadonlyRootfs: !isEphemeral,
