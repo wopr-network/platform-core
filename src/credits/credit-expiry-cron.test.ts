@@ -104,6 +104,42 @@ describe("runCreditExpiryCron", () => {
     expect(balanceAfterSecond.toCents()).toBe(balanceAfterFirst.toCents());
   });
 
+  it("skips expiry when balance has been fully consumed before cron runs", async () => {
+    // Simulate: grant expires but tenant spent everything before cron ran
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "Promo",
+      referenceId: "promo:fully-consumed",
+      expiresAt: "2026-01-10T00:00:00Z",
+    });
+    // Tenant spends entire balance before expiry cron runs
+    await ledger.debit("tenant-1", Credit.fromCents(500), "bot_runtime", { description: "Full spend" });
+
+    const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
+    // Zero balance — nothing to expire
+    expect(result.processed).toBe(0);
+
+    const balance = await ledger.balance("tenant-1");
+    expect(balance.toCents()).toBe(0);
+  });
+
+  it("only expires remaining balance when usage reduced it between grant and expiry", async () => {
+    // Grant $5, spend $3 before cron, cron should only expire remaining $2
+    await ledger.credit("tenant-1", Credit.fromCents(500), "promo", {
+      description: "Promo",
+      referenceId: "promo:partial-concurrent",
+      expiresAt: "2026-01-10T00:00:00Z",
+    });
+    await ledger.debit("tenant-1", Credit.fromCents(300), "bot_runtime", { description: "Partial spend" });
+
+    const result = await runCreditExpiryCron({ ledger, now: "2026-01-15T00:00:00Z" });
+    expect(result.processed).toBe(1);
+    expect(result.expired).toContain("tenant-1");
+
+    // $5 granted - $3 used - $2 expired = $0
+    const balance = await ledger.balance("tenant-1");
+    expect(balance.toCents()).toBe(0);
+  });
+
   it("does not return unknown entry type even with expiresAt metadata", async () => {
     // Simulate a hypothetical new entry type that has expiresAt in metadata.
     // With the old denylist approach, this would be incorrectly returned.
