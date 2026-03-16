@@ -350,7 +350,26 @@ export function chatCompletions(deps: ProxyDeps) {
         debitCredits(deps, tenant.id, cost, deps.defaultMargin, "chat-completions", "openrouter");
       }
 
-      return new Response(responseBody, {
+      // Sanitize response: strip non-standard OpenRouter fields from usage
+      // (cost, cost_details, is_byok, prompt_tokens_details, completion_tokens_details)
+      // that break downstream AI SDKs expecting standard OpenAI format.
+      let sanitizedBody = responseBody;
+      try {
+        const parsed = JSON.parse(responseBody) as Record<string, unknown>;
+        if (parsed.usage && typeof parsed.usage === "object") {
+          const u = parsed.usage as Record<string, unknown>;
+          parsed.usage = {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+          };
+          sanitizedBody = JSON.stringify(parsed);
+        }
+      } catch {
+        // Forward raw body if parse fails
+      }
+
+      return new Response(sanitizedBody, {
         status: res.status,
         headers: { "Content-Type": "application/json" },
       });
