@@ -260,6 +260,25 @@ describe("DrizzleLedger", () => {
     it("rejects zero amount", async () => {
       await expect(ledger.debit("t1", Credit.ZERO, "bot_runtime")).rejects.toThrow("must be positive");
     });
+
+    it("concurrent debits do not overdraft", async () => {
+      // Balance is $10.00 from beforeEach credit.
+      // Two concurrent $8 debits — only one should succeed.
+      const results = await Promise.allSettled([
+        ledger.debit("t1", Credit.fromCents(800), "bot_runtime"),
+        ledger.debit("t1", Credit.fromCents(800), "bot_runtime"),
+      ]);
+
+      const successes = results.filter((r) => r.status === "fulfilled");
+      const failures = results.filter((r) => r.status === "rejected");
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      expect((failures[0] as PromiseRejectedResult).reason).toBeInstanceOf(InsufficientBalanceError);
+
+      // Balance should be $2.00, not -$6.00
+      const bal = await ledger.balance("t1");
+      expect(bal.toCentsRounded()).toBe(200);
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -333,6 +352,27 @@ describe("DrizzleLedger", () => {
       const tb = await ledger.trialBalance();
       expect(tb.balanced).toBe(true);
       expect(tb.totalDebits.equals(tb.totalCredits)).toBe(true);
+    });
+
+    it("detects imbalance from direct DB corruption", async () => {
+      await ledger.credit("t1", Credit.fromCents(100), "purchase");
+
+      // Corrupt the ledger: insert an unmatched debit line directly into journal_lines.
+      const entryRows = await pool.query<{ id: string }>("SELECT id FROM journal_entries LIMIT 1");
+      const accountRows = await pool.query<{ id: string }>("SELECT id FROM accounts WHERE code = '1000' LIMIT 1");
+      const entryId = entryRows.rows[0].id;
+      const accountId = accountRows.rows[0].id;
+
+      // Insert an unmatched debit line worth 999 raw units — no corresponding credit
+      await pool.query(
+        `INSERT INTO journal_lines (id, journal_entry_id, account_id, amount, side)
+         VALUES ('corrupt-line-1', $1, $2, 999, 'debit')`,
+        [entryId, accountId],
+      );
+
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(false);
+      expect(tb.difference.toRaw()).toBe(999);
     });
   });
 
@@ -597,6 +637,61 @@ describe("DrizzleLedger", () => {
       expect(expense.toCentsRounded()).toBe(100);
 
       // Verify trial balance
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // deadlock prevention — concurrent multi-line entries
+  // -----------------------------------------------------------------------
+
+  describe("deadlock prevention", () => {
+    it("concurrent multi-line entries with overlapping accounts succeed", async () => {
+      // Fund two tenants
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+      await ledger.credit("t2", Credit.fromCents(1000), "purchase");
+
+      // Two entries that touch accounts in potentially reverse order.
+      // Both touch account 4000 (revenue), creating a potential lock conflict.
+      const results = await Promise.allSettled([
+        ledger.debit("t1", Credit.fromCents(50), "bot_runtime"),
+        ledger.debit("t2", Credit.fromCents(30), "bot_runtime"),
+      ]);
+
+      // Both should succeed — lock ordering prevents deadlock
+      expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+
+      // Verify balances are correct
+      expect((await ledger.balance("t1")).toCentsRounded()).toBe(950);
+      expect((await ledger.balance("t2")).toCentsRounded()).toBe(970);
+
+      // Revenue account should reflect both debits
+      expect((await ledger.accountBalance("4000")).toCentsRounded()).toBe(80);
+
+      // Trial balance must still be balanced
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+    });
+
+    it("concurrent multi-line entries on same tenant serialize correctly", async () => {
+      await ledger.credit("t1", Credit.fromCents(1000), "purchase");
+
+      // Two debits on the same tenant, touching overlapping accounts.
+      const results = await Promise.allSettled([
+        ledger.debit("t1", Credit.fromCents(100), "bot_runtime"),
+        ledger.debit("t1", Credit.fromCents(200), "adapter_usage"),
+      ]);
+
+      expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+
+      // Balance: $10 - $1 - $2 = $7
+      expect((await ledger.balance("t1")).toCentsRounded()).toBe(700);
+
+      // Revenue accounts
+      expect((await ledger.accountBalance("4000")).toCentsRounded()).toBe(100); // bot_runtime
+      expect((await ledger.accountBalance("4010")).toCentsRounded()).toBe(200); // adapter_usage
+
       const tb = await ledger.trialBalance();
       expect(tb.balanced).toBe(true);
     });
