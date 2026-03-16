@@ -71,7 +71,7 @@ function base58encode(data: Uint8Array): string {
   }
   for (const byte of data) {
     if (byte !== 0) break;
-    encoded = "1" + encoded;
+    encoded = `1${encoded}`;
   }
   return encoded;
 }

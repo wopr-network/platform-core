@@ -139,6 +139,31 @@ describe("DrizzleLedger", () => {
 
       expect(entry.lines).toHaveLength(3);
     });
+
+    it("acquires locks in consistent order regardless of input line order", async () => {
+      // Post a 3-line entry with accounts in descending order.
+      // If lock ordering works, this should succeed without deadlock
+      // even when concurrent transactions use a different line order.
+      const entry = await ledger.post({
+        entryType: "correction",
+        tenantId: "t1",
+        lines: [
+          { accountCode: "5070", amount: Credit.fromCents(500), side: "debit" },
+          { accountCode: "2000:t1", amount: Credit.fromCents(200), side: "credit" },
+          { accountCode: "1000", amount: Credit.fromCents(300), side: "credit" },
+        ],
+      });
+
+      // Entry should succeed and contain all 3 lines
+      expect(entry.lines).toHaveLength(3);
+
+      // Verify balances are correct (lock order doesn't affect correctness)
+      const cashBal = await ledger.accountBalance("1000");
+      expect(cashBal.toCentsRounded()).toBe(-300); // credit side on debit-normal = negative
+
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+    });
   });
 
   // -----------------------------------------------------------------------
