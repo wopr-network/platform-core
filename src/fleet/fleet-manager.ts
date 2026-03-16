@@ -10,6 +10,7 @@ import type { NetworkPolicy } from "../network/network-policy.js";
 import type { ProxyManagerInterface } from "../proxy/types.js";
 import type { IBotInstanceRepository } from "./bot-instance-repository.js";
 import type { BotEventType, FleetEventEmitter } from "./fleet-event-emitter.js";
+import { Instance } from "./instance.js";
 import type { INodeCommandBus } from "./node-command-bus.js";
 import type { IProfileStore } from "./profile-store.js";
 import { getSharedVolumeConfig } from "./shared-volume-config.js";
@@ -98,10 +99,10 @@ export class FleetManager {
   async create(
     params: Omit<BotProfile, "id"> & { id?: string },
     resourceLimits?: ContainerResourceLimits,
-  ): Promise<BotProfile> {
+  ): Promise<Instance> {
     const id = params.id ?? randomUUID();
     const hasExplicitId = "id" in params && params.id !== undefined;
-    const doCreate = async () => {
+    const doCreate = async (): Promise<Instance> => {
       const profile: BotProfile = { ...params, id };
 
       if (hasExplicitId && (await this.store.get(id))) {
@@ -113,7 +114,6 @@ export class FleetManager {
       try {
         const remote = await this.resolveNodeId(id);
         if (remote) {
-          // Dispatch to remote node agent — it handles pull + create + start
           await remote.commandBus.send(remote.nodeId, {
             type: "bot.start",
             payload: {
@@ -123,8 +123,21 @@ export class FleetManager {
               restart: profile.restartPolicy,
             },
           });
+          // Remote bots have no local container — return a remote Instance
+          const containerName = `wopr-${profile.name.replace(/_/g, "-")}`;
+          const remoteInstance = new Instance({
+            docker: this.docker,
+            profile,
+            containerId: `remote:${remote.nodeId}`,
+            containerName,
+            url: `remote://${remote.nodeId}/${containerName}`,
+            instanceRepo: this.instanceRepo,
+            proxyManager: this.proxyManager,
+            eventEmitter: this.eventEmitter,
+          });
+          remoteInstance.emitCreated();
+          return remoteInstance;
         } else {
-          // Local dockerode fallback
           await this.pullImage(profile.image);
           await this.createContainer(profile, resourceLimits);
         }
@@ -136,119 +149,60 @@ export class FleetManager {
         throw err;
       }
 
-      // Register proxy route for tenant subdomain routing (non-fatal)
-      if (this.proxyManager) {
-        try {
-          const subdomain = profile.name.toLowerCase().replace(/_/g, "-");
-          await this.proxyManager.addRoute({
-            instanceId: profile.id,
-            subdomain,
-            upstreamHost: `wopr-${subdomain}`,
-            upstreamPort: 7437,
-            healthy: true,
-          });
-        } catch (err) {
-          logger.warn("Proxy route registration failed (non-fatal)", { botId: profile.id, err });
-        }
-      }
-
-      this.emitEvent("bot.created", profile.id, profile.tenantId);
-      return profile;
+      const instance = await this.buildInstance(profile);
+      instance.emitCreated();
+      return instance;
     };
 
     return hasExplicitId ? this.withLock(id, doCreate) : doCreate();
   }
 
   /**
-   * Create and immediately start a bot container in one call.
-   * Combines create() + start() for ephemeral container workflows.
+   * Build an Instance from a profile after container creation.
+   * Inspects the Docker container to resolve container name and URL.
    */
-  async createAndStart(
-    params: Omit<BotProfile, "id"> & { id?: string },
-    resourceLimits?: ContainerResourceLimits,
-  ): Promise<BotProfile> {
-    const profile = await this.create(params, resourceLimits);
-    await this.start(profile.id);
-    return profile;
+  private resolvePort(profile: BotProfile): number {
+    const envPort = profile.env?.PORT;
+    return envPort ? Number.parseInt(envPort, 10) || 7437 : 7437;
   }
 
   /**
-   * Start a stopped bot container.
-   * Valid from: stopped, created, exited, dead, error states.
-   * Throws InvalidStateTransitionError if the container is already running.
+   * Get an Instance handle for an existing bot by ID.
+   * Looks up the profile and inspects the Docker container.
    */
-  async start(id: string): Promise<void> {
-    return this.withLock(id, async () => {
-      this.botMetricsTracker?.reset(id);
-      const remote = await this.resolveNodeId(id);
-      if (remote) {
-        const profile = await this.store.get(id);
-        if (!profile) throw new BotNotFoundError(id);
-        await remote.commandBus.send(remote.nodeId, {
-          type: "bot.start",
-          payload: {
-            name: profile.name,
-            image: profile.image,
-            env: profile.env,
-            restart: profile.restartPolicy,
-          },
-        });
-      } else {
-        const container = await this.findContainer(id);
-        if (!container) throw new BotNotFoundError(id);
-        const info = await container.inspect();
-        const validStartStates = new Set(["stopped", "created", "exited", "dead", "error"]);
-        this.assertValidState(id, info.State.Status, "start", validStartStates);
-        await container.start();
-      }
-      if (this.proxyManager) {
-        this.proxyManager.updateHealth(id, true);
-      }
-      logger.info(`Started bot ${id}`);
-      let startedTenantId: string | undefined;
-      try {
-        startedTenantId = (await this.store.get(id))?.tenantId;
-      } catch (err) {
-        logger.warn(`Failed to fetch profile after starting bot ${id}`, { err });
-      }
-      this.emitEvent("bot.started", id, startedTenantId);
-    });
+  async getInstance(id: string): Promise<Instance> {
+    const profile = await this.store.get(id);
+    if (!profile) throw new BotNotFoundError(id);
+    return this.buildInstance(profile);
   }
 
-  /**
-   * Stop a running bot container.
-   * Valid from: running, starting, restarting states.
-   * Throws InvalidStateTransitionError if the container is not running.
-   */
-  async stop(id: string): Promise<void> {
-    return this.withLock(id, async () => {
-      const remote = await this.resolveNodeId(id);
-      if (remote) {
-        const profile = await this.store.get(id);
-        if (!profile) throw new BotNotFoundError(id);
-        await remote.commandBus.send(remote.nodeId, {
-          type: "bot.stop",
-          payload: { name: profile.name },
-        });
-      } else {
-        const container = await this.findContainer(id);
-        if (!container) throw new BotNotFoundError(id);
-        const info = await container.inspect();
-        const validStopStates = new Set(["running", "starting", "restarting"]);
-        this.assertValidState(id, info.State.Status, "stop", validStopStates);
-        await container.stop();
-      }
-      if (this.proxyManager) {
-        this.proxyManager.updateHealth(id, false);
-      }
-      logger.info(`Stopped bot ${id}`);
-      let stoppedTenantId: string | undefined;
-      try {
-        stoppedTenantId = (await this.store.get(id))?.tenantId;
-      } catch (err) {
-        logger.warn(`Failed to fetch profile after stopping bot ${id}`, { err });
-      }
-      this.emitEvent("bot.stopped", id, stoppedTenantId);
+  private async buildInstance(profile: BotProfile): Promise<Instance> {
+    const dockerContainer = await this.findContainer(profile.id);
+    if (!dockerContainer) throw new Error(`Container for ${profile.id} not found after creation`);
+    const info = await dockerContainer.inspect();
+    const containerName = info.Name.replace(/^\//, "");
+    const containerId = info.Id;
+
+    // Resolve URL from network DNS or host port mapping
+    let url: string;
+    const port = this.resolvePort(profile);
+    if (profile.network) {
+      url = `http://${containerName}:${port}`;
+    } else {
+      const portBindings = info.NetworkSettings?.Ports?.[`${port}/tcp`];
+      const hostPort = portBindings?.[0]?.HostPort ?? String(port);
+      url = `http://localhost:${hostPort}`;
+    }
+
+    return new Instance({
+      docker: this.docker,
+      profile,
+      containerId,
+      containerName,
+      url,
+      instanceRepo: this.instanceRepo,
+      proxyManager: this.proxyManager,
+      eventEmitter: this.eventEmitter,
     });
   }
 
@@ -446,6 +400,8 @@ export class FleetManager {
     "volumeName",
     "name",
     "discovery",
+    "network",
+    "ephemeral",
   ]);
 
   /**
@@ -628,10 +584,10 @@ export class FleetManager {
         Name: restartPolicyMap[profile.restartPolicy] || "",
       },
       Binds: binds.length > 0 ? binds : undefined,
-      SecurityOpt: isEphemeral ? undefined : ["no-new-privileges"],
+      SecurityOpt: ["no-new-privileges"],
       CapDrop: isEphemeral ? undefined : ["ALL"],
       CapAdd: isEphemeral ? undefined : ["NET_BIND_SERVICE"],
-      ReadonlyRootfs: isEphemeral ? false : true,
+      ReadonlyRootfs: !isEphemeral,
       Tmpfs: isEphemeral
         ? undefined
         : {

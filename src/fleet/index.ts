@@ -3,6 +3,7 @@ export * from "./fleet-manager.js";
 export type { FleetNotificationListenerDeps } from "./fleet-notification-listener.js";
 export { initFleetNotificationListener } from "./fleet-notification-listener.js";
 export * from "./init-fleet-updater.js";
+export * from "./instance.js";
 export * from "./repository-types.js";
 export * from "./rollout-orchestrator.js";
 export * from "./rollout-strategy.js";

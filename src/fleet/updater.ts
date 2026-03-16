@@ -122,17 +122,12 @@ export class ContainerUpdater {
         });
       });
 
-      // Step 2: Delegate stop -> remove -> recreate to FleetManager.update().
-      // fleet.update() already implements: stop old -> remove old -> create new,
+      // Step 2: Delegate stop -> remove -> recreate -> start to FleetManager.update().
+      // fleet.update() already implements: stop old -> remove old -> create new -> start if was running,
       // with profile rollback if container creation fails.
       await this.fleet.update(botId, { image: profile.image });
 
-      // Step 3: Start the new container only if the old one was running
-      if (wasRunning) {
-        await this.fleet.start(botId);
-      }
-
-      // Step 4: Verify health (only meaningful if container is running)
+      // Step 3: Verify health (only meaningful if container is running)
       if (wasRunning) {
         const healthy = await this.waitForHealthy(botId);
 
@@ -229,7 +224,7 @@ export class ContainerUpdater {
     botId: string,
     previousImage: string,
     previousDigest: string | null,
-    wasRunning: boolean,
+    _wasRunning: boolean,
   ): Promise<UpdateResult> {
     // Use digest-pinned image reference when available to prevent rollback
     // from pulling a newer image that was pushed between the update and rollback.
@@ -237,14 +232,8 @@ export class ContainerUpdater {
     logger.info(`Rolling back bot ${botId} to ${rollbackImage}`);
 
     try {
+      // fleet.update() handles stop -> remove -> recreate -> start-if-was-running internally
       await this.fleet.update(botId, { image: rollbackImage });
-
-      // Only start on rollback if the container was running before the update
-      if (wasRunning) {
-        await this.fleet.start(botId).catch((err) => {
-          logger.warn(`Failed to start bot ${botId} during rollback (may already be running)`, { err });
-        });
-      }
 
       return {
         botId,

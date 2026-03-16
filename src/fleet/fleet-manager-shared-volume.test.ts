@@ -12,8 +12,10 @@ function mockContainer() {
     remove: vi.fn().mockResolvedValue(undefined),
     inspect: vi.fn().mockResolvedValue({
       Id: "container-123",
+      Name: "/wopr-test",
       Created: "2026-01-01T00:00:00Z",
       State: { Status: "running", Running: true, StartedAt: "2026-01-01T00:00:00Z" },
+      NetworkSettings: { Ports: {} },
     }),
     stats: vi.fn().mockResolvedValue({
       cpu_stats: { cpu_usage: { total_usage: 200 }, system_cpu_usage: 2000, online_cpus: 2 },
@@ -28,7 +30,7 @@ function makeDocker(): Docker {
   return {
     pull: vi.fn().mockResolvedValue("stream"),
     createContainer: vi.fn().mockResolvedValue(mockContainer()),
-    listContainers: vi.fn().mockResolvedValue([]),
+    listContainers: vi.fn().mockResolvedValue([{ Id: "container-123" }]),
     getContainer: vi.fn().mockReturnValue(mockContainer()),
     modem: {
       followProgress: vi.fn((_stream: unknown, cb: (err: Error | null) => void) => cb(null)),

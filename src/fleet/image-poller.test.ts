@@ -530,38 +530,38 @@ describe("ContainerUpdater", () => {
   });
 
   it("performs update by pulling, stopping, and recreating", async () => {
-    // The fleet.update method will be called to recreate the container
-    // We need to make sure listContainers returns properly
+    // Trace through doUpdateBot("bot-1"):
+    // 1. getContainerDigest: listContainers + getContainer + inspect + getImage
+    // 2. wasRunning check: listContainers + getContainer + inspect
+    // 3. docker.pull + followProgress
+    // 4. fleet.update(botId, { image }):
+    //    a. findContainer: listContainers + getContainer
+    //    b. inspect (wasRunning check)
+    //    c. pullImage (updates.image set): docker.pull + followProgress
+    //    d. stop + remove
+    //    e. createContainer
+    //    f. findContainer after recreate (wasRunning): listContainers + getContainer
+    //    g. start
+    // 5. waitForHealthy: listContainers + getContainer + inspect
+    // 6. getContainerDigest (final): listContainers + getContainer + inspect + getImage
     docker.listContainers
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // getContainerDigest during updateBot
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // step 2: find container to stop
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.update -> findContainer
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.update -> findContainer after recreate
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.start -> findContainer
-      .mockResolvedValueOnce([{ Id: "container-123" }]); // waitForHealthy
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 1: getContainerDigest
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 2: doUpdateBot wasRunning
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4a: fleet.update -> findContainer
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4f: fleet.update -> findContainer after recreate
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 5: waitForHealthy
+      .mockResolvedValueOnce([{ Id: "container-123" }]); // 6: final getContainerDigest
 
     docker.getContainer.mockReturnValue(container);
 
-    // Sequence inspect calls: first two return "running" (for wasRunning checks in
-    // doUpdateBot and fleet.update), third returns "stopped" so fleet.start()'s
-    // assertValidState guard allows the start, subsequent calls use the default (running+healthy).
     const runningInspect = {
       Id: "container-123",
       Image: "sha256:abc123",
       Created: "2026-01-01T00:00:00Z",
       State: { Status: "running", Running: true, StartedAt: "2026-01-01T00:00:00Z", Health: { Status: "healthy" } },
     };
-    const stoppedInspect = {
-      Id: "container-123",
-      Image: "sha256:abc123",
-      Created: "2026-01-01T00:00:00Z",
-      State: { Status: "stopped", Running: false, StartedAt: "2026-01-01T00:00:00Z", Health: { Status: "healthy" } },
-    };
-    container.inspect
-      .mockResolvedValueOnce(runningInspect) // getContainerDigest: initial digest check
-      .mockResolvedValueOnce(runningInspect) // doUpdateBot: wasRunning check
-      .mockResolvedValueOnce(runningInspect) // fleet.update: wasRunning check
-      .mockResolvedValueOnce(stoppedInspect); // fleet.start: assertValidState (newly recreated container)
+    // All inspect calls return running+healthy (getContainerDigest, wasRunning checks, waitForHealthy, final digest)
+    container.inspect.mockResolvedValue(runningInspect);
 
     const result = await updater.updateBot("bot-1");
     expect(result.success).toBe(true);
@@ -576,36 +576,27 @@ describe("ContainerUpdater", () => {
       resolvePull = cb;
     });
 
+    // After the first followProgress (which hangs), subsequent calls use default (instant resolve)
+    // Trace: getContainerDigest, wasRunning, fleet.update->findContainer,
+    //   fleet.update->findContainer after recreate, waitForHealthy, final getContainerDigest
     docker.listContainers
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // first update: getContainerDigest
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // first update: step 2
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.update
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.start
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // waitForHealthy
-      .mockResolvedValueOnce([{ Id: "container-123" }]); // get new digest
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 1: getContainerDigest
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 2: doUpdateBot wasRunning
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4a: fleet.update -> findContainer
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4f: fleet.update -> findContainer after recreate
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 5: waitForHealthy
+      .mockResolvedValueOnce([{ Id: "container-123" }]); // 6: final getContainerDigest
 
     docker.getContainer.mockReturnValue(container);
 
-    // Sequence inspect calls: first two return "running" (for wasRunning checks in
-    // doUpdateBot and fleet.update), third returns "stopped" so fleet.start()'s
-    // assertValidState guard allows the start.
     const runningInspect = {
       Id: "container-123",
       Image: "sha256:abc123",
       Created: "2026-01-01T00:00:00Z",
       State: { Status: "running", Running: true, StartedAt: "2026-01-01T00:00:00Z", Health: { Status: "healthy" } },
     };
-    const stoppedInspect = {
-      Id: "container-123",
-      Image: "sha256:abc123",
-      Created: "2026-01-01T00:00:00Z",
-      State: { Status: "stopped", Running: false, StartedAt: "2026-01-01T00:00:00Z", Health: { Status: "healthy" } },
-    };
-    container.inspect
-      .mockResolvedValueOnce(runningInspect) // getContainerDigest: initial digest check
-      .mockResolvedValueOnce(runningInspect) // doUpdateBot: wasRunning check
-      .mockResolvedValueOnce(runningInspect) // fleet.update: wasRunning check
-      .mockResolvedValueOnce(stoppedInspect); // fleet.start: assertValidState (newly recreated container)
+    // All inspect calls return running+healthy
+    container.inspect.mockResolvedValue(runningInspect);
 
     // Start first update (will block on pull)
     const first = updater.updateBot("bot-1");
@@ -631,6 +622,7 @@ describe("ContainerUpdater", () => {
     const unhealthyContainer = mockContainer({
       inspect: vi.fn().mockResolvedValue({
         Id: "container-123",
+        Name: "/wopr-test-bot",
         Image: "sha256:new999",
         Created: "2026-01-01T00:00:00Z",
         State: {
@@ -639,25 +631,48 @@ describe("ContainerUpdater", () => {
           StartedAt: "2026-01-01T00:00:00Z",
           Health: { Status: "unhealthy" },
         },
+        NetworkSettings: { Ports: {} },
       }),
     });
 
-    // Make the new container unhealthy so rollback happens
+    // Trace through doUpdateBot("bot-1"):
+    // 1. getContainerDigest: listContainers + getContainer + inspect + getImage
+    // 2. wasRunning check: listContainers + getContainer + inspect
+    // 3. docker.pull + followProgress
+    // 4. fleet.update(botId, { image }):
+    //    a. findContainer: listContainers + getContainer
+    //    b. inspect (wasRunning check in update)
+    //    c. pullImage (updates.image is set): docker.pull + followProgress
+    //    d. stop + remove
+    //    e. createContainer
+    //    f. findContainer after recreate (wasRunning): listContainers + getContainer
+    //    g. start
+    // 5. waitForHealthy: listContainers + getContainer + inspect
+    // 6. unhealthy -> rollback via fleet.update:
+    //    a. findContainer: listContainers + getContainer
+    //    b. inspect (wasRunning)
+    //    c. pullImage: docker.pull + followProgress
+    //    d. stop + remove
+    //    e. createContainer
+    //    f. findContainer after recreate (wasRunning): listContainers + getContainer
+    //    g. start
     docker.listContainers
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // getContainerDigest
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // step 2: find container to stop
-      .mockResolvedValueOnce([]) // fleet.update -> findContainer (no existing)
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // fleet.start
-      .mockResolvedValueOnce([{ Id: "container-123" }]) // waitForHealthy
-      .mockResolvedValueOnce([]) // rollback fleet.update -> findContainer
-      .mockResolvedValueOnce([{ Id: "container-123" }]); // rollback fleet.start
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 1: getContainerDigest
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 2: doUpdateBot wasRunning
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4a: fleet.update -> findContainer
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 4f: fleet.update -> findContainer after recreate
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 5: waitForHealthy
+      .mockResolvedValueOnce([{ Id: "container-123" }]) // 6a: rollback fleet.update -> findContainer
+      .mockResolvedValueOnce([{ Id: "container-123" }]); // 6f: rollback fleet.update -> findContainer after recreate
 
     docker.getContainer
-      .mockReturnValueOnce(container) // getContainerDigest inspect
-      .mockReturnValueOnce(container) // step 2: stop + remove
-      .mockReturnValueOnce(container) // fleet.start
-      .mockReturnValueOnce(unhealthyContainer) // waitForHealthy inspect
-      .mockReturnValueOnce(container); // rollback fleet.start
+      .mockReturnValueOnce(container) // 1: getContainerDigest
+      .mockReturnValueOnce(container) // 2: doUpdateBot wasRunning
+      .mockReturnValueOnce(container) // 4a: fleet.update -> findContainer (stop+remove this)
+      .mockReturnValueOnce(container) // 4f: fleet.update -> findContainer after recreate (start)
+      .mockReturnValueOnce(unhealthyContainer) // 5: waitForHealthy -> unhealthy
+      .mockReturnValueOnce(container) // 6a: rollback fleet.update -> findContainer (stop+remove)
+      .mockReturnValueOnce(container); // 6f: rollback fleet.update -> findContainer after recreate (start)
 
     const result = await updater.updateBot("bot-1");
     expect(result.success).toBe(false);
