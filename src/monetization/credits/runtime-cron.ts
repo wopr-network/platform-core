@@ -130,12 +130,16 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
             referenceId: runtimeRef,
           });
         } else {
-          // Partial deduction — debit remaining balance; suspension handled by common zero-crossing guard below
+          // Partial deduction — balance insufficient to cover full cost; debit what's available and suspend
           if (balance.greaterThan(Credit.ZERO)) {
             await cfg.ledger.debit(tenantId, balance, "bot_runtime", {
               description: `Partial daily runtime (balance exhausted): ${botCount} bot(s)`,
               referenceId: runtimeRef,
             });
+          }
+          if (!result.suspended.includes(tenantId)) {
+            result.suspended.push(tenantId);
+            if (cfg.onSuspend) await cfg.onSuspend(tenantId);
           }
         }
         didBillAnything = true;
