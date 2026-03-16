@@ -1,4 +1,5 @@
 export * from "./drizzle-tenant-update-config-repository.js";
+export * from "./fleet-manager.js";
 export type { FleetNotificationListenerDeps } from "./fleet-notification-listener.js";
 export { initFleetNotificationListener } from "./fleet-notification-listener.js";
 export * from "./init-fleet-updater.js";
