@@ -121,146 +121,135 @@ export async function runRuntimeDeductions(cfg: RuntimeCronConfig): Promise<Runt
       const totalCost = DAILY_BOT_COST.multiply(botCount);
       let didBillAnything = false;
 
-      if (!balance.lessThan(totalCost)) {
-        // Full deduction — skip runtime debit if already billed on a previous run
-        if (!runtimeAlreadyBilled) {
+      // Bill runtime debit (skipped if already billed on a previous run)
+      if (!runtimeAlreadyBilled) {
+        if (!balance.lessThan(totalCost)) {
+          // Full deduction
           await cfg.ledger.debit(tenantId, totalCost, "bot_runtime", {
             description: `Daily runtime: ${botCount} bot(s) x $${DAILY_BOT_COST.toDollars().toFixed(2)}`,
             referenceId: runtimeRef,
           });
-          didBillAnything = true;
-        }
-
-        // Debit resource tier surcharges (if any) — independent idempotency
-        if (cfg.getResourceTierCosts) {
-          const tierRef = `runtime-tier:${cfg.date}:${tenantId}`;
-          if (!(await cfg.ledger.hasReferenceId(tierRef))) {
-            const tierCost = await cfg.getResourceTierCosts(tenantId);
-            if (!tierCost.isZero()) {
-              const balanceAfterRuntime = await cfg.ledger.balance(tenantId);
-              if (!balanceAfterRuntime.lessThan(tierCost)) {
-                await cfg.ledger.debit(tenantId, tierCost, "resource_upgrade", {
-                  description: "Daily resource tier surcharge",
-                  referenceId: tierRef,
-                });
-              } else if (balanceAfterRuntime.greaterThan(Credit.ZERO)) {
-                await cfg.ledger.debit(tenantId, balanceAfterRuntime, "resource_upgrade", {
-                  description: "Partial resource tier surcharge (balance exhausted)",
-                  referenceId: tierRef,
-                });
-              }
-              didBillAnything = true;
-            }
-          }
-        }
-
-        const newBalance = await cfg.ledger.balance(tenantId);
-
-        // Fire onLowBalance if balance crossed below threshold from above
-        if (
-          newBalance.greaterThan(Credit.ZERO) &&
-          !newBalance.greaterThan(LOW_BALANCE_THRESHOLD) &&
-          balance.greaterThan(LOW_BALANCE_THRESHOLD) &&
-          cfg.onLowBalance
-        ) {
-          await cfg.onLowBalance(tenantId, newBalance);
-        }
-
-        // Fire onCreditsExhausted if balance just hit 0
-        if (!newBalance.greaterThan(Credit.ZERO) && balance.greaterThan(Credit.ZERO) && cfg.onCreditsExhausted) {
-          await cfg.onCreditsExhausted(tenantId);
-        }
-
-        // Suspend tenant when balance hits zero after full deduction (zero-crossing guard)
-        if (
-          !newBalance.greaterThan(Credit.ZERO) &&
-          balance.greaterThan(Credit.ZERO) &&
-          !result.suspended.includes(tenantId)
-        ) {
-          result.suspended.push(tenantId);
-          if (cfg.onSuspend) {
-            await cfg.onSuspend(tenantId);
-          }
-        }
-
-        // Debit storage tier surcharges (if any) — independent idempotency
-        if (cfg.getStorageTierCosts) {
-          const storageRef = `runtime-storage:${cfg.date}:${tenantId}`;
-          if (!(await cfg.ledger.hasReferenceId(storageRef))) {
-            const storageCost = await cfg.getStorageTierCosts(tenantId);
-            if (!storageCost.isZero()) {
-              const currentBalance = await cfg.ledger.balance(tenantId);
-              if (!currentBalance.lessThan(storageCost)) {
-                await cfg.ledger.debit(tenantId, storageCost, "storage_upgrade", {
-                  description: "Daily storage tier surcharge",
-                  referenceId: storageRef,
-                });
-              } else {
-                // Partial debit — take what's left, then suspend
-                if (currentBalance.greaterThan(Credit.ZERO)) {
-                  await cfg.ledger.debit(tenantId, currentBalance, "storage_upgrade", {
-                    description: "Partial storage tier surcharge (balance exhausted)",
-                    referenceId: storageRef,
-                  });
-                }
-                if (!result.suspended.includes(tenantId)) {
-                  result.suspended.push(tenantId);
-                  if (cfg.onSuspend) await cfg.onSuspend(tenantId);
-                }
-              }
-              didBillAnything = true;
-            }
-          }
-        }
-
-        // Debit infrastructure add-on costs (if any) — independent idempotency
-        if (cfg.getAddonCosts) {
-          const addonRef = `runtime-addon:${cfg.date}:${tenantId}`;
-          if (!(await cfg.ledger.hasReferenceId(addonRef))) {
-            const addonCost = await cfg.getAddonCosts(tenantId);
-            if (!addonCost.isZero()) {
-              const currentBalance = await cfg.ledger.balance(tenantId);
-              if (!currentBalance.lessThan(addonCost)) {
-                await cfg.ledger.debit(tenantId, addonCost, "addon", {
-                  description: "Daily infrastructure add-on charges",
-                  referenceId: addonRef,
-                });
-              } else {
-                // Partial debit — take what's left, then suspend
-                if (currentBalance.greaterThan(Credit.ZERO)) {
-                  await cfg.ledger.debit(tenantId, currentBalance, "addon", {
-                    description: "Partial add-on charges (balance exhausted)",
-                    referenceId: addonRef,
-                  });
-                }
-                if (!result.suspended.includes(tenantId)) {
-                  result.suspended.push(tenantId);
-                  if (cfg.onSuspend) await cfg.onSuspend(tenantId);
-                }
-              }
-              didBillAnything = true;
-            }
-          }
-        }
-      } else {
-        // Partial deduction — debit remaining balance, then suspend
-        if (!runtimeAlreadyBilled) {
+        } else {
+          // Partial deduction — debit remaining balance; suspension handled by common zero-crossing guard below
           if (balance.greaterThan(Credit.ZERO)) {
             await cfg.ledger.debit(tenantId, balance, "bot_runtime", {
               description: `Partial daily runtime (balance exhausted): ${botCount} bot(s)`,
               referenceId: runtimeRef,
             });
           }
+        }
+        didBillAnything = true;
+      }
 
-          if (cfg.onCreditsExhausted) {
-            await cfg.onCreditsExhausted(tenantId);
+      // Debit resource tier surcharges (if any) — independent idempotency
+      if (cfg.getResourceTierCosts) {
+        const tierRef = `runtime-tier:${cfg.date}:${tenantId}`;
+        if (!(await cfg.ledger.hasReferenceId(tierRef))) {
+          const tierCost = await cfg.getResourceTierCosts(tenantId);
+          if (!tierCost.isZero()) {
+            const balanceAfterRuntime = await cfg.ledger.balance(tenantId);
+            if (!balanceAfterRuntime.lessThan(tierCost)) {
+              await cfg.ledger.debit(tenantId, tierCost, "resource_upgrade", {
+                description: "Daily resource tier surcharge",
+                referenceId: tierRef,
+              });
+            } else if (balanceAfterRuntime.greaterThan(Credit.ZERO)) {
+              await cfg.ledger.debit(tenantId, balanceAfterRuntime, "resource_upgrade", {
+                description: "Partial resource tier surcharge (balance exhausted)",
+                referenceId: tierRef,
+              });
+            }
+            didBillAnything = true;
           }
+        }
+      }
 
-          result.suspended.push(tenantId);
-          if (cfg.onSuspend) {
-            await cfg.onSuspend(tenantId);
+      const newBalance = await cfg.ledger.balance(tenantId);
+
+      // Fire onLowBalance if balance crossed below threshold from above
+      if (
+        newBalance.greaterThan(Credit.ZERO) &&
+        !newBalance.greaterThan(LOW_BALANCE_THRESHOLD) &&
+        balance.greaterThan(LOW_BALANCE_THRESHOLD) &&
+        cfg.onLowBalance
+      ) {
+        await cfg.onLowBalance(tenantId, newBalance);
+      }
+
+      // Fire onCreditsExhausted if balance just hit 0
+      if (!newBalance.greaterThan(Credit.ZERO) && balance.greaterThan(Credit.ZERO) && cfg.onCreditsExhausted) {
+        await cfg.onCreditsExhausted(tenantId);
+      }
+
+      // Suspend tenant when balance hits zero (zero-crossing guard)
+      if (
+        !newBalance.greaterThan(Credit.ZERO) &&
+        balance.greaterThan(Credit.ZERO) &&
+        !result.suspended.includes(tenantId)
+      ) {
+        result.suspended.push(tenantId);
+        if (cfg.onSuspend) {
+          await cfg.onSuspend(tenantId);
+        }
+      }
+
+      // Debit storage tier surcharges (if any) — independent idempotency
+      if (cfg.getStorageTierCosts) {
+        const storageRef = `runtime-storage:${cfg.date}:${tenantId}`;
+        if (!(await cfg.ledger.hasReferenceId(storageRef))) {
+          const storageCost = await cfg.getStorageTierCosts(tenantId);
+          if (!storageCost.isZero()) {
+            const currentBalance = await cfg.ledger.balance(tenantId);
+            if (!currentBalance.lessThan(storageCost)) {
+              await cfg.ledger.debit(tenantId, storageCost, "storage_upgrade", {
+                description: "Daily storage tier surcharge",
+                referenceId: storageRef,
+              });
+            } else {
+              // Partial debit — take what's left, then suspend
+              if (currentBalance.greaterThan(Credit.ZERO)) {
+                await cfg.ledger.debit(tenantId, currentBalance, "storage_upgrade", {
+                  description: "Partial storage tier surcharge (balance exhausted)",
+                  referenceId: storageRef,
+                });
+              }
+              if (!result.suspended.includes(tenantId)) {
+                result.suspended.push(tenantId);
+                if (cfg.onSuspend) await cfg.onSuspend(tenantId);
+              }
+            }
+            didBillAnything = true;
           }
-          didBillAnything = true;
+        }
+      }
+
+      // Debit infrastructure add-on costs (if any) — independent idempotency
+      if (cfg.getAddonCosts) {
+        const addonRef = `runtime-addon:${cfg.date}:${tenantId}`;
+        if (!(await cfg.ledger.hasReferenceId(addonRef))) {
+          const addonCost = await cfg.getAddonCosts(tenantId);
+          if (!addonCost.isZero()) {
+            const currentBalance = await cfg.ledger.balance(tenantId);
+            if (!currentBalance.lessThan(addonCost)) {
+              await cfg.ledger.debit(tenantId, addonCost, "addon", {
+                description: "Daily infrastructure add-on charges",
+                referenceId: addonRef,
+              });
+            } else {
+              // Partial debit — take what's left, then suspend
+              if (currentBalance.greaterThan(Credit.ZERO)) {
+                await cfg.ledger.debit(tenantId, currentBalance, "addon", {
+                  description: "Partial add-on charges (balance exhausted)",
+                  referenceId: addonRef,
+                });
+              }
+              if (!result.suspended.includes(tenantId)) {
+                result.suspended.push(tenantId);
+                if (cfg.onSuspend) await cfg.onSuspend(tenantId);
+              }
+            }
+            didBillAnything = true;
+          }
         }
       }
 
