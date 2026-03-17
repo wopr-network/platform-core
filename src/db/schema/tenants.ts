@@ -7,7 +7,7 @@ export const tenants = pgTable(
     id: text("id").primaryKey(), // nanoid or crypto.randomUUID()
     name: text("name").notNull(),
     slug: text("slug").unique(),
-    type: text("type").notNull(), // "personal" | "org"
+    type: text("type").notNull(), // "personal" | "org" | "platform_service"
     ownerId: text("owner_id").notNull(), // user who created it
     billingEmail: text("billing_email"),
     createdAt: bigint("created_at", { mode: "number" })
@@ -18,6 +18,6 @@ export const tenants = pgTable(
     index("idx_tenants_slug").on(table.slug),
     index("idx_tenants_owner").on(table.ownerId),
     index("idx_tenants_type").on(table.type),
-    check("chk_tenants_type", sql`${table.type} IN ('personal', 'org')`),
+    check("chk_tenants_type", sql`${table.type} IN ('personal', 'org', 'platform_service')`),
   ],
 );
