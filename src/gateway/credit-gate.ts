@@ -54,6 +54,13 @@ export async function creditBalanceCheck(
   if (!deps.creditLedger) return null;
 
   const tenant = c.get("gatewayTenant");
+
+  // Platform service accounts bypass the pre-call balance gate.
+  // The company never 402s itself. Debit still runs post-call for P&L tracking.
+  if (tenant.type === "platform_service") {
+    return null;
+  }
+
   const balance = await deps.creditLedger.balance(tenant.id);
   const required = Math.max(0, estimatedCostCents);
   const graceBuffer = deps.graceBufferCents ?? 50; // default -$0.50

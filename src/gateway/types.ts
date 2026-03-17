@@ -47,6 +47,8 @@ export interface GatewayEndpoint {
 export interface GatewayTenant {
   /** Tenant ID */
   id: string;
+  /** Tenant type — platform_service accounts bypass the pre-call credit gate */
+  type?: "personal" | "org" | "platform_service";
   /** Spend limits for budget checking */
   spendLimits: SpendLimits;
   /** Plan tier for rate limit lookup */
