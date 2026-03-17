@@ -14,6 +14,7 @@ export interface GatewayAuthEnv {
   Variables: {
     gatewayTenant: GatewayTenant;
     webhookBody: Record<string, unknown>;
+    attributedTenantId: string | null;
   };
 }
 
@@ -90,6 +91,8 @@ export function serviceKeyAuth(
     }
 
     c.set("gatewayTenant", tenant);
+    const attributedTenantId = c.req.header("x-attribute-to") ?? null;
+    c.set("attributedTenantId", attributedTenantId);
     return next();
   };
 }

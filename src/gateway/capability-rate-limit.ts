@@ -94,7 +94,8 @@ export function capabilityRateLimit(
     }
 
     const tenant = c.get("gatewayTenant") as GatewayTenant | undefined;
-    const tenantId = tenant?.id ?? "unknown";
+    const attributedTenantId = c.get("attributedTenantId") as string | null | undefined;
+    const tenantId = attributedTenantId ?? tenant?.id ?? "unknown";
     const max = limits[category];
     const scope = `cap:${category}`;
     const now = Date.now();
