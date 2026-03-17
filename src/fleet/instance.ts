@@ -43,6 +43,9 @@ export class Instance {
   private readonly eventEmitter: FleetEventEmitter | undefined;
   private readonly botMetricsTracker: BotMetricsTracker | undefined;
 
+  /** Simple per-instance mutex to serialize start/stop/restart/remove. */
+  private lockPromise = Promise.resolve();
+
   constructor(deps: InstanceDeps) {
     this.id = deps.profile.id;
     this.containerId = deps.containerId;
@@ -56,30 +59,65 @@ export class Instance {
     this.botMetricsTracker = deps.botMetricsTracker;
   }
 
+  /**
+   * Remote instances have containerId like "remote:node-3".
+   * Local Docker operations are not supported — callers (e.g. wopr-platform)
+   * handle remote delegation at a higher level via NodeCommandBus.
+   */
+  private get isRemote(): boolean {
+    return this.containerId.startsWith("remote:");
+  }
+
+  private assertLocal(operation: string): void {
+    if (this.isRemote) {
+      throw new Error(`${operation} is not supported on remote instances — use node agent`);
+    }
+  }
+
+  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const prev = this.lockPromise;
+    let resolve!: () => void;
+    this.lockPromise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    try {
+      await prev;
+      return await fn();
+    } finally {
+      resolve();
+    }
+  }
+
   /** Emit bot.created — call only from FleetManager.create(), not getInstance() */
   emitCreated(): void {
     this.emit("bot.created");
   }
 
   async start(): Promise<void> {
-    const container = this.docker.getContainer(this.containerId);
-    await container.start();
-    logger.info(`Instance started`, { id: this.id, containerName: this.containerName, url: this.url });
-    this.emit("bot.started");
+    this.assertLocal("start()");
+    return this.withLock(async () => {
+      const container = this.docker.getContainer(this.containerId);
+      await container.start();
+      logger.info(`Instance started`, { id: this.id, containerName: this.containerName, url: this.url });
+      this.emit("bot.started");
+    });
   }
 
   async stop(): Promise<void> {
-    const container = this.docker.getContainer(this.containerId);
-    try {
-      await container.stop({ t: 10 });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes("not running") && !msg.includes("already stopped")) {
-        throw err;
+    this.assertLocal("stop()");
+    return this.withLock(async () => {
+      const container = this.docker.getContainer(this.containerId);
+      try {
+        await container.stop({ t: 10 });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes("not running") && !msg.includes("already stopped")) {
+          throw err;
+        }
       }
-    }
-    logger.info(`Instance stopped`, { id: this.id, containerName: this.containerName });
-    this.emit("bot.stopped");
+      logger.info(`Instance stopped`, { id: this.id, containerName: this.containerName });
+      this.emit("bot.stopped");
+    });
   }
 
   /**
@@ -87,19 +125,23 @@ export class Instance {
    * Callers that need an image update should call pullImage() first.
    */
   async restart(): Promise<void> {
-    const container = this.docker.getContainer(this.containerId);
-    const info = await container.inspect();
-    const validStates = new Set(["running", "stopped", "exited", "dead"]);
-    const currentState = typeof info.State.Status === "string" && info.State.Status ? info.State.Status : "unknown";
-    if (!validStates.has(currentState)) {
-      throw new Error(
-        `Cannot restart instance ${this.id}: container is in state "${currentState}". ` +
-          `Valid states: ${[...validStates].join(", ")}.`,
-      );
-    }
-    await container.restart();
-    logger.info(`Instance restarted`, { id: this.id, containerName: this.containerName });
-    this.emit("bot.restarted");
+    this.assertLocal("restart()");
+    return this.withLock(async () => {
+      this.botMetricsTracker?.reset(this.id);
+      const container = this.docker.getContainer(this.containerId);
+      const info = await container.inspect();
+      const validStates = new Set(["running", "stopped", "exited", "dead"]);
+      const currentState = typeof info.State.Status === "string" && info.State.Status ? info.State.Status : "unknown";
+      if (!validStates.has(currentState)) {
+        throw new Error(
+          `Cannot restart instance ${this.id}: container is in state "${currentState}". ` +
+            `Valid states: ${[...validStates].join(", ")}.`,
+        );
+      }
+      await container.restart();
+      logger.info(`Instance restarted`, { id: this.id, containerName: this.containerName });
+      this.emit("bot.restarted");
+    });
   }
 
   /**
@@ -107,6 +149,7 @@ export class Instance {
    * Call before restart() to update the image before restarting.
    */
   async pullImage(): Promise<void> {
+    this.assertLocal("pullImage()");
     logger.info(`Pulling image ${this.profile.image}`, { id: this.id });
     const username = process.env.REGISTRY_USERNAME;
     const password = process.env.REGISTRY_PASSWORD;
@@ -123,33 +166,37 @@ export class Instance {
   }
 
   async remove(removeVolumes = false): Promise<void> {
-    const container = this.docker.getContainer(this.containerId);
-    try {
-      await container.stop({ t: 5 }).catch(() => {});
-      await container.remove({ force: true, v: removeVolumes });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes("No such container")) {
-        throw err;
-      }
-    }
-
-    if (this.proxyManager) {
+    this.assertLocal("remove()");
+    return this.withLock(async () => {
+      const container = this.docker.getContainer(this.containerId);
       try {
-        await this.proxyManager.removeRoute(this.id);
-      } catch (err) {
-        logger.warn("Proxy route cleanup failed (non-fatal)", { id: this.id, err });
+        await container.stop({ t: 5 }).catch(() => {});
+        await container.remove({ force: true, v: removeVolumes });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes("No such container")) {
+          throw err;
+        }
       }
-    }
 
-    logger.info(`Instance removed`, { id: this.id, containerName: this.containerName });
-    this.emit("bot.removed");
+      if (this.proxyManager) {
+        try {
+          await this.proxyManager.removeRoute(this.id);
+        } catch (err) {
+          logger.warn("Proxy route cleanup failed (non-fatal)", { id: this.id, err });
+        }
+      }
+
+      logger.info(`Instance removed`, { id: this.id, containerName: this.containerName });
+      this.emit("bot.removed");
+    });
   }
 
   /**
    * Simple container state check (running / stopped / gone).
    */
   async containerState(): Promise<"running" | "stopped" | "gone"> {
+    this.assertLocal("containerState()");
     try {
       const container = this.docker.getContainer(this.containerId);
       const info = await container.inspect();
@@ -164,6 +211,7 @@ export class Instance {
    * and application metrics. Returns BotStatus.
    */
   async status(): Promise<BotStatus> {
+    this.assertLocal("status()");
     try {
       const container = this.docker.getContainer(this.containerId);
       const info = await container.inspect();
@@ -202,6 +250,7 @@ export class Instance {
    * Get container logs (demultiplexed to plain text).
    */
   async logs(tail = 100): Promise<string> {
+    this.assertLocal("logs()");
     const container = this.docker.getContainer(this.containerId);
     const logBuffer = await container.logs({
       stdout: true,
@@ -233,6 +282,7 @@ export class Instance {
    * Caller is responsible for destroying the stream when done.
    */
   async logStream(opts: { since?: string; tail?: number }): Promise<NodeJS.ReadableStream> {
+    this.assertLocal("logStream()");
     const container = this.docker.getContainer(this.containerId);
     const logOpts: Record<string, unknown> = {
       stdout: true,
@@ -263,6 +313,7 @@ export class Instance {
    * Returns null if the container is not running or exec fails.
    */
   async getVolumeUsage(): Promise<{ usedBytes: number; totalBytes: number; availableBytes: number } | null> {
+    this.assertLocal("getVolumeUsage()");
     try {
       const container = this.docker.getContainer(this.containerId);
       const info = await container.inspect();
