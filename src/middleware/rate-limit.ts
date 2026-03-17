@@ -13,7 +13,7 @@ import type { Context, MiddlewareHandler, Next } from "hono";
 import { getClientIpFromContext } from "./get-client-ip.js";
 import type { IRateLimitRepository } from "./rate-limit-repository.js";
 
-export { getClientIp, parseTrustedProxies } from "./get-client-ip.js";
+export { getClientIp, isPrivateIp, parseTrustedProxies } from "./get-client-ip.js";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -13,7 +13,7 @@ import type { Context, MiddlewareHandler, Next } from "hono";
 import type { IRateLimitRepository } from "../rate-limit-repository.js";
 import { getClientIpFromContext } from "./get-client-ip.js";
 
-export { getClientIp, parseTrustedProxies } from "./get-client-ip.js";
+export { getClientIp, isPrivateIp, parseTrustedProxies } from "./get-client-ip.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -202,8 +202,12 @@ const FLEET_CREATE_LIMIT: Omit<RateLimitConfig, "repo" | "scope"> = { max: 30 };
 /** Fleet read operations (GET /fleet/*): 120 req/min */
 const FLEET_READ_LIMIT: Omit<RateLimitConfig, "repo" | "scope"> = { max: 120 };
 
-/** Default for everything else: 60 req/min */
-const DEFAULT_LIMIT: Omit<RateLimitConfig, "repo" | "scope"> = { max: 60 };
+/** Default for everything else: 200 req/min.
+ * A single Next.js page load triggers ~60-70 REST requests (sidebar, credits,
+ * session validation, marketplace, etc.). 60 was too low and caused users to
+ * hit rate limits on their first page load. Sensitive endpoints (auth, billing,
+ * signup) have their own stricter limits below. */
+const DEFAULT_LIMIT: Omit<RateLimitConfig, "repo" | "scope"> = { max: 200 };
 
 /** Auth login: 5 failed attempts per 15 minutes (WOP-839) */
 const AUTH_LOGIN_LIMIT: Omit<RateLimitConfig, "repo" | "scope"> = {
