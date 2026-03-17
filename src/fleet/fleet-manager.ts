@@ -14,7 +14,7 @@ import { Instance } from "./instance.js";
 import type { INodeCommandBus } from "./node-command-bus.js";
 import type { IProfileStore } from "./profile-store.js";
 import { getSharedVolumeConfig } from "./shared-volume-config.js";
-import type { BotProfile, BotStatus, ContainerStats } from "./types.js";
+import type { BotProfile, BotStatus } from "./types.js";
 
 const CONTAINER_LABEL = "wopr.managed";
 const CONTAINER_ID_LABEL = "wopr.bot-id";
@@ -134,6 +134,7 @@ export class FleetManager {
             instanceRepo: this.instanceRepo,
             proxyManager: this.proxyManager,
             eventEmitter: this.eventEmitter,
+            botMetricsTracker: this.botMetricsTracker,
           });
           remoteInstance.emitCreated();
           return remoteInstance;
@@ -203,46 +204,15 @@ export class FleetManager {
       instanceRepo: this.instanceRepo,
       proxyManager: this.proxyManager,
       eventEmitter: this.eventEmitter,
-    });
-  }
-
-  /**
-   * Restart: pull new image BEFORE restarting container to avoid downtime on pull failure.
-   * Valid from: running, stopped, exited, dead states.
-   * Throws InvalidStateTransitionError if the container is in an invalid state (e.g. paused).
-   * For remote bots, delegates to the node agent via NodeCommandBus.
-   */
-  async restart(id: string): Promise<void> {
-    return this.withLock(id, async () => {
-      this.botMetricsTracker?.reset(id);
-      const profile = await this.store.get(id);
-      if (!profile) throw new BotNotFoundError(id);
-
-      const remote = await this.resolveNodeId(id);
-      if (remote) {
-        await remote.commandBus.send(remote.nodeId, {
-          type: "bot.restart",
-          payload: { name: profile.name },
-        });
-      } else {
-        // Pull new image first — if this fails, old container is unchanged
-        await this.pullImage(profile.image);
-
-        const container = await this.findContainer(id);
-        if (!container) throw new BotNotFoundError(id);
-        const info = await container.inspect();
-        const validRestartStates = new Set(["running", "stopped", "exited", "dead"]);
-        this.assertValidState(id, info.State.Status, "restart", validRestartStates);
-        await container.restart();
-      }
-      logger.info(`Restarted bot ${id}`);
-      this.emitEvent("bot.restarted", id, profile.tenantId);
+      botMetricsTracker: this.botMetricsTracker,
     });
   }
 
   /**
    * Remove a bot: stop container, remove it, optionally remove volumes, delete profile.
    * For remote bots, delegates stop+remove to the node agent via NodeCommandBus.
+   * Container removal is delegated to Instance.remove(); fleet-level cleanup
+   * (profile store, network policy) stays here.
    */
   async remove(id: string, removeVolumes = false): Promise<void> {
     return this.withLock(id, async () => {
@@ -256,13 +226,11 @@ export class FleetManager {
           payload: { name: profile.name, removeVolumes },
         });
       } else {
-        const container = await this.findContainer(id);
-        if (container) {
-          const info = await container.inspect();
-          if (info.State.Running) {
-            await container.stop();
-          }
-          await container.remove({ v: removeVolumes });
+        try {
+          const instance = await this.buildInstance(profile);
+          await instance.remove(removeVolumes);
+        } catch {
+          // Container may already be gone — not fatal for fleet-level cleanup
         }
       }
 
@@ -272,9 +240,6 @@ export class FleetManager {
       }
 
       await this.store.delete(id);
-      if (this.proxyManager) {
-        this.proxyManager.removeRoute(id);
-      }
       logger.info(`Removed bot ${id}`);
       this.emitEvent("bot.removed", id, profile.tenantId);
     });
@@ -282,17 +247,13 @@ export class FleetManager {
 
   /**
    * Get live status of a single bot.
+   * Delegates to Instance.status() which returns a full BotStatus.
+   * Falls back to offline status when no container exists.
    */
   async status(id: string): Promise<BotStatus> {
     const profile = await this.store.get(id);
     if (!profile) throw new BotNotFoundError(id);
-
-    const container = await this.findContainer(id);
-    if (!container) {
-      return this.offlineStatus(profile);
-    }
-
-    return this.buildStatus(profile, container);
+    return this.statusForProfile(profile);
   }
 
   /**
@@ -313,41 +274,17 @@ export class FleetManager {
   }
 
   /**
-   * Get container logs.
+   * Get container logs. Delegates to Instance.logs().
    */
   async logs(id: string, tail = 100): Promise<string> {
-    const container = await this.findContainer(id);
-    if (!container) throw new BotNotFoundError(id);
-
-    const logBuffer = await container.logs({
-      stdout: true,
-      stderr: true,
-      tail,
-      timestamps: true,
-    });
-
-    // Docker returns multiplexed binary frames when Tty is false (the default).
-    // Demultiplex by stripping the 8-byte header from each frame so callers
-    // receive plain text instead of binary garbage interleaved with log lines.
-    const buf = Buffer.isBuffer(logBuffer) ? logBuffer : Buffer.from(logBuffer as unknown as string, "binary");
-    const chunks: Buffer[] = [];
-    let offset = 0;
-    while (offset + 8 <= buf.length) {
-      const frameSize = buf.readUInt32BE(offset + 4);
-      const end = offset + 8 + frameSize;
-      if (end > buf.length) break;
-      chunks.push(buf.subarray(offset + 8, end));
-      offset = end;
-    }
-    // If demux produced nothing (e.g. TTY container), fall back to raw string
-    return chunks.length > 0 ? Buffer.concat(chunks).toString("utf-8") : buf.toString("utf-8");
+    const instance = await this.getInstance(id);
+    return instance.logs(tail);
   }
 
   /**
    * Stream container logs in real-time (follow mode).
-   * Returns a Node.js ReadableStream that emits plain-text log chunks (already demultiplexed).
    * For remote bots, proxies via node-agent bot.logs command and returns a one-shot stream.
-   * Caller is responsible for destroying the stream when done.
+   * For local bots, delegates to Instance.logStream().
    */
   async logStream(id: string, opts: { since?: string; tail?: number }): Promise<NodeJS.ReadableStream> {
     // Check for remote node assignment first (mirrors start/stop/restart pattern)
@@ -365,31 +302,20 @@ export class FleetManager {
       return pt;
     }
 
-    const container = await this.findContainer(id);
-    if (!container) throw new BotNotFoundError(id);
+    const instance = await this.getInstance(id);
+    return instance.logStream(opts);
+  }
 
-    const logOpts: Record<string, unknown> = {
-      stdout: true,
-      stderr: true,
-      follow: true,
-      tail: opts.tail ?? 100,
-      timestamps: true,
-    };
-    if (opts.since) {
-      logOpts.since = opts.since;
+  /**
+   * Get disk usage for a bot's /data volume. Delegates to Instance.getVolumeUsage().
+   */
+  async getVolumeUsage(id: string): Promise<{ usedBytes: number; totalBytes: number; availableBytes: number } | null> {
+    try {
+      const instance = await this.getInstance(id);
+      return instance.getVolumeUsage();
+    } catch {
+      return null;
     }
-
-    // Docker returns a multiplexed binary stream when Tty is false (the default for
-    // containers created by createContainer without Tty:true). Demultiplex it so
-    // callers receive plain text without 8-byte binary frame headers.
-    const multiplexed = (await container.logs(logOpts)) as unknown as NodeJS.ReadableStream;
-    const pt = new PassThrough();
-    (
-      this.docker.modem as unknown as {
-        demuxStream(stream: NodeJS.ReadableStream, stdout: PassThrough, stderr: PassThrough): void;
-      }
-    ).demuxStream(multiplexed, pt, pt);
-    return pt;
   }
 
   /** Fields that require container recreation when changed. */
@@ -465,75 +391,12 @@ export class FleetManager {
     });
   }
 
-  /**
-   * Get disk usage for a bot's /data volume.
-   * Returns null if the container is not running or exec fails.
-   */
-  async getVolumeUsage(id: string): Promise<{ usedBytes: number; totalBytes: number; availableBytes: number } | null> {
-    const container = await this.findContainer(id);
-    if (!container) return null;
-
-    try {
-      const info = await container.inspect();
-      if (!info.State.Running) return null;
-
-      const exec = await container.exec({
-        Cmd: ["df", "-B1", "/data"],
-        AttachStdout: true,
-        AttachStderr: false,
-      });
-
-      const output = await new Promise<string>((resolve, reject) => {
-        exec.start({}, (err: Error | null, stream: import("node:stream").Duplex | undefined) => {
-          if (err) return reject(err);
-          if (!stream) return reject(new Error("No stream from exec"));
-          let data = "";
-          stream.on("data", (chunk: Buffer) => {
-            data += chunk.toString();
-          });
-          stream.on("end", () => resolve(data));
-          stream.on("error", reject);
-        });
-      });
-
-      // Parse df output — second line has the numbers
-      const lines = output.trim().split("\n");
-      if (lines.length < 2) return null;
-
-      const parts = lines[lines.length - 1].split(/\s+/);
-      if (parts.length < 4) return null;
-
-      const totalBytes = parseInt(parts[1], 10);
-      const usedBytes = parseInt(parts[2], 10);
-      const availableBytes = parseInt(parts[3], 10);
-
-      if (Number.isNaN(totalBytes) || Number.isNaN(usedBytes) || Number.isNaN(availableBytes)) return null;
-
-      return { usedBytes, totalBytes, availableBytes };
-    } catch {
-      logger.warn(`Failed to get volume usage for bot ${id}`);
-      return null;
-    }
-  }
-
   /** Get the underlying profile store */
   get profiles(): IProfileStore {
     return this.store;
   }
 
   // --- Private helpers ---
-
-  /**
-   * Assert that a container's current state is valid for the requested operation.
-   * Guards against undefined/null Status values from Docker (uses "unknown" as fallback).
-   * Throws InvalidStateTransitionError when the state is not in validStates.
-   */
-  private assertValidState(id: string, rawStatus: unknown, operation: string, validStates: Set<string>): void {
-    const currentState = typeof rawStatus === "string" && rawStatus ? rawStatus : "unknown";
-    if (!validStates.has(currentState)) {
-      throw new InvalidStateTransitionError(id, operation, currentState, [...validStates]);
-    }
-  }
 
   private async pullImage(image: string): Promise<void> {
     logger.info(`Pulling image ${image}`);
@@ -655,77 +518,28 @@ export class FleetManager {
   }
 
   private async statusForProfile(profile: BotProfile): Promise<BotStatus> {
-    const container = await this.findContainer(profile.id);
-    if (!container) return this.offlineStatus(profile);
-    return this.buildStatus(profile, container);
-  }
-
-  private async buildStatus(profile: BotProfile, container: Docker.Container): Promise<BotStatus> {
-    const info = await container.inspect();
-
-    let stats: ContainerStats | null = null;
-    if (info.State.Running) {
-      try {
-        stats = await this.getStats(container);
-      } catch {
-        // stats not available
-      }
+    try {
+      const instance = await this.buildInstance(profile);
+      return instance.status();
+    } catch {
+      // Container not found — return offline status
+      const now = new Date().toISOString();
+      return {
+        id: profile.id,
+        name: profile.name,
+        description: profile.description,
+        image: profile.image,
+        containerId: null,
+        state: "stopped",
+        health: null,
+        uptime: null,
+        startedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        stats: null,
+        applicationMetrics: null,
+      };
     }
-
-    const now = new Date().toISOString();
-    return {
-      id: profile.id,
-      name: profile.name,
-      description: profile.description,
-      image: profile.image,
-      containerId: info.Id,
-      state: info.State.Status as BotStatus["state"],
-      health: info.State.Health?.Status ?? null,
-      uptime: info.State.Running && info.State.StartedAt ? info.State.StartedAt : null,
-      startedAt: info.State.StartedAt || null,
-      createdAt: info.Created || now,
-      updatedAt: now,
-      stats,
-      applicationMetrics: this.botMetricsTracker?.getMetrics(profile.id) ?? null,
-    };
-  }
-
-  private offlineStatus(profile: BotProfile): BotStatus {
-    const now = new Date().toISOString();
-    return {
-      id: profile.id,
-      name: profile.name,
-      description: profile.description,
-      image: profile.image,
-      containerId: null,
-      state: "stopped",
-      health: null,
-      uptime: null,
-      startedAt: null,
-      createdAt: now,
-      updatedAt: now,
-      stats: null,
-      applicationMetrics: null,
-    };
-  }
-
-  private async getStats(container: Docker.Container): Promise<ContainerStats> {
-    const raw = await container.stats({ stream: false });
-
-    const cpuDelta = raw.cpu_stats.cpu_usage.total_usage - raw.precpu_stats.cpu_usage.total_usage;
-    const systemDelta = raw.cpu_stats.system_cpu_usage - raw.precpu_stats.system_cpu_usage;
-    const numCpus = raw.cpu_stats.online_cpus || 1;
-    const cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
-
-    const memUsage = raw.memory_stats.usage || 0;
-    const memLimit = raw.memory_stats.limit || 1;
-
-    return {
-      cpuPercent: Math.round(cpuPercent * 100) / 100,
-      memoryUsageMb: Math.round(memUsage / 1024 / 1024),
-      memoryLimitMb: Math.round(memLimit / 1024 / 1024),
-      memoryPercent: Math.round((memUsage / memLimit) * 100 * 100) / 100,
-    };
   }
 }
 
@@ -733,24 +547,5 @@ export class BotNotFoundError extends Error {
   constructor(id: string) {
     super(`Bot not found: ${id}`);
     this.name = "BotNotFoundError";
-  }
-}
-
-export class InvalidStateTransitionError extends Error {
-  readonly botId: string;
-  readonly operation: string;
-  readonly currentState: string;
-  readonly validStates: string[];
-
-  constructor(botId: string, operation: string, currentState: string, validStates: string[]) {
-    super(
-      `Cannot ${operation} bot ${botId}: container is in state "${currentState}". ` +
-        `Valid states for ${operation}: ${validStates.join(", ")}.`,
-    );
-    this.name = "InvalidStateTransitionError";
-    this.botId = botId;
-    this.operation = operation;
-    this.currentState = currentState;
-    this.validStates = validStates;
   }
 }

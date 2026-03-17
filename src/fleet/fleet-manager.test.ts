@@ -157,73 +157,7 @@ describe("FleetManager", () => {
     });
   });
 
-  describe("restart", () => {
-    it("pulls image before restarting a running container", async () => {
-      // Store the profile first; default mockContainer has state "running" — valid for restart
-      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
-      docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
-
-      await fleet.restart("bot-id");
-
-      // Pull is called first
-      expect(docker.pull).toHaveBeenCalledWith(PROFILE_PARAMS.image, {});
-      // Then restart
-      expect(container.restart).toHaveBeenCalled();
-    });
-
-    it("restarts a container in exited state (crash recovery)", async () => {
-      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
-      container.inspect.mockResolvedValue({
-        Id: "container-123",
-        Created: "2026-01-01T00:00:00Z",
-        State: { Status: "exited", Running: false, StartedAt: "", Health: null },
-      });
-      docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
-
-      await fleet.restart("bot-id");
-      expect(container.restart).toHaveBeenCalled();
-    });
-
-    it("restarts a container in stopped state", async () => {
-      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
-      container.inspect.mockResolvedValue({
-        Id: "container-123",
-        Created: "2026-01-01T00:00:00Z",
-        State: { Status: "stopped", Running: false, StartedAt: "", Health: null },
-      });
-      docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
-
-      await fleet.restart("bot-id");
-      expect(container.restart).toHaveBeenCalled();
-    });
-
-    it("restarts a container in dead state (crash recovery)", async () => {
-      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
-      container.inspect.mockResolvedValue({
-        Id: "container-123",
-        Created: "2026-01-01T00:00:00Z",
-        State: { Status: "dead", Running: false, StartedAt: "", Health: null },
-      });
-      docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
-
-      await fleet.restart("bot-id");
-      expect(container.restart).toHaveBeenCalled();
-    });
-
-    it("does not restart if pull fails", async () => {
-      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
-      docker.modem.followProgress.mockImplementation((_stream: unknown, cb: (err: Error | null) => void) =>
-        cb(new Error("Pull failed")),
-      );
-
-      await expect(fleet.restart("bot-id")).rejects.toThrow("Pull failed");
-      expect(container.restart).not.toHaveBeenCalled();
-    });
-
-    it("throws BotNotFoundError for missing profile", async () => {
-      await expect(fleet.restart("missing")).rejects.toThrow(BotNotFoundError);
-    });
-  });
+  // restart tests moved to instance.test.ts — Instance.restart() + Instance.pullImage()
 
   describe("remove", () => {
     it("stops running container, removes it, and deletes profile", async () => {
@@ -233,7 +167,7 @@ describe("FleetManager", () => {
       await fleet.remove("bot-id");
 
       expect(container.stop).toHaveBeenCalled();
-      expect(container.remove).toHaveBeenCalledWith({ v: false });
+      expect(container.remove).toHaveBeenCalledWith({ force: true, v: false });
       expect(store.delete).toHaveBeenCalledWith("bot-id");
     });
 
@@ -243,7 +177,7 @@ describe("FleetManager", () => {
 
       await fleet.remove("bot-id", true);
 
-      expect(container.remove).toHaveBeenCalledWith({ v: true });
+      expect(container.remove).toHaveBeenCalledWith({ force: true, v: true });
     });
 
     it("deletes profile even when no container exists", async () => {
@@ -304,6 +238,7 @@ describe("FleetManager", () => {
 
   describe("logs", () => {
     it("returns container logs", async () => {
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
 
       const logs = await fleet.logs("bot-id", 50);
@@ -312,8 +247,7 @@ describe("FleetManager", () => {
       expect(logs).toContain("log line 1");
     });
 
-    it("throws BotNotFoundError when container not found", async () => {
-      docker.listContainers.mockResolvedValue([]);
+    it("throws BotNotFoundError when profile not found", async () => {
       await expect(fleet.logs("missing")).rejects.toThrow(BotNotFoundError);
     });
   });
@@ -323,6 +257,7 @@ describe("FleetManager", () => {
       const { PassThrough } = await import("node:stream");
       const mockStream = new PassThrough();
       container.logs.mockResolvedValue(mockStream);
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
 
       const stream = await fleet.logStream("bot-id", { since: "2026-01-01T00:00:00Z", tail: 50 });
@@ -346,6 +281,7 @@ describe("FleetManager", () => {
       const { PassThrough } = await import("node:stream");
       const mockStream = new PassThrough();
       container.logs.mockResolvedValue(mockStream);
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
 
       await fleet.logStream("bot-id", {});
@@ -359,8 +295,7 @@ describe("FleetManager", () => {
       mockStream.destroy();
     });
 
-    it("throws BotNotFoundError when container not found", async () => {
-      docker.listContainers.mockResolvedValue([]);
+    it("throws BotNotFoundError when profile not found", async () => {
       await expect(fleet.logStream("missing", {})).rejects.toThrow(BotNotFoundError);
     });
 
@@ -718,44 +653,7 @@ describe("FleetManager", () => {
       expect(docker.pull).toHaveBeenCalled();
     });
 
-    it("should dispatch restart via commandBus when bot has nodeId", async () => {
-      const container = mockContainer();
-      const docker = mockDocker(container);
-      const store = mockStore();
-      const bus = mockCommandBus();
-      const instanceRepo = mockInstanceRepo();
-
-      const botId = "bot-restart-1";
-      await instanceRepo.create({ id: botId, tenantId: "t1", name: "restart-bot", nodeId: "node-3" });
-
-      const fleet = new FleetManager(
-        docker as unknown as Docker,
-        store,
-        undefined,
-        undefined,
-        undefined,
-        bus,
-        instanceRepo,
-      );
-
-      await store.save({
-        id: botId,
-        tenantId: "t1",
-        name: "restart-bot",
-        description: "",
-        image: "ghcr.io/wopr-network/wopr:latest",
-        env: {},
-        restartPolicy: "unless-stopped",
-      } as BotProfile);
-
-      await fleet.restart(botId);
-
-      expect(bus.send).toHaveBeenCalledWith("node-3", {
-        type: "bot.restart",
-        payload: { name: "restart-bot" },
-      });
-      expect(container.restart).not.toHaveBeenCalled();
-    });
+    // remote restart test removed — restart moved to Instance
 
     it("should dispatch remove via commandBus when bot has nodeId", async () => {
       const container = mockContainer();
@@ -850,6 +748,7 @@ describe("FleetManager", () => {
       const containerWithExec = mockContainer({
         exec: vi.fn().mockResolvedValue(execMock),
       });
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValue(containerWithExec);
 
@@ -875,6 +774,7 @@ describe("FleetManager", () => {
           State: { Running: false },
         }),
       });
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValue(stoppedContainer);
 
@@ -886,6 +786,7 @@ describe("FleetManager", () => {
       const containerWithFailingExec = mockContainer({
         exec: vi.fn().mockRejectedValue(new Error("exec failed")),
       });
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([{ Id: "container-123" }]);
       docker.getContainer.mockReturnValue(containerWithFailingExec);
 
