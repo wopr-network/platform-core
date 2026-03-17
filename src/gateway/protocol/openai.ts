@@ -146,6 +146,7 @@ export function createOpenAIRoutes(deps: ProtocolDeps): Hono<GatewayAuthEnv> {
 function chatCompletionsHandler(deps: ProtocolDeps) {
   return async (c: Context<GatewayAuthEnv>) => {
     const tenant = c.get("gatewayTenant");
+    const attributedTenantId = c.get("attributedTenantId");
 
     // Budget check
     const budgetResult = await deps.budgetChecker.check(tenant.id, tenant.spendLimits);
@@ -241,7 +242,16 @@ function chatCompletionsHandler(deps: ProtocolDeps) {
             provider: "openrouter",
             timestamp: Date.now(),
           });
-          debitCredits(deps, tenant.id, costUsd, deps.defaultMargin, "chat-completions", "openrouter");
+          debitCredits(
+            deps,
+            tenant.id,
+            costUsd,
+            deps.defaultMargin,
+            "chat-completions",
+            "openrouter",
+            undefined,
+            attributedTenantId,
+          );
         }
 
         return new Response(res.body, {
@@ -277,7 +287,16 @@ function chatCompletionsHandler(deps: ProtocolDeps) {
           provider: "openrouter",
           timestamp: Date.now(),
         });
-        debitCredits(deps, tenant.id, costUsd, deps.defaultMargin, "chat-completions", "openrouter");
+        debitCredits(
+          deps,
+          tenant.id,
+          costUsd,
+          deps.defaultMargin,
+          "chat-completions",
+          "openrouter",
+          undefined,
+          attributedTenantId,
+        );
       }
 
       return new Response(responseBody, {
@@ -309,6 +328,7 @@ function chatCompletionsHandler(deps: ProtocolDeps) {
 function embeddingsHandler(deps: ProtocolDeps) {
   return async (c: Context<GatewayAuthEnv>) => {
     const tenant = c.get("gatewayTenant");
+    const attributedTenantId = c.get("attributedTenantId");
 
     // Budget check
     const budgetResult = await deps.budgetChecker.check(tenant.id, tenant.spendLimits);
@@ -391,7 +411,16 @@ function embeddingsHandler(deps: ProtocolDeps) {
           provider: "openrouter",
           timestamp: Date.now(),
         });
-        debitCredits(deps, tenant.id, costUsd, deps.defaultMargin, "embeddings", "openrouter");
+        debitCredits(
+          deps,
+          tenant.id,
+          costUsd,
+          deps.defaultMargin,
+          "embeddings",
+          "openrouter",
+          undefined,
+          attributedTenantId,
+        );
       }
 
       return new Response(responseBody, {

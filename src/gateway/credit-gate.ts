@@ -100,6 +100,7 @@ export async function debitCredits(
   capability: string,
   provider: string,
   attributedUserId?: string,
+  attributedTenantId?: string | null,
 ): Promise<void> {
   if (!deps.creditLedger) return;
 
@@ -122,6 +123,7 @@ export async function debitCredits(
       description: `Gateway ${capability} via ${provider}`,
       allowNegative: true,
       attributedUserId,
+      ...(attributedTenantId ? { attributed_tenant_id: attributedTenantId } : {}),
     });
 
     // Only fire on first zero-crossing (balance was positive before, now ≤ 0)

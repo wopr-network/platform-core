@@ -136,6 +136,7 @@ export function createAnthropicRoutes(deps: ProtocolDeps): Hono<GatewayAuthEnv> 
 function messagesHandler(deps: ProtocolDeps) {
   return async (c: Context<GatewayAuthEnv>) => {
     const tenant = c.get("gatewayTenant");
+    const attributedTenantId = c.get("attributedTenantId");
 
     // Budget check
     const budgetResult = await deps.budgetChecker.check(tenant.id, tenant.spendLimits);
@@ -224,7 +225,16 @@ function messagesHandler(deps: ProtocolDeps) {
             provider: "openrouter",
             timestamp: Date.now(),
           });
-          debitCredits(deps, tenant.id, costUsd, deps.defaultMargin, "chat-completions", "openrouter");
+          debitCredits(
+            deps,
+            tenant.id,
+            costUsd,
+            deps.defaultMargin,
+            "chat-completions",
+            "openrouter",
+            undefined,
+            attributedTenantId,
+          );
         }
 
         return new Response(res.body, {
