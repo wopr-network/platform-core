@@ -762,6 +762,7 @@ describe("FleetManager", () => {
     });
 
     it("returns null when container is not found", async () => {
+      await store.save({ id: "bot-id", ...PROFILE_PARAMS });
       docker.listContainers.mockResolvedValue([]);
       const result = await fleet.getVolumeUsage("bot-id");
       expect(result).toBeNull();
