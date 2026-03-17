@@ -32,6 +32,9 @@ export async function runCreditExpiryCron(cfg: CreditExpiryCronConfig): Promise<
 
   for (const grant of expiredGrants) {
     try {
+      // debitCapped never throws InsufficientBalanceError — it caps at the
+      // available balance and returns null when balance is zero. The catch
+      // below handles unexpected errors (DB failures, constraint violations).
       const entry = await cfg.ledger.debitCapped(grant.tenantId, grant.amount, "credit_expiry", {
         description: `Expired credit grant reclaimed: ${grant.entryId}`,
         referenceId: `expiry:${grant.entryId}`,

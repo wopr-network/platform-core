@@ -572,14 +572,28 @@ export class DrizzleLedger implements ILedger {
     const tenantAccountCode = `2000:${tenantId}`;
 
     // Everything happens inside ONE transaction so the FOR UPDATE lock is held
-    // continuously from balance read through journal posting. Previous attempts
-    // used two sequential transactions, releasing the lock between read and write.
+    // continuously from balance read through journal posting (TOCTOU-safe).
     return this.db.transaction(async (tx) => {
-      // Step 1: Ensure tenant account exists and lock it.
-      const tenantAccountId = await this.ensureTenantAccountLocked(tx, tenantId);
+      // Step 1: Lock BOTH accounts in accountCode-sorted order to match post()'s
+      // lock ordering and prevent ABBA deadlocks. For type="refund" the credit
+      // account is "1000" which sorts before "2000:<tenant>", so we must lock it
+      // first — the same order post() would use.
+      const sortedCodes = [tenantAccountCode, creditAccountCode].sort();
+      const lockedIds = new Map<string, string>();
+      for (const code of sortedCodes) {
+        if (code.startsWith("2000:")) {
+          lockedIds.set(code, await this.ensureTenantAccountLocked(tx, code.slice(5)));
+        } else {
+          lockedIds.set(code, await this.resolveAccountLocked(tx, code));
+        }
+      }
+      const tenantAccountId = lockedIds.get(tenantAccountCode);
+      const creditAccountId = lockedIds.get(creditAccountCode);
+      if (!tenantAccountId || !creditAccountId) {
+        throw new Error("Failed to resolve account IDs during debitCapped");
+      }
 
       // Step 2: Read balance while holding the lock.
-      // raw SQL: Drizzle cannot express JOIN in a FOR-UPDATE-locked balance read
       const balRows = (await tx.execute(
         sql`SELECT ab.balance FROM account_balances ab
             INNER JOIN accounts a ON a.id = ab.account_id
@@ -596,7 +610,7 @@ export class DrizzleLedger implements ILedger {
 
       // Step 4: Insert journal entry header.
       const entryId = crypto.randomUUID();
-      const now = opts?.createdBy ? new Date().toISOString() : new Date().toISOString();
+      const now = new Date().toISOString();
 
       await tx.insert(journalEntries).values({
         id: entryId,
@@ -609,8 +623,7 @@ export class DrizzleLedger implements ILedger {
         createdBy: opts?.createdBy ?? "system",
       });
 
-      // Step 5: Resolve credit-side account with lock (tenant account already locked).
-      const creditAccountId = await this.resolveAccountLocked(tx, creditAccountCode);
+      // Step 5: Both accounts already locked in step 1 — no additional locking needed.
 
       // Step 6: Insert journal lines.
       // Debit line (tenant liability account — reduces balance)
