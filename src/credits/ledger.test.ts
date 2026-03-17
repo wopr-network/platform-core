@@ -714,4 +714,74 @@ describe("DrizzleLedger", () => {
       expect(tb.balanced).toBe(true);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // debitCapped()
+  // -----------------------------------------------------------------------
+
+  describe("debitCapped()", () => {
+    it("caps debit at current balance when maxAmount exceeds balance", async () => {
+      await ledger.credit("tenant-cap", Credit.fromCents(300), "promo", {
+        description: "Test grant",
+      });
+
+      const entry = await ledger.debitCapped(
+        "tenant-cap",
+        Credit.fromCents(500), // maxAmount > balance
+        "credit_expiry",
+        { description: "Expiry test", referenceId: "expiry:test-cap" },
+      );
+
+      if (entry === null) throw new Error("expected non-null entry");
+      // Should have debited 300 (the balance), not 500 (the maxAmount)
+      const debitLine = entry.lines.find((l) => l.accountCode === "2000:tenant-cap" && l.side === "debit");
+      if (!debitLine) throw new Error("expected debit line");
+      expect(debitLine.amount.toCents()).toBe(300);
+
+      const balance = await ledger.balance("tenant-cap");
+      expect(balance.toCents()).toBe(0);
+    });
+
+    it("returns null when balance is zero", async () => {
+      const entry = await ledger.debitCapped("tenant-zero", Credit.fromCents(500), "credit_expiry", {
+        description: "Expiry test",
+        referenceId: "expiry:test-zero",
+      });
+
+      expect(entry).toBeNull();
+    });
+
+    it("debits exact maxAmount when balance exceeds it", async () => {
+      await ledger.credit("tenant-over", Credit.fromCents(1000), "purchase", {
+        description: "Big deposit",
+      });
+
+      const entry = await ledger.debitCapped("tenant-over", Credit.fromCents(300), "credit_expiry", {
+        description: "Partial expiry",
+        referenceId: "expiry:test-over",
+      });
+
+      if (entry === null) throw new Error("expected non-null entry");
+      const debitLine = entry.lines.find((l) => l.accountCode === "2000:tenant-over" && l.side === "debit");
+      if (!debitLine) throw new Error("expected debit line");
+      expect(debitLine.amount.toCents()).toBe(300);
+
+      const balance = await ledger.balance("tenant-over");
+      expect(balance.toCents()).toBe(700);
+    });
+
+    it("books balance correctly after capped debit (trial balance holds)", async () => {
+      await ledger.credit("tenant-tb", Credit.fromCents(200), "promo", {
+        description: "Small grant",
+      });
+
+      await ledger.debitCapped("tenant-tb", Credit.fromCents(500), "credit_expiry", {
+        description: "Expiry",
+        referenceId: "expiry:test-tb",
+      });
+
+      const tb = await ledger.trialBalance();
+      expect(tb.balanced).toBe(true);
+    });
+  });
 });
