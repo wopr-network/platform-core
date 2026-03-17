@@ -272,12 +272,19 @@ describe("trusted proxy validation", () => {
     vi.useRealTimers();
   });
 
-  it("ignores X-Forwarded-For when TRUSTED_PROXY_IPS is not set", () => {
+  it("auto-trusts private IPs even when TRUSTED_PROXY_IPS is not set", () => {
     const trusted = parseTrustedProxies(undefined);
     expect(trusted.size).toBe(0);
 
+    // Private IPs are auto-trusted — XFF is used
     const ip = getClientIp("spoofed-ip", "192.168.1.100", trusted);
-    expect(ip).toBe("192.168.1.100");
+    expect(ip).toBe("spoofed-ip");
+  });
+
+  it("ignores X-Forwarded-For from public IPs when TRUSTED_PROXY_IPS is not set", () => {
+    const trusted = parseTrustedProxies(undefined);
+    const ip = getClientIp("spoofed-ip", "203.0.113.1", trusted);
+    expect(ip).toBe("203.0.113.1");
   });
 
   it("trusts X-Forwarded-For when socket address is in TRUSTED_PROXY_IPS", () => {
