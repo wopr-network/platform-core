@@ -227,7 +227,8 @@ export async function listBots(): Promise<BotSummary[]> {
 }
 
 export async function listMarketplacePlugins(): Promise<PluginManifest[]> {
-  const raw = await apiFetch<unknown[]>("/marketplace/plugins");
+  const res = await apiFetch<{ plugins: unknown[] } | unknown[]>("/marketplace/plugins");
+  const raw = Array.isArray(res) ? res : res.plugins;
   return raw.map((item) => parseManifestSafe(item)).filter((r): r is PluginManifest => r !== null);
 }
 
