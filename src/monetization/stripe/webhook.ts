@@ -127,18 +127,25 @@ export async function handleWebhookEvent(deps: WebhookDeps, event: Stripe.Event)
       const session = event.data.object as Stripe.Checkout.Session;
       const tenant = session.client_reference_id ?? session.metadata?.wopr_tenant;
 
-      if (!tenant || !session.customer) {
+      if (!tenant) {
         result = { handled: false, event_type: event.type };
         break;
       }
 
-      const customerId = typeof session.customer === "string" ? session.customer : session.customer.id;
+      const customerId = session.customer
+        ? typeof session.customer === "string"
+          ? session.customer
+          : session.customer.id
+        : null;
 
-      // Upsert tenant-to-customer mapping (no subscription).
-      await deps.tenantRepo.upsert({
-        tenant,
-        processorCustomerId: customerId,
-      });
+      // Upsert tenant-to-customer mapping only when a customer ID is present
+      // (guest checkouts have no Stripe customer).
+      if (customerId) {
+        await deps.tenantRepo.upsert({
+          tenant,
+          processorCustomerId: customerId,
+        });
+      }
 
       // Determine credit amount from price metadata or payment amount.
       const amountPaid = session.amount_total; // in cents
