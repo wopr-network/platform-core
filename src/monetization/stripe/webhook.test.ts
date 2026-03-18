@@ -171,13 +171,18 @@ describe("handleWebhookEvent (credit model)", () => {
       });
     });
 
-    it("returns handled:false when customer is missing", async () => {
+    it("handles guest checkout when customer is null (tenant known via client_reference_id)", async () => {
       const event = createCheckoutEvent({
         customer: null,
       });
       const result = await handleWebhookEvent(deps, event);
 
-      expect(result.handled).toBe(false);
+      // Guest checkout: no Stripe customer, but tenant is known — should still credit.
+      expect(result.handled).toBe(true);
+      expect(result.tenant).toBeDefined();
+      // No customer mapping should be stored for a guest checkout.
+      const mapping = await tenantRepo.getByTenant(result.tenant ?? "");
+      expect(mapping).toBeNull();
     });
 
     it("returns creditedCents:0 when amount_total is 0", async () => {
