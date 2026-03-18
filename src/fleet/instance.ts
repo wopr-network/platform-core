@@ -59,6 +59,22 @@ export class Instance {
     this.botMetricsTracker = deps.botMetricsTracker;
   }
 
+  /** Serialize to a plain object safe for JSON.stringify / tRPC responses. */
+  toJSON(): Record<string, unknown> {
+    return {
+      id: this.id,
+      containerId: this.containerId,
+      containerName: this.containerName,
+      url: this.url,
+      name: this.profile.name,
+      image: this.profile.image,
+      tenantId: this.profile.tenantId,
+      env: this.profile.env,
+      restartPolicy: this.profile.restartPolicy,
+      nodeId: this.profile.nodeId,
+    };
+  }
+
   /**
    * Remote instances have containerId like "remote:node-3".
    * Local Docker operations are not supported — callers (e.g. wopr-platform)
