@@ -4,6 +4,43 @@ import type { KeyServerDeps } from "../key-server.js";
 import { createKeyServerApp } from "../key-server.js";
 import type { IPaymentMethodStore } from "../payment-method-store.js";
 
+/** Create a mock db that supports transaction() by passing itself to the callback. */
+function createMockDb() {
+  const mockMethod = {
+    id: "btc",
+    type: "native",
+    token: "BTC",
+    chain: "bitcoin",
+    xpub: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
+    nextIndex: 1,
+    decimals: 8,
+    confirmations: 6,
+  };
+
+  const db = {
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([mockMethod]),
+        }),
+      }),
+    }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoNothing: vi.fn().mockResolvedValue({ rowCount: 1 }),
+      }),
+    }),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      }),
+    }),
+    // transaction() passes itself as tx — mocks work the same way
+    transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => fn(db)),
+  };
+  return db;
+}
+
 /** Minimal mock deps for key server tests. */
 function mockDeps(): KeyServerDeps & {
   chargeStore: { [K in keyof ICryptoChargeRepository]: ReturnType<typeof vi.fn> };
@@ -56,34 +93,7 @@ function mockDeps(): KeyServerDeps & {
     setEnabled: vi.fn().mockResolvedValue(undefined),
   };
   return {
-    db: {
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([
-              {
-                id: "btc",
-                type: "native",
-                token: "BTC",
-                chain: "bitcoin",
-                xpub: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
-                nextIndex: 1,
-                decimals: 8,
-                confirmations: 6,
-              },
-            ]),
-          }),
-        }),
-      }),
-      insert: vi.fn().mockReturnValue({
-        values: vi.fn().mockResolvedValue(undefined),
-      }),
-      select: vi.fn().mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([]),
-        }),
-      }),
-    } as never,
+    db: createMockDb() as never,
     chargeStore: chargeStore as never,
     methodStore: methodStore as never,
   };
@@ -142,6 +152,16 @@ describe("key-server routes", () => {
     expect(res.status).toBe(404);
   });
 
+  it("POST /charges validates amountUsd", async () => {
+    const app = createKeyServerApp(mockDeps());
+    const res = await app.request("/charges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chain: "btc", amountUsd: -10 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("POST /charges creates a charge", async () => {
     const app = createKeyServerApp(mockDeps());
     const res = await app.request("/charges", {
@@ -157,8 +177,12 @@ describe("key-server routes", () => {
   });
 
   it("GET /admin/next-path returns available path", async () => {
-    const app = createKeyServerApp(mockDeps());
-    const res = await app.request("/admin/next-path?coin_type=0");
+    const deps = mockDeps();
+    deps.adminToken = "test-admin";
+    const app = createKeyServerApp(deps);
+    const res = await app.request("/admin/next-path?coin_type=0", {
+      headers: { Authorization: "Bearer test-admin" },
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.path).toBe("m/44'/0'/0'");
@@ -167,9 +191,57 @@ describe("key-server routes", () => {
 
   it("DELETE /admin/chains/:id disables chain", async () => {
     const deps = mockDeps();
+    deps.adminToken = "test-admin";
     const app = createKeyServerApp(deps);
-    const res = await app.request("/admin/chains/doge", { method: "DELETE" });
+    const res = await app.request("/admin/chains/doge", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer test-admin" },
+    });
     expect(res.status).toBe(204);
     expect(deps.methodStore.setEnabled).toHaveBeenCalledWith("doge", false);
+  });
+});
+
+describe("key-server auth", () => {
+  it("rejects unauthenticated request when serviceKey is set", async () => {
+    const deps = mockDeps();
+    deps.serviceKey = "sk-test-secret";
+    const app = createKeyServerApp(deps);
+    const res = await app.request("/address", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chain: "btc" }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("allows authenticated request with correct serviceKey", async () => {
+    const deps = mockDeps();
+    deps.serviceKey = "sk-test-secret";
+    const app = createKeyServerApp(deps);
+    const res = await app.request("/address", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer sk-test-secret" },
+      body: JSON.stringify({ chain: "btc" }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it("rejects admin route without adminToken", async () => {
+    const deps = mockDeps();
+    // no adminToken set — admin routes disabled
+    const app = createKeyServerApp(deps);
+    const res = await app.request("/admin/next-path?coin_type=0");
+    expect(res.status).toBe(403);
+  });
+
+  it("allows admin route with correct adminToken", async () => {
+    const deps = mockDeps();
+    deps.adminToken = "admin-secret";
+    const app = createKeyServerApp(deps);
+    const res = await app.request("/admin/next-path?coin_type=0", {
+      headers: { Authorization: "Bearer admin-secret" },
+    });
+    expect(res.status).toBe(200);
   });
 });

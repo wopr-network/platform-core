@@ -20,50 +20,65 @@ export interface KeyServerDeps {
   db: DrizzleDb;
   chargeStore: ICryptoChargeRepository;
   methodStore: IPaymentMethodStore;
+  /** Bearer token for product API routes. If unset, auth is disabled. */
+  serviceKey?: string;
+  /** Bearer token for admin routes. If unset, admin routes are disabled. */
+  adminToken?: string;
 }
 
 /**
  * Derive the next unused address for a chain.
- * Atomically increments next_index — never reuses.
+ * Atomically increments next_index and records address in a single transaction.
  */
 async function deriveNextAddress(
   db: DrizzleDb,
   chainId: string,
   tenantId?: string,
 ): Promise<{ address: string; index: number; chain: string; token: string }> {
-  // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
-  const [method] = await db
-    .update(paymentMethods)
-    .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
-    .where(eq(paymentMethods.id, chainId))
-    .returning();
+  // Wrap in transaction: if the address insert fails, next_index is not consumed.
+  return (db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> }).transaction(
+    async (tx: DrizzleDb) => {
+      // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
+      const [method] = await tx
+        .update(paymentMethods)
+        .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
+        .where(eq(paymentMethods.id, chainId))
+        .returning();
 
-  if (!method) throw new Error(`Chain not found: ${chainId}`);
-  if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
+      if (!method) throw new Error(`Chain not found: ${chainId}`);
+      if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
 
-  // The index we use is the value BEFORE increment (returned value - 1)
-  const index = method.nextIndex - 1;
+      // The index we use is the value BEFORE increment (returned value - 1)
+      const index = method.nextIndex - 1;
 
-  // Route to the right derivation function
-  let address: string;
-  if (method.type === "native" && method.chain === "dogecoin") {
-    address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
-  } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
-    address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
-  } else {
-    // EVM (all ERC20 + native ETH) — same derivation
-    address = deriveDepositAddress(method.xpub, index);
-  }
+      // Route to the right derivation function
+      let address: string;
+      if (method.type === "native" && method.chain === "dogecoin") {
+        address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
+      } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
+        address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
+      } else {
+        // EVM (all ERC20 + native ETH) — same derivation
+        address = deriveDepositAddress(method.xpub, index);
+      }
 
-  // Record in immutable log
-  await db.insert(derivedAddresses).values({
-    chainId,
-    derivationIndex: index,
-    address: address.toLowerCase(),
-    tenantId,
-  });
+      // Record in immutable log (inside same transaction)
+      await tx.insert(derivedAddresses).values({
+        chainId,
+        derivationIndex: index,
+        address: address.toLowerCase(),
+        tenantId,
+      });
 
-  return { address, index, chain: method.chain, token: method.token };
+      return { address, index, chain: method.chain, token: method.token };
+    },
+  ) as Promise<{ address: string; index: number; chain: string; token: string }>;
+}
+
+/** Validate Bearer token from Authorization header. */
+function requireAuth(header: string | undefined, expected: string): boolean {
+  if (!expected) return true; // auth disabled
+  return header === `Bearer ${expected}`;
 }
 
 /**
@@ -72,6 +87,35 @@ async function deriveNextAddress(
  */
 export function createKeyServerApp(deps: KeyServerDeps): Hono {
   const app = new Hono();
+
+  // --- Auth middleware for product routes ---
+  app.use("/address", async (c, next) => {
+    if (deps.serviceKey && !requireAuth(c.req.header("Authorization"), deps.serviceKey)) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    await next();
+  });
+  app.use("/charges/*", async (c, next) => {
+    if (deps.serviceKey && !requireAuth(c.req.header("Authorization"), deps.serviceKey)) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    await next();
+  });
+  app.use("/charges", async (c, next) => {
+    if (deps.serviceKey && !requireAuth(c.req.header("Authorization"), deps.serviceKey)) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    await next();
+  });
+
+  // --- Auth middleware for admin routes ---
+  app.use("/admin/*", async (c, next) => {
+    if (!deps.adminToken) return c.json({ error: "Admin API disabled" }, 403);
+    if (!requireAuth(c.req.header("Authorization"), deps.adminToken)) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    await next();
+  });
 
   // --- Product API ---
 
@@ -94,8 +138,8 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       metadata?: Record<string, unknown>;
     }>();
 
-    if (!body.chain || !body.amountUsd) {
-      return c.json({ error: "chain and amountUsd are required" }, 400);
+    if (!body.chain || typeof body.amountUsd !== "number" || !Number.isFinite(body.amountUsd) || body.amountUsd <= 0) {
+      return c.json({ error: "chain is required and amountUsd must be a positive finite number" }, 400);
     }
 
     const tenantId = c.req.header("X-Tenant-Id") ?? "unknown";
@@ -223,13 +267,23 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       return c.json({ error: "id, xpub, and token are required" }, 400);
     }
 
-    // Record the path allocation
-    await deps.db.insert(pathAllocations).values({
-      coinType: body.coin_type,
-      accountIndex: body.account_index,
-      chainId: body.id,
-      xpub: body.xpub,
-    });
+    // Record the path allocation (idempotent — ignore if already exists)
+    const inserted = (await deps.db
+      .insert(pathAllocations)
+      .values({
+        coinType: body.coin_type,
+        accountIndex: body.account_index,
+        chainId: body.id,
+        xpub: body.xpub,
+      })
+      .onConflictDoNothing()) as { rowCount: number };
+
+    if (inserted.rowCount === 0) {
+      return c.json(
+        { error: "Path allocation already exists", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
+        409,
+      );
+    }
 
     // Upsert the payment method
     await deps.methodStore.upsert({
