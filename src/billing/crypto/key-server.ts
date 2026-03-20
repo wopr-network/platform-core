@@ -1,0 +1,261 @@
+/**
+ * Crypto Key Server — shared address derivation + charge management.
+ *
+ * Deploys on the chain server (pay.wopr.bot) alongside bitcoind.
+ * Products don't run watchers or hold xpubs. They request addresses
+ * and receive webhooks.
+ *
+ * ~200 lines of new code wrapping platform-core's existing crypto modules.
+ */
+import { eq, sql } from "drizzle-orm";
+import { Hono } from "hono";
+import type { DrizzleDb } from "../../db/index.js";
+import { derivedAddresses, pathAllocations, paymentMethods } from "../../db/schema/crypto.js";
+import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
+import type { ICryptoChargeRepository } from "./charge-store.js";
+import { deriveDepositAddress } from "./evm/address-gen.js";
+import type { IPaymentMethodStore } from "./payment-method-store.js";
+
+export interface KeyServerDeps {
+  db: DrizzleDb;
+  chargeStore: ICryptoChargeRepository;
+  methodStore: IPaymentMethodStore;
+}
+
+/**
+ * Derive the next unused address for a chain.
+ * Atomically increments next_index — never reuses.
+ */
+async function deriveNextAddress(
+  db: DrizzleDb,
+  chainId: string,
+  tenantId?: string,
+): Promise<{ address: string; index: number; chain: string; token: string }> {
+  // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
+  const [method] = await db
+    .update(paymentMethods)
+    .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
+    .where(eq(paymentMethods.id, chainId))
+    .returning();
+
+  if (!method) throw new Error(`Chain not found: ${chainId}`);
+  if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
+
+  // The index we use is the value BEFORE increment (returned value - 1)
+  const index = method.nextIndex - 1;
+
+  // Route to the right derivation function
+  let address: string;
+  if (method.type === "native" && method.chain === "dogecoin") {
+    address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
+  } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
+    address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
+  } else {
+    // EVM (all ERC20 + native ETH) — same derivation
+    address = deriveDepositAddress(method.xpub, index);
+  }
+
+  // Record in immutable log
+  await db.insert(derivedAddresses).values({
+    chainId,
+    derivationIndex: index,
+    address: address.toLowerCase(),
+    tenantId,
+  });
+
+  return { address, index, chain: method.chain, token: method.token };
+}
+
+/**
+ * Create the Hono app for the crypto key server.
+ * Mount this on the chain server at the root.
+ */
+export function createKeyServerApp(deps: KeyServerDeps): Hono {
+  const app = new Hono();
+
+  // --- Product API ---
+
+  /** POST /address — derive next unused address */
+  app.post("/address", async (c) => {
+    const body = await c.req.json<{ chain: string }>();
+    if (!body.chain) return c.json({ error: "chain is required" }, 400);
+
+    const tenantId = c.req.header("X-Tenant-Id");
+    const result = await deriveNextAddress(deps.db, body.chain, tenantId ?? undefined);
+    return c.json(result, 201);
+  });
+
+  /** POST /charges — create charge + derive address + start watching */
+  app.post("/charges", async (c) => {
+    const body = await c.req.json<{
+      chain: string;
+      amountUsd: number;
+      callbackUrl?: string;
+      metadata?: Record<string, unknown>;
+    }>();
+
+    if (!body.chain || !body.amountUsd) {
+      return c.json({ error: "chain and amountUsd are required" }, 400);
+    }
+
+    const tenantId = c.req.header("X-Tenant-Id") ?? "unknown";
+    const { address, index, chain, token } = await deriveNextAddress(deps.db, body.chain, tenantId);
+
+    const amountUsdCents = Math.round(body.amountUsd * 100);
+    const referenceId = `${token.toLowerCase()}:${address.toLowerCase()}`;
+
+    await deps.chargeStore.createStablecoinCharge({
+      referenceId,
+      tenantId,
+      amountUsdCents,
+      chain,
+      token,
+      depositAddress: address,
+      derivationIndex: index,
+    });
+
+    return c.json(
+      {
+        chargeId: referenceId,
+        address,
+        chain: body.chain,
+        token,
+        amountUsd: body.amountUsd,
+        derivationIndex: index,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+      },
+      201,
+    );
+  });
+
+  /** GET /charges/:id — check charge status */
+  app.get("/charges/:id", async (c) => {
+    const charge = await deps.chargeStore.getByReferenceId(c.req.param("id"));
+    if (!charge) return c.json({ error: "Charge not found" }, 404);
+
+    return c.json({
+      chargeId: charge.referenceId,
+      status: charge.status,
+      address: charge.depositAddress,
+      chain: charge.chain,
+      token: charge.token,
+      amountUsdCents: charge.amountUsdCents,
+      creditedAt: charge.creditedAt,
+    });
+  });
+
+  /** GET /chains — list enabled payment methods (for checkout UI) */
+  app.get("/chains", async (c) => {
+    const methods = await deps.methodStore.listEnabled();
+    return c.json(
+      methods.map((m) => ({
+        id: m.id,
+        token: m.token,
+        chain: m.chain,
+        decimals: m.decimals,
+        displayName: m.displayName,
+        contractAddress: m.contractAddress,
+        confirmations: m.confirmations,
+      })),
+    );
+  });
+
+  // --- Admin API ---
+
+  /** GET /admin/next-path — which derivation path to use for a coin type */
+  app.get("/admin/next-path", async (c) => {
+    const coinType = Number(c.req.query("coin_type"));
+    if (!Number.isInteger(coinType)) return c.json({ error: "coin_type must be an integer" }, 400);
+
+    // Find all allocations for this coin type
+    const existing = await deps.db.select().from(pathAllocations).where(eq(pathAllocations.coinType, coinType));
+
+    if (existing.length === 0) {
+      return c.json({
+        coin_type: coinType,
+        account_index: 0,
+        path: `m/44'/${coinType}'/0'`,
+        status: "available",
+      });
+    }
+
+    // If already allocated, return info about existing allocation
+    const latest = existing.sort(
+      (a: { accountIndex: number }, b: { accountIndex: number }) => b.accountIndex - a.accountIndex,
+    )[0];
+
+    // Find chains using this coin type's allocations
+    const chainIds = existing.map((a: { chainId: string | null }) => a.chainId).filter(Boolean);
+    return c.json({
+      coin_type: coinType,
+      account_index: latest.accountIndex,
+      path: `m/44'/${coinType}'/${latest.accountIndex}'`,
+      status: "allocated",
+      allocated_to: chainIds,
+      note: "xpub already registered — reuse for new chains with same key type",
+      next_available: {
+        account_index: latest.accountIndex + 1,
+        path: `m/44'/${coinType}'/${latest.accountIndex + 1}'`,
+      },
+    });
+  });
+
+  /** POST /admin/chains — register a new chain with its xpub */
+  app.post("/admin/chains", async (c) => {
+    const body = await c.req.json<{
+      id: string;
+      coin_type: number;
+      account_index: number;
+      network: string;
+      type: string;
+      token: string;
+      chain: string;
+      contract?: string;
+      decimals: number;
+      xpub: string;
+      rpc_url: string;
+      confirmations?: number;
+      display_name?: string;
+      oracle_address?: string;
+    }>();
+
+    if (!body.id || !body.xpub || !body.token) {
+      return c.json({ error: "id, xpub, and token are required" }, 400);
+    }
+
+    // Record the path allocation
+    await deps.db.insert(pathAllocations).values({
+      coinType: body.coin_type,
+      accountIndex: body.account_index,
+      chainId: body.id,
+      xpub: body.xpub,
+    });
+
+    // Upsert the payment method
+    await deps.methodStore.upsert({
+      id: body.id,
+      type: body.type ?? "native",
+      token: body.token,
+      chain: body.chain ?? body.network,
+      contractAddress: body.contract ?? null,
+      decimals: body.decimals,
+      displayName: body.display_name ?? `${body.token} on ${body.network}`,
+      enabled: true,
+      displayOrder: 0,
+      rpcUrl: body.rpc_url,
+      oracleAddress: body.oracle_address ?? null,
+      xpub: body.xpub,
+      confirmations: body.confirmations ?? 6,
+    });
+
+    return c.json({ id: body.id, path: `m/44'/${body.coin_type}'/${body.account_index}'` }, 201);
+  });
+
+  /** DELETE /admin/chains/:id — soft disable */
+  app.delete("/admin/chains/:id", async (c) => {
+    await deps.methodStore.setEnabled(c.req.param("id"), false);
+    return c.body(null, 204);
+  });
+
+  return app;
+}

@@ -1,86 +1,166 @@
-import type { CryptoBillingConfig } from "./types.js";
+/**
+ * Crypto Key Server client — for products to call the shared service.
+ *
+ * Replaces BTCPayClient. Products set CRYPTO_SERVICE_URL instead of
+ * BTCPAY_API_KEY + BTCPAY_BASE_URL + BTCPAY_STORE_ID.
+ */
 
-export type { CryptoBillingConfig as CryptoConfig };
+export interface CryptoServiceConfig {
+  /** Base URL of the crypto key server (e.g. http://10.120.0.5:3100) */
+  baseUrl: string;
+  /** Service key for auth (reuses gateway service key) */
+  serviceKey?: string;
+  /** Tenant ID header */
+  tenantId?: string;
+}
+
+export interface DeriveAddressResult {
+  address: string;
+  index: number;
+  chain: string;
+  token: string;
+}
+
+export interface CreateChargeResult {
+  chargeId: string;
+  address: string;
+  chain: string;
+  token: string;
+  amountUsd: number;
+  derivationIndex: number;
+  expiresAt: string;
+}
+
+export interface ChargeStatus {
+  chargeId: string;
+  status: string;
+  address: string | null;
+  chain: string | null;
+  token: string | null;
+  amountUsdCents: number;
+  creditedAt: string | null;
+}
+
+export interface ChainInfo {
+  id: string;
+  token: string;
+  chain: string;
+  decimals: number;
+  displayName: string;
+  contractAddress: string | null;
+  confirmations: number;
+}
 
 /**
- * Lightweight BTCPay Server Greenfield API client.
- *
- * Uses plain fetch — zero vendor dependencies.
- * Auth header format: "token <apiKey>" (NOT "Bearer").
+ * Client for the shared crypto key server.
+ * Products use this instead of running local watchers + holding xpubs.
  */
-export class BTCPayClient {
-  constructor(private readonly config: CryptoBillingConfig) {}
+export class CryptoServiceClient {
+  constructor(private readonly config: CryptoServiceConfig) {}
 
   private headers(): Record<string, string> {
-    return {
-      "Content-Type": "application/json",
-      Authorization: `token ${this.config.apiKey}`,
-    };
+    const h: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.config.serviceKey) h.Authorization = `Bearer ${this.config.serviceKey}`;
+    if (this.config.tenantId) h["X-Tenant-Id"] = this.config.tenantId;
+    return h;
   }
 
-  /**
-   * Create an invoice on the BTCPay store.
-   *
-   * Returns the invoice ID and checkout link (URL to redirect the user).
-   */
-  async createInvoice(opts: {
+  /** Derive the next unused address for a chain. */
+  async deriveAddress(chain: string): Promise<DeriveAddressResult> {
+    const res = await fetch(`${this.config.baseUrl}/address`, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify({ chain }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`CryptoService deriveAddress failed (${res.status}): ${text}`);
+    }
+    return (await res.json()) as DeriveAddressResult;
+  }
+
+  /** Create a payment charge — derives address, sets expiry, starts watching. */
+  async createCharge(opts: {
+    chain: string;
+    amountUsd: number;
+    callbackUrl?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<CreateChargeResult> {
+    const res = await fetch(`${this.config.baseUrl}/charges`, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(opts),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`CryptoService createCharge failed (${res.status}): ${text}`);
+    }
+    return (await res.json()) as CreateChargeResult;
+  }
+
+  /** Check charge status. */
+  async getCharge(chargeId: string): Promise<ChargeStatus> {
+    const res = await fetch(`${this.config.baseUrl}/charges/${encodeURIComponent(chargeId)}`, {
+      headers: this.headers(),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`CryptoService getCharge failed (${res.status}): ${text}`);
+    }
+    return (await res.json()) as ChargeStatus;
+  }
+
+  /** List all enabled payment methods (for checkout UI). */
+  async listChains(): Promise<ChainInfo[]> {
+    const res = await fetch(`${this.config.baseUrl}/chains`, {
+      headers: this.headers(),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`CryptoService listChains failed (${res.status}): ${text}`);
+    }
+    return (await res.json()) as ChainInfo[];
+  }
+}
+
+/**
+ * Load crypto service config from environment.
+ * Returns null if CRYPTO_SERVICE_URL is not set.
+ *
+ * Also supports legacy BTCPay env vars for backwards compat during migration.
+ */
+export function loadCryptoConfig(): CryptoServiceConfig | null {
+  const baseUrl = process.env.CRYPTO_SERVICE_URL;
+  if (baseUrl) {
+    return {
+      baseUrl,
+      serviceKey: process.env.CRYPTO_SERVICE_KEY,
+      tenantId: process.env.TENANT_ID,
+    };
+  }
+  return null;
+}
+
+// Legacy type alias for backwards compat
+export type CryptoConfig = CryptoServiceConfig;
+
+/**
+ * @deprecated Use CryptoServiceClient instead. BTCPay is replaced by the crypto key server.
+ * Kept for backwards compat — products still import BTCPayClient during migration.
+ */
+export class BTCPayClient {
+  constructor(_config: { apiKey: string; baseUrl: string; storeId: string }) {}
+
+  async createInvoice(_opts: {
     amountUsd: number;
     orderId: string;
     buyerEmail?: string;
     redirectURL?: string;
   }): Promise<{ id: string; checkoutLink: string }> {
-    const url = `${this.config.baseUrl}/api/v1/stores/${this.config.storeId}/invoices`;
-    const body = {
-      amount: String(opts.amountUsd),
-      currency: "USD",
-      metadata: {
-        orderId: opts.orderId,
-        buyerEmail: opts.buyerEmail,
-      },
-      checkout: {
-        speedPolicy: "MediumSpeed",
-        expirationMinutes: 30,
-        ...(opts.redirectURL ? { redirectURL: opts.redirectURL } : {}),
-      },
-    };
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`BTCPay createInvoice failed (${res.status}): ${text}`);
-    }
-
-    const data = (await res.json()) as { id: string; checkoutLink: string };
-    return { id: data.id, checkoutLink: data.checkoutLink };
+    throw new Error("BTCPayClient is deprecated — migrate to CryptoServiceClient");
   }
 
-  /** Get invoice status by ID. */
-  async getInvoice(invoiceId: string): Promise<{ id: string; status: string; amount: string; currency: string }> {
-    const url = `${this.config.baseUrl}/api/v1/stores/${this.config.storeId}/invoices/${invoiceId}`;
-    const res = await fetch(url, { headers: this.headers() });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`BTCPay getInvoice failed (${res.status}): ${text}`);
-    }
-
-    return (await res.json()) as { id: string; status: string; amount: string; currency: string };
+  async getInvoice(_invoiceId: string): Promise<{ id: string; status: string; amount: string; currency: string }> {
+    throw new Error("BTCPayClient is deprecated — migrate to CryptoServiceClient");
   }
-}
-
-/**
- * Load BTCPay config from environment variables.
- * Returns null if any required var is missing.
- */
-export function loadCryptoConfig(): CryptoBillingConfig | null {
-  const apiKey = process.env.BTCPAY_API_KEY;
-  const baseUrl = process.env.BTCPAY_BASE_URL;
-  const storeId = process.env.BTCPAY_STORE_ID;
-  if (!apiKey || !baseUrl || !storeId) return null;
-  return { apiKey, baseUrl, storeId };
 }
