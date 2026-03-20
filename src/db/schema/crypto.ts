@@ -50,12 +50,16 @@ export const watcherCursors = pgTable("watcher_cursors", {
  * Payment method registry — runtime-configurable tokens/chains.
  * Admin inserts a row to enable a new payment method. No deploy needed.
  * Contract addresses are immutable on-chain but configurable here.
+ *
+ * nextIndex is an atomic counter for HD derivation — never reuses an index.
+ * Increment via UPDATE ... SET next_index = next_index + 1 RETURNING next_index.
  */
 export const paymentMethods = pgTable("payment_methods", {
-  id: text("id").primaryKey(), // "USDC:base", "ETH:base", "BTC:mainnet"
-  type: text("type").notNull(), // "stablecoin", "eth", "btc"
-  token: text("token").notNull(), // "USDC", "ETH", "BTC"
-  chain: text("chain").notNull(), // "base", "ethereum", "bitcoin"
+  id: text("id").primaryKey(), // "btc", "base-usdc", "arb-usdc", "doge"
+  type: text("type").notNull(), // "erc20", "native", "btc"
+  token: text("token").notNull(), // "USDC", "ETH", "BTC", "DOGE"
+  chain: text("chain").notNull(), // "base", "ethereum", "bitcoin", "arbitrum"
+  network: text("network").notNull().default("mainnet"), // "mainnet", "base", "arbitrum"
   contractAddress: text("contract_address"), // null for native (ETH, BTC)
   decimals: integer("decimals").notNull(),
   displayName: text("display_name").notNull(),
@@ -65,8 +69,45 @@ export const paymentMethods = pgTable("payment_methods", {
   oracleAddress: text("oracle_address"), // Chainlink feed address for price (null = 1:1 stablecoin)
   xpub: text("xpub"), // HD wallet extended public key for deposit address derivation
   confirmations: integer("confirmations").notNull().default(1),
+  nextIndex: integer("next_index").notNull().default(0), // atomic derivation counter, never reuses
   createdAt: text("created_at").notNull().default(sql`(now())`),
 });
+
+/**
+ * BIP-44 path allocation registry — tracks which derivation paths are in use.
+ * The server knows which paths are allocated so you never collide.
+ * The seed phrase never touches the server — only xpubs.
+ */
+export const pathAllocations = pgTable(
+  "path_allocations",
+  {
+    coinType: integer("coin_type").notNull(), // BIP44 coin type (0=BTC, 60=ETH, 3=DOGE, 501=SOL)
+    accountIndex: integer("account_index").notNull(), // m/44'/{coin_type}'/{index}'
+    chainId: text("chain_id").references(() => paymentMethods.id),
+    xpub: text("xpub").notNull(),
+    allocatedAt: text("allocated_at").notNull().default(sql`(now())`),
+  },
+  (table) => [primaryKey({ columns: [table.coinType, table.accountIndex] })],
+);
+
+/**
+ * Every address ever derived — immutable append-only log.
+ * Used for auditing and ensuring no address is ever reused.
+ */
+export const derivedAddresses = pgTable(
+  "derived_addresses",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    chainId: text("chain_id")
+      .notNull()
+      .references(() => paymentMethods.id),
+    derivationIndex: integer("derivation_index").notNull(),
+    address: text("address").notNull().unique(),
+    tenantId: text("tenant_id"),
+    createdAt: text("created_at").notNull().default(sql`(now())`),
+  },
+  (table) => [index("idx_derived_addresses_chain").on(table.chainId)],
+);
 
 /** Processed transaction IDs for watchers without block cursors (e.g. BTC). */
 export const watcherProcessed = pgTable(

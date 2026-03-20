@@ -1,132 +1,116 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BTCPayClient, loadCryptoConfig } from "./client.js";
+import { BTCPayClient, CryptoServiceClient, loadCryptoConfig } from "./client.js";
 
-describe("BTCPayClient", () => {
-  it("createInvoice sends correct request and returns id + checkoutLink", async () => {
-    const mockResponse = { id: "inv-001", checkoutLink: "https://btcpay.example.com/i/inv-001" };
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 200 }));
+describe("CryptoServiceClient", () => {
+  afterEach(() => vi.restoreAllMocks());
 
-    const client = new BTCPayClient({
-      apiKey: "test-key",
-      baseUrl: "https://btcpay.example.com",
-      storeId: "store-abc",
-    });
+  it("deriveAddress sends POST /address with chain", async () => {
+    const mockResponse = { address: "bc1q...", index: 42, chain: "bitcoin", token: "BTC" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 201 }));
 
-    const result = await client.createInvoice({
-      amountUsd: 25,
-      orderId: "order-123",
-      buyerEmail: "test@example.com",
-    });
+    const client = new CryptoServiceClient({ baseUrl: "http://localhost:3100" });
+    const result = await client.deriveAddress("btc");
 
-    expect(result.id).toBe("inv-001");
-    expect(result.checkoutLink).toBe("https://btcpay.example.com/i/inv-001");
+    expect(result.address).toBe("bc1q...");
+    expect(result.index).toBe(42);
 
-    expect(fetchSpy).toHaveBeenCalledOnce();
-    const [url, opts] = fetchSpy.mock.calls[0];
-    expect(url).toBe("https://btcpay.example.com/api/v1/stores/store-abc/invoices");
+    const [url, opts] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("http://localhost:3100/address");
     expect(opts?.method).toBe("POST");
+    expect(JSON.parse(opts?.body as string)).toEqual({ chain: "btc" });
+  });
 
+  it("createCharge sends POST /charges", async () => {
+    const mockResponse = {
+      chargeId: "btc:bc1q...",
+      address: "bc1q...",
+      chain: "btc",
+      token: "BTC",
+      amountUsd: 50,
+      derivationIndex: 42,
+      expiresAt: "2026-03-20T04:00:00Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 201 }));
+
+    const client = new CryptoServiceClient({
+      baseUrl: "http://localhost:3100",
+      serviceKey: "sk-test",
+      tenantId: "tenant-1",
+    });
+    const result = await client.createCharge({ chain: "btc", amountUsd: 50 });
+
+    expect(result.chargeId).toBe("btc:bc1q...");
+    expect(result.address).toBe("bc1q...");
+
+    const [, opts] = vi.mocked(fetch).mock.calls[0];
     const headers = opts?.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("token test-key");
-    expect(headers["Content-Type"]).toBe("application/json");
-
-    const body = JSON.parse(opts?.body as string);
-    expect(body.amount).toBe("25");
-    expect(body.currency).toBe("USD");
-    expect(body.metadata.orderId).toBe("order-123");
-    expect(body.metadata.buyerEmail).toBe("test@example.com");
-    expect(body.checkout.speedPolicy).toBe("MediumSpeed");
-
-    fetchSpy.mockRestore();
+    expect(headers.Authorization).toBe("Bearer sk-test");
+    expect(headers["X-Tenant-Id"]).toBe("tenant-1");
   });
 
-  it("createInvoice includes redirectURL when provided", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ id: "inv-002", checkoutLink: "https://btcpay.example.com/i/inv-002" }), {
-        status: 200,
-      }),
-    );
+  it("getCharge sends GET /charges/:id", async () => {
+    const mockResponse = { chargeId: "btc:bc1q...", status: "confirmed" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
-    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://btcpay.example.com", storeId: "s" });
-    await client.createInvoice({ amountUsd: 10, orderId: "o", redirectURL: "https://app.example.com/success" });
+    const client = new CryptoServiceClient({ baseUrl: "http://localhost:3100" });
+    const result = await client.getCharge("btc:bc1q...");
 
-    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-    expect(body.checkout.redirectURL).toBe("https://app.example.com/success");
-
-    fetchSpy.mockRestore();
+    expect(result.status).toBe("confirmed");
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("http://localhost:3100/charges/btc%3Abc1q...");
   });
 
-  it("createInvoice throws on non-ok response", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+  it("listChains sends GET /chains", async () => {
+    const mockResponse = [{ id: "btc", token: "BTC", chain: "bitcoin", decimals: 8 }];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
-    const client = new BTCPayClient({ apiKey: "bad-key", baseUrl: "https://btcpay.example.com", storeId: "s" });
-    await expect(client.createInvoice({ amountUsd: 10, orderId: "o" })).rejects.toThrow(
-      "BTCPay createInvoice failed (401)",
-    );
+    const client = new CryptoServiceClient({ baseUrl: "http://localhost:3100" });
+    const result = await client.listChains();
 
-    fetchSpy.mockRestore();
+    expect(result).toHaveLength(1);
+    expect(result[0].token).toBe("BTC");
   });
 
-  it("getInvoice sends correct request", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ id: "inv-001", status: "Settled", amount: "25", currency: "USD" }), {
-        status: 200,
-      }),
-    );
+  it("throws on non-ok response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Not found", { status: 404 }));
 
-    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://btcpay.example.com", storeId: "store-abc" });
-    const result = await client.getInvoice("inv-001");
+    const client = new CryptoServiceClient({ baseUrl: "http://localhost:3100" });
+    await expect(client.getCharge("missing")).rejects.toThrow("CryptoService getCharge failed (404)");
+  });
+});
 
-    expect(result.status).toBe("Settled");
-    expect(fetchSpy.mock.calls[0][0]).toBe("https://btcpay.example.com/api/v1/stores/store-abc/invoices/inv-001");
+describe("BTCPayClient (deprecated)", () => {
+  it("throws on createInvoice", async () => {
+    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://example.com", storeId: "s" });
+    await expect(client.createInvoice({ amountUsd: 10, orderId: "o" })).rejects.toThrow("deprecated");
+  });
 
-    fetchSpy.mockRestore();
+  it("throws on getInvoice", async () => {
+    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://example.com", storeId: "s" });
+    await expect(client.getInvoice("inv-1")).rejects.toThrow("deprecated");
   });
 });
 
 describe("loadCryptoConfig", () => {
   beforeEach(() => {
-    delete process.env.BTCPAY_API_KEY;
-    delete process.env.BTCPAY_BASE_URL;
-    delete process.env.BTCPAY_STORE_ID;
+    delete process.env.CRYPTO_SERVICE_URL;
+    delete process.env.CRYPTO_SERVICE_KEY;
+    delete process.env.TENANT_ID;
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
+  afterEach(() => vi.unstubAllEnvs());
 
-  it("returns null when BTCPAY_API_KEY is missing", () => {
-    vi.stubEnv("BTCPAY_BASE_URL", "https://btcpay.test");
-    vi.stubEnv("BTCPAY_STORE_ID", "store-1");
-    expect(loadCryptoConfig()).toBeNull();
-  });
-
-  it("returns null when BTCPAY_BASE_URL is missing", () => {
-    vi.stubEnv("BTCPAY_API_KEY", "test-key");
-    vi.stubEnv("BTCPAY_STORE_ID", "store-1");
-    expect(loadCryptoConfig()).toBeNull();
-  });
-
-  it("returns null when BTCPAY_STORE_ID is missing", () => {
-    vi.stubEnv("BTCPAY_API_KEY", "test-key");
-    vi.stubEnv("BTCPAY_BASE_URL", "https://btcpay.test");
-    expect(loadCryptoConfig()).toBeNull();
-  });
-
-  it("returns config when all env vars are set", () => {
-    vi.stubEnv("BTCPAY_API_KEY", "test-key");
-    vi.stubEnv("BTCPAY_BASE_URL", "https://btcpay.test");
-    vi.stubEnv("BTCPAY_STORE_ID", "store-1");
+  it("returns config when CRYPTO_SERVICE_URL is set", () => {
+    vi.stubEnv("CRYPTO_SERVICE_URL", "http://10.120.0.5:3100");
+    vi.stubEnv("CRYPTO_SERVICE_KEY", "sk-test");
+    vi.stubEnv("TENANT_ID", "tenant-1");
     expect(loadCryptoConfig()).toEqual({
-      apiKey: "test-key",
-      baseUrl: "https://btcpay.test",
-      storeId: "store-1",
+      baseUrl: "http://10.120.0.5:3100",
+      serviceKey: "sk-test",
+      tenantId: "tenant-1",
     });
   });
 
-  it("returns null when all env vars are missing", () => {
+  it("returns null when CRYPTO_SERVICE_URL is missing", () => {
     expect(loadCryptoConfig()).toBeNull();
   });
 });
