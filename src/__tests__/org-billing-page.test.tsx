@@ -153,7 +153,7 @@ describe("OrgBillingPage", () => {
     expect(screen.queryByRole("button", { name: /set as default/i })).not.toBeInTheDocument();
   });
 
-  it("calls setOrgDefaultPaymentMethod on click and updates UI optimistically", async () => {
+  it("calls setOrgDefaultPaymentMethod with correct args on click", async () => {
     const { setOrgDefaultPaymentMethod } = await import("@/lib/org-billing-api");
     render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
     const setDefaultBtn = await screen.findByRole("button", { name: /set as default/i });

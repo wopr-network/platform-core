@@ -298,7 +298,7 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
                         variant="ghost"
                         size="sm"
                         className="text-xs text-muted-foreground hover:text-primary"
-                        disabled={settingDefault === pm.id}
+                        disabled={settingDefault !== null}
                         onClick={() => handleSetDefault(pm.id)}
                       >
                         {settingDefault === pm.id ? "Setting..." : "Set as default"}
