@@ -5,11 +5,13 @@ const {
   mockOrgMemberUsageQuery,
   mockOrgBillingInfoQuery,
   mockOrgTopupCheckoutMutate,
+  mockOrgSetDefaultPaymentMethodMutate,
 } = vi.hoisted(() => ({
   mockOrgBillingBalanceQuery: vi.fn(),
   mockOrgMemberUsageQuery: vi.fn(),
   mockOrgBillingInfoQuery: vi.fn(),
   mockOrgTopupCheckoutMutate: vi.fn(),
+  mockOrgSetDefaultPaymentMethodMutate: vi.fn(),
 }));
 
 vi.mock("@/lib/trpc", () => ({
@@ -19,6 +21,7 @@ vi.mock("@/lib/trpc", () => ({
       orgMemberUsage: { query: mockOrgMemberUsageQuery },
       orgBillingInfo: { query: mockOrgBillingInfoQuery },
       orgTopupCheckout: { mutate: mockOrgTopupCheckoutMutate },
+      orgSetDefaultPaymentMethod: { mutate: mockOrgSetDefaultPaymentMethodMutate },
     },
   },
   trpc: {},
@@ -29,6 +32,7 @@ import {
   getOrgBillingInfo,
   getOrgCreditBalance,
   getOrgMemberUsage,
+  setOrgDefaultPaymentMethod,
 } from "@/lib/org-billing-api";
 
 describe("getOrgCreditBalance", () => {
@@ -238,5 +242,24 @@ describe("createOrgTopupCheckout", () => {
     await expect(
       createOrgTopupCheckout("org-1", "bad-price", "http://s", "http://c"),
     ).rejects.toThrow("Invalid price");
+  });
+});
+
+describe("setOrgDefaultPaymentMethod", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("calls tRPC mutate with orgId and paymentMethodId", async () => {
+    mockOrgSetDefaultPaymentMethodMutate.mockResolvedValue(undefined);
+
+    await setOrgDefaultPaymentMethod("org-1", "pm-2");
+    expect(mockOrgSetDefaultPaymentMethodMutate).toHaveBeenCalledWith({
+      orgId: "org-1",
+      paymentMethodId: "pm-2",
+    });
+  });
+
+  it("propagates tRPC errors", async () => {
+    mockOrgSetDefaultPaymentMethodMutate.mockRejectedValue(new Error("Forbidden"));
+    await expect(setOrgDefaultPaymentMethod("org-1", "pm-2")).rejects.toThrow("Forbidden");
   });
 });

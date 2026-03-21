@@ -169,6 +169,7 @@ type AppRouterRecord = {
     orgBillingInfo: AnyTRPCQueryProcedure;
     orgTopupCheckout: AnyTRPCMutationProcedure;
     orgSetupIntent: AnyTRPCMutationProcedure;
+    orgSetDefaultPaymentMethod: AnyTRPCMutationProcedure;
   };
   /** Separate from `fleet` — backed by createFleetUpdateConfigRouter in platform-core. */
   fleetUpdateConfig: {

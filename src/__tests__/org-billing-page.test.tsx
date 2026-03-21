@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -48,9 +49,18 @@ vi.mock("@/lib/org-billing-api", () => ({
         expiryYear: 2027,
         isDefault: true,
       },
+      {
+        id: "pm-2",
+        brand: "mastercard",
+        last4: "5555",
+        expiryMonth: 6,
+        expiryYear: 2028,
+        isDefault: false,
+      },
     ],
     invoices: [],
   }),
+  setOrgDefaultPaymentMethod: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -120,5 +130,34 @@ describe("OrgBillingPage", () => {
     await screen.findByText("Org Payment Methods");
     const addBtn = screen.queryByRole("button", { name: /add payment method/i });
     expect(addBtn).not.toBeInTheDocument();
+  });
+
+  it("shows 'Set as default' button for non-default payment methods when admin", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    const setDefaultBtn = await screen.findByRole("button", { name: /set as default/i });
+    expect(setDefaultBtn).toBeInTheDocument();
+  });
+
+  it("does not show 'Set as default' on the default payment method", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    await screen.findByText("Org Payment Methods");
+    const badges = screen.getAllByText("Default");
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+    const setDefaultBtns = screen.queryAllByRole("button", { name: /set as default/i });
+    expect(setDefaultBtns).toHaveLength(1);
+  });
+
+  it("hides 'Set as default' for non-admin users", async () => {
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={false} />);
+    await screen.findByText("Org Payment Methods");
+    expect(screen.queryByRole("button", { name: /set as default/i })).not.toBeInTheDocument();
+  });
+
+  it("calls setOrgDefaultPaymentMethod on click and updates UI optimistically", async () => {
+    const { setOrgDefaultPaymentMethod } = await import("@/lib/org-billing-api");
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    const setDefaultBtn = await screen.findByRole("button", { name: /set as default/i });
+    await userEvent.click(setDefaultBtn);
+    expect(setOrgDefaultPaymentMethod).toHaveBeenCalledWith("org-1", "pm-2");
   });
 });

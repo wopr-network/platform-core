@@ -72,6 +72,13 @@ export async function createOrgTopupCheckout(
   return trpcVanilla.org.orgTopupCheckout.mutate({ orgId, priceId, successUrl, cancelUrl });
 }
 
+export async function setOrgDefaultPaymentMethod(
+  orgId: string,
+  paymentMethodId: string,
+): Promise<void> {
+  await trpcVanilla.org.orgSetDefaultPaymentMethod.mutate({ orgId, paymentMethodId });
+}
+
 export async function createOrgSetupIntent(orgId: string): Promise<{ clientSecret: string }> {
   const result = await trpcVanilla.org.orgSetupIntent.mutate({ orgId });
   if (!result?.clientSecret || typeof result.clientSecret !== "string") {

@@ -27,6 +27,9 @@ vi.mock("@/lib/trpc", () => ({
           sessionId: "sess_1",
         }),
       },
+      orgSetDefaultPaymentMethod: {
+        mutate: vi.fn().mockResolvedValue(undefined),
+      },
     },
   },
 }));

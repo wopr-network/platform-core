@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Building2, Download } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AddPaymentMethodDialog } from "@/components/billing/add-payment-method-dialog";
 import { BuyCreditsPanel } from "@/components/billing/buy-credits-panel";
 import { BuyCryptoCreditPanel } from "@/components/billing/buy-crypto-credits-panel";
@@ -22,7 +23,12 @@ import {
 } from "@/components/ui/table";
 import { formatCreditStandard } from "@/lib/format-credit";
 import type { OrgCreditBalance, OrgMemberUsageRow } from "@/lib/org-billing-api";
-import { getOrgBillingInfo, getOrgCreditBalance, getOrgMemberUsage } from "@/lib/org-billing-api";
+import {
+  getOrgBillingInfo,
+  getOrgCreditBalance,
+  getOrgMemberUsage,
+  setOrgDefaultPaymentMethod,
+} from "@/lib/org-billing-api";
 
 const stripeBackendReady = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -63,6 +69,27 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [settingDefault, setSettingDefault] = useState<string | null>(null);
+
+  const handleSetDefault = useCallback(
+    async (paymentMethodId: string) => {
+      setSettingDefault(paymentMethodId);
+      const prev = paymentMethods;
+      setPaymentMethods((pms) =>
+        pms.map((pm) => ({ ...pm, isDefault: pm.id === paymentMethodId })),
+      );
+      try {
+        await setOrgDefaultPaymentMethod(orgId, paymentMethodId);
+      } catch {
+        toast.error("Failed to update default payment method");
+        setPaymentMethods(prev);
+      } finally {
+        setSettingDefault(null);
+      }
+    },
+    [orgId, paymentMethods],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -266,13 +293,17 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
                         </Badge>
                       )}
                     </p>
-                    {/* Wire to org.orgRemovePaymentMethod tRPC procedure when backend adds it
-                    {isAdmin && (
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeletePaymentMethod(pm.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                    {isAdmin && !pm.isDefault && paymentMethods.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-muted-foreground hover:text-primary"
+                        disabled={settingDefault === pm.id}
+                        onClick={() => handleSetDefault(pm.id)}
+                      >
+                        {settingDefault === pm.id ? "Setting..." : "Set as default"}
                       </Button>
-                    )} */}
+                    )}
                   </div>
                 ))}
               </div>
