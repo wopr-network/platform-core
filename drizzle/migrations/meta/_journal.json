@@ -120,6 +120,13 @@
       "when": 1743004800000,
       "tag": "0016_charge_progress_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1743091200000,
+      "tag": "0017_fix_derivation_index_constraint",
+      "breakpoints": true
     }
   ]
 }
