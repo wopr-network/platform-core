@@ -71,25 +71,6 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [settingDefault, setSettingDefault] = useState<string | null>(null);
 
-  const handleSetDefault = useCallback(
-    async (paymentMethodId: string) => {
-      setSettingDefault(paymentMethodId);
-      const prev = paymentMethods;
-      setPaymentMethods((pms) =>
-        pms.map((pm) => ({ ...pm, isDefault: pm.id === paymentMethodId })),
-      );
-      try {
-        await setOrgDefaultPaymentMethod(orgId, paymentMethodId);
-      } catch {
-        toast.error("Failed to update default payment method");
-        setPaymentMethods(prev);
-      } finally {
-        setSettingDefault(null);
-      }
-    },
-    [orgId, paymentMethods],
-  );
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -109,6 +90,24 @@ export function OrgBillingPage({ orgId, orgName, isAdmin }: OrgBillingPageProps)
       setLoading(false);
     }
   }, [orgId, isAdmin]);
+
+  const handleSetDefault = useCallback(
+    async (paymentMethodId: string) => {
+      setSettingDefault(paymentMethodId);
+      setPaymentMethods((pms) =>
+        pms.map((pm) => ({ ...pm, isDefault: pm.id === paymentMethodId })),
+      );
+      try {
+        await setOrgDefaultPaymentMethod(orgId, paymentMethodId);
+      } catch {
+        toast.error("Failed to update default payment method");
+        load();
+      } finally {
+        setSettingDefault(null);
+      }
+    },
+    [orgId, load],
+  );
 
   useEffect(() => {
     load();

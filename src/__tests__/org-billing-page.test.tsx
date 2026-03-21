@@ -160,4 +160,31 @@ describe("OrgBillingPage", () => {
     await userEvent.click(setDefaultBtn);
     expect(setOrgDefaultPaymentMethod).toHaveBeenCalledWith("org-1", "pm-2");
   });
+
+  it("disables ALL set-default buttons while any operation is in flight", async () => {
+    const { setOrgDefaultPaymentMethod } = await import("@/lib/org-billing-api");
+    let resolveApi!: () => void;
+    vi.mocked(setOrgDefaultPaymentMethod).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveApi = resolve;
+        }),
+    );
+
+    render(<OrgBillingPage orgId="org-1" orgName="Test Org" isAdmin={true} />);
+    const setDefaultBtn = await screen.findByRole("button", { name: /set as default/i });
+
+    // Click — operation is now in-flight
+    await userEvent.click(setDefaultBtn);
+
+    // All set-default buttons must be disabled while in-flight
+    const buttons = screen.getAllByRole("button", { name: /set as default|setting/i });
+    for (const btn of buttons) {
+      expect(btn).toBeDisabled();
+    }
+
+    // Resolve and verify button re-enables
+    resolveApi();
+    await screen.findByRole("button", { name: /set as default/i });
+  });
 });
