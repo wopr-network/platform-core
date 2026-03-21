@@ -263,6 +263,7 @@ describe("StripePaymentProcessor", () => {
             amount_due: 500,
             status: "paid",
             invoice_pdf: "https://stripe.com/invoice.pdf",
+            hosted_invoice_url: "https://invoice.stripe.com/i/in_1",
           },
           {
             id: "in_2",
@@ -270,6 +271,7 @@ describe("StripePaymentProcessor", () => {
             amount_due: 1000,
             status: "open",
             invoice_pdf: null,
+            hosted_invoice_url: "https://invoice.stripe.com/i/in_2",
           },
         ],
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Invoice>>);
@@ -282,6 +284,7 @@ describe("StripePaymentProcessor", () => {
           amountCents: 500,
           status: "paid",
           downloadUrl: "https://stripe.com/invoice.pdf",
+          hostedUrl: "https://invoice.stripe.com/i/in_1",
         },
         {
           id: "in_2",
@@ -289,6 +292,7 @@ describe("StripePaymentProcessor", () => {
           amountCents: 1000,
           status: "open",
           downloadUrl: "",
+          hostedUrl: "https://invoice.stripe.com/i/in_2",
         },
       ]);
       expect(mocks.stripe.invoices.list).toHaveBeenCalledWith({
@@ -300,11 +304,21 @@ describe("StripePaymentProcessor", () => {
     it("uses 'unknown' when invoice status is null", async () => {
       vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
       vi.mocked(mocks.stripe.invoices.list).mockResolvedValue({
-        data: [{ id: "in_3", created: 1700000000, amount_due: 100, status: null, invoice_pdf: null }],
+        data: [
+          {
+            id: "in_3",
+            created: 1700000000,
+            amount_due: 100,
+            status: null,
+            invoice_pdf: null,
+            hosted_invoice_url: null,
+          },
+        ],
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Invoice>>);
 
       const result = await processor.listInvoices("tenant-1");
       expect(result[0].status).toBe("unknown");
+      expect(result[0].hostedUrl).toBe("");
     });
   });
 
