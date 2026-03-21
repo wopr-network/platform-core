@@ -14,7 +14,9 @@ import pg from "pg";
 import * as schema from "../../db/schema/index.js";
 import { DrizzleCryptoChargeRepository } from "./charge-store.js";
 import { DrizzleWatcherCursorStore } from "./cursor-store.js";
+import { createRpcCaller } from "./evm/watcher.js";
 import { createKeyServerApp } from "./key-server.js";
+import { ChainlinkOracle } from "./oracle/chainlink.js";
 import { FixedPriceOracle } from "./oracle/fixed.js";
 import { DrizzlePaymentMethodStore } from "./payment-method-store.js";
 import { startWatchers } from "./watcher-service.js";
@@ -25,6 +27,7 @@ const SERVICE_KEY = process.env.SERVICE_KEY;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const BITCOIND_USER = process.env.BITCOIND_USER ?? "btcpay";
 const BITCOIND_PASSWORD = process.env.BITCOIND_PASSWORD ?? "";
+const BASE_RPC_URL = process.env.BASE_RPC_URL ?? "https://mainnet.base.org";
 
 if (!DATABASE_URL) {
   console.error("DATABASE_URL is required");
@@ -49,7 +52,13 @@ async function main(): Promise<void> {
 
   // Boot watchers (BTC + EVM) — polls for payments, sends webhooks
   const cursorStore = new DrizzleWatcherCursorStore(db);
-  const oracle = new FixedPriceOracle(); // TODO: replace with Chainlink oracle in production
+
+  // Chainlink on-chain oracle for volatile assets (BTC, ETH).
+  // Reads latestRoundData() from Base mainnet Chainlink feeds — no API key needed.
+  // Falls back to FixedPriceOracle if BASE_RPC_URL is not set.
+  const oracle = BASE_RPC_URL
+    ? new ChainlinkOracle({ rpcCall: createRpcCaller(BASE_RPC_URL) })
+    : new FixedPriceOracle();
   const stopWatchers = await startWatchers({
     chargeStore,
     methodStore,
