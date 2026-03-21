@@ -33,50 +33,64 @@ export interface KeyServerDeps {
 /**
  * Derive the next unused address for a chain.
  * Atomically increments next_index and records address in a single transaction.
+ *
+ * EVM chains share an xpub (coin type 60), so ETH index 0 = USDC index 0 = same
+ * address. The unique constraint on derived_addresses.address prevents reuse.
+ * On collision, we skip the index and retry (up to maxRetries).
  */
 async function deriveNextAddress(
   db: DrizzleDb,
   chainId: string,
   tenantId?: string,
 ): Promise<{ address: string; index: number; chain: string; token: string }> {
-  // Wrap in transaction: if the address insert fails, next_index is not consumed.
-  return (db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> }).transaction(
-    async (tx: DrizzleDb) => {
-      // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
-      const [method] = await tx
-        .update(paymentMethods)
-        .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
-        .where(eq(paymentMethods.id, chainId))
-        .returning();
+  const maxRetries = 10;
+  const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
 
-      if (!method) throw new Error(`Chain not found: ${chainId}`);
-      if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return (await dbWithTx.transaction(async (tx: DrizzleDb) => {
+        // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
+        const [method] = await tx
+          .update(paymentMethods)
+          .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
+          .where(eq(paymentMethods.id, chainId))
+          .returning();
 
-      // The index we use is the value BEFORE increment (returned value - 1)
-      const index = method.nextIndex - 1;
+        if (!method) throw new Error(`Chain not found: ${chainId}`);
+        if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
 
-      // Route to the right derivation function
-      let address: string;
-      if (method.type === "native" && method.chain === "dogecoin") {
-        address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
-      } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
-        address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
-      } else {
-        // EVM (all ERC20 + native ETH) — same derivation
-        address = deriveDepositAddress(method.xpub, index);
-      }
+        // The index we use is the value BEFORE increment (returned value - 1)
+        const index = method.nextIndex - 1;
 
-      // Record in immutable log (inside same transaction)
-      await tx.insert(derivedAddresses).values({
-        chainId,
-        derivationIndex: index,
-        address: address.toLowerCase(),
-        tenantId,
-      });
+        // Route to the right derivation function
+        let address: string;
+        if (method.type === "native" && method.chain === "dogecoin") {
+          address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
+        } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
+          address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
+        } else {
+          // EVM (all ERC20 + native ETH) — same derivation
+          address = deriveDepositAddress(method.xpub, index);
+        }
 
-      return { address, index, chain: method.chain, token: method.token };
-    },
-  ) as Promise<{ address: string; index: number; chain: string; token: string }>;
+        // Record in immutable log (inside same transaction).
+        // Fails with 23505 if another chain already derived this address (shared xpub).
+        await tx.insert(derivedAddresses).values({
+          chainId,
+          derivationIndex: index,
+          address: address.toLowerCase(),
+          tenantId,
+        });
+
+        return { address, index, chain: method.chain, token: method.token };
+      })) as { address: string; index: number; chain: string; token: string };
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "23505" && attempt < maxRetries) continue; // address collision, retry with next index
+      throw err;
+    }
+  }
+  throw new Error(`Failed to derive unique address for ${chainId} after ${maxRetries} retries`);
 }
 
 /** Validate Bearer token from Authorization header. */
