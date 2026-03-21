@@ -147,6 +147,6 @@ export interface Invoice {
   status: string;
   /** URL to download the invoice PDF. Empty string if unavailable. */
   downloadUrl: string;
-  /** URL to the Stripe-hosted invoice page. Empty string if unavailable. */
+  /** URL to the hosted invoice page. Empty string if unavailable. */
   hostedUrl: string;
 }
