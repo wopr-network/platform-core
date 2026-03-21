@@ -13,3 +13,7 @@ export {
   tenantProcedure,
 } from "./init.js";
 export { createNotificationTemplateRouter } from "./notification-template-router.js";
+export {
+  createOrgRemovePaymentMethodRouter,
+  type OrgRemovePaymentMethodDeps,
+} from "./org-remove-payment-method-router.js";
