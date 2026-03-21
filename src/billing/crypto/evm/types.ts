@@ -21,7 +21,7 @@ export interface TokenConfig {
   readonly decimals: number;
 }
 
-/** Event emitted when a Transfer is detected and confirmed. */
+/** Event emitted on each confirmation increment for a Transfer. */
 export interface EvmPaymentEvent {
   readonly chain: EvmChain;
   readonly token: StablecoinToken;
@@ -34,6 +34,10 @@ export interface EvmPaymentEvent {
   readonly txHash: string;
   readonly blockNumber: number;
   readonly logIndex: number;
+  /** Current confirmation count (latest block - tx block). */
+  readonly confirmations: number;
+  /** Required confirmations for this chain. */
+  readonly confirmationsRequired: number;
 }
 
 /** Options for creating a stablecoin checkout. */

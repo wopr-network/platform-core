@@ -1,4 +1,4 @@
-/** BTC payment event emitted when a deposit is confirmed. */
+/** BTC payment event emitted on each confirmation increment. */
 export interface BtcPaymentEvent {
   readonly address: string;
   readonly txid: string;
@@ -7,6 +7,8 @@ export interface BtcPaymentEvent {
   /** USD cents equivalent (integer). */
   readonly amountUsdCents: number;
   readonly confirmations: number;
+  /** Required confirmations for this chain (from config). */
+  readonly confirmationsRequired: number;
 }
 
 /** Options for creating a BTC checkout. */

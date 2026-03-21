@@ -10,8 +10,9 @@ const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceCents: 350_000, 
 describe("EthWatcher", () => {
   it("detects native ETH transfer to watched address", async () => {
     const onPayment = vi.fn();
+    // latest = 0xa (10), fromBlock = 10 → scans exactly block 10
     const rpc = makeRpc({
-      eth_blockNumber: "0xb",
+      eth_blockNumber: "0xa",
       eth_getBlockByNumber: {
         transactions: [
           {
@@ -42,6 +43,8 @@ describe("EthWatcher", () => {
     expect(event.valueWei).toBe("1000000000000000000");
     expect(event.amountUsdCents).toBe(350_000); // 1 ETH × $3,500
     expect(event.txHash).toBe("0xabc");
+    expect(event.confirmations).toBe(0);
+    expect(event.confirmationsRequired).toBe(1);
   });
 
   it("skips transactions not to watched addresses", async () => {
@@ -90,6 +93,19 @@ describe("EthWatcher", () => {
 
   it("does not double-process same txid", async () => {
     const onPayment = vi.fn();
+    const confirmations = new Map<string, number>();
+    const cursorStore = {
+      get: vi.fn().mockResolvedValue(null),
+      save: vi.fn().mockResolvedValue(undefined),
+      hasProcessedTx: vi.fn().mockResolvedValue(false),
+      markProcessedTx: vi.fn().mockResolvedValue(undefined),
+      getConfirmationCount: vi
+        .fn()
+        .mockImplementation(async (_: string, txId: string) => confirmations.get(txId) ?? null),
+      saveConfirmationCount: vi.fn().mockImplementation(async (_: string, txId: string, count: number) => {
+        confirmations.set(txId, count);
+      }),
+    };
     const rpc = makeRpc({
       eth_blockNumber: "0xb",
       eth_getBlockByNumber: {
@@ -104,10 +120,11 @@ describe("EthWatcher", () => {
       fromBlock: 10,
       onPayment,
       watchedAddresses: ["0xDeposit"],
+      cursorStore,
     });
 
     await watcher.poll();
-    // Reset cursor to re-scan same block
+    // Second poll — same block, same confirmations → no duplicate emission
     await watcher.poll();
 
     expect(onPayment).toHaveBeenCalledOnce();
@@ -132,8 +149,17 @@ describe("EthWatcher", () => {
 
   it("does not mark txid as processed if onPayment throws", async () => {
     const onPayment = vi.fn().mockRejectedValueOnce(new Error("db fail")).mockResolvedValueOnce(undefined);
+    const cursorStore = {
+      get: vi.fn().mockResolvedValue(null),
+      save: vi.fn().mockResolvedValue(undefined),
+      hasProcessedTx: vi.fn().mockResolvedValue(false),
+      markProcessedTx: vi.fn().mockResolvedValue(undefined),
+      getConfirmationCount: vi.fn().mockResolvedValue(null),
+      saveConfirmationCount: vi.fn().mockResolvedValue(undefined),
+    };
+    // latest = 0xa (10) = fromBlock → exactly one block to scan
     const rpc = makeRpc({
-      eth_blockNumber: "0xb",
+      eth_blockNumber: "0xa",
       eth_getBlockByNumber: {
         transactions: [{ hash: "0xabc", from: "0xa", to: "0xdeposit", value: "0xDE0B6B3A7640000", blockNumber: "0xa" }],
       },
@@ -146,11 +172,12 @@ describe("EthWatcher", () => {
       fromBlock: 10,
       onPayment,
       watchedAddresses: ["0xDeposit"],
+      cursorStore,
     });
 
     await expect(watcher.poll()).rejects.toThrow("db fail");
 
-    // Retry — should process the same tx again since it wasn't marked
+    // Retry — should process the same tx again since confirmationCount wasn't saved (error before save)
     await watcher.poll();
     expect(onPayment).toHaveBeenCalledTimes(2);
   });

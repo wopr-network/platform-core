@@ -12,6 +12,8 @@ const mockEvent: EvmPaymentEvent = {
   txHash: "0xtx123",
   blockNumber: 100,
   logIndex: 0,
+  confirmations: 1,
+  confirmationsRequired: 1,
 };
 
 describe("settleEvmPayment", () => {

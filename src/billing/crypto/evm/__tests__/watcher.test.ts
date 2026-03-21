@@ -66,7 +66,12 @@ describe("EvmWatcher", () => {
 
   it("skips blocks not yet confirmed", async () => {
     const events: unknown[] = [];
-    const mockRpc = vi.fn().mockResolvedValueOnce(`0x${(50).toString(16)}`);
+    // latest = 50, cursor = 50 → latest < cursor is false, but range is empty (50..50)
+    // With intermediate confirmations, we still scan the range but find no logs
+    const mockRpc = vi
+      .fn()
+      .mockResolvedValueOnce(`0x${(50).toString(16)}`) // eth_blockNumber
+      .mockResolvedValueOnce([]); // eth_getLogs (empty)
 
     const watcher = new EvmWatcher({
       chain: "base",
@@ -81,7 +86,6 @@ describe("EvmWatcher", () => {
 
     await watcher.poll();
     expect(events).toHaveLength(0);
-    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 
   it("processes multiple logs in one poll", async () => {

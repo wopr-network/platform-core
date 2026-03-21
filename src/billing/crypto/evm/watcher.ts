@@ -72,7 +72,15 @@ export class EvmWatcher {
     return this._cursor;
   }
 
-  /** Poll for new Transfer events. Call on an interval. */
+  /**
+   * Poll for Transfer events, including pending (unconfirmed) blocks.
+   *
+   * Two-phase scan:
+   *   1. Scan cursor..latest for new/updated txs, emit with current confirmation count
+   *   2. Re-check pending txs automatically since cursor doesn't advance past unconfirmed blocks
+   *
+   * Cursor only advances past fully-confirmed blocks.
+   */
   async poll(): Promise<void> {
     if (this._watchedAddresses.length === 0) return; // nothing to watch
 
@@ -80,27 +88,25 @@ export class EvmWatcher {
     const latest = Number.parseInt(latestHex, 16);
     const confirmed = latest - this.confirmations;
 
-    if (confirmed < this._cursor) return;
+    if (latest < this._cursor) return;
 
     // Filter by topic[2] (to address) when watched addresses are set.
-    // This avoids fetching ALL USDC transfers on the chain (millions/day on Base).
-    // topic[2] values are 32-byte zero-padded: 0x000000000000000000000000<address>
     const toFilter =
       this._watchedAddresses.length > 0
         ? this._watchedAddresses.map((a) => `0x000000000000000000000000${a.slice(2)}`)
         : null;
 
+    // Scan from cursor to latest (not just confirmed) to detect pending txs
     const logs = (await this.rpc("eth_getLogs", [
       {
         address: this.contractAddress,
         topics: [TRANSFER_TOPIC, null, toFilter],
         fromBlock: `0x${this._cursor.toString(16)}`,
-        toBlock: `0x${confirmed.toString(16)}`,
+        toBlock: `0x${latest.toString(16)}`,
       },
     ])) as RpcLog[];
 
-    // Group logs by block for incremental cursor checkpointing.
-    // If onPayment fails mid-batch, only the current block is replayed on next poll.
+    // Group logs by block
     const logsByBlock = new Map<number, RpcLog[]>();
     for (const log of logs) {
       const bn = Number.parseInt(log.blockNumber, 16);
@@ -109,10 +115,20 @@ export class EvmWatcher {
       else logsByBlock.set(bn, [log]);
     }
 
-    // Process blocks in order, checkpoint after each.
+    // Process all blocks (including unconfirmed), emit with confirmation count
     const blockNums = [...logsByBlock.keys()].sort((a, b) => a - b);
     for (const blockNum of blockNums) {
+      const confs = latest - blockNum;
+
       for (const log of logsByBlock.get(blockNum) ?? []) {
+        const txKey = `${log.transactionHash}:${log.logIndex}`;
+
+        // Skip if we already emitted at this confirmation count
+        if (this.cursorStore) {
+          const lastConf = await this.cursorStore.getConfirmationCount(this.watcherId, txKey);
+          if (lastConf !== null && confs <= lastConf) continue;
+        }
+
         const to = `0x${log.topics[2].slice(26)}`.toLowerCase();
         const from = `0x${log.topics[1].slice(26)}`.toLowerCase();
         const rawAmount = BigInt(log.data);
@@ -128,19 +144,29 @@ export class EvmWatcher {
           txHash: log.transactionHash,
           blockNumber: blockNum,
           logIndex: Number.parseInt(log.logIndex, 16),
+          confirmations: confs,
+          confirmationsRequired: this.confirmations,
         };
 
         await this.onPayment(event);
+
+        // Track confirmation count
+        if (this.cursorStore) {
+          await this.cursorStore.saveConfirmationCount(this.watcherId, txKey, confs);
+        }
       }
 
-      this._cursor = blockNum + 1;
-      if (this.cursorStore) {
-        await this.cursorStore.save(this.watcherId, this._cursor);
+      // Only advance cursor past fully-confirmed blocks
+      if (blockNum <= confirmed) {
+        this._cursor = blockNum + 1;
+        if (this.cursorStore) {
+          await this.cursorStore.save(this.watcherId, this._cursor);
+        }
       }
     }
 
-    // Advance cursor even if no logs were found in the range.
-    if (blockNums.length === 0) {
+    // Advance cursor if no logs found but confirmed blocks exist
+    if (blockNums.length === 0 && confirmed >= this._cursor) {
       this._cursor = confirmed + 1;
       if (this.cursorStore) {
         await this.cursorStore.save(this.watcherId, this._cursor);

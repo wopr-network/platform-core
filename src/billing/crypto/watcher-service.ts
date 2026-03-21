@@ -4,8 +4,8 @@
  * Payment flow:
  *   1. Watcher detects payment → handlePayment()
  *   2. Accumulate native amount (supports partial payments)
- *   3. When totalReceived >= expectedAmount → settle + credit
- *   4. Every payment (partial or full) enqueues a webhook delivery
+ *   3. When totalReceived >= expectedAmount AND confirmations >= required → confirmed + credit
+ *   4. Every payment/confirmation change enqueues a webhook delivery
  *   5. Outbox processor retries failed deliveries with exponential backoff
  *
  * Amount comparison is ALWAYS in native crypto units (sats, wei, token base units).
@@ -23,7 +23,7 @@ import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./evm/types.js"
 import { createRpcCaller, EvmWatcher } from "./evm/watcher.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
-import type { CryptoPaymentState } from "./types.js";
+import type { CryptoChargeStatus } from "./types.js";
 
 const MAX_DELIVERY_ATTEMPTS = 10;
 const BACKOFF_BASE_MS = 5_000;
@@ -131,20 +131,34 @@ async function processDeliveries(
   return delivered;
 }
 
-// --- Payment handling (partial + full) ---
+// --- Payment handling (partial + full + confirmation tracking) ---
+
+export interface PaymentPayload {
+  txHash: string;
+  confirmations: number;
+  confirmationsRequired: number;
+  amountReceivedCents: number;
+  [key: string]: unknown;
+}
 
 /**
  * Handle a payment event. Accumulates partial payments in native units.
- * Settles when totalReceived >= expectedAmount. Fires webhook on every payment.
+ * Fires webhook on every payment/confirmation change with canonical statuses.
  *
- * @param nativeAmount — received amount in native base units (sats for BTC/DOGE, raw token units for ERC20)
+ * 3-phase webhook lifecycle:
+ *   1. Tx first seen -> status: "partial", confirmations: 0
+ *   2. Each new block -> status: "partial", confirmations: current
+ *   3. Threshold reached + full payment -> status: "confirmed"
+ *
+ * @param nativeAmount — received amount in native base units (sats for BTC/DOGE, raw token units for ERC20).
+ *                        Pass "0" for confirmation-only updates (no new payment, just more confirmations).
  */
-async function handlePayment(
+export async function handlePayment(
   db: DrizzleDb,
   chargeStore: ICryptoChargeRepository,
   address: string,
   nativeAmount: string,
-  payload: Record<string, unknown>,
+  payload: PaymentPayload,
   log: (msg: string, meta?: Record<string, unknown>) => void,
 ): Promise<void> {
   const charge = await chargeStore.getByDepositAddress(address);
@@ -156,41 +170,64 @@ async function handlePayment(
     return; // Already fully paid and credited
   }
 
-  // Accumulate: add this payment to the running total
+  const { confirmations, confirmationsRequired, amountReceivedCents, txHash } = payload;
+
+  // Accumulate: add this payment to the running total (if nativeAmount > 0)
   const prevReceived = BigInt(charge.receivedAmount ?? "0");
   const thisPayment = BigInt(nativeAmount);
   const totalReceived = (prevReceived + thisPayment).toString();
   const expected = BigInt(charge.expectedAmount ?? "0");
   const isFull = expected > 0n && BigInt(totalReceived) >= expected;
+  const isConfirmed = isFull && confirmations >= confirmationsRequired;
 
-  // Update received_amount in DB
-  await db
-    .update(cryptoCharges)
-    .set({ receivedAmount: totalReceived, filledAmount: totalReceived })
-    .where(eq(cryptoCharges.referenceId, charge.referenceId));
-
-  if (isFull) {
-    const settled: CryptoPaymentState = "Settled";
-    await chargeStore.updateStatus(charge.referenceId, settled, charge.token ?? undefined, totalReceived);
-    await chargeStore.markCredited(charge.referenceId);
-    log("Charge settled", { chargeId: charge.referenceId, expected: expected.toString(), received: totalReceived });
-  } else {
-    const processing: CryptoPaymentState = "Processing";
-    await chargeStore.updateStatus(charge.referenceId, processing, charge.token ?? undefined, totalReceived);
-    log("Partial payment", { chargeId: charge.referenceId, expected: expected.toString(), received: totalReceived });
+  // Update received_amount in DB (only when there's a new payment)
+  if (thisPayment > 0n) {
+    await db
+      .update(cryptoCharges)
+      .set({ receivedAmount: totalReceived, filledAmount: totalReceived })
+      .where(eq(cryptoCharges.referenceId, charge.referenceId));
   }
 
-  // Webhook on every payment — product shows progress to user
+  // Determine canonical status
+  const status: CryptoChargeStatus = isConfirmed ? "confirmed" : "partial";
+
+  // Update progress via new API
+  await chargeStore.updateProgress(charge.referenceId, {
+    status,
+    amountReceivedCents,
+    confirmations,
+    confirmationsRequired,
+    txHash,
+  });
+
+  if (isConfirmed) {
+    await chargeStore.markCredited(charge.referenceId);
+    log("Charge confirmed", {
+      chargeId: charge.referenceId,
+      confirmations,
+      confirmationsRequired,
+    });
+  } else {
+    log("Payment progress", {
+      chargeId: charge.referenceId,
+      confirmations,
+      confirmationsRequired,
+      received: totalReceived,
+    });
+  }
+
+  // Webhook on every event — product shows confirmation progress to user
   if (charge.callbackUrl) {
     await enqueueWebhook(db, charge.referenceId, charge.callbackUrl, {
       chargeId: charge.referenceId,
       chain: charge.chain,
       address: charge.depositAddress,
-      expectedAmount: expected.toString(),
-      receivedAmount: totalReceived,
-      amountUsdCents: charge.amountUsdCents,
-      status: isFull ? "confirmed" : "partial",
-      ...payload,
+      amountExpectedCents: charge.amountUsdCents,
+      amountReceivedCents,
+      confirmations,
+      confirmationsRequired,
+      txHash,
+      status,
     });
   }
 }
@@ -245,8 +282,14 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       oracle,
       cursorStore,
       onPayment: async (event: BtcPaymentEvent) => {
-        log("UTXO payment", { chain: method.chain, address: event.address, txid: event.txid, sats: event.amountSats });
-        // Pass native amount (sats) — NOT USD cents
+        log("UTXO payment", {
+          chain: method.chain,
+          address: event.address,
+          txid: event.txid,
+          sats: event.amountSats,
+          confirmations: event.confirmations,
+          confirmationsRequired: event.confirmationsRequired,
+        });
         await handlePayment(
           db,
           chargeStore,
@@ -255,6 +298,8 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           {
             txHash: event.txid,
             confirmations: event.confirmations,
+            confirmationsRequired: event.confirmationsRequired,
+            amountReceivedCents: event.amountUsdCents,
           },
           log,
         );
@@ -323,8 +368,14 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       watchedAddresses: chainAddresses,
       cursorStore,
       onPayment: async (event: EvmPaymentEvent) => {
-        log("EVM payment", { chain: event.chain, token: event.token, to: event.to, txHash: event.txHash });
-        // Pass native amount (raw token units) — NOT USD cents
+        log("EVM payment", {
+          chain: event.chain,
+          token: event.token,
+          to: event.to,
+          txHash: event.txHash,
+          confirmations: event.confirmations,
+          confirmationsRequired: event.confirmationsRequired,
+        });
         await handlePayment(
           db,
           chargeStore,
@@ -332,7 +383,9 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           event.rawAmount,
           {
             txHash: event.txHash,
-            confirmations: method.confirmations,
+            confirmations: event.confirmations,
+            confirmationsRequired: event.confirmationsRequired,
+            amountReceivedCents: event.amountUsdCents,
           },
           log,
         );
