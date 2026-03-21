@@ -143,24 +143,3 @@ export function loadCryptoConfig(): CryptoServiceConfig | null {
 
 // Legacy type alias for backwards compat
 export type CryptoConfig = CryptoServiceConfig;
-
-/**
- * @deprecated Use CryptoServiceClient instead. BTCPay is replaced by the crypto key server.
- * Kept for backwards compat — products still import BTCPayClient during migration.
- */
-export class BTCPayClient {
-  constructor(_config: { apiKey: string; baseUrl: string; storeId: string }) {}
-
-  async createInvoice(_opts: {
-    amountUsd: number;
-    orderId: string;
-    buyerEmail?: string;
-    redirectURL?: string;
-  }): Promise<{ id: string; checkoutLink: string }> {
-    throw new Error("BTCPayClient is deprecated — migrate to CryptoServiceClient");
-  }
-
-  async getInvoice(_invoiceId: string): Promise<{ id: string; status: string; amount: string; currency: string }> {
-    throw new Error("BTCPayClient is deprecated — migrate to CryptoServiceClient");
-  }
-}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BTCPayClient, CryptoServiceClient, loadCryptoConfig } from "./client.js";
+import { CryptoServiceClient, loadCryptoConfig } from "./client.js";
 
 describe("CryptoServiceClient", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -75,18 +75,6 @@ describe("CryptoServiceClient", () => {
 
     const client = new CryptoServiceClient({ baseUrl: "http://localhost:3100" });
     await expect(client.getCharge("missing")).rejects.toThrow("CryptoService getCharge failed (404)");
-  });
-});
-
-describe("BTCPayClient (deprecated)", () => {
-  it("throws on createInvoice", async () => {
-    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://example.com", storeId: "s" });
-    await expect(client.createInvoice({ amountUsd: 10, orderId: "o" })).rejects.toThrow("deprecated");
-  });
-
-  it("throws on getInvoice", async () => {
-    const client = new BTCPayClient({ apiKey: "k", baseUrl: "https://example.com", storeId: "s" });
-    await expect(client.getInvoice("inv-1")).rejects.toThrow("deprecated");
   });
 });
 

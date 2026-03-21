@@ -52,7 +52,7 @@ export interface ICryptoChargeRepository {
 /**
  * Manages crypto charge records in PostgreSQL.
  *
- * Each charge maps a BTCPay invoice ID to a tenant and tracks
+ * Each charge maps a deposit address to a tenant and tracks
  * the payment lifecycle (New → Processing → Settled/Expired/Invalid).
  *
  * amountUsdCents stores the requested amount in USD cents (integer).

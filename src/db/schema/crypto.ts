@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 /**
- * Crypto payment charges — tracks the lifecycle of each BTCPay invoice.
- * reference_id is the BTCPay invoice ID.
+ * Crypto payment charges — tracks the lifecycle of each payment.
+ * reference_id is the charge ID (e.g. "btc:bc1q...").
  *
  * amountUsdCents stores the requested amount in USD cents (integer).
  * This is NOT nanodollars — Credit.fromCents() handles the conversion

@@ -1,4 +1,4 @@
-// Crypto (BTCPay Server)
+// Crypto (key server — native BTC/EVM watchers)
 export * from "./crypto/index.js";
 export { DrizzleWebhookSeenRepository } from "./drizzle-webhook-seen-repository.js";
 export type {
