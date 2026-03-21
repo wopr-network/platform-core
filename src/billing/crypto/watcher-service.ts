@@ -1,7 +1,7 @@
 /**
  * Watcher Service — boots chain watchers and sends webhook callbacks.
  *
- * Reads enabled payment methods from DB, starts BTC + EVM watchers,
+ * Reads enabled payment methods from DB, starts BTC/UTXO + EVM watchers,
  * and POSTs to charge.callbackUrl on confirmed payments.
  *
  * Runs inside the key server entry point on the chain server.
@@ -15,6 +15,7 @@ import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./evm/types.js"
 import { createRpcCaller, EvmWatcher } from "./evm/watcher.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
+import type { CryptoPaymentState } from "./types.js";
 
 export interface WatcherServiceOpts {
   chargeStore: ICryptoChargeRepository;
@@ -28,14 +29,39 @@ export interface WatcherServiceOpts {
   pollIntervalMs?: number;
   /** Logger function. */
   log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /** Allowed callback URL prefixes. Default: ["https://"] */
+  allowedCallbackPrefixes?: string[];
+}
+
+/** Validate callbackUrl to prevent SSRF. Only HTTPS to known product domains. */
+function isValidCallbackUrl(url: string, allowedPrefixes: string[]): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    // Block internal/private IPs
+    const host = parsed.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
+    if (host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.")) return false;
+    if (allowedPrefixes.length > 0) {
+      return allowedPrefixes.some((prefix) => url.startsWith(prefix));
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** POST the payment event to the charge's callbackUrl. */
 async function sendWebhook(
   callbackUrl: string,
   payload: Record<string, unknown>,
+  allowedPrefixes: string[],
   log: (msg: string, meta?: Record<string, unknown>) => void,
 ): Promise<void> {
+  if (!isValidCallbackUrl(callbackUrl, allowedPrefixes)) {
+    log("Webhook blocked — invalid callbackUrl", { callbackUrl });
+    return;
+  }
   try {
     const res = await fetch(callbackUrl, {
       method: "POST",
@@ -50,11 +76,12 @@ async function sendWebhook(
   }
 }
 
-/** Handle a confirmed payment — update charge, send webhook. */
+/** Handle a confirmed payment — update charge, mark credited, send webhook. */
 async function handlePayment(
   chargeStore: ICryptoChargeRepository,
   address: string,
   payload: Record<string, unknown>,
+  allowedPrefixes: string[],
   log: (msg: string, meta?: Record<string, unknown>) => void,
 ): Promise<void> {
   const charge = await chargeStore.getByDepositAddress(address);
@@ -63,17 +90,18 @@ async function handlePayment(
     return;
   }
   if (charge.creditedAt) {
-    log("Payment already credited", { address, chargeId: charge.referenceId });
-    return;
+    return; // Already processed — skip silently
   }
 
-  // Update charge status
+  // Update charge status + mark credited (prevents re-processing on next poll)
+  const status: CryptoPaymentState = "Settled";
   await chargeStore.updateStatus(
     charge.referenceId,
-    "Settled" as never,
+    status,
     charge.token ?? undefined,
     String(payload.amountReceived ?? ""),
   );
+  await chargeStore.markCredited(charge.referenceId);
 
   if (charge.callbackUrl) {
     await sendWebhook(
@@ -86,6 +114,7 @@ async function handlePayment(
         status: "confirmed",
         ...payload,
       },
+      allowedPrefixes,
       log,
     );
   }
@@ -98,21 +127,24 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   const { chargeStore, methodStore, cursorStore, oracle } = opts;
   const pollMs = opts.pollIntervalMs ?? 15_000;
   const log = opts.log ?? (() => {});
+  const allowedPrefixes = opts.allowedCallbackPrefixes ?? [];
   const timers: ReturnType<typeof setInterval>[] = [];
-  const evmWatchers: EvmWatcher[] = [];
 
   const methods = await methodStore.listEnabled();
 
-  // Group methods by type for watcher creation
-  const btcMethods = methods.filter((m) => m.type === "native" && (m.chain === "bitcoin" || m.chain === "litecoin"));
+  // UTXO watchers: BTC, LTC, DOGE — all use bitcoind-style RPC (listreceivedbyaddress)
+  const utxoMethods = methods.filter(
+    (m) => m.type === "native" && (m.chain === "bitcoin" || m.chain === "litecoin" || m.chain === "dogecoin"),
+  );
+  // EVM watchers: ERC20 tokens + native ETH on EVM chains
   const evmMethods = methods.filter(
     (m) =>
       m.type === "erc20" ||
       (m.type === "native" && m.chain !== "bitcoin" && m.chain !== "litecoin" && m.chain !== "dogecoin"),
   );
 
-  // --- BTC Watcher ---
-  for (const method of btcMethods) {
+  // --- UTXO Watchers (BTC, LTC, DOGE) ---
+  for (const method of utxoMethods) {
     if (!method.rpcUrl) continue;
 
     const rpcCall = createBitcoindRpc({
@@ -123,7 +155,6 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       confirmations: method.confirmations,
     });
 
-    // Load active deposit addresses for this chain
     const activeAddresses = await chargeStore.listActiveDepositAddresses();
     const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
 
@@ -140,7 +171,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       oracle,
       cursorStore,
       onPayment: async (event: BtcPaymentEvent) => {
-        log("BTC payment detected", { address: event.address, txid: event.txid, sats: event.amountSats });
+        log("UTXO payment detected", { chain: method.chain, address: event.address, txid: event.txid });
         await handlePayment(
           chargeStore,
           event.address,
@@ -150,21 +181,25 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
             amountUsdCents: event.amountUsdCents,
             confirmations: event.confirmations,
           },
+          allowedPrefixes,
           log,
         );
       },
     });
 
-    // Import all watched addresses into bitcoind wallet
+    // Import all watched addresses into wallet
     for (const addr of chainAddresses) {
       try {
         await watcher.importAddress(addr);
       } catch {
-        log("Failed to import address into bitcoind", { address: addr });
+        log("Failed to import address", { chain: method.chain, address: addr });
       }
     }
 
-    log(`BTC watcher started (${method.chain})`, {
+    // Track previously known addresses so we can import new ones on refresh
+    let knownAddresses = new Set(chainAddresses);
+
+    log(`UTXO watcher started (${method.chain})`, {
       addresses: chainAddresses.length,
       confirmations: method.confirmations,
     });
@@ -172,13 +207,25 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     timers.push(
       setInterval(async () => {
         try {
-          // Refresh watched addresses (new charges may have been created)
           const fresh = await chargeStore.listActiveDepositAddresses();
           const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
+
+          // Import any NEW addresses into the wallet before polling
+          for (const addr of freshChain) {
+            if (!knownAddresses.has(addr)) {
+              try {
+                await watcher.importAddress(addr);
+              } catch {
+                log("Failed to import new address", { chain: method.chain, address: addr });
+              }
+            }
+          }
+          knownAddresses = new Set(freshChain);
+
           watcher.setWatchedAddresses(freshChain);
           await watcher.poll();
         } catch (err) {
-          log("BTC watcher poll error", { error: String(err) });
+          log("UTXO watcher poll error", { chain: method.chain, error: String(err) });
         }
       }, pollMs),
     );
@@ -190,7 +237,6 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
     const rpcCall = createRpcCaller(method.rpcUrl);
 
-    // Get current block for starting cursor
     const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
     const latestBlock = Number.parseInt(latestHex, 16);
 
@@ -215,13 +261,13 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
             amountUsdCents: event.amountUsdCents,
             confirmations: method.confirmations,
           },
+          allowedPrefixes,
           log,
         );
       },
     });
 
     await watcher.init();
-    evmWatchers.push(watcher);
 
     log(`EVM watcher started (${method.chain}:${method.token})`, {
       addresses: chainAddresses.length,
@@ -242,7 +288,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     );
   }
 
-  log("All watchers started", { btc: btcMethods.length, evm: evmMethods.length, pollMs });
+  log("All watchers started", { utxo: utxoMethods.length, evm: evmMethods.length, pollMs });
 
   return () => {
     for (const t of timers) clearInterval(t);
