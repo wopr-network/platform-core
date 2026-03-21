@@ -15,6 +15,7 @@ import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import { deriveDepositAddress } from "./evm/address-gen.js";
 import { centsToNative } from "./oracle/convert.js";
+import { AssetNotSupportedError } from "./oracle/types.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
 
@@ -157,17 +158,22 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     // Compute expected crypto amount in native base units.
     // Price is locked NOW — this is what the user must send.
     let expectedAmount: bigint;
+    const feedAddress = method.oracleAddress ? (method.oracleAddress as `0x${string}`) : undefined;
     try {
-      // Try oracle pricing first (Chainlink for BTC/ETH, CoinGecko for DOGE/LTC).
-      // oracle_address is passed as a hint for Chainlink — null is fine, CompositeOracle
-      // will fall through to CoinGecko or built-in feed maps.
-      const feedAddress = method.oracleAddress ? (method.oracleAddress as `0x${string}`) : undefined;
+      // Try oracle pricing (Chainlink for BTC/ETH, CoinGecko for DOGE/LTC).
+      // feedAddress is a hint for Chainlink — undefined is fine, CompositeOracle
+      // falls through to CoinGecko or built-in feed maps.
       const { priceMicros } = await deps.oracle.getPrice(token, feedAddress);
       expectedAmount = centsToNative(amountUsdCents, priceMicros, method.decimals);
-    } catch {
-      // Oracle has no pricing for this token — treat as stablecoin (1:1 USD).
-      // e.g. $50 USDC = 50_000_000 base units (6 decimals)
-      expectedAmount = (BigInt(amountUsdCents) * 10n ** BigInt(method.decimals)) / 100n;
+    } catch (err) {
+      if (err instanceof AssetNotSupportedError) {
+        // No oracle knows this token (e.g. USDC, DAI) — stablecoin 1:1 USD.
+        expectedAmount = (BigInt(amountUsdCents) * 10n ** BigInt(method.decimals)) / 100n;
+      } else {
+        // Transient oracle failure (network, rate limit, stale feed).
+        // Reject the charge — silently pricing BTC at $1 would be catastrophic.
+        return c.json({ error: `Price oracle unavailable for ${token}: ${(err as Error).message}` }, 503);
+      }
     }
 
     const referenceId = `${token.toLowerCase()}:${address.toLowerCase()}`;

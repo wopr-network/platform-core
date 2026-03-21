@@ -1,6 +1,14 @@
 /** Assets with Chainlink price feeds. */
 export type PriceAsset = string;
 
+/** Thrown when no oracle supports a given asset (not a transient failure). */
+export class AssetNotSupportedError extends Error {
+  constructor(asset: string) {
+    super(`No price oracle supports asset: ${asset}`);
+    this.name = "AssetNotSupportedError";
+  }
+}
+
 /** Result from a price oracle query. */
 export interface PriceResult {
   /** Microdollars per 1 unit of asset (integer, 10^-6 USD). */

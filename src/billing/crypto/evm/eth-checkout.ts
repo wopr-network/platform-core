@@ -24,7 +24,7 @@ export interface EthCheckoutResult {
   amountUsd: number;
   /** Expected ETH amount in wei (BigInt as string). */
   expectedWei: string;
-  /** ETH price in USD cents at checkout time. */
+  /** ETH price in microdollars at checkout time (10^-6 USD). */
   priceMicros: number;
   chain: EvmChain;
   referenceId: string;

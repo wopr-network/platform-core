@@ -1,3 +1,4 @@
+import { AssetNotSupportedError } from "./types.js";
 import type { IPriceOracle, PriceAsset, PriceResult } from "./types.js";
 
 /**
@@ -57,25 +58,35 @@ export class CoinGeckoOracle implements IPriceOracle {
     }
 
     const coinId = this.ids[asset];
-    if (!coinId) throw new Error(`No CoinGecko ID for asset: ${asset}`);
+    if (!coinId) throw new AssetNotSupportedError(asset);
 
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`;
-    const res = await this.fetchFn(url);
-    if (!res.ok) {
-      throw new Error(`CoinGecko API error for ${asset}: ${res.status} ${res.statusText}`);
+    try {
+      const res = await this.fetchFn(url);
+      if (!res.ok) {
+        throw new Error(`CoinGecko API error for ${asset}: ${res.status} ${res.statusText}`);
+      }
+
+      const data = (await res.json()) as Record<string, { usd?: number }>;
+      const usdPrice = data[coinId]?.usd;
+      if (usdPrice === undefined || usdPrice <= 0) {
+        throw new Error(`Invalid CoinGecko price for ${asset}: ${usdPrice}`);
+      }
+
+      const priceMicros = Math.round(usdPrice * 1_000_000);
+      const updatedAt = new Date();
+
+      this.cache.set(asset, { priceMicros, updatedAt, fetchedAt: Date.now() });
+
+      return { priceMicros, updatedAt };
+    } catch (err) {
+      // Serve stale cache on transient failure (rate limit, network error).
+      // A slightly old price is better than rejecting the charge entirely.
+      const stale = this.cache.get(asset);
+      if (stale) {
+        return { priceMicros: stale.priceMicros, updatedAt: stale.updatedAt };
+      }
+      throw err;
     }
-
-    const data = (await res.json()) as Record<string, { usd?: number }>;
-    const usdPrice = data[coinId]?.usd;
-    if (usdPrice === undefined || usdPrice <= 0) {
-      throw new Error(`Invalid CoinGecko price for ${asset}: ${usdPrice}`);
-    }
-
-    const priceMicros = Math.round(usdPrice * 1_000_000);
-    const updatedAt = new Date();
-
-    this.cache.set(asset, { priceMicros, updatedAt, fetchedAt: Date.now() });
-
-    return { priceMicros, updatedAt };
   }
 }

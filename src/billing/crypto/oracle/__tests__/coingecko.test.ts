@@ -33,7 +33,7 @@ describe("CoinGeckoOracle", () => {
 
   it("throws for unknown asset", async () => {
     const oracle = new CoinGeckoOracle({ fetchFn: mockFetch(100) as unknown as typeof fetch });
-    await expect(oracle.getPrice("UNKNOWN")).rejects.toThrow("No CoinGecko ID for asset: UNKNOWN");
+    await expect(oracle.getPrice("UNKNOWN")).rejects.toThrow("No price oracle supports asset: UNKNOWN");
   });
 
   it("throws on API error", async () => {
