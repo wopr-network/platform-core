@@ -17,6 +17,7 @@ export interface CryptoChargeRecord {
   token: string | null;
   depositAddress: string | null;
   derivationIndex: number | null;
+  callbackUrl: string | null;
 }
 
 export interface CryptoDepositChargeInput {
@@ -27,6 +28,7 @@ export interface CryptoDepositChargeInput {
   token: string;
   depositAddress: string;
   derivationIndex: number;
+  callbackUrl?: string;
 }
 
 export interface ICryptoChargeRepository {
@@ -92,6 +94,7 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       token: row.token ?? null,
       depositAddress: row.depositAddress ?? null,
       derivationIndex: row.derivationIndex ?? null,
+      callbackUrl: row.callbackUrl ?? null,
     };
   }
 
@@ -146,6 +149,7 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       token: input.token,
       depositAddress: input.depositAddress.toLowerCase(),
       derivationIndex: input.derivationIndex,
+      callbackUrl: input.callbackUrl,
     });
   }
 

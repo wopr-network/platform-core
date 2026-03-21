@@ -156,6 +156,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       token,
       depositAddress: address,
       derivationIndex: index,
+      callbackUrl: body.callbackUrl,
     });
 
     return c.json(

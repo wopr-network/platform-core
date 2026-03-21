@@ -25,6 +25,7 @@ export const cryptoCharges = pgTable(
     token: text("token"),
     depositAddress: text("deposit_address"),
     derivationIndex: integer("derivation_index"),
+    callbackUrl: text("callback_url"),
   },
   (table) => [
     index("idx_crypto_charges_tenant").on(table.tenantId),

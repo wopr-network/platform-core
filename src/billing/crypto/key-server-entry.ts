@@ -13,13 +13,18 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import * as schema from "../../db/schema/index.js";
 import { DrizzleCryptoChargeRepository } from "./charge-store.js";
+import { DrizzleWatcherCursorStore } from "./cursor-store.js";
 import { createKeyServerApp } from "./key-server.js";
+import { FixedPriceOracle } from "./oracle/fixed.js";
 import { DrizzlePaymentMethodStore } from "./payment-method-store.js";
+import { startWatchers } from "./watcher-service.js";
 
 const PORT = Number(process.env.PORT ?? "3100");
 const DATABASE_URL = process.env.DATABASE_URL;
 const SERVICE_KEY = process.env.SERVICE_KEY;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const BITCOIND_USER = process.env.BITCOIND_USER ?? "btcpay";
+const BITCOIND_PASSWORD = process.env.BITCOIND_PASSWORD ?? "";
 
 if (!DATABASE_URL) {
   console.error("DATABASE_URL is required");
@@ -41,6 +46,26 @@ async function main(): Promise<void> {
   const methodStore = new DrizzlePaymentMethodStore(db);
 
   const app = createKeyServerApp({ db, chargeStore, methodStore, serviceKey: SERVICE_KEY, adminToken: ADMIN_TOKEN });
+
+  // Boot watchers (BTC + EVM) — polls for payments, sends webhooks
+  const cursorStore = new DrizzleWatcherCursorStore(db);
+  const oracle = new FixedPriceOracle(); // TODO: replace with Chainlink oracle in production
+  const stopWatchers = await startWatchers({
+    chargeStore,
+    methodStore,
+    cursorStore,
+    oracle,
+    bitcoindUser: BITCOIND_USER,
+    bitcoindPassword: BITCOIND_PASSWORD,
+    log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("[crypto-key-server] Shutting down...");
+    stopWatchers();
+    pool.end();
+  });
 
   console.log(`[crypto-key-server] Listening on :${PORT}`);
   serve({ fetch: app.fetch, port: PORT });
