@@ -5,7 +5,7 @@ function makeRpc(responses: Record<string, unknown>) {
   return vi.fn(async (method: string) => responses[method]);
 }
 
-const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceCents: 350_000, updatedAt: new Date() }) };
+const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceMicros: 3_500_000_000, updatedAt: new Date() }) };
 
 describe("EthWatcher", () => {
   it("detects native ETH transfer to watched address", async () => {
@@ -41,7 +41,7 @@ describe("EthWatcher", () => {
     const event = onPayment.mock.calls[0][0];
     expect(event.to).toBe("0xdeposit");
     expect(event.valueWei).toBe("1000000000000000000");
-    expect(event.amountUsdCents).toBe(350_000); // 1 ETH × $3,500
+    expect(event.amountUsdCents).toBe(350_000); // 1 ETH × $3,500 = $3,500 = 350,000 cents
     expect(event.txHash).toBe("0xabc");
     expect(event.confirmations).toBe(0);
     expect(event.confirmationsRequired).toBe(1);

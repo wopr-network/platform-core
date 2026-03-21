@@ -14,8 +14,8 @@ export interface UnifiedCheckoutResult {
   token: string;
   chain: string;
   referenceId: string;
-  /** For volatile assets: price at checkout time (USD cents per unit). */
-  priceCents?: number;
+  /** For volatile assets: price at checkout time (microdollars per unit, 10^-6 USD). */
+  priceMicros?: number;
 }
 
 /**
@@ -47,6 +47,6 @@ export async function createUnifiedCheckout(
     token: result.token,
     chain: result.chain,
     referenceId: result.chargeId,
-    priceCents: result.priceCents,
+    priceMicros: result.priceMicros,
   };
 }

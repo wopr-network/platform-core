@@ -23,7 +23,7 @@ function makeCursorStore() {
 }
 
 function makeOracle() {
-  return { getPrice: vi.fn().mockResolvedValue({ priceCents: 6_500_000 }) };
+  return { getPrice: vi.fn().mockResolvedValue({ priceMicros: 65_000_000_000 }) };
 }
 
 describe("BtcWatcher — intermediate confirmations", () => {

@@ -105,7 +105,7 @@ export class EthWatcher {
 
     if (latest < this._cursor) return;
 
-    const { priceCents } = await this.oracle.getPrice("ETH");
+    const { priceMicros } = await this.oracle.getPrice("ETH");
 
     // Scan up to latest (not just confirmed) to detect pending txs
     for (let blockNum = this._cursor; blockNum <= latest; blockNum++) {
@@ -131,7 +131,7 @@ export class EthWatcher {
           if (lastConf !== null && confs <= lastConf) continue;
         }
 
-        const amountUsdCents = nativeToCents(valueWei, priceCents, 18);
+        const amountUsdCents = nativeToCents(valueWei, priceMicros, 18);
 
         const event: EthPaymentEvent = {
           chain: this.chain,

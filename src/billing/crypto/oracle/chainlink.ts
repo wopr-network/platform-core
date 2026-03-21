@@ -32,7 +32,7 @@ export interface ChainlinkOracleOpts {
  * No API key, no rate limits — just an RPC call to our own node.
  *
  * Chainlink USD feeds use 8 decimals. We convert to integer USD cents:
- *   priceCents = answer / 10^6  (i.e. answer / 10^8 * 100)
+ *   priceMicros = answer / 100  (i.e. answer / 10^8 * 10^6)
  */
 export class ChainlinkOracle implements IPriceOracle {
   private readonly rpc: RpcCall;
@@ -45,11 +45,11 @@ export class ChainlinkOracle implements IPriceOracle {
     this.maxStalenessMs = opts.maxStalenessMs ?? DEFAULT_MAX_STALENESS_MS;
   }
 
-  async getPrice(asset: PriceAsset): Promise<PriceResult> {
-    const feedAddress = this.feeds.get(asset);
-    if (!feedAddress) throw new Error(`No price feed for asset: ${asset}`);
+  async getPrice(asset: PriceAsset, feedAddress?: `0x${string}`): Promise<PriceResult> {
+    const resolvedFeed = feedAddress ?? this.feeds.get(asset);
+    if (!resolvedFeed) throw new Error(`No price feed for asset: ${asset}`);
 
-    const result = (await this.rpc("eth_call", [{ to: feedAddress, data: LATEST_ROUND_DATA }, "latest"])) as string;
+    const result = (await this.rpc("eth_call", [{ to: resolvedFeed, data: LATEST_ROUND_DATA }, "latest"])) as string;
 
     // ABI decode latestRoundData() return:
     //   [0]  roundId       (uint80)  — skip
@@ -74,12 +74,13 @@ export class ChainlinkOracle implements IPriceOracle {
       );
     }
 
-    // Chainlink USD feeds: 8 decimals. answer / 10^6 = cents (integer).
-    const priceCents = Number(answer / 1_000_000n);
-    if (priceCents <= 0) {
-      throw new Error(`Invalid price for ${asset}: ${priceCents} cents`);
+    // Chainlink USD feeds: 8 decimals. answer / 100 = microdollars (10^-6 USD).
+    // e.g. BTC at $70,315 → answer = 7_031_500_000_000 → 70_315_000_000 microdollars
+    const priceMicros = Number(answer / 100n);
+    if (priceMicros <= 0) {
+      throw new Error(`Invalid price for ${asset}: ${priceMicros} microdollars`);
     }
 
-    return { priceCents, updatedAt };
+    return { priceMicros, updatedAt };
   }
 }
