@@ -18,6 +18,8 @@ export interface CryptoChargeRecord {
   depositAddress: string | null;
   derivationIndex: number | null;
   callbackUrl: string | null;
+  expectedAmount: string | null;
+  receivedAmount: string | null;
 }
 
 export interface CryptoDepositChargeInput {
@@ -29,6 +31,8 @@ export interface CryptoDepositChargeInput {
   depositAddress: string;
   derivationIndex: number;
   callbackUrl?: string;
+  /** Expected crypto amount in native base units (sats for BTC, base units for ERC20). */
+  expectedAmount?: string;
 }
 
 export interface ICryptoChargeRepository {
@@ -95,6 +99,8 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       depositAddress: row.depositAddress ?? null,
       derivationIndex: row.derivationIndex ?? null,
       callbackUrl: row.callbackUrl ?? null,
+      expectedAmount: row.expectedAmount ?? null,
+      receivedAmount: row.receivedAmount ?? null,
     };
   }
 
@@ -150,6 +156,8 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       depositAddress: input.depositAddress.toLowerCase(),
       derivationIndex: input.derivationIndex,
       callbackUrl: input.callbackUrl,
+      expectedAmount: input.expectedAmount,
+      receivedAmount: "0",
     });
   }
 

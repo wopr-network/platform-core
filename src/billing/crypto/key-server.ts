@@ -14,12 +14,15 @@ import { derivedAddresses, pathAllocations, paymentMethods } from "../../db/sche
 import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import { deriveDepositAddress } from "./evm/address-gen.js";
+import { centsToNative } from "./oracle/convert.js";
+import type { IPriceOracle } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
 
 export interface KeyServerDeps {
   db: DrizzleDb;
   chargeStore: ICryptoChargeRepository;
   methodStore: IPaymentMethodStore;
+  oracle: IPriceOracle;
   /** Bearer token for product API routes. If unset, auth is disabled. */
   serviceKey?: string;
   /** Bearer token for admin routes. If unset, admin routes are disabled. */
@@ -145,7 +148,24 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     const tenantId = c.req.header("X-Tenant-Id") ?? "unknown";
     const { address, index, chain, token } = await deriveNextAddress(deps.db, body.chain, tenantId);
 
+    // Look up payment method for decimals + oracle config
+    const method = await deps.methodStore.getById(body.chain);
+    if (!method) return c.json({ error: `Unknown chain: ${body.chain}` }, 400);
+
     const amountUsdCents = Math.round(body.amountUsd * 100);
+
+    // Compute expected crypto amount in native base units.
+    // Price is locked NOW — this is what the user must send.
+    let expectedAmount: bigint;
+    if (method.oracleAddress) {
+      // Volatile asset (BTC, ETH, DOGE) — oracle-priced
+      const { priceCents } = await deps.oracle.getPrice(token);
+      expectedAmount = centsToNative(amountUsdCents, priceCents, method.decimals);
+    } else {
+      // Stablecoin (1:1 USD) — e.g. $50 USDC = 50_000_000 base units (6 decimals)
+      expectedAmount = (BigInt(amountUsdCents) * 10n ** BigInt(method.decimals)) / 100n;
+    }
+
     const referenceId = `${token.toLowerCase()}:${address.toLowerCase()}`;
 
     await deps.chargeStore.createStablecoinCharge({
@@ -157,15 +177,22 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       depositAddress: address,
       derivationIndex: index,
       callbackUrl: body.callbackUrl,
+      expectedAmount: expectedAmount.toString(),
     });
+
+    // Format display amount for the client
+    const divisor = 10 ** method.decimals;
+    const displayAmount = `${(Number(expectedAmount) / divisor).toFixed(Math.min(method.decimals, 8))} ${token}`;
 
     return c.json(
       {
         chargeId: referenceId,
         address,
-        chain: body.chain,
+        chain,
         token,
         amountUsd: body.amountUsd,
+        expectedAmount: expectedAmount.toString(),
+        displayAmount,
         derivationIndex: index,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
       },

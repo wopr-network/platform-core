@@ -48,18 +48,24 @@ async function main(): Promise<void> {
   const chargeStore = new DrizzleCryptoChargeRepository(db);
   const methodStore = new DrizzlePaymentMethodStore(db);
 
-  const app = createKeyServerApp({ db, chargeStore, methodStore, serviceKey: SERVICE_KEY, adminToken: ADMIN_TOKEN });
-
-  // Boot watchers (BTC + EVM) — polls for payments, sends webhooks
-  const cursorStore = new DrizzleWatcherCursorStore(db);
-
   // Chainlink on-chain oracle for volatile assets (BTC, ETH).
-  // Reads latestRoundData() from Base mainnet Chainlink feeds — no API key needed.
-  // Falls back to FixedPriceOracle if BASE_RPC_URL is not set.
   const oracle = BASE_RPC_URL
     ? new ChainlinkOracle({ rpcCall: createRpcCaller(BASE_RPC_URL) })
     : new FixedPriceOracle();
+
+  const app = createKeyServerApp({
+    db,
+    chargeStore,
+    methodStore,
+    oracle,
+    serviceKey: SERVICE_KEY,
+    adminToken: ADMIN_TOKEN,
+  });
+
+  // Boot watchers (BTC + EVM) — polls for payments, sends webhooks
+  const cursorStore = new DrizzleWatcherCursorStore(db);
   const stopWatchers = await startWatchers({
+    db,
     chargeStore,
     methodStore,
     cursorStore,
@@ -69,15 +75,19 @@ async function main(): Promise<void> {
     log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
   });
 
-  // Graceful shutdown
-  process.on("SIGTERM", () => {
+  const server = serve({ fetch: app.fetch, port: PORT });
+  console.log(`[crypto-key-server] Listening on :${PORT}`);
+
+  // Graceful shutdown — stop accepting requests, drain watchers, close pool
+  const shutdown = async () => {
     console.log("[crypto-key-server] Shutting down...");
     stopWatchers();
-    pool.end();
-  });
-
-  console.log(`[crypto-key-server] Listening on :${PORT}`);
-  serve({ fetch: app.fetch, port: PORT });
+    server.close();
+    await pool.end();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 main().catch((err) => {
