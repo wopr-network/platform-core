@@ -216,6 +216,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       amountCents: inv.amount_due,
       status: inv.status ?? "unknown",
       downloadUrl: inv.invoice_pdf ?? "",
+      hostedUrl: inv.hosted_invoice_url ?? "",
     }));
   }
 
