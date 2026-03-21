@@ -1,5 +1,5 @@
-import { AssetNotSupportedError } from "./types.js";
 import type { IPriceOracle, PriceAsset, PriceResult } from "./types.js";
+import { AssetNotSupportedError } from "./types.js";
 
 /**
  * Token symbol → CoinGecko API ID mapping.

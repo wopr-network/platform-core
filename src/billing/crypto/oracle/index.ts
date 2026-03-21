@@ -5,5 +5,5 @@ export { CoinGeckoOracle } from "./coingecko.js";
 export { CompositeOracle } from "./composite.js";
 export { centsToNative, nativeToCents } from "./convert.js";
 export { FixedPriceOracle } from "./fixed.js";
-export { AssetNotSupportedError } from "./types.js";
 export type { IPriceOracle, PriceAsset, PriceResult } from "./types.js";
+export { AssetNotSupportedError } from "./types.js";

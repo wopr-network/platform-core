@@ -15,8 +15,8 @@ import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import { deriveDepositAddress } from "./evm/address-gen.js";
 import { centsToNative } from "./oracle/convert.js";
-import { AssetNotSupportedError } from "./oracle/types.js";
 import type { IPriceOracle } from "./oracle/types.js";
+import { AssetNotSupportedError } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
 
 export interface KeyServerDeps {
