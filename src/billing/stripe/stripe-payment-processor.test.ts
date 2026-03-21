@@ -120,7 +120,7 @@ describe("StripePaymentProcessor", () => {
       expect(result).toEqual([]);
     });
 
-    it("returns formatted payment methods with card label", async () => {
+    it("returns formatted payment methods with card label and reads actual Stripe default", async () => {
       vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
       vi.mocked(mocks.stripe.customers.listPaymentMethods).mockResolvedValue({
         data: [
@@ -128,6 +128,10 @@ describe("StripePaymentProcessor", () => {
           { id: "pm_2", card: { brand: "mastercard", last4: "5555" } },
         ],
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      vi.mocked(mocks.stripe.customers.retrieve).mockResolvedValue({
+        deleted: false,
+        invoice_settings: { default_payment_method: "pm_1" },
+      } as unknown as Stripe.Response<Stripe.Customer>);
 
       const result = await processor.listPaymentMethods("tenant-1");
       expect(result).toEqual([
@@ -136,11 +140,49 @@ describe("StripePaymentProcessor", () => {
       ]);
     });
 
+    it("marks second PM as default when Stripe says so", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.customers.listPaymentMethods).mockResolvedValue({
+        data: [
+          { id: "pm_1", card: { brand: "visa", last4: "4242" } },
+          { id: "pm_2", card: { brand: "mastercard", last4: "5555" } },
+        ],
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      vi.mocked(mocks.stripe.customers.retrieve).mockResolvedValue({
+        deleted: false,
+        invoice_settings: { default_payment_method: "pm_2" },
+      } as unknown as Stripe.Response<Stripe.Customer>);
+
+      const result = await processor.listPaymentMethods("tenant-1");
+      expect(result).toEqual([
+        { id: "pm_1", label: "Visa ending 4242", isDefault: false },
+        { id: "pm_2", label: "Mastercard ending 5555", isDefault: true },
+      ]);
+    });
+
+    it("marks no PM as default when customer has no default set", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.customers.listPaymentMethods).mockResolvedValue({
+        data: [{ id: "pm_1", card: { brand: "visa", last4: "4242" } }],
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      vi.mocked(mocks.stripe.customers.retrieve).mockResolvedValue({
+        deleted: false,
+        invoice_settings: { default_payment_method: null },
+      } as unknown as Stripe.Response<Stripe.Customer>);
+
+      const result = await processor.listPaymentMethods("tenant-1");
+      expect(result).toEqual([{ id: "pm_1", label: "Visa ending 4242", isDefault: false }]);
+    });
+
     it("uses generic label for non-card payment methods", async () => {
       vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
       vi.mocked(mocks.stripe.customers.listPaymentMethods).mockResolvedValue({
         data: [{ id: "pm_bank", card: undefined }],
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      vi.mocked(mocks.stripe.customers.retrieve).mockResolvedValue({
+        deleted: false,
+        invoice_settings: { default_payment_method: "pm_bank" },
+      } as unknown as Stripe.Response<Stripe.Customer>);
 
       const result = await processor.listPaymentMethods("tenant-1");
       expect(result).toEqual([{ id: "pm_bank", label: "Payment method pm_bank", isDefault: true }]);
@@ -189,6 +231,76 @@ describe("StripePaymentProcessor", () => {
 
       await processor.detachPaymentMethod("tenant-1", "pm_1");
       expect(mocks.stripe.paymentMethods.detach).toHaveBeenCalledWith("pm_1");
+    });
+  });
+
+  // --- setDefaultPaymentMethod ---
+
+  describe("setDefaultPaymentMethod", () => {
+    it("throws when tenant has no Stripe customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(null);
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(
+        "No Stripe customer found for tenant: tenant-1",
+      );
+    });
+
+    it("throws PaymentMethodOwnershipError when PM belongs to different customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_OTHER",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(PaymentMethodOwnershipError);
+    });
+
+    it("throws PaymentMethodOwnershipError when PM has no customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: null,
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(PaymentMethodOwnershipError);
+    });
+
+    it("calls stripe.customers.update with invoice_settings when ownership matches", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_123",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+
+      await processor.setDefaultPaymentMethod("tenant-1", "pm_1");
+      expect(mocks.stripe.customers.update).toHaveBeenCalledWith("cus_123", {
+        invoice_settings: { default_payment_method: "pm_1" },
+      });
+    });
+
+    it("succeeds when PM customer is an expanded Customer object", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: { id: "cus_123", object: "customer" },
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+
+      await processor.setDefaultPaymentMethod("tenant-1", "pm_1");
+      expect(mocks.stripe.customers.update).toHaveBeenCalledWith("cus_123", {
+        invoice_settings: { default_payment_method: "pm_1" },
+      });
+    });
+
+    it("propagates Stripe API errors", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_123",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockRejectedValue(new Error("Stripe API error"));
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow("Stripe API error");
     });
   });
 

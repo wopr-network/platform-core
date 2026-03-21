@@ -44,6 +44,7 @@ function makeMockProcessor(methods: SavedPaymentMethod[]): IPaymentProcessor {
     getCustomerEmail: vi.fn().mockResolvedValue(""),
     updateCustomerEmail: vi.fn(),
     listInvoices: vi.fn().mockResolvedValue([]),
+    setDefaultPaymentMethod: vi.fn().mockResolvedValue(undefined),
   };
 }
 

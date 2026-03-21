@@ -63,6 +63,7 @@ describe("IPaymentProcessor types", () => {
       setupPaymentMethod: async () => ({ clientSecret: "cs" }),
       listPaymentMethods: async () => [],
       detachPaymentMethod: async () => undefined,
+      setDefaultPaymentMethod: async () => undefined,
       charge: async () => ({ success: true }),
       getCustomerEmail: async () => "",
       updateCustomerEmail: async () => undefined,
