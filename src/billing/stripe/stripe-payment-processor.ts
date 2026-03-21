@@ -180,7 +180,8 @@ export class StripePaymentProcessor implements IPaymentProcessor {
     }
 
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-    if (!pm.customer || pm.customer !== mapping.processor_customer_id) {
+    const pmCustomerId = typeof pm.customer === "string" ? pm.customer : (pm.customer?.id ?? null);
+    if (!pmCustomerId || pmCustomerId !== mapping.processor_customer_id) {
       throw new PaymentMethodOwnershipError();
     }
 
@@ -196,7 +197,8 @@ export class StripePaymentProcessor implements IPaymentProcessor {
     }
 
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-    if (!pm.customer || pm.customer !== mapping.processor_customer_id) {
+    const pmCustomerId = typeof pm.customer === "string" ? pm.customer : (pm.customer?.id ?? null);
+    if (!pmCustomerId || pmCustomerId !== mapping.processor_customer_id) {
       throw new PaymentMethodOwnershipError();
     }
 

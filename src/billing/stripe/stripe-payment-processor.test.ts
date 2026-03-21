@@ -277,6 +277,29 @@ describe("StripePaymentProcessor", () => {
         invoice_settings: { default_payment_method: "pm_1" },
       });
     });
+
+    it("succeeds when PM customer is an expanded Customer object", async () => {
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: { id: "cus_123", object: "customer" },
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+
+      await processor.setDefaultPaymentMethod("tenant-1", "pm_1");
+      expect(mocks.stripe.customers.update).toHaveBeenCalledWith("cus_123", {
+        invoice_settings: { default_payment_method: "pm_1" },
+      });
+    });
+
+    it("propagates Stripe API errors", async () => {
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_123",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockRejectedValue(new Error("Stripe API error"));
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow("Stripe API error");
+    });
   });
 
   // --- getCustomerEmail ---
