@@ -240,3 +240,65 @@ describe("debitCredits with allowNegative and onBalanceExhausted", () => {
     expect(onBalanceExhausted).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// creditBalanceCheck — metered tenant bypass
+// ---------------------------------------------------------------------------
+
+async function buildHonoContextWithMode(
+  tenantId: string,
+  inferenceMode: string,
+): Promise<import("hono").Context<GatewayAuthEnv>> {
+  let capturedCtx!: import("hono").Context<GatewayAuthEnv>;
+  const app = new Hono<GatewayAuthEnv>();
+  app.get("/test", (c) => {
+    c.set("gatewayTenant", {
+      id: tenantId,
+      spendLimits: { maxSpendPerHour: null, maxSpendPerMonth: null },
+      inferenceMode,
+    } as GatewayTenant);
+    capturedCtx = c;
+    return c.json({});
+  });
+  await app.request("/test");
+  return capturedCtx;
+}
+
+describe("creditBalanceCheck metered tenant bypass", () => {
+  beforeEach(async () => {
+    await truncateAllTables(pool);
+    await new DrizzleLedger(db).seedSystemAccounts();
+  });
+
+  it("skips balance check for metered tenants even with zero balance", async () => {
+    const ledger = new DrizzleLedger(db);
+    // No credits — would normally fail with credits_exhausted
+    const c = await buildHonoContextWithMode("metered-t1", "metered");
+    const deps: CreditGateDeps = { creditLedger: ledger, topUpUrl: "/billing" };
+    const error = await creditBalanceCheck(c, deps, 0);
+    expect(error).toBeNull();
+  });
+
+  it("still debits metered tenants for P&L tracking", async () => {
+    const ledger = new DrizzleLedger(db);
+    await ledger.credit("metered-t1", Credit.fromCents(0), "purchase", { description: "setup" }).catch(() => {});
+    const mockLedger = {
+      debit: vi.fn().mockResolvedValue(undefined),
+      balance: vi.fn(),
+      credit: vi.fn(),
+    } as unknown as import("@wopr-network/platform-core/credits").ILedger;
+    const deps: CreditGateDeps = { creditLedger: mockLedger, topUpUrl: "/billing" };
+    await debitCredits(deps, "metered-tenant", 0.05, 1.5, "chat-completions", "openrouter");
+    expect(mockLedger.debit).toHaveBeenCalled();
+  });
+
+  it("non-metered (managed) tenant still gets balance checked", async () => {
+    const ledger = new DrizzleLedger(db);
+    // No credits seeded — should fail
+    const c = await buildHonoContextWithMode("managed-t1", "managed");
+    const deps: CreditGateDeps = { creditLedger: ledger, topUpUrl: "/billing" };
+    const error = await creditBalanceCheck(c, deps, 0);
+    // Balance is 0, within grace buffer — passes
+    expect(error).toBeNull();
+  });
+});
