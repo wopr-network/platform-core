@@ -1,5 +1,10 @@
 export * from "./btc/index.js";
-export type { CryptoChargeRecord, CryptoDepositChargeInput, ICryptoChargeRepository } from "./charge-store.js";
+export type {
+  CryptoChargeProgressUpdate,
+  CryptoChargeRecord,
+  CryptoDepositChargeInput,
+  ICryptoChargeRepository,
+} from "./charge-store.js";
 export { CryptoChargeRepository, DrizzleCryptoChargeRepository } from "./charge-store.js";
 export type {
   ChainInfo,
@@ -20,10 +25,14 @@ export type {
   KeyServerWebhookPayload as CryptoWebhookPayload,
   KeyServerWebhookResult as CryptoWebhookResult,
 } from "./key-server-webhook.js";
-export { handleKeyServerWebhook, handleKeyServerWebhook as handleCryptoWebhook } from "./key-server-webhook.js";
+export {
+  handleKeyServerWebhook,
+  handleKeyServerWebhook as handleCryptoWebhook,
+  normalizeStatus,
+} from "./key-server-webhook.js";
 export * from "./oracle/index.js";
 export type { IPaymentMethodStore, PaymentMethodRecord } from "./payment-method-store.js";
 export { DrizzlePaymentMethodStore } from "./payment-method-store.js";
-export type { CryptoPaymentState } from "./types.js";
+export type { CryptoCharge, CryptoChargeStatus, CryptoPaymentState } from "./types.js";
 export type { UnifiedCheckoutDeps, UnifiedCheckoutResult } from "./unified-checkout.js";
 export { createUnifiedCheckout, MIN_CHECKOUT_USD as MIN_PAYMENT_USD, MIN_CHECKOUT_USD } from "./unified-checkout.js";

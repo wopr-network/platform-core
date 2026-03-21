@@ -6,7 +6,7 @@ import type { EvmChain } from "./types.js";
 
 type RpcCall = (method: string, params: unknown[]) => Promise<unknown>;
 
-/** Event emitted when a native ETH deposit is detected and confirmed. */
+/** Event emitted on each confirmation increment for a native ETH deposit. */
 export interface EthPaymentEvent {
   readonly chain: EvmChain;
   readonly from: string;
@@ -17,6 +17,10 @@ export interface EthPaymentEvent {
   readonly amountUsdCents: number;
   readonly txHash: string;
   readonly blockNumber: number;
+  /** Current confirmation count (latest block - tx block). */
+  readonly confirmations: number;
+  /** Required confirmations for this chain. */
+  readonly confirmationsRequired: number;
 }
 
 export interface EthWatcherOpts {
@@ -44,9 +48,9 @@ interface RpcTransaction {
  * this scans blocks for transactions where `to` matches a watched deposit
  * address and `value > 0`.
  *
- * Processes one block at a time and persists cursor after each block.
- * On restart, resumes from the last committed cursor — no replay, no
- * unbounded in-memory state.
+ * Scans up to latest block (not just confirmed) to detect pending txs.
+ * Emits events on each confirmation increment. Only advances cursor
+ * past fully-confirmed blocks.
  */
 export class EthWatcher {
   private _cursor: number;
@@ -87,11 +91,10 @@ export class EthWatcher {
   }
 
   /**
-   * Poll for new native ETH transfers to watched addresses.
+   * Poll for native ETH transfers to watched addresses, including unconfirmed blocks.
    *
-   * Processes one block at a time. After each block is fully processed,
-   * the cursor is persisted to the DB. If onPayment fails mid-block,
-   * the cursor hasn't advanced — the entire block is retried on next poll.
+   * Scans from cursor to latest block. Emits events with current confirmation count.
+   * Re-emits on each confirmation increment. Only advances cursor past fully-confirmed blocks.
    */
   async poll(): Promise<void> {
     if (this._watchedAddresses.size === 0) return;
@@ -100,16 +103,19 @@ export class EthWatcher {
     const latest = Number.parseInt(latestHex, 16);
     const confirmed = latest - this.confirmations;
 
-    if (confirmed < this._cursor) return;
+    if (latest < this._cursor) return;
 
     const { priceCents } = await this.oracle.getPrice("ETH");
 
-    for (let blockNum = this._cursor; blockNum <= confirmed; blockNum++) {
+    // Scan up to latest (not just confirmed) to detect pending txs
+    for (let blockNum = this._cursor; blockNum <= latest; blockNum++) {
       const block = (await this.rpc("eth_getBlockByNumber", [`0x${blockNum.toString(16)}`, true])) as {
         transactions: RpcTransaction[];
       } | null;
 
       if (!block) continue;
+
+      const confs = latest - blockNum;
 
       for (const tx of block.transactions) {
         if (!tx.to) continue;
@@ -118,6 +124,12 @@ export class EthWatcher {
 
         const valueWei = BigInt(tx.value);
         if (valueWei === 0n) continue;
+
+        // Skip if we already emitted at this confirmation count
+        if (this.cursorStore) {
+          const lastConf = await this.cursorStore.getConfirmationCount(this.watcherId, tx.hash);
+          if (lastConf !== null && confs <= lastConf) continue;
+        }
 
         const amountUsdCents = nativeToCents(valueWei, priceCents, 18);
 
@@ -129,15 +141,23 @@ export class EthWatcher {
           amountUsdCents,
           txHash: tx.hash,
           blockNumber: blockNum,
+          confirmations: confs,
+          confirmationsRequired: this.confirmations,
         };
 
         await this.onPayment(event);
+
+        if (this.cursorStore) {
+          await this.cursorStore.saveConfirmationCount(this.watcherId, tx.hash, confs);
+        }
       }
 
-      // Block fully processed — persist cursor so we never re-scan it.
-      this._cursor = blockNum + 1;
-      if (this.cursorStore) {
-        await this.cursorStore.save(this.watcherId, this._cursor);
+      // Only advance cursor past fully-confirmed blocks
+      if (blockNum <= confirmed) {
+        this._cursor = blockNum + 1;
+        if (this.cursorStore) {
+          await this.cursorStore.save(this.watcherId, this._cursor);
+        }
       }
     }
   }

@@ -30,6 +30,14 @@ export const cryptoCharges = pgTable(
     expectedAmount: text("expected_amount"),
     /** Running total of received crypto in native units. Accumulates across partial payments. */
     receivedAmount: text("received_amount"),
+    /** Number of blockchain confirmations observed so far. */
+    confirmations: integer("confirmations").notNull().default(0),
+    /** Required confirmations for settlement (copied from payment method at creation). */
+    confirmationsRequired: integer("confirmations_required").notNull().default(1),
+    /** Blockchain transaction hash for the payment. */
+    txHash: text("tx_hash"),
+    /** Amount received so far in USD cents (integer). Converted from crypto at time of receipt. */
+    amountReceivedCents: integer("amount_received_cents").notNull().default(0),
   },
   (table) => [
     index("idx_crypto_charges_tenant").on(table.tenantId),

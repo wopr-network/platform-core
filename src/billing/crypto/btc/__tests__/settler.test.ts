@@ -8,6 +8,7 @@ const mockEvent: BtcPaymentEvent = {
   amountSats: 15000,
   amountUsdCents: 1000,
   confirmations: 6,
+  confirmationsRequired: 6,
 };
 
 describe("settleBtcPayment", () => {

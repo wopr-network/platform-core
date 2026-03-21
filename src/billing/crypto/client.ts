@@ -29,6 +29,8 @@ export interface CreateChargeResult {
   amountUsd: number;
   derivationIndex: number;
   expiresAt: string;
+  displayAmount?: string;
+  priceCents?: number;
 }
 
 export interface ChargeStatus {

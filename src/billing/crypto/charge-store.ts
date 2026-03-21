@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { PlatformDb } from "../../db/index.js";
 import { cryptoCharges } from "../../db/schema/crypto.js";
-import type { CryptoPaymentState } from "./types.js";
+import type { CryptoCharge, CryptoChargeStatus, CryptoPaymentState } from "./types.js";
 
 export interface CryptoChargeRecord {
   referenceId: string;
@@ -20,6 +20,10 @@ export interface CryptoChargeRecord {
   callbackUrl: string | null;
   expectedAmount: string | null;
   receivedAmount: string | null;
+  confirmations: number;
+  confirmationsRequired: number;
+  txHash: string | null;
+  amountReceivedCents: number;
 }
 
 export interface CryptoDepositChargeInput {
@@ -35,15 +39,28 @@ export interface CryptoDepositChargeInput {
   expectedAmount?: string;
 }
 
+export interface CryptoChargeProgressUpdate {
+  status: CryptoChargeStatus;
+  amountReceivedCents: number;
+  confirmations: number;
+  confirmationsRequired: number;
+  txHash?: string;
+}
+
 export interface ICryptoChargeRepository {
   create(referenceId: string, tenantId: string, amountUsdCents: number): Promise<void>;
   getByReferenceId(referenceId: string): Promise<CryptoChargeRecord | null>;
+  /** @deprecated Use updateProgress() instead. Kept for one release cycle. */
   updateStatus(
     referenceId: string,
     status: CryptoPaymentState,
     currency?: string,
     filledAmount?: string,
   ): Promise<void>;
+  /** Update partial payment progress, confirmations, and tx hash. */
+  updateProgress(referenceId: string, update: CryptoChargeProgressUpdate): Promise<void>;
+  /** Get a charge as a UI-facing CryptoCharge with all progress fields. */
+  get(referenceId: string): Promise<CryptoCharge | null>;
   markCredited(referenceId: string): Promise<void>;
   isCredited(referenceId: string): Promise<boolean>;
   createStablecoinCharge(input: CryptoDepositChargeInput): Promise<void>;
@@ -101,10 +118,77 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       callbackUrl: row.callbackUrl ?? null,
       expectedAmount: row.expectedAmount ?? null,
       receivedAmount: row.receivedAmount ?? null,
+      confirmations: row.confirmations,
+      confirmationsRequired: row.confirmationsRequired,
+      txHash: row.txHash ?? null,
+      amountReceivedCents: row.amountReceivedCents,
     };
   }
 
-  /** Update charge status and payment details from webhook. */
+  /** Map DB status strings to CryptoChargeStatus for UI consumption. */
+  private mapStatus(dbStatus: string, credited: boolean): CryptoChargeStatus {
+    if (credited) return "confirmed";
+    switch (dbStatus) {
+      case "New":
+        return "pending";
+      case "Processing":
+        return "partial";
+      case "Settled":
+        return "confirmed";
+      case "Expired":
+        return "expired";
+      case "Invalid":
+        return "failed";
+      default:
+        return "pending";
+    }
+  }
+
+  /** Get a charge as a UI-facing CryptoCharge with all progress fields. */
+  async get(referenceId: string): Promise<CryptoCharge | null> {
+    const row = (await this.db.select().from(cryptoCharges).where(eq(cryptoCharges.referenceId, referenceId)))[0];
+    if (!row) return null;
+    return {
+      id: row.referenceId,
+      tenantId: row.tenantId,
+      chain: row.chain ?? "unknown",
+      status: this.mapStatus(row.status, row.creditedAt != null),
+      amountExpectedCents: row.amountUsdCents,
+      amountReceivedCents: row.amountReceivedCents,
+      confirmations: row.confirmations,
+      confirmationsRequired: row.confirmationsRequired,
+      txHash: row.txHash ?? undefined,
+      credited: row.creditedAt != null,
+      createdAt: new Date(row.createdAt),
+    };
+  }
+
+  /** Update partial payment progress, confirmations, and tx hash. */
+  async updateProgress(referenceId: string, update: CryptoChargeProgressUpdate): Promise<void> {
+    const statusMap: Record<CryptoChargeStatus, string> = {
+      pending: "New",
+      partial: "Processing",
+      confirmed: "Settled",
+      expired: "Expired",
+      failed: "Invalid",
+    };
+    await this.db
+      .update(cryptoCharges)
+      .set({
+        status: statusMap[update.status],
+        amountReceivedCents: update.amountReceivedCents,
+        confirmations: update.confirmations,
+        confirmationsRequired: update.confirmationsRequired,
+        txHash: update.txHash,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(cryptoCharges.referenceId, referenceId));
+  }
+
+  /**
+   * @deprecated Use updateProgress() instead. Kept for one release cycle.
+   * Update charge status and payment details from webhook.
+   */
   async updateStatus(
     referenceId: string,
     status: CryptoPaymentState,

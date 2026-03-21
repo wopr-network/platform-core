@@ -11,6 +11,8 @@ function makeEvent(overrides: Partial<EthPaymentEvent> = {}): EthPaymentEvent {
     amountUsdCents: 5000,
     txHash: "0xabc123",
     blockNumber: 100,
+    confirmations: 1,
+    confirmationsRequired: 1,
     ...overrides,
   };
 }

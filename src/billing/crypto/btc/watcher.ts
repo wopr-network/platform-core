@@ -74,12 +74,18 @@ export class BtcWatcher {
     this.addresses.add(address);
   }
 
-  /** Poll for confirmed payments to watched addresses. */
+  /**
+   * Poll for payments to watched addresses, including unconfirmed txs.
+   *
+   * Fires onPayment on every confirmation increment (0, 1, 2, ... threshold).
+   * Only marks a tx as fully processed once it reaches the confirmation threshold.
+   */
   async poll(): Promise<void> {
     if (this.addresses.size === 0) return;
 
+    // Poll with minconf=0 to see unconfirmed txs
     const received = (await this.rpc("listreceivedbyaddress", [
-      this.minConfirmations,
+      0, // minconf=0: see ALL txs including unconfirmed
       false, // include_empty
       true, // include_watchonly
     ])) as ReceivedByAddress[];
@@ -90,7 +96,7 @@ export class BtcWatcher {
       if (!this.addresses.has(entry.address)) continue;
 
       for (const txid of entry.txids) {
-        // Skip already-processed txids (persisted to DB, survives restart)
+        // Skip fully-processed txids (already reached threshold, persisted to DB)
         if (await this.cursorStore.hasProcessedTx(this.watcherId, txid)) continue;
 
         // Get transaction details for the exact amount sent to this address
@@ -102,8 +108,11 @@ export class BtcWatcher {
         const detail = tx.details.find((d) => d.address === entry.address && d.category === "receive");
         if (!detail) continue;
 
+        // Check if confirmations have increased since last seen
+        const lastSeen = await this.cursorStore.getConfirmationCount(this.watcherId, txid);
+        if (lastSeen !== null && tx.confirmations <= lastSeen) continue; // No change
+
         const amountSats = Math.round(detail.amount * 100_000_000);
-        // priceCents is cents per 1 BTC. detail.amount is in BTC.
         const amountUsdCents = Math.round((amountSats * priceCents) / 100_000_000);
 
         const event: BtcPaymentEvent = {
@@ -112,11 +121,18 @@ export class BtcWatcher {
           amountSats,
           amountUsdCents,
           confirmations: tx.confirmations,
+          confirmationsRequired: this.minConfirmations,
         };
 
         await this.onPayment(event);
-        // Persist AFTER successful onPayment — survives restart, no unbounded memory
-        await this.cursorStore.markProcessedTx(this.watcherId, txid);
+
+        // Persist confirmation count
+        await this.cursorStore.saveConfirmationCount(this.watcherId, txid, tx.confirmations);
+
+        // Mark as fully processed once we reach the threshold
+        if (tx.confirmations >= this.minConfirmations) {
+          await this.cursorStore.markProcessedTx(this.watcherId, txid);
+        }
       }
     }
   }

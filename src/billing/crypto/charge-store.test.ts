@@ -34,6 +34,10 @@ describe("CryptoChargeRepository", () => {
     expect(charge?.amountUsdCents).toBe(2500);
     expect(charge?.status).toBe("New");
     expect(charge?.creditedAt).toBeNull();
+    expect(charge?.confirmations).toBe(0);
+    expect(charge?.confirmationsRequired).toBe(1);
+    expect(charge?.txHash).toBeNull();
+    expect(charge?.amountReceivedCents).toBe(0);
   });
 
   it("getByReferenceId() returns null when not found", async () => {
@@ -41,7 +45,7 @@ describe("CryptoChargeRepository", () => {
     expect(charge).toBeNull();
   });
 
-  it("updateStatus() updates status, currency and filled_amount", async () => {
+  it("updateStatus() updates status, currency and filled_amount (deprecated compat)", async () => {
     await store.create("inv-002", "tenant-2", 5000);
     await store.updateStatus("inv-002", "Settled", "BTC", "0.00025");
 
@@ -77,6 +81,205 @@ describe("CryptoChargeRepository", () => {
     await store.create("inv-006", "tenant-6", 2000);
     await store.markCredited("inv-006");
     expect(await store.isCredited("inv-006")).toBe(true);
+  });
+
+  describe("updateProgress", () => {
+    it("updates partial payment progress", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "prog-001",
+        tenantId: "t-1",
+        amountUsdCents: 5000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xprog001",
+        derivationIndex: 0,
+      });
+
+      await store.updateProgress("prog-001", {
+        status: "partial",
+        amountReceivedCents: 2500,
+        confirmations: 2,
+        confirmationsRequired: 6,
+        txHash: "0xabc123",
+      });
+
+      const record = await store.getByReferenceId("prog-001");
+      expect(record?.status).toBe("Processing");
+      expect(record?.amountReceivedCents).toBe(2500);
+      expect(record?.confirmations).toBe(2);
+      expect(record?.confirmationsRequired).toBe(6);
+      expect(record?.txHash).toBe("0xabc123");
+    });
+
+    it("increments confirmations over multiple updates", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "prog-002",
+        tenantId: "t-2",
+        amountUsdCents: 1000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xprog002",
+        derivationIndex: 1,
+      });
+
+      await store.updateProgress("prog-002", {
+        status: "partial",
+        amountReceivedCents: 1000,
+        confirmations: 1,
+        confirmationsRequired: 6,
+        txHash: "0xdef456",
+      });
+
+      await store.updateProgress("prog-002", {
+        status: "partial",
+        amountReceivedCents: 1000,
+        confirmations: 3,
+        confirmationsRequired: 6,
+        txHash: "0xdef456",
+      });
+
+      const record = await store.getByReferenceId("prog-002");
+      expect(record?.confirmations).toBe(3);
+    });
+
+    it("maps confirmed status to Settled in DB", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "prog-003",
+        tenantId: "t-3",
+        amountUsdCents: 2000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xprog003",
+        derivationIndex: 2,
+      });
+
+      await store.updateProgress("prog-003", {
+        status: "confirmed",
+        amountReceivedCents: 2000,
+        confirmations: 6,
+        confirmationsRequired: 6,
+        txHash: "0xfinal",
+      });
+
+      const record = await store.getByReferenceId("prog-003");
+      expect(record?.status).toBe("Settled");
+    });
+  });
+
+  describe("get (UI-facing CryptoCharge)", () => {
+    it("returns null when not found", async () => {
+      const charge = await store.get("nonexistent");
+      expect(charge).toBeNull();
+    });
+
+    it("returns full CryptoCharge with all fields for a new charge", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "get-001",
+        tenantId: "t-get",
+        amountUsdCents: 5000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xget001",
+        derivationIndex: 10,
+      });
+
+      const charge = await store.get("get-001");
+      expect(charge).not.toBeNull();
+      expect(charge?.id).toBe("get-001");
+      expect(charge?.tenantId).toBe("t-get");
+      expect(charge?.chain).toBe("base");
+      expect(charge?.status).toBe("pending");
+      expect(charge?.amountExpectedCents).toBe(5000);
+      expect(charge?.amountReceivedCents).toBe(0);
+      expect(charge?.confirmations).toBe(0);
+      expect(charge?.confirmationsRequired).toBe(1);
+      expect(charge?.txHash).toBeUndefined();
+      expect(charge?.credited).toBe(false);
+      expect(charge?.createdAt).toBeInstanceOf(Date);
+    });
+
+    it("reflects partial payment progress", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "get-002",
+        tenantId: "t-get2",
+        amountUsdCents: 5000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xget002",
+        derivationIndex: 11,
+      });
+
+      await store.updateProgress("get-002", {
+        status: "partial",
+        amountReceivedCents: 2500,
+        confirmations: 3,
+        confirmationsRequired: 6,
+        txHash: "0xpartial",
+      });
+
+      const charge = await store.get("get-002");
+      expect(charge?.status).toBe("partial");
+      expect(charge?.amountReceivedCents).toBe(2500);
+      expect(charge?.confirmations).toBe(3);
+      expect(charge?.confirmationsRequired).toBe(6);
+      expect(charge?.txHash).toBe("0xpartial");
+      expect(charge?.credited).toBe(false);
+    });
+
+    it("shows confirmed+credited status after markCredited", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "get-003",
+        tenantId: "t-get3",
+        amountUsdCents: 1000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xget003",
+        derivationIndex: 12,
+      });
+
+      await store.updateProgress("get-003", {
+        status: "confirmed",
+        amountReceivedCents: 1000,
+        confirmations: 6,
+        confirmationsRequired: 6,
+        txHash: "0xfull",
+      });
+      await store.markCredited("get-003");
+
+      const charge = await store.get("get-003");
+      expect(charge?.status).toBe("confirmed");
+      expect(charge?.credited).toBe(true);
+      expect(charge?.amountReceivedCents).toBe(1000);
+    });
+
+    it("maps expired status correctly", async () => {
+      await store.createStablecoinCharge({
+        referenceId: "get-004",
+        tenantId: "t-get4",
+        amountUsdCents: 3000,
+        chain: "base",
+        token: "USDC",
+        depositAddress: "0xget004",
+        derivationIndex: 13,
+      });
+
+      await store.updateProgress("get-004", {
+        status: "expired",
+        amountReceivedCents: 0,
+        confirmations: 0,
+        confirmationsRequired: 6,
+      });
+
+      const charge = await store.get("get-004");
+      expect(charge?.status).toBe("expired");
+    });
+
+    it("returns chain as 'unknown' for legacy charges without chain", async () => {
+      await store.create("get-005", "t-get5", 500);
+
+      const charge = await store.get("get-005");
+      expect(charge?.chain).toBe("unknown");
+    });
   });
 
   describe("stablecoin charges", () => {
