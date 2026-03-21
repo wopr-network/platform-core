@@ -47,51 +47,51 @@ async function deriveNextAddress(
   const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Step 1: Atomically claim the next index OUTSIDE the transaction.
+    // This survives even if the transaction below rolls back on address collision.
+    const [method] = await db
+      .update(paymentMethods)
+      .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
+      .where(eq(paymentMethods.id, chainId))
+      .returning();
+
+    if (!method) throw new Error(`Chain not found: ${chainId}`);
+    if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
+
+    const index = method.nextIndex - 1;
+
+    // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
+    let address: string;
+    switch (method.addressType) {
+      case "bech32":
+        address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
+        break;
+      case "p2pkh":
+        address = deriveP2pkhAddress(method.xpub, index, method.chain);
+        break;
+      case "evm":
+        address = deriveDepositAddress(method.xpub, index);
+        break;
+      default:
+        throw new Error(`Unknown address type: ${method.addressType}`);
+    }
+
+    // Step 2: Record in immutable log. If this address was already derived by a
+    // sibling chain (shared xpub), the unique constraint fires and we retry
+    // with the next index (which is already incremented above).
     try {
-      return (await dbWithTx.transaction(async (tx: DrizzleDb) => {
-        // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
-        const [method] = await tx
-          .update(paymentMethods)
-          .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
-          .where(eq(paymentMethods.id, chainId))
-          .returning();
-
-        if (!method) throw new Error(`Chain not found: ${chainId}`);
-        if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
-
-        // The index we use is the value BEFORE increment (returned value - 1)
-        const index = method.nextIndex - 1;
-
-        // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
-        let address: string;
-        switch (method.addressType) {
-          case "bech32":
-            address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
-            break;
-          case "p2pkh":
-            address = deriveP2pkhAddress(method.xpub, index, method.chain);
-            break;
-          case "evm":
-            address = deriveDepositAddress(method.xpub, index);
-            break;
-          default:
-            throw new Error(`Unknown address type: ${method.addressType}`);
-        }
-
-        // Record in immutable log (inside same transaction).
-        // Fails with 23505 if another chain already derived this address (shared xpub).
+      await dbWithTx.transaction(async (tx: DrizzleDb) => {
         await tx.insert(derivedAddresses).values({
           chainId,
           derivationIndex: index,
           address: address.toLowerCase(),
           tenantId,
         });
-
-        return { address, index, chain: method.chain, token: method.token };
-      })) as { address: string; index: number; chain: string; token: string };
+      });
+      return { address, index, chain: method.chain, token: method.token };
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
-      if (code === "23505" && attempt < maxRetries) continue; // address collision, retry with next index
+      if (code === "23505" && attempt < maxRetries) continue; // collision — index already advanced, retry
       throw err;
     }
   }
