@@ -209,6 +209,86 @@ describe("StripePaymentProcessor", () => {
     });
   });
 
+  // --- setDefaultPaymentMethod ---
+
+  describe("setDefaultPaymentMethod", () => {
+    it("throws when tenant has no Stripe customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(null);
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(
+        "No Stripe customer found for tenant: tenant-1",
+      );
+    });
+
+    it("throws PaymentMethodOwnershipError when PM has no customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: null,
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(PaymentMethodOwnershipError);
+    });
+
+    it("throws PaymentMethodOwnershipError when PM belongs to different customer", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_OTHER",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(PaymentMethodOwnershipError);
+    });
+
+    it("throws PaymentMethodOwnershipError when PM customer is an expanded object with different id", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: { id: "cus_OTHER", object: "customer" },
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow(PaymentMethodOwnershipError);
+    });
+
+    it("sets default when ownership matches (string customer)", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_123",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+
+      await processor.setDefaultPaymentMethod("tenant-1", "pm_1");
+      expect(mocks.stripe.customers.update).toHaveBeenCalledWith("cus_123", {
+        invoice_settings: { default_payment_method: "pm_1" },
+      });
+    });
+
+    it("sets default when ownership matches (expanded Customer object)", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: { id: "cus_123", object: "customer" },
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+
+      await processor.setDefaultPaymentMethod("tenant-1", "pm_1");
+      expect(mocks.stripe.customers.update).toHaveBeenCalledWith("cus_123", {
+        invoice_settings: { default_payment_method: "pm_1" },
+      });
+    });
+
+    it("propagates Stripe errors", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
+      vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
+        id: "pm_1",
+        customer: "cus_123",
+      } as unknown as Stripe.Response<Stripe.PaymentMethod>);
+      vi.mocked(mocks.stripe.customers.update).mockRejectedValue(new Error("Stripe network error"));
+
+      await expect(processor.setDefaultPaymentMethod("tenant-1", "pm_1")).rejects.toThrow("Stripe network error");
+    });
+  });
+
   // --- getCustomerEmail ---
 
   describe("getCustomerEmail", () => {
