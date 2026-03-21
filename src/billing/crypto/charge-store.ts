@@ -17,6 +17,9 @@ export interface CryptoChargeRecord {
   token: string | null;
   depositAddress: string | null;
   derivationIndex: number | null;
+  callbackUrl: string | null;
+  expectedAmount: string | null;
+  receivedAmount: string | null;
 }
 
 export interface CryptoDepositChargeInput {
@@ -27,6 +30,9 @@ export interface CryptoDepositChargeInput {
   token: string;
   depositAddress: string;
   derivationIndex: number;
+  callbackUrl?: string;
+  /** Expected crypto amount in native base units (sats for BTC, base units for ERC20). */
+  expectedAmount?: string;
 }
 
 export interface ICryptoChargeRepository {
@@ -50,7 +56,7 @@ export interface ICryptoChargeRepository {
 /**
  * Manages crypto charge records in PostgreSQL.
  *
- * Each charge maps a BTCPay invoice ID to a tenant and tracks
+ * Each charge maps a deposit address to a tenant and tracks
  * the payment lifecycle (New → Processing → Settled/Expired/Invalid).
  *
  * amountUsdCents stores the requested amount in USD cents (integer).
@@ -92,6 +98,9 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       token: row.token ?? null,
       depositAddress: row.depositAddress ?? null,
       derivationIndex: row.derivationIndex ?? null,
+      callbackUrl: row.callbackUrl ?? null,
+      expectedAmount: row.expectedAmount ?? null,
+      receivedAmount: row.receivedAmount ?? null,
     };
   }
 
@@ -146,6 +155,9 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
       token: input.token,
       depositAddress: input.depositAddress.toLowerCase(),
       derivationIndex: input.derivationIndex,
+      callbackUrl: input.callbackUrl,
+      expectedAmount: input.expectedAmount,
+      receivedAmount: "0",
     });
   }
 

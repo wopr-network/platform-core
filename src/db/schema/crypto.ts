@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 /**
- * Crypto payment charges — tracks the lifecycle of each BTCPay invoice.
- * reference_id is the BTCPay invoice ID.
+ * Crypto payment charges — tracks the lifecycle of each payment.
+ * reference_id is the charge ID (e.g. "btc:bc1q...").
  *
  * amountUsdCents stores the requested amount in USD cents (integer).
  * This is NOT nanodollars — Credit.fromCents() handles the conversion
@@ -25,6 +25,11 @@ export const cryptoCharges = pgTable(
     token: text("token"),
     depositAddress: text("deposit_address"),
     derivationIndex: integer("derivation_index"),
+    callbackUrl: text("callback_url"),
+    /** Expected crypto amount in native units (e.g. "76923" sats, "50000000" USDC base units). Locked at creation. */
+    expectedAmount: text("expected_amount"),
+    /** Running total of received crypto in native units. Accumulates across partial payments. */
+    receivedAmount: text("received_amount"),
   },
   (table) => [
     index("idx_crypto_charges_tenant").on(table.tenantId),
@@ -88,6 +93,29 @@ export const pathAllocations = pgTable(
     allocatedAt: text("allocated_at").notNull().default(sql`(now())`),
   },
   (table) => [primaryKey({ columns: [table.coinType, table.accountIndex] })],
+);
+
+/**
+ * Webhook delivery outbox — durable retry for payment callbacks.
+ * Inserted when a payment is confirmed. Retried until the receiver ACKs.
+ */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    chargeId: text("charge_id").notNull(),
+    callbackUrl: text("callback_url").notNull(),
+    payload: text("payload").notNull(), // JSON stringified
+    status: text("status").notNull().default("pending"), // pending, delivered, failed
+    attempts: integer("attempts").notNull().default(0),
+    nextRetryAt: text("next_retry_at"),
+    lastError: text("last_error"),
+    createdAt: text("created_at").notNull().default(sql`(now())`),
+  },
+  (table) => [
+    index("idx_webhook_deliveries_status").on(table.status),
+    index("idx_webhook_deliveries_charge").on(table.chargeId),
+  ],
 );
 
 /**

@@ -158,10 +158,8 @@ export {
   SIGNUP_GRANT,
   SUSPENSION_GRACE_DAYS,
 } from "./credits/index.js";
-// Crypto payments (BTCPay Server)
+// Crypto payments (key server — native BTC/EVM watchers, no BTCPay)
 export type {
-  CryptoBillingConfig,
-  CryptoCheckoutOpts,
   CryptoConfig,
   CryptoPaymentState,
   CryptoWebhookDeps,
@@ -169,15 +167,13 @@ export type {
   CryptoWebhookResult,
 } from "./crypto/index.js";
 export {
-  BTCPayClient,
   CryptoChargeRepository,
-  createCryptoCheckout,
+  CryptoServiceClient,
   DrizzleCryptoChargeRepository,
   handleCryptoWebhook,
+  handleKeyServerWebhook,
   loadCryptoConfig,
   MIN_PAYMENT_USD,
-  mapBtcPayEventToStatus,
-  verifyCryptoWebhookSignature,
 } from "./crypto/index.js";
 // Feature gating middleware (WOP-384 — replaced tier gates with balance gates)
 export {

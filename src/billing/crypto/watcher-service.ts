@@ -1,0 +1,381 @@
+/**
+ * Watcher Service — boots chain watchers and sends webhook callbacks.
+ *
+ * Payment flow:
+ *   1. Watcher detects payment → handlePayment()
+ *   2. Accumulate native amount (supports partial payments)
+ *   3. When totalReceived >= expectedAmount → settle + credit
+ *   4. Every payment (partial or full) enqueues a webhook delivery
+ *   5. Outbox processor retries failed deliveries with exponential backoff
+ *
+ * Amount comparison is ALWAYS in native crypto units (sats, wei, token base units).
+ * The exchange rate is locked at charge creation — no live price comparison.
+ */
+
+import { and, eq, isNull, lte, or } from "drizzle-orm";
+import type { DrizzleDb } from "../../db/index.js";
+import { cryptoCharges, webhookDeliveries } from "../../db/schema/crypto.js";
+import type { BtcPaymentEvent } from "./btc/types.js";
+import { BtcWatcher, createBitcoindRpc } from "./btc/watcher.js";
+import type { ICryptoChargeRepository } from "./charge-store.js";
+import type { IWatcherCursorStore } from "./cursor-store.js";
+import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./evm/types.js";
+import { createRpcCaller, EvmWatcher } from "./evm/watcher.js";
+import type { IPriceOracle } from "./oracle/types.js";
+import type { IPaymentMethodStore } from "./payment-method-store.js";
+import type { CryptoPaymentState } from "./types.js";
+
+const MAX_DELIVERY_ATTEMPTS = 10;
+const BACKOFF_BASE_MS = 5_000;
+
+export interface WatcherServiceOpts {
+  db: DrizzleDb;
+  chargeStore: ICryptoChargeRepository;
+  methodStore: IPaymentMethodStore;
+  cursorStore: IWatcherCursorStore;
+  oracle: IPriceOracle;
+  bitcoindUser?: string;
+  bitcoindPassword?: string;
+  pollIntervalMs?: number;
+  deliveryIntervalMs?: number;
+  log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /** Allowed callback URL prefixes. Default: ["https://"] — enforces HTTPS. */
+  allowedCallbackPrefixes?: string[];
+}
+
+// --- SSRF validation ---
+
+function isValidCallbackUrl(url: string, allowedPrefixes: string[]): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    const host = parsed.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1") return false;
+    if (host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.")) return false;
+    return allowedPrefixes.some((prefix) => url.startsWith(prefix));
+  } catch {
+    return false;
+  }
+}
+
+// --- Webhook outbox ---
+
+async function enqueueWebhook(
+  db: DrizzleDb,
+  chargeId: string,
+  callbackUrl: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await db.insert(webhookDeliveries).values({
+    chargeId,
+    callbackUrl,
+    payload: JSON.stringify(payload),
+  });
+}
+
+async function processDeliveries(
+  db: DrizzleDb,
+  allowedPrefixes: string[],
+  log: (msg: string, meta?: Record<string, unknown>) => void,
+): Promise<number> {
+  const now = new Date().toISOString();
+  const pending = await db
+    .select()
+    .from(webhookDeliveries)
+    .where(
+      and(
+        eq(webhookDeliveries.status, "pending"),
+        or(isNull(webhookDeliveries.nextRetryAt), lte(webhookDeliveries.nextRetryAt, now)),
+      ),
+    )
+    .limit(50);
+
+  let delivered = 0;
+  for (const row of pending) {
+    if (!isValidCallbackUrl(row.callbackUrl, allowedPrefixes)) {
+      await db
+        .update(webhookDeliveries)
+        .set({ status: "failed", lastError: "Invalid callbackUrl (SSRF blocked)" })
+        .where(eq(webhookDeliveries.id, row.id));
+      continue;
+    }
+
+    try {
+      const res = await fetch(row.callbackUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: row.payload,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      await db.update(webhookDeliveries).set({ status: "delivered" }).where(eq(webhookDeliveries.id, row.id));
+      delivered++;
+    } catch (err) {
+      const attempts = row.attempts + 1;
+      if (attempts >= MAX_DELIVERY_ATTEMPTS) {
+        await db
+          .update(webhookDeliveries)
+          .set({ status: "failed", attempts, lastError: String(err) })
+          .where(eq(webhookDeliveries.id, row.id));
+        log("Webhook permanently failed", { chargeId: row.chargeId, attempts });
+      } else {
+        const backoffMs = BACKOFF_BASE_MS * 2 ** (attempts - 1);
+        const nextRetry = new Date(Date.now() + backoffMs).toISOString();
+        await db
+          .update(webhookDeliveries)
+          .set({ attempts, nextRetryAt: nextRetry, lastError: String(err) })
+          .where(eq(webhookDeliveries.id, row.id));
+      }
+    }
+  }
+  return delivered;
+}
+
+// --- Payment handling (partial + full) ---
+
+/**
+ * Handle a payment event. Accumulates partial payments in native units.
+ * Settles when totalReceived >= expectedAmount. Fires webhook on every payment.
+ *
+ * @param nativeAmount — received amount in native base units (sats for BTC/DOGE, raw token units for ERC20)
+ */
+async function handlePayment(
+  db: DrizzleDb,
+  chargeStore: ICryptoChargeRepository,
+  address: string,
+  nativeAmount: string,
+  payload: Record<string, unknown>,
+  log: (msg: string, meta?: Record<string, unknown>) => void,
+): Promise<void> {
+  const charge = await chargeStore.getByDepositAddress(address);
+  if (!charge) {
+    log("Payment to unknown address", { address });
+    return;
+  }
+  if (charge.creditedAt) {
+    return; // Already fully paid and credited
+  }
+
+  // Accumulate: add this payment to the running total
+  const prevReceived = BigInt(charge.receivedAmount ?? "0");
+  const thisPayment = BigInt(nativeAmount);
+  const totalReceived = (prevReceived + thisPayment).toString();
+  const expected = BigInt(charge.expectedAmount ?? "0");
+  const isFull = expected > 0n && BigInt(totalReceived) >= expected;
+
+  // Update received_amount in DB
+  await db
+    .update(cryptoCharges)
+    .set({ receivedAmount: totalReceived, filledAmount: totalReceived })
+    .where(eq(cryptoCharges.referenceId, charge.referenceId));
+
+  if (isFull) {
+    const settled: CryptoPaymentState = "Settled";
+    await chargeStore.updateStatus(charge.referenceId, settled, charge.token ?? undefined, totalReceived);
+    await chargeStore.markCredited(charge.referenceId);
+    log("Charge settled", { chargeId: charge.referenceId, expected: expected.toString(), received: totalReceived });
+  } else {
+    const processing: CryptoPaymentState = "Processing";
+    await chargeStore.updateStatus(charge.referenceId, processing, charge.token ?? undefined, totalReceived);
+    log("Partial payment", { chargeId: charge.referenceId, expected: expected.toString(), received: totalReceived });
+  }
+
+  // Webhook on every payment — product shows progress to user
+  if (charge.callbackUrl) {
+    await enqueueWebhook(db, charge.referenceId, charge.callbackUrl, {
+      chargeId: charge.referenceId,
+      chain: charge.chain,
+      address: charge.depositAddress,
+      expectedAmount: expected.toString(),
+      receivedAmount: totalReceived,
+      amountUsdCents: charge.amountUsdCents,
+      status: isFull ? "confirmed" : "partial",
+      ...payload,
+    });
+  }
+}
+
+// --- Watcher boot ---
+
+export async function startWatchers(opts: WatcherServiceOpts): Promise<() => void> {
+  const { db, chargeStore, methodStore, cursorStore, oracle } = opts;
+  const pollMs = opts.pollIntervalMs ?? 15_000;
+  const deliveryMs = opts.deliveryIntervalMs ?? 10_000;
+  const log = opts.log ?? (() => {});
+  const allowedPrefixes = opts.allowedCallbackPrefixes ?? ["https://"];
+  const timers: ReturnType<typeof setInterval>[] = [];
+
+  const methods = await methodStore.listEnabled();
+
+  const utxoMethods = methods.filter(
+    (m) => m.type === "native" && (m.chain === "bitcoin" || m.chain === "litecoin" || m.chain === "dogecoin"),
+  );
+  const evmMethods = methods.filter(
+    (m) =>
+      m.type === "erc20" ||
+      (m.type === "native" && m.chain !== "bitcoin" && m.chain !== "litecoin" && m.chain !== "dogecoin"),
+  );
+
+  // --- UTXO Watchers (BTC, LTC, DOGE) ---
+  for (const method of utxoMethods) {
+    if (!method.rpcUrl) continue;
+
+    const rpcCall = createBitcoindRpc({
+      rpcUrl: method.rpcUrl,
+      rpcUser: opts.bitcoindUser ?? "btcpay",
+      rpcPassword: opts.bitcoindPassword ?? "",
+      network: "mainnet",
+      confirmations: method.confirmations,
+    });
+
+    const activeAddresses = await chargeStore.listActiveDepositAddresses();
+    const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
+
+    const watcher = new BtcWatcher({
+      config: {
+        rpcUrl: method.rpcUrl,
+        rpcUser: opts.bitcoindUser ?? "btcpay",
+        rpcPassword: opts.bitcoindPassword ?? "",
+        network: "mainnet",
+        confirmations: method.confirmations,
+      },
+      chainId: method.chain,
+      rpcCall,
+      watchedAddresses: chainAddresses,
+      oracle,
+      cursorStore,
+      onPayment: async (event: BtcPaymentEvent) => {
+        log("UTXO payment", { chain: method.chain, address: event.address, txid: event.txid, sats: event.amountSats });
+        // Pass native amount (sats) — NOT USD cents
+        await handlePayment(
+          db,
+          chargeStore,
+          event.address,
+          String(event.amountSats),
+          {
+            txHash: event.txid,
+            confirmations: event.confirmations,
+          },
+          log,
+        );
+      },
+    });
+
+    const importedAddresses = new Set<string>();
+    for (const addr of chainAddresses) {
+      try {
+        await watcher.importAddress(addr);
+        importedAddresses.add(addr);
+      } catch {
+        log("Failed to import address", { chain: method.chain, address: addr });
+      }
+    }
+
+    log(`UTXO watcher started (${method.chain})`, { addresses: importedAddresses.size });
+
+    let utxoPolling = false;
+    timers.push(
+      setInterval(async () => {
+        if (utxoPolling) return; // Prevent overlapping polls
+        utxoPolling = true;
+        try {
+          const fresh = await chargeStore.listActiveDepositAddresses();
+          const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
+
+          for (const addr of freshChain) {
+            if (!importedAddresses.has(addr)) {
+              try {
+                await watcher.importAddress(addr);
+                importedAddresses.add(addr);
+              } catch {
+                log("Failed to import new address (will retry)", { chain: method.chain, address: addr });
+              }
+            }
+          }
+
+          watcher.setWatchedAddresses(freshChain);
+          await watcher.poll();
+        } catch (err) {
+          log("UTXO poll error", { chain: method.chain, error: String(err) });
+        } finally {
+          utxoPolling = false;
+        }
+      }, pollMs),
+    );
+  }
+
+  // --- EVM Watchers ---
+  for (const method of evmMethods) {
+    if (!method.rpcUrl || !method.contractAddress) continue;
+
+    const rpcCall = createRpcCaller(method.rpcUrl);
+    const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
+    const latestBlock = Number.parseInt(latestHex, 16);
+
+    const activeAddresses = await chargeStore.listActiveDepositAddresses();
+    const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
+
+    const watcher = new EvmWatcher({
+      chain: method.chain as EvmChain,
+      token: method.token as StablecoinToken,
+      rpcCall,
+      fromBlock: latestBlock,
+      watchedAddresses: chainAddresses,
+      cursorStore,
+      onPayment: async (event: EvmPaymentEvent) => {
+        log("EVM payment", { chain: event.chain, token: event.token, to: event.to, txHash: event.txHash });
+        // Pass native amount (raw token units) — NOT USD cents
+        await handlePayment(
+          db,
+          chargeStore,
+          event.to,
+          event.rawAmount,
+          {
+            txHash: event.txHash,
+            confirmations: method.confirmations,
+          },
+          log,
+        );
+      },
+    });
+
+    await watcher.init();
+    log(`EVM watcher started (${method.chain}:${method.token})`, { addresses: chainAddresses.length });
+
+    let evmPolling = false;
+    timers.push(
+      setInterval(async () => {
+        if (evmPolling) return; // Prevent overlapping polls
+        evmPolling = true;
+        try {
+          const fresh = await chargeStore.listActiveDepositAddresses();
+          const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
+          watcher.setWatchedAddresses(freshChain);
+          await watcher.poll();
+        } catch (err) {
+          log("EVM poll error", { chain: method.chain, token: method.token, error: String(err) });
+        } finally {
+          evmPolling = false;
+        }
+      }, pollMs),
+    );
+  }
+
+  // --- Webhook delivery outbox processor ---
+  timers.push(
+    setInterval(async () => {
+      try {
+        const count = await processDeliveries(db, allowedPrefixes, log);
+        if (count > 0) log("Webhooks delivered", { count });
+      } catch (err) {
+        log("Delivery loop error", { error: String(err) });
+      }
+    }, deliveryMs),
+  );
+
+  log("All watchers started", { utxo: utxoMethods.length, evm: evmMethods.length, pollMs, deliveryMs });
+
+  return () => {
+    for (const t of timers) clearInterval(t);
+  };
+}

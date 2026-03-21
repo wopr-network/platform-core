@@ -87,7 +87,21 @@ function mockDeps(): KeyServerDeps & {
       },
     ]),
     listAll: vi.fn(),
-    getById: vi.fn(),
+    getById: vi.fn().mockResolvedValue({
+      id: "btc",
+      type: "native",
+      token: "BTC",
+      chain: "bitcoin",
+      decimals: 8,
+      displayName: "Bitcoin",
+      contractAddress: null,
+      confirmations: 6,
+      oracleAddress: "0x64c911996D3c6aC71f9b455B1E8E7266BcbD848F",
+      xpub: null,
+      displayOrder: 0,
+      enabled: true,
+      rpcUrl: null,
+    }),
     listByType: vi.fn(),
     upsert: vi.fn().mockResolvedValue(undefined),
     setEnabled: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +110,7 @@ function mockDeps(): KeyServerDeps & {
     db: createMockDb() as never,
     chargeStore: chargeStore as never,
     methodStore: methodStore as never,
+    oracle: { getPrice: vi.fn().mockResolvedValue({ priceCents: 6_500_000, updatedAt: new Date() }) } as never,
   };
 }
 
