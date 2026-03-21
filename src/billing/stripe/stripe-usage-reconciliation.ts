@@ -10,10 +10,10 @@ export interface StripeUsageReconciliationConfig {
   /** Drift threshold in cents before flagging a tenant. Default: 10. */
   flagThresholdCents?: number;
   /**
-   * Lookup function: (tenant, eventName) -> Stripe Meter ID | null.
-   * Used to look up the meter for listEventSummaries.
+   * Lookup function: (tenant, eventName) -> { meterId, customerId } | null.
+   * Used to look up the meter and customer for listEventSummaries.
    */
-  meterLookup?: (tenant: string, eventName: string) => Promise<string | null>;
+  meterLookup?: (tenant: string, eventName: string) => Promise<{ meterId: string; customerId: string } | null>;
 }
 
 export interface UsageReconciliationResult {
@@ -48,10 +48,10 @@ export async function runStripeUsageReconciliation(
 
   if (localReports.length === 0) return result;
 
-  // Group by tenant+capability
+  // Group by tenant+capability+eventName so each distinct meter is reconciled separately
   const grouped = new Map<string, StripeUsageReportRow[]>();
   for (const report of localReports) {
-    const key = `${report.tenant}:${report.capability}`;
+    const key = `${report.tenant}:${report.capability}:${report.eventName}`;
     const arr = grouped.get(key) ?? [];
     arr.push(report);
     grouped.set(key, arr);
@@ -60,9 +60,9 @@ export async function runStripeUsageReconciliation(
   const checkedTenants = new Set<string>();
 
   for (const [key, reports] of grouped) {
-    const colonIdx = key.indexOf(":");
-    const tenant = key.slice(0, colonIdx);
-    const capability = key.slice(colonIdx + 1);
+    const parts = key.split(":");
+    const tenant = parts[0];
+    const capability = parts[1];
     checkedTenants.add(tenant);
 
     const localTotal = reports.reduce((sum, r) => sum + r.valueCents, 0);
@@ -73,24 +73,13 @@ export async function runStripeUsageReconciliation(
     const eventName = reports[0]?.eventName;
     if (!eventName) continue;
 
-    const meterId = await cfg.meterLookup(tenant, eventName);
-    if (!meterId) {
+    const lookup = await cfg.meterLookup(tenant, eventName);
+    if (!lookup) {
       logger.warn("Cannot reconcile: no meter ID for tenant+capability", { tenant, capability });
       continue;
     }
 
-    // We need the Stripe customer ID — derived from the first report's tenant
-    // The meterLookup doubles as our customer resolution; for reconciliation we use
-    // the subscriptionItemLookup pattern but adapted to meters API.
-    // Use a separate customer lookup if provided via the meterLookup convention:
-    // meterLookup returns `${meterId}:${customerId}` as a combined value.
-    // For simplicity, split on colon if composite value returned.
-    const [resolvedMeterId, customerId] = meterId.includes(":") ? meterId.split(":") : [meterId, undefined];
-
-    if (!customerId) {
-      logger.warn("Cannot reconcile: no customer ID", { tenant, capability });
-      continue;
-    }
+    const { meterId: resolvedMeterId, customerId } = lookup;
 
     try {
       const startSec = Math.floor(dayStart / 1000);

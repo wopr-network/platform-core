@@ -1,19 +1,16 @@
 import crypto from "node:crypto";
-import { and, eq, gte, lt } from "drizzle-orm";
 import type Stripe from "stripe";
 import { logger } from "../../config/logger.js";
 import { Credit } from "../../credits/credit.js";
-import type { PlatformDb } from "../../db/index.js";
-import { billingPeriodSummaries } from "../../db/schema/meter-events.js";
-import { tenantCustomers } from "../../db/schema/tenant-customers.js";
+import type { IBillingPeriodSummaryRepository } from "./billing-period-summary-repository.js";
 import type { MeteredPriceConfig } from "./metered-price-map.js";
 import type { ITenantCustomerRepository } from "./tenant-store.js";
 import type { IStripeUsageReportRepository } from "./usage-report-repository.js";
 
 export interface UsageReportWriterConfig {
   stripe: Stripe;
-  db: PlatformDb;
   tenantRepo: ITenantCustomerRepository;
+  billingPeriodSummaryRepo: IBillingPeriodSummaryRepository;
   usageReportRepo: IStripeUsageReportRepository;
   meteredPriceMap: ReadonlyMap<string, MeteredPriceConfig>;
   /** Start of the billing period to report (unix epoch ms, inclusive). */
@@ -52,10 +49,7 @@ export async function runUsageReportWriter(cfg: UsageReportWriterConfig): Promis
   };
 
   // 1. Find all metered tenants
-  const meteredTenants = await cfg.db
-    .select({ tenant: tenantCustomers.tenant, processorCustomerId: tenantCustomers.processorCustomerId })
-    .from(tenantCustomers)
-    .where(eq(tenantCustomers.inferenceMode, "metered"));
+  const meteredTenants = await cfg.tenantRepo.listMetered();
 
   if (meteredTenants.length === 0) return result;
 
@@ -63,15 +57,7 @@ export async function runUsageReportWriter(cfg: UsageReportWriterConfig): Promis
   const customerIdMap = new Map(meteredTenants.map((t) => [t.tenant, t.processorCustomerId]));
 
   // 2. Query billing period summaries for this period
-  const summaries = await cfg.db
-    .select()
-    .from(billingPeriodSummaries)
-    .where(
-      and(
-        gte(billingPeriodSummaries.periodStart, cfg.periodStart),
-        lt(billingPeriodSummaries.periodEnd, cfg.periodEnd + 1),
-      ),
-    );
+  const summaries = await cfg.billingPeriodSummaryRepo.listByPeriodWindow(cfg.periodStart, cfg.periodEnd);
 
   // 3. Filter to metered tenants only
   const meteredSummaries = summaries.filter((s) => meteredTenantIds.has(s.tenant));

@@ -79,7 +79,7 @@ describe("runStripeUsageReconciliation", () => {
     const result = await runStripeUsageReconciliation({
       stripe: mockStripe,
       usageReportRepo: reportRepo,
-      meterLookup: vi.fn().mockResolvedValue("mtr_123:cus_t1"),
+      meterLookup: vi.fn().mockResolvedValue({ meterId: "mtr_123", customerId: "cus_t1" }),
       targetDate,
       flagThresholdCents: 10,
     });
@@ -116,7 +116,7 @@ describe("runStripeUsageReconciliation", () => {
     const result = await runStripeUsageReconciliation({
       stripe: mockStripe,
       usageReportRepo: reportRepo,
-      meterLookup: vi.fn().mockResolvedValue("mtr_123:cus_t1"),
+      meterLookup: vi.fn().mockResolvedValue({ meterId: "mtr_123", customerId: "cus_t1" }),
       targetDate,
       flagThresholdCents: 10,
     });

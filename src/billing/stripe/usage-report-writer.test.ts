@@ -5,8 +5,9 @@ import type { PlatformDb } from "../../db/index.js";
 import { billingPeriodSummaries } from "../../db/schema/meter-events.js";
 import { tenantCustomers } from "../../db/schema/tenant-customers.js";
 import { createTestDb, truncateAllTables } from "../../test/db.js";
+import { DrizzleBillingPeriodSummaryRepository } from "./billing-period-summary-repository.js";
 import type { MeteredPriceConfig } from "./metered-price-map.js";
-import type { ITenantCustomerRepository } from "./tenant-store.js";
+import { DrizzleTenantCustomerRepository } from "./tenant-store.js";
 import { DrizzleStripeUsageReportRepository } from "./usage-report-repository.js";
 import { runUsageReportWriter } from "./usage-report-writer.js";
 
@@ -18,6 +19,8 @@ describe("runUsageReportWriter", () => {
   let db: PlatformDb;
   let pool: import("@electric-sql/pglite").PGlite;
   let reportRepo: DrizzleStripeUsageReportRepository;
+  let tenantRepo: DrizzleTenantCustomerRepository;
+  let billingPeriodSummaryRepo: DrizzleBillingPeriodSummaryRepository;
 
   const NOW = Date.now();
   const PERIOD_START = 1700000000000;
@@ -38,6 +41,8 @@ describe("runUsageReportWriter", () => {
     pool = t.pool;
     db = t.db;
     reportRepo = new DrizzleStripeUsageReportRepository(db);
+    tenantRepo = new DrizzleTenantCustomerRepository(db);
+    billingPeriodSummaryRepo = new DrizzleBillingPeriodSummaryRepository(db);
   });
 
   beforeEach(async () => {
@@ -82,10 +87,8 @@ describe("runUsageReportWriter", () => {
 
     const result = await runUsageReportWriter({
       stripe: mockStripe,
-      db,
-      tenantRepo: {
-        getByTenant: vi.fn().mockResolvedValue({ processor_customer_id: "cus_t1" }),
-      } as unknown as ITenantCustomerRepository,
+      tenantRepo,
+      billingPeriodSummaryRepo,
       usageReportRepo: reportRepo,
       meteredPriceMap: priceMap,
       periodStart: PERIOD_START,
@@ -115,8 +118,8 @@ describe("runUsageReportWriter", () => {
 
     const result = await runUsageReportWriter({
       stripe: mockStripe,
-      db,
-      tenantRepo: { getByTenant: vi.fn() } as unknown as ITenantCustomerRepository,
+      tenantRepo,
+      billingPeriodSummaryRepo,
       usageReportRepo: reportRepo,
       meteredPriceMap: priceMap,
       periodStart: PERIOD_START,
@@ -146,8 +149,8 @@ describe("runUsageReportWriter", () => {
 
     const result = await runUsageReportWriter({
       stripe: mockStripe,
-      db,
-      tenantRepo: { getByTenant: vi.fn() } as unknown as ITenantCustomerRepository,
+      tenantRepo,
+      billingPeriodSummaryRepo,
       usageReportRepo: reportRepo,
       meteredPriceMap: priceMap,
       periodStart: PERIOD_START,
@@ -177,8 +180,8 @@ describe("runUsageReportWriter", () => {
 
     const result = await runUsageReportWriter({
       stripe: mockStripe,
-      db,
-      tenantRepo: { getByTenant: vi.fn() } as unknown as ITenantCustomerRepository,
+      tenantRepo,
+      billingPeriodSummaryRepo,
       usageReportRepo: reportRepo,
       meteredPriceMap: priceMap,
       periodStart: PERIOD_START,

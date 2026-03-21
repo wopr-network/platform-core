@@ -58,7 +58,7 @@ export interface GatewayTenant {
   /** User-configured spending caps (null fields = no cap). */
   spendingCaps?: SpendingCaps;
   /** Billing mode — "metered" tenants are invoiced via Stripe, not prepaid credits. */
-  inferenceMode?: string;
+  inferenceMode?: "metered" | "managed" | "byok";
 }
 
 /** Fetch function type for dependency injection in tests. */

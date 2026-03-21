@@ -14,6 +14,7 @@ export interface ITenantCustomerRepository {
   setInferenceMode(tenant: string, mode: string): Promise<void>;
   list(): Promise<TenantCustomerRow[]>;
   buildCustomerIdMap(): Promise<Record<string, string>>;
+  listMetered(): Promise<Array<{ tenant: string; processorCustomerId: string }>>;
 }
 
 /**
@@ -114,6 +115,14 @@ export class DrizzleTenantCustomerRepository implements ITenantCustomerRepositor
   async list(): Promise<TenantCustomerRow[]> {
     const rows = await this.db.select().from(tenantCustomers).orderBy(desc(tenantCustomers.createdAt));
     return rows.map(mapRow);
+  }
+
+  /** Return all tenants with inferenceMode === "metered". */
+  async listMetered(): Promise<Array<{ tenant: string; processorCustomerId: string }>> {
+    return this.db
+      .select({ tenant: tenantCustomers.tenant, processorCustomerId: tenantCustomers.processorCustomerId })
+      .from(tenantCustomers)
+      .where(eq(tenantCustomers.inferenceMode, "metered"));
   }
 
   /** Build a tenant -> processor_customer_id map for use with UsageAggregationWorker. */

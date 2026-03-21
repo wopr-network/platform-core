@@ -1,3 +1,8 @@
+export type {
+  BillingPeriodSummaryRow,
+  IBillingPeriodSummaryRepository,
+} from "./billing-period-summary-repository.js";
+export { DrizzleBillingPeriodSummaryRepository } from "./billing-period-summary-repository.js";
 export { createCreditCheckoutSession, createVpsCheckoutSession } from "./checkout.js";
 export { createStripeClient, loadStripeConfig } from "./client.js";
 export type { CreditPriceMap, CreditPricePoint } from "./credit-prices.js";

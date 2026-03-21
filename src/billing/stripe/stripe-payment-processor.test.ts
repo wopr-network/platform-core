@@ -56,6 +56,7 @@ function createMocks() {
     setInferenceMode: vi.fn(),
     list: vi.fn(),
     buildCustomerIdMap: vi.fn(),
+    listMetered: vi.fn(),
   };
 
   const creditLedger: ILedger = {

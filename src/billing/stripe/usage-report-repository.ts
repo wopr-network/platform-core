@@ -14,17 +14,7 @@ export interface StripeUsageReportRow {
   reportedAt: number;
 }
 
-export interface StripeUsageReportInsert {
-  id: string;
-  tenant: string;
-  capability: string;
-  provider: string;
-  periodStart: number;
-  periodEnd: number;
-  eventName: string;
-  valueCents: number;
-  reportedAt: number;
-}
+export type StripeUsageReportInsert = StripeUsageReportRow;
 
 export interface IStripeUsageReportRepository {
   insert(row: StripeUsageReportInsert): Promise<void>;
