@@ -125,6 +125,9 @@ export interface IPaymentProcessor {
   /** Detach a payment method from the tenant's account. */
   detachPaymentMethod(tenant: string, paymentMethodId: string): Promise<void>;
 
+  /** Set a payment method as the tenant's default for future invoices. */
+  setDefaultPaymentMethod(tenant: string, paymentMethodId: string): Promise<void>;
+
   /** Get the billing email for a tenant's customer account. Returns "" if no customer exists. */
   getCustomerEmail(tenantId: string): Promise<string>;
 

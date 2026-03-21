@@ -154,13 +154,39 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       return [];
     }
 
-    const methods = await this.stripe.customers.listPaymentMethods(mapping.processor_customer_id);
+    const [methods, customer] = await Promise.all([
+      this.stripe.customers.listPaymentMethods(mapping.processor_customer_id),
+      this.stripe.customers.retrieve(mapping.processor_customer_id),
+    ]);
 
-    return methods.data.map((pm, index) => ({
+    const defaultPmId =
+      !customer.deleted && customer.invoice_settings?.default_payment_method
+        ? typeof customer.invoice_settings.default_payment_method === "string"
+          ? customer.invoice_settings.default_payment_method
+          : customer.invoice_settings.default_payment_method.id
+        : null;
+
+    return methods.data.map((pm) => ({
       id: pm.id,
       label: formatPaymentMethodLabel(pm),
-      isDefault: index === 0,
+      isDefault: defaultPmId ? pm.id === defaultPmId : false,
     }));
+  }
+
+  async setDefaultPaymentMethod(tenant: string, paymentMethodId: string): Promise<void> {
+    const mapping = await this.tenantRepo.getByTenant(tenant);
+    if (!mapping) {
+      throw new Error(`No Stripe customer found for tenant: ${tenant}`);
+    }
+
+    const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+    if (!pm.customer || pm.customer !== mapping.processor_customer_id) {
+      throw new PaymentMethodOwnershipError();
+    }
+
+    await this.stripe.customers.update(mapping.processor_customer_id, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
   }
 
   async detachPaymentMethod(tenant: string, paymentMethodId: string): Promise<void> {
