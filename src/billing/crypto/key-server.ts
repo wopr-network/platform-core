@@ -157,12 +157,16 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     // Compute expected crypto amount in native base units.
     // Price is locked NOW — this is what the user must send.
     let expectedAmount: bigint;
-    if (method.oracleAddress) {
-      // Volatile asset (BTC, ETH, DOGE, LTC) — oracle-priced in microdollars
-      const { priceMicros } = await deps.oracle.getPrice(token, method.oracleAddress as `0x${string}`);
+    try {
+      // Try oracle pricing first (Chainlink for BTC/ETH, CoinGecko for DOGE/LTC).
+      // oracle_address is passed as a hint for Chainlink — null is fine, CompositeOracle
+      // will fall through to CoinGecko or built-in feed maps.
+      const feedAddress = method.oracleAddress ? (method.oracleAddress as `0x${string}`) : undefined;
+      const { priceMicros } = await deps.oracle.getPrice(token, feedAddress);
       expectedAmount = centsToNative(amountUsdCents, priceMicros, method.decimals);
-    } else {
-      // Stablecoin (1:1 USD) — e.g. $50 USDC = 50_000_000 base units (6 decimals)
+    } catch {
+      // Oracle has no pricing for this token — treat as stablecoin (1:1 USD).
+      // e.g. $50 USDC = 50_000_000 base units (6 decimals)
       expectedAmount = (BigInt(amountUsdCents) * 10n ** BigInt(method.decimals)) / 100n;
     }
 
