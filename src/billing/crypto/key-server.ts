@@ -62,15 +62,20 @@ async function deriveNextAddress(
         // The index we use is the value BEFORE increment (returned value - 1)
         const index = method.nextIndex - 1;
 
-        // Route to the right derivation function
+        // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
         let address: string;
-        if (method.type === "native" && method.chain === "dogecoin") {
-          address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
-        } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
-          address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
-        } else {
-          // EVM (all ERC20 + native ETH) — same derivation
-          address = deriveDepositAddress(method.xpub, index);
+        switch (method.addressType) {
+          case "bech32":
+            address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
+            break;
+          case "p2pkh":
+            address = deriveP2pkhAddress(method.xpub, index, method.chain);
+            break;
+          case "evm":
+            address = deriveDepositAddress(method.xpub, index);
+            break;
+          default:
+            throw new Error(`Unknown address type: ${method.addressType}`);
         }
 
         // Record in immutable log (inside same transaction).
@@ -313,6 +318,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       confirmations?: number;
       display_name?: string;
       oracle_address?: string;
+      address_type?: string;
     }>();
 
     if (!body.id || !body.xpub || !body.token) {
@@ -351,6 +357,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       rpcUrl: body.rpc_url,
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
+      addressType: body.address_type ?? "evm",
       confirmations: body.confirmations ?? 6,
     });
 

@@ -127,6 +127,13 @@
       "when": 1743091200000,
       "tag": "0017_fix_derivation_index_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1743177600000,
+      "tag": "0018_address_type_column",
+      "breakpoints": true
     }
   ]
 }

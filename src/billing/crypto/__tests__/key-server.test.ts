@@ -14,6 +14,7 @@ function createMockDb() {
     xpub: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
     nextIndex: 1,
     decimals: 8,
+    addressType: "bech32",
     confirmations: 6,
   };
 
