@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import type { IPaymentProcessor } from "../billing/payment-processor.js";
+import { PaymentMethodOwnershipError } from "../billing/payment-processor.js";
 import type { IAutoTopupSettingsRepository } from "../credits/auto-topup-settings-repository.js";
 import { orgAdminProcedure, router } from "./init.js";
 
@@ -20,7 +21,12 @@ export function createOrgRemovePaymentMethodRouter(getDeps: () => OrgRemovePayme
       )
       .mutation(async ({ input }) => {
         const { processor, autoTopupSettingsStore } = getDeps();
-        const { PaymentMethodOwnershipError } = await import("../billing/payment-processor.js");
+
+        if (!autoTopupSettingsStore) {
+          console.warn(
+            "orgRemovePaymentMethod: autoTopupSettingsStore not provided — last-payment-method guard is inactive",
+          );
+        }
 
         // Guard: prevent removing the last payment method when auto-topup is enabled
         if (autoTopupSettingsStore) {
@@ -38,7 +44,6 @@ export function createOrgRemovePaymentMethodRouter(getDeps: () => OrgRemovePayme
 
         try {
           await processor.detachPaymentMethod(input.orgId, input.paymentMethodId);
-          return { removed: true };
         } catch (err) {
           if (err instanceof PaymentMethodOwnershipError) {
             throw new TRPCError({
@@ -51,6 +56,25 @@ export function createOrgRemovePaymentMethodRouter(getDeps: () => OrgRemovePayme
             message: "Failed to remove payment method. Please try again.",
           });
         }
+
+        // TOCTOU guard: re-check count after detach. A concurrent request
+        // may have already removed another payment method between our pre-check
+        // and this detach, leaving the org with 0 methods while auto-topup is
+        // still enabled. Warn operators — the method is already gone.
+        if (autoTopupSettingsStore) {
+          const remaining = await processor.listPaymentMethods(input.orgId);
+          if (remaining.length === 0) {
+            const settings = await autoTopupSettingsStore.getByTenant(input.orgId);
+            if (settings && (settings.usageEnabled || settings.scheduleEnabled)) {
+              console.warn(
+                "orgRemovePaymentMethod: TOCTOU — org %s now has 0 payment methods with auto-topup enabled. Operator must add a payment method or disable auto-topup.",
+                input.orgId,
+              );
+            }
+          }
+        }
+
+        return { removed: true };
       }),
   });
 }

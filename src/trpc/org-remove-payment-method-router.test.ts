@@ -170,4 +170,19 @@ describe("orgRemovePaymentMethod router", () => {
     });
     expect(result).toEqual({ removed: true });
   });
+
+  it("returns FORBIDDEN when detachPaymentMethod throws PaymentMethodOwnershipError", async () => {
+    const { PaymentMethodOwnershipError } = await import("../billing/payment-processor.js");
+    const ownershipErrorProcessor = makeMockProcessor([]);
+    (ownershipErrorProcessor.detachPaymentMethod as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new PaymentMethodOwnershipError(),
+    );
+    const caller = buildCaller({
+      processor: ownershipErrorProcessor,
+      autoTopupSettingsStore: autoTopupStore,
+    })(authedContext());
+    await expect(caller.org.orgRemovePaymentMethod({ orgId: "org-1", paymentMethodId: "pm_1" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
 });
