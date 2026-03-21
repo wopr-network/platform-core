@@ -279,6 +279,7 @@ describe("StripePaymentProcessor", () => {
     });
 
     it("succeeds when PM customer is an expanded Customer object", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
       vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
         id: "pm_1",
         customer: { id: "cus_123", object: "customer" },
@@ -292,6 +293,7 @@ describe("StripePaymentProcessor", () => {
     });
 
     it("propagates Stripe API errors", async () => {
+      vi.mocked(mocks.tenantRepo.getByTenant).mockResolvedValue(makeTenantRow());
       vi.mocked(mocks.stripe.paymentMethods.retrieve).mockResolvedValue({
         id: "pm_1",
         customer: "cus_123",
