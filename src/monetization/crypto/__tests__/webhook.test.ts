@@ -161,7 +161,14 @@ describe("handleCryptoWebhook (monetization layer)", () => {
 
   describe("charge store updates", () => {
     it("updates charge status on every webhook call", async () => {
-      await handleCryptoWebhook(deps, makePayload({ status: "pending" }));
+      await handleCryptoWebhook(deps, makePayload({ status: "partial" }));
+
+      const charge = await chargeStore.getByReferenceId("chg-test-001");
+      expect(charge?.status).toBe("partial");
+    });
+
+    it("settles charge when status is confirmed", async () => {
+      await handleCryptoWebhook(deps, makePayload({ status: "confirmed" }));
 
       const charge = await chargeStore.getByReferenceId("chg-test-001");
       expect(charge?.status).toBe("Settled");
