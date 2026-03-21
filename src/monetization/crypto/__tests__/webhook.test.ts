@@ -164,7 +164,8 @@ describe("handleCryptoWebhook (monetization layer)", () => {
       await handleCryptoWebhook(deps, makePayload({ status: "partial" }));
 
       const charge = await chargeStore.getByReferenceId("chg-test-001");
-      expect(charge?.status).toBe("partial");
+      // DB stores legacy status values; "partial" maps to "Processing" internally
+      expect(charge?.status).toBe("Processing");
     });
 
     it("settles charge when status is confirmed", async () => {
