@@ -14,6 +14,8 @@ export interface BtcWatcherOpts {
   oracle: IPriceOracle;
   /** Required — BTC has no block cursor, so txid dedup must be persisted. */
   cursorStore: IWatcherCursorStore;
+  /** Override chain identity for cursor namespace (default: config.network). Prevents txid collisions across BTC/LTC/DOGE. */
+  chainId?: string;
 }
 
 interface ReceivedByAddress {
@@ -39,7 +41,7 @@ export class BtcWatcher {
     this.minConfirmations = opts.config.confirmations;
     this.oracle = opts.oracle;
     this.cursorStore = opts.cursorStore;
-    this.watcherId = `btc:${opts.config.network}`;
+    this.watcherId = `btc:${opts.chainId ?? opts.config.network}`;
   }
 
   /** Update the set of watched addresses. */

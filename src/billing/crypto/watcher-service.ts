@@ -50,7 +50,7 @@ function isValidCallbackUrl(url: string, allowedPrefixes: string[]): boolean {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
     const host = parsed.hostname;
-    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1") return false;
     if (host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.")) return false;
     return allowedPrefixes.some((prefix) => url.startsWith(prefix));
   } catch {
@@ -239,6 +239,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         network: "mainnet",
         confirmations: method.confirmations,
       },
+      chainId: method.chain,
       rpcCall,
       watchedAddresses: chainAddresses,
       oracle,
@@ -272,8 +273,11 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
     log(`UTXO watcher started (${method.chain})`, { addresses: importedAddresses.size });
 
+    let utxoPolling = false;
     timers.push(
       setInterval(async () => {
+        if (utxoPolling) return; // Prevent overlapping polls
+        utxoPolling = true;
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
           const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
@@ -293,6 +297,8 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           await watcher.poll();
         } catch (err) {
           log("UTXO poll error", { chain: method.chain, error: String(err) });
+        } finally {
+          utxoPolling = false;
         }
       }, pollMs),
     );
@@ -336,8 +342,11 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     await watcher.init();
     log(`EVM watcher started (${method.chain}:${method.token})`, { addresses: chainAddresses.length });
 
+    let evmPolling = false;
     timers.push(
       setInterval(async () => {
+        if (evmPolling) return; // Prevent overlapping polls
+        evmPolling = true;
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
           const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
@@ -345,6 +354,8 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           await watcher.poll();
         } catch (err) {
           log("EVM poll error", { chain: method.chain, token: method.token, error: String(err) });
+        } finally {
+          evmPolling = false;
         }
       }, pollMs),
     );

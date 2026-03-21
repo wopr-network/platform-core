@@ -71,15 +71,10 @@ export async function handleKeyServerWebhook(
     return { handled: false };
   }
 
-  // Update charge status
-  await chargeStore.updateStatus(
-    payload.chargeId,
-    "Settled" as never,
-    charge.token ?? undefined,
-    payload.amountReceived,
-  );
-
   if (payload.status === "confirmed") {
+    // Only settle when payment is confirmed
+    await chargeStore.updateStatus(payload.chargeId, "Settled", charge.token ?? undefined, payload.amountReceived);
+
     // Idempotency: check ledger referenceId (atomic, same as BTCPay handler)
     const creditRef = `crypto:${payload.chargeId}`;
     if (await creditLedger.hasReferenceId(creditRef)) {
@@ -112,7 +107,13 @@ export async function handleKeyServerWebhook(
     };
   }
 
-  // Non-confirmed status — just track it
+  // Non-confirmed status — update status but don't settle or credit
+  await chargeStore.updateStatus(
+    payload.chargeId,
+    payload.status as "Processing",
+    charge.token ?? undefined,
+    payload.amountReceived,
+  );
   await deps.replayGuard.markSeen(dedupeKey, "crypto");
   return { handled: true, tenant: charge.tenantId };
 }
