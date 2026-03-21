@@ -17,6 +17,8 @@ import { DrizzleWatcherCursorStore } from "./cursor-store.js";
 import { createRpcCaller } from "./evm/watcher.js";
 import { createKeyServerApp } from "./key-server.js";
 import { ChainlinkOracle } from "./oracle/chainlink.js";
+import { CoinGeckoOracle } from "./oracle/coingecko.js";
+import { CompositeOracle } from "./oracle/composite.js";
 import { FixedPriceOracle } from "./oracle/fixed.js";
 import { DrizzlePaymentMethodStore } from "./payment-method-store.js";
 import { startWatchers } from "./watcher-service.js";
@@ -48,10 +50,13 @@ async function main(): Promise<void> {
   const chargeStore = new DrizzleCryptoChargeRepository(db);
   const methodStore = new DrizzlePaymentMethodStore(db);
 
-  // Chainlink on-chain oracle for volatile assets (BTC, ETH).
-  const oracle = BASE_RPC_URL
+  // Composite oracle: Chainlink on-chain (BTC, ETH on Base) + CoinGecko fallback (DOGE, LTC, etc.)
+  // Every volatile asset needs reliable USD pricing — the ledger credits nanodollars.
+  const chainlink = BASE_RPC_URL
     ? new ChainlinkOracle({ rpcCall: createRpcCaller(BASE_RPC_URL) })
     : new FixedPriceOracle();
+  const coingecko = new CoinGeckoOracle();
+  const oracle = new CompositeOracle(chainlink, coingecko);
 
   const app = createKeyServerApp({
     db,

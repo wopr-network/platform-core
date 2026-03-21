@@ -1,4 +1,5 @@
 import type { IWatcherCursorStore } from "../cursor-store.js";
+import { nativeToCents } from "../oracle/convert.js";
 import type { IPriceOracle } from "../oracle/types.js";
 import type { BitcoindConfig, BtcPaymentEvent } from "./types.js";
 
@@ -90,7 +91,7 @@ export class BtcWatcher {
       true, // include_watchonly
     ])) as ReceivedByAddress[];
 
-    const { priceCents } = await this.oracle.getPrice("BTC");
+    const { priceMicros } = await this.oracle.getPrice("BTC");
 
     for (const entry of received) {
       if (!this.addresses.has(entry.address)) continue;
@@ -113,7 +114,8 @@ export class BtcWatcher {
         if (lastSeen !== null && tx.confirmations <= lastSeen) continue; // No change
 
         const amountSats = Math.round(detail.amount * 100_000_000);
-        const amountUsdCents = Math.round((amountSats * priceCents) / 100_000_000);
+        // priceMicros is microdollars per 1 BTC. Convert sats→USD cents via nativeToCents.
+        const amountUsdCents = nativeToCents(BigInt(amountSats), priceMicros, 8);
 
         const event: BtcPaymentEvent = {
           address: entry.address,

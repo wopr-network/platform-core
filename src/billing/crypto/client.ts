@@ -30,7 +30,7 @@ export interface CreateChargeResult {
   derivationIndex: number;
   expiresAt: string;
   displayAmount?: string;
-  priceCents?: number;
+  priceMicros?: number;
 }
 
 export interface ChargeStatus {

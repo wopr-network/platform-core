@@ -110,7 +110,7 @@ function mockDeps(): KeyServerDeps & {
     db: createMockDb() as never,
     chargeStore: chargeStore as never,
     methodStore: methodStore as never,
-    oracle: { getPrice: vi.fn().mockResolvedValue({ priceCents: 6_500_000, updatedAt: new Date() }) } as never,
+    oracle: { getPrice: vi.fn().mockResolvedValue({ priceMicros: 65_000_000_000, updatedAt: new Date() }) } as never,
   };
 }
 

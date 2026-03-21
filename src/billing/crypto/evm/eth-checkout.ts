@@ -25,7 +25,7 @@ export interface EthCheckoutResult {
   /** Expected ETH amount in wei (BigInt as string). */
   expectedWei: string;
   /** ETH price in USD cents at checkout time. */
-  priceCents: number;
+  priceMicros: number;
   chain: EvmChain;
   referenceId: string;
 }
@@ -45,8 +45,8 @@ export async function createEthCheckout(deps: EthCheckoutDeps, opts: EthCheckout
   }
 
   const amountUsdCents = Credit.fromDollars(opts.amountUsd).toCentsRounded();
-  const { priceCents } = await deps.oracle.getPrice("ETH");
-  const expectedWei = centsToNative(amountUsdCents, priceCents, 18);
+  const { priceMicros } = await deps.oracle.getPrice("ETH");
+  const expectedWei = centsToNative(amountUsdCents, priceMicros, 18);
   const maxRetries = 3;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -69,7 +69,7 @@ export async function createEthCheckout(deps: EthCheckoutDeps, opts: EthCheckout
         depositAddress,
         amountUsd: opts.amountUsd,
         expectedWei: expectedWei.toString(),
-        priceCents,
+        priceMicros,
         chain: opts.chain,
         referenceId,
       };

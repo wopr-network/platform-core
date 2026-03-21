@@ -28,7 +28,7 @@ describe("ChainlinkOracle", () => {
 
     const result = await oracle.getPrice("ETH");
 
-    expect(result.priceCents).toBe(350_000); // $3,500.00
+    expect(result.priceMicros).toBe(3_500_000_000); // $3,500.00
     expect(result.updatedAt).toBeInstanceOf(Date);
     expect(rpc).toHaveBeenCalledWith("eth_call", [
       { to: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70", data: "0xfeaf968c" },
@@ -43,7 +43,7 @@ describe("ChainlinkOracle", () => {
 
     const result = await oracle.getPrice("BTC");
 
-    expect(result.priceCents).toBe(6_500_000); // $65,000.00
+    expect(result.priceMicros).toBe(65_000_000_000); // $65,000.00
   });
 
   it("handles fractional dollar prices correctly", async () => {
@@ -53,7 +53,7 @@ describe("ChainlinkOracle", () => {
 
     const result = await oracle.getPrice("ETH");
 
-    expect(result.priceCents).toBe(345_678); // $3,456.78
+    expect(result.priceMicros).toBe(3_456_780_000); // $3,456.78
   });
 
   it("rejects stale prices", async () => {
@@ -102,6 +102,6 @@ describe("ChainlinkOracle", () => {
     // 60-minute threshold → fresh
     const relaxed = new ChainlinkOracle({ rpcCall: rpc, maxStalenessMs: 60 * 60 * 1000 });
     const result = await relaxed.getPrice("ETH");
-    expect(result.priceCents).toBe(350_000);
+    expect(result.priceMicros).toBe(3_500_000_000);
   });
 });

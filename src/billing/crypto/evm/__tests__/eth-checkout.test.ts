@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEthCheckout, MIN_ETH_USD } from "../eth-checkout.js";
 
-const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceCents: 350_000, updatedAt: new Date() }) };
+const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceMicros: 3_500_000_000, updatedAt: new Date() }) };
 
 function makeDeps(derivationIndex = 0) {
   return {
@@ -20,9 +20,9 @@ describe("createEthCheckout", () => {
     const result = await createEthCheckout(deps, { tenant: "t1", amountUsd: 50, chain: "base" });
 
     expect(result.amountUsd).toBe(50);
-    expect(result.priceCents).toBe(350_000);
+    expect(result.priceMicros).toBe(3_500_000_000);
     expect(result.chain).toBe("base");
-    // $50 = 5000 cents. 5000 × 10^18 / 350000 = 14285714285714285n
+    // $50 = 5000 cents × 10000 micros/cent × 10^18 / 3_500_000_000 micros = 14285714285714285n
     expect(result.expectedWei).toBe("14285714285714285");
     expect(result.depositAddress).toMatch(/^0x/);
     expect(result.referenceId).toMatch(/^eth:base:0x/);

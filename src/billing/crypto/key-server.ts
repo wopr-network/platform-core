@@ -158,9 +158,9 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     // Price is locked NOW — this is what the user must send.
     let expectedAmount: bigint;
     if (method.oracleAddress) {
-      // Volatile asset (BTC, ETH, DOGE) — oracle-priced
-      const { priceCents } = await deps.oracle.getPrice(token);
-      expectedAmount = centsToNative(amountUsdCents, priceCents, method.decimals);
+      // Volatile asset (BTC, ETH, DOGE, LTC) — oracle-priced in microdollars
+      const { priceMicros } = await deps.oracle.getPrice(token, method.oracleAddress as `0x${string}`);
+      expectedAmount = centsToNative(amountUsdCents, priceMicros, method.decimals);
     } else {
       // Stablecoin (1:1 USD) — e.g. $50 USDC = 50_000_000 base units (6 decimals)
       expectedAmount = (BigInt(amountUsdCents) * 10n ** BigInt(method.decimals)) / 100n;
