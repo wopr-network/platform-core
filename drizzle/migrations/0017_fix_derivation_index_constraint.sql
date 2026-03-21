@@ -4,4 +4,4 @@
 DROP INDEX IF EXISTS "uq_crypto_charges_derivation_index";
 --> statement-breakpoint
 
-CREATE UNIQUE INDEX "uq_crypto_charges_chain_derivation" ON "crypto_charges" ("chain", "derivation_index") WHERE "derivation_index" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_crypto_charges_chain_derivation" ON "crypto_charges" ("chain", "derivation_index") WHERE "chain" IS NOT NULL AND "derivation_index" IS NOT NULL;
