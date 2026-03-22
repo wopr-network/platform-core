@@ -353,7 +353,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
   // --- Native ETH Watchers (block-scanning for value transfers) ---
   const nativeEvmMethods = evmMethods.filter((m) => m.type === "native");
-  const erc20Methods = evmMethods.filter((m) => m.type === "erc20" || m.contractAddress);
+  const erc20Methods = evmMethods.filter((m) => m.type === "erc20" && m.contractAddress);
 
   const BACKFILL_BLOCKS = 1000; // Scan ~30min of blocks on first deploy to catch missed deposits
 

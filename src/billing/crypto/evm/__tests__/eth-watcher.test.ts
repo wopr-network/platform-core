@@ -31,6 +31,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: ["0xDeposit"],
     });
@@ -61,6 +62,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: ["0xDeposit"],
     });
@@ -83,6 +85,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: ["0xDeposit"],
     });
@@ -118,6 +121,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: ["0xDeposit"],
       cursorStore,
@@ -139,6 +143,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: [],
     });
@@ -170,6 +175,7 @@ describe("EthWatcher", () => {
       rpcCall: rpc,
       oracle: mockOracle,
       fromBlock: 10,
+      confirmations: 1,
       onPayment,
       watchedAddresses: ["0xDeposit"],
       cursorStore,

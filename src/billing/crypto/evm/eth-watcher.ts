@@ -31,7 +31,7 @@ export interface EthWatcherOpts {
   watchedAddresses?: string[];
   cursorStore?: IWatcherCursorStore;
   /** Required confirmations (from DB). */
-  confirmations?: number;
+  confirmations: number;
 }
 
 interface RpcTransaction {
@@ -70,7 +70,7 @@ export class EthWatcher {
     this.oracle = opts.oracle;
     this._cursor = opts.fromBlock;
     this.onPayment = opts.onPayment;
-    this.confirmations = opts.confirmations ?? 1;
+    this.confirmations = opts.confirmations;
     this.cursorStore = opts.cursorStore;
     this.watcherId = `eth:${opts.chain}`;
     this._watchedAddresses = new Set((opts.watchedAddresses ?? []).map((a) => a.toLowerCase()));
