@@ -67,7 +67,7 @@ export interface ICryptoChargeRepository {
   getByDepositAddress(address: string): Promise<CryptoChargeRecord | null>;
   getNextDerivationIndex(): Promise<number>;
   /** List deposit addresses with pending (uncredited) charges, grouped by chain. */
-  listActiveDepositAddresses(): Promise<{ chain: string; address: string }[]>;
+  listActiveDepositAddresses(): Promise<{ chain: string; address: string; token: string }[]>;
 }
 
 /**
@@ -255,14 +255,21 @@ export class DrizzleCryptoChargeRepository implements ICryptoChargeRepository {
   }
 
   /** List deposit addresses with pending (uncredited) charges. */
-  async listActiveDepositAddresses(): Promise<{ chain: string; address: string }[]> {
+  async listActiveDepositAddresses(): Promise<{ chain: string; address: string; token: string }[]> {
     const rows = await this.db
-      .select({ chain: cryptoCharges.chain, address: cryptoCharges.depositAddress })
+      .select({
+        chain: cryptoCharges.chain,
+        address: cryptoCharges.depositAddress,
+        token: cryptoCharges.token,
+      })
       .from(cryptoCharges)
       .where(
         and(isNull(cryptoCharges.creditedAt), isNotNull(cryptoCharges.depositAddress), isNotNull(cryptoCharges.chain)),
       );
-    return rows.filter((r): r is { chain: string; address: string } => r.chain !== null && r.address !== null);
+    return rows.filter(
+      (r): r is { chain: string; address: string; token: string } =>
+        r.chain !== null && r.address !== null && r.token !== null,
+    );
   }
 
   /** Get the next available HD derivation index (max + 1, or 0 if empty). */

@@ -1,5 +1,5 @@
 /** Supported EVM chains. */
-export type EvmChain = "base" | "ethereum" | "arbitrum" | "polygon";
+export type EvmChain = "base" | "ethereum" | "arbitrum" | "polygon" | (string & {});
 
 /** Supported stablecoin tokens. */
 export type StablecoinToken = "USDC" | "USDT" | "DAI";

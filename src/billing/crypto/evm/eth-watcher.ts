@@ -1,7 +1,6 @@
 import type { IWatcherCursorStore } from "../cursor-store.js";
 import { nativeToCents } from "../oracle/convert.js";
 import type { IPriceOracle } from "../oracle/types.js";
-import { getChainConfig } from "./config.js";
 import type { EvmChain } from "./types.js";
 
 type RpcCall = (method: string, params: unknown[]) => Promise<unknown>;
@@ -31,6 +30,8 @@ export interface EthWatcherOpts {
   onPayment: (event: EthPaymentEvent) => void | Promise<void>;
   watchedAddresses?: string[];
   cursorStore?: IWatcherCursorStore;
+  /** Required confirmations (from DB). */
+  confirmations: number;
 }
 
 interface RpcTransaction {
@@ -69,7 +70,7 @@ export class EthWatcher {
     this.oracle = opts.oracle;
     this._cursor = opts.fromBlock;
     this.onPayment = opts.onPayment;
-    this.confirmations = getChainConfig(opts.chain).confirmations;
+    this.confirmations = opts.confirmations;
     this.cursorStore = opts.cursorStore;
     this.watcherId = `eth:${opts.chain}`;
     this._watchedAddresses = new Set((opts.watchedAddresses ?? []).map((a) => a.toLowerCase()));
