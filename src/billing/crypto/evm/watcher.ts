@@ -1,5 +1,5 @@
 import type { IWatcherCursorStore } from "../cursor-store.js";
-import { centsFromTokenAmount, getChainConfig, getTokenConfig } from "./config.js";
+import { centsFromTokenAmount } from "./config.js";
 import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./types.js";
 
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -15,6 +15,12 @@ export interface EvmWatcherOpts {
   /** Active deposit addresses to watch. Filters eth_getLogs by topic[2] (to address). */
   watchedAddresses?: string[];
   cursorStore?: IWatcherCursorStore;
+  /** Contract address for the ERC20 token (from DB). */
+  contractAddress: string;
+  /** Token decimals (from DB). */
+  decimals: number;
+  /** Required confirmations (from DB). */
+  confirmations: number;
 }
 
 interface RpcLog {
@@ -49,11 +55,9 @@ export class EvmWatcher {
     this.watcherId = `evm:${opts.chain}:${opts.token}`;
     this._watchedAddresses = (opts.watchedAddresses ?? []).map((a) => a.toLowerCase());
 
-    const chainCfg = getChainConfig(opts.chain);
-    const tokenCfg = getTokenConfig(opts.token, opts.chain);
-    this.confirmations = chainCfg.confirmations;
-    this.contractAddress = tokenCfg.contractAddress.toLowerCase();
-    this.decimals = tokenCfg.decimals;
+    this.confirmations = opts.confirmations;
+    this.contractAddress = opts.contractAddress.toLowerCase();
+    this.decimals = opts.decimals;
   }
 
   /** Load cursor from DB. Call once at startup before first poll. */

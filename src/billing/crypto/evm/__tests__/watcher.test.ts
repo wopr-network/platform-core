@@ -30,6 +30,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 99,
       watchedAddresses: [toAddr],
@@ -54,6 +57,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 100,
       watchedAddresses: ["0xdeadbeef"],
@@ -76,6 +82,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 50,
       watchedAddresses: ["0xdeadbeef"],
@@ -100,6 +109,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 100,
       watchedAddresses: [addr1, addr2],
@@ -121,6 +133,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 100,
       watchedAddresses: ["0xdeadbeef"],
@@ -138,6 +153,9 @@ describe("EvmWatcher", () => {
     const watcher = new EvmWatcher({
       chain: "base",
       token: "USDC",
+      contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      confirmations: 1,
       rpcCall: mockRpc,
       fromBlock: 0,
       onPayment: vi.fn(),

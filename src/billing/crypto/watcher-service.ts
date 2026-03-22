@@ -372,6 +372,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       fromBlock: latestBlock,
       watchedAddresses: chainAddresses,
       cursorStore,
+      confirmations: method.confirmations,
       onPayment: async (event: EthPaymentEvent) => {
         log("ETH payment", {
           chain: event.chain,
@@ -436,6 +437,9 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       rpcCall,
       fromBlock: latestBlock,
       watchedAddresses: chainAddresses,
+      contractAddress: method.contractAddress,
+      decimals: method.decimals,
+      confirmations: method.confirmations,
       cursorStore,
       onPayment: async (event: EvmPaymentEvent) => {
         log("EVM payment", {
