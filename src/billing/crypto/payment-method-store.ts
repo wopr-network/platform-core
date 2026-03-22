@@ -34,7 +34,10 @@ export interface IPaymentMethodStore {
   /** Enable or disable a payment method (admin). */
   setEnabled(id: string, enabled: boolean): Promise<void>;
   /** Partial update of metadata fields (no read-modify-write needed). */
-  patchMetadata(id: string, patch: { iconUrl?: string | null; displayOrder?: number; displayName?: string }): Promise<boolean>;
+  patchMetadata(
+    id: string,
+    patch: { iconUrl?: string | null; displayOrder?: number; displayName?: string },
+  ): Promise<boolean>;
 }
 
 export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
