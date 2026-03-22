@@ -212,6 +212,11 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
     baseURL,
     basePath,
     socialProviders: resolveSocialProviders(cfg),
+    user: {
+      additionalFields: {
+        role: { type: "string", defaultValue: "user", input: false },
+      },
+    },
     account: {
       accountLinking: {
         enabled: true,
