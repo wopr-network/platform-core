@@ -11,8 +11,8 @@
  */
 
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import type { EmailSendResult, SendTemplateEmailOpts } from "./client.js";
 import { logger } from "../config/logger.js";
+import type { EmailSendResult, SendTemplateEmailOpts } from "./client.js";
 
 export interface SesTransportConfig {
   region: string;
