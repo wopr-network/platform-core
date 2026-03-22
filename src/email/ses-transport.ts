@@ -12,7 +12,7 @@
 
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { logger } from "../config/logger.js";
-import type { EmailSendResult, SendTemplateEmailOpts } from "./client.js";
+import type { EmailSendResult, EmailTransport, SendTemplateEmailOpts } from "./client.js";
 
 export interface SesTransportConfig {
   region: string;
@@ -22,7 +22,7 @@ export interface SesTransportConfig {
   secretAccessKey?: string;
 }
 
-export class SesTransport {
+export class SesTransport implements EmailTransport {
   private client: SESClient;
   private from: string;
   private replyTo: string | undefined;
@@ -55,16 +55,26 @@ export class SesTransport {
       },
     });
 
-    const response = await this.client.send(command);
-    const messageId = response.MessageId || "";
+    try {
+      const response = await this.client.send(command);
+      const messageId = response.MessageId || "";
 
-    logger.info("Email sent via SES", {
-      messageId,
-      to: opts.to,
-      template: opts.templateName,
-      userId: opts.userId,
-    });
+      logger.info("Email sent via SES", {
+        messageId,
+        to: opts.to,
+        template: opts.templateName,
+        userId: opts.userId,
+      });
 
-    return { id: messageId, success: true };
+      return { id: messageId, success: true };
+    } catch (error) {
+      logger.error("Failed to send email via SES", {
+        to: opts.to,
+        template: opts.templateName,
+        userId: opts.userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
