@@ -386,16 +386,13 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       display_name?: string;
     }>();
 
-    const existing = await deps.methodStore.getById(id);
-    if (!existing) return c.json({ error: "Chain not found" }, 404);
-
-    await deps.methodStore.upsert({
-      ...existing,
-      iconUrl: body.icon_url !== undefined ? body.icon_url : existing.iconUrl,
-      displayOrder: body.display_order !== undefined ? body.display_order : existing.displayOrder,
-      displayName: body.display_name !== undefined ? body.display_name : existing.displayName,
+    const updated = await deps.methodStore.patchMetadata(id, {
+      iconUrl: body.icon_url,
+      displayOrder: body.display_order,
+      displayName: body.display_name,
     });
 
+    if (!updated) return c.json({ id, updated: false }, 200);
     return c.json({ id, updated: true });
   });
 

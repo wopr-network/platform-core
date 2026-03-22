@@ -76,6 +76,7 @@ function mockDeps(): KeyServerDeps & {
         displayName: "Bitcoin",
         contractAddress: null,
         confirmations: 6,
+        iconUrl: null,
       },
       {
         id: "base-usdc",
@@ -85,6 +86,7 @@ function mockDeps(): KeyServerDeps & {
         displayName: "USDC on Base",
         contractAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         confirmations: 12,
+        iconUrl: null,
       },
     ]),
     listAll: vi.fn(),
@@ -107,6 +109,7 @@ function mockDeps(): KeyServerDeps & {
     listByType: vi.fn(),
     upsert: vi.fn().mockResolvedValue(undefined),
     setEnabled: vi.fn().mockResolvedValue(undefined),
+    patchMetadata: vi.fn().mockResolvedValue(true),
   };
   return {
     db: createMockDb() as never,
