@@ -266,6 +266,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
         displayName: m.displayName,
         contractAddress: m.contractAddress,
         confirmations: m.confirmations,
+        iconUrl: m.iconUrl,
       })),
     );
   });
@@ -328,6 +329,8 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       display_name?: string;
       oracle_address?: string;
       address_type?: string;
+      icon_url?: string;
+      display_order?: number;
     }>();
 
     if (!body.id || !body.xpub || !body.token) {
@@ -362,7 +365,8 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       decimals: body.decimals,
       displayName: body.display_name ?? `${body.token} on ${body.network}`,
       enabled: true,
-      displayOrder: 0,
+      displayOrder: body.display_order ?? 0,
+      iconUrl: body.icon_url ?? null,
       rpcUrl: body.rpc_url,
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
@@ -371,6 +375,25 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     });
 
     return c.json({ id: body.id, path: `m/44'/${body.coin_type}'/${body.account_index}'` }, 201);
+  });
+
+  /** PATCH /admin/chains/:id — update metadata (icon_url, display_order, display_name) */
+  app.patch("/admin/chains/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json<{
+      icon_url?: string | null;
+      display_order?: number;
+      display_name?: string;
+    }>();
+
+    const updated = await deps.methodStore.patchMetadata(id, {
+      iconUrl: body.icon_url,
+      displayOrder: body.display_order,
+      displayName: body.display_name,
+    });
+
+    if (!updated) return c.json({ id, updated: false }, 200);
+    return c.json({ id, updated: true });
   });
 
   /** DELETE /admin/chains/:id — soft disable */

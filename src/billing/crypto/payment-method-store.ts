@@ -12,6 +12,7 @@ export interface PaymentMethodRecord {
   displayName: string;
   enabled: boolean;
   displayOrder: number;
+  iconUrl: string | null;
   rpcUrl: string | null;
   oracleAddress: string | null;
   xpub: string | null;
@@ -32,6 +33,11 @@ export interface IPaymentMethodStore {
   upsert(method: PaymentMethodRecord): Promise<void>;
   /** Enable or disable a payment method (admin). */
   setEnabled(id: string, enabled: boolean): Promise<void>;
+  /** Partial update of metadata fields (no read-modify-write needed). */
+  patchMetadata(
+    id: string,
+    patch: { iconUrl?: string | null; displayOrder?: number; displayName?: string },
+  ): Promise<boolean>;
 }
 
 export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
@@ -78,6 +84,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         displayName: method.displayName,
         enabled: method.enabled,
         displayOrder: method.displayOrder,
+        iconUrl: method.iconUrl,
         rpcUrl: method.rpcUrl,
         oracleAddress: method.oracleAddress,
         xpub: method.xpub,
@@ -95,6 +102,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
           displayName: method.displayName,
           enabled: method.enabled,
           displayOrder: method.displayOrder,
+          iconUrl: method.iconUrl,
           rpcUrl: method.rpcUrl,
           oracleAddress: method.oracleAddress,
           xpub: method.xpub,
@@ -106,6 +114,21 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
     await this.db.update(paymentMethods).set({ enabled }).where(eq(paymentMethods.id, id));
+  }
+
+  async patchMetadata(
+    id: string,
+    patch: { iconUrl?: string | null; displayOrder?: number; displayName?: string },
+  ): Promise<boolean> {
+    const set: Record<string, unknown> = {};
+    if (patch.iconUrl !== undefined) set.iconUrl = patch.iconUrl;
+    if (patch.displayOrder !== undefined) set.displayOrder = patch.displayOrder;
+    if (patch.displayName !== undefined) set.displayName = patch.displayName;
+    if (Object.keys(set).length === 0) return false;
+    const result = (await this.db.update(paymentMethods).set(set).where(eq(paymentMethods.id, id))) as {
+      rowCount: number;
+    };
+    return result.rowCount > 0;
   }
 }
 
@@ -120,6 +143,7 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     displayName: row.displayName,
     enabled: row.enabled,
     displayOrder: row.displayOrder,
+    iconUrl: row.iconUrl,
     rpcUrl: row.rpcUrl,
     oracleAddress: row.oracleAddress,
     xpub: row.xpub,

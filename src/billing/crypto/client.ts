@@ -51,6 +51,7 @@ export interface ChainInfo {
   displayName: string;
   contractAddress: string | null;
   confirmations: number;
+  iconUrl: string | null;
 }
 
 /**
