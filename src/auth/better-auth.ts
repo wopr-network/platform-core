@@ -116,12 +116,59 @@ export async function getUserCreator(): Promise<IUserCreator> {
   return _userCreatorPromise;
 }
 
+/**
+ * Fetch the primary verified email from GitHub's /user/emails API.
+ * GitHub returns null for profile.email when the user's email is private.
+ * The user:email scope grants access to this endpoint.
+ */
+async function fetchGitHubPrimaryEmail(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://api.github.com/user/emails", {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/vnd.github+json" },
+    });
+    if (!res.ok) return null;
+    const emails = (await res.json()) as { email: string; primary: boolean; verified: boolean }[];
+    const primary = emails.find((e) => e.primary && e.verified);
+    return primary?.email ?? emails.find((e) => e.verified)?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve OAuth providers from config or env vars. */
 function resolveSocialProviders(cfg: BetterAuthConfig): BetterAuthOptions["socialProviders"] {
   if (cfg.socialProviders) return cfg.socialProviders;
   return {
     ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
+      ? {
+          github: {
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            getUserInfo: async (token) => {
+              const accessToken = token.accessToken;
+              if (!accessToken) return null;
+              const res = await fetch("https://api.github.com/user", {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              });
+              if (!res.ok) return null;
+              const profile = (await res.json()) as Record<string, unknown>;
+              let email = profile.email as string | null;
+              if (!email) {
+                email = await fetchGitHubPrimaryEmail(accessToken);
+              }
+              return {
+                user: {
+                  id: String(profile.id),
+                  name: (profile.name as string) || (profile.login as string),
+                  email: email || "",
+                  image: profile.avatar_url as string,
+                  emailVerified: !!email,
+                },
+                data: profile,
+              };
+            },
+          },
+        }
       : {}),
     ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
       ? { discord: { clientId: process.env.DISCORD_CLIENT_ID, clientSecret: process.env.DISCORD_CLIENT_SECRET } }
