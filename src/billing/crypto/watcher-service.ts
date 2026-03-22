@@ -355,21 +355,27 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   const nativeEvmMethods = evmMethods.filter((m) => m.type === "native");
   const erc20Methods = evmMethods.filter((m) => m.type === "erc20" || m.contractAddress);
 
+  const BACKFILL_BLOCKS = 1000; // Scan ~30min of blocks on first deploy to catch missed deposits
+
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
 
     const rpcCall = createRpcCaller(method.rpcUrl);
     const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
     const latestBlock = Number.parseInt(latestHex, 16);
+    const backfillStart = Math.max(0, latestBlock - BACKFILL_BLOCKS);
 
     const activeAddresses = await chargeStore.listActiveDepositAddresses();
-    const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
+    // Only watch addresses for native charges on this chain (not ERC20 charges)
+    const chainAddresses = activeAddresses
+      .filter((a) => a.chain === method.chain && a.token === method.token)
+      .map((a) => a.address);
 
     const watcher = new EthWatcher({
       chain: method.chain as EvmChain,
       rpcCall,
       oracle,
-      fromBlock: latestBlock,
+      fromBlock: backfillStart,
       watchedAddresses: chainAddresses,
       cursorStore,
       confirmations: method.confirmations,
@@ -408,8 +414,10 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         ethPolling = true;
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
-          const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
-          watcher.setWatchedAddresses(freshChain);
+          const freshNative = fresh
+            .filter((a) => a.chain === method.chain && a.token === method.token)
+            .map((a) => a.address);
+          watcher.setWatchedAddresses(freshNative);
           await watcher.poll();
         } catch (err) {
           log("ETH poll error", { chain: method.chain, error: String(err) });
