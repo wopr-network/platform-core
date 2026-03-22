@@ -130,7 +130,8 @@ async function fetchGitHubPrimaryEmail(accessToken: string): Promise<string | nu
     const emails = (await res.json()) as { email: string; primary: boolean; verified: boolean }[];
     const primary = emails.find((e) => e.primary && e.verified);
     return primary?.email ?? emails.find((e) => e.verified)?.email ?? null;
-  } catch {
+  } catch (error) {
+    logger.error("Failed to fetch GitHub primary email from /user/emails:", error);
     return null;
   }
 }
@@ -156,13 +157,14 @@ function resolveSocialProviders(cfg: BetterAuthConfig): BetterAuthOptions["socia
               if (!email) {
                 email = await fetchGitHubPrimaryEmail(accessToken);
               }
+              if (!email) return null;
               return {
                 user: {
                   id: String(profile.id),
                   name: (profile.name as string) || (profile.login as string),
-                  email: email || "",
+                  email,
                   image: profile.avatar_url as string,
-                  emailVerified: !!email,
+                  emailVerified: true,
                 },
                 data: profile,
               };
