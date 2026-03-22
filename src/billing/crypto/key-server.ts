@@ -33,50 +33,77 @@ export interface KeyServerDeps {
 /**
  * Derive the next unused address for a chain.
  * Atomically increments next_index and records address in a single transaction.
+ *
+ * EVM chains share an xpub (coin type 60), so ETH index 0 = USDC index 0 = same
+ * address. The unique constraint on derived_addresses.address prevents reuse.
+ * On collision, we skip the index and retry (up to maxRetries).
  */
 async function deriveNextAddress(
   db: DrizzleDb,
   chainId: string,
   tenantId?: string,
 ): Promise<{ address: string; index: number; chain: string; token: string }> {
-  // Wrap in transaction: if the address insert fails, next_index is not consumed.
-  return (db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> }).transaction(
-    async (tx: DrizzleDb) => {
-      // Atomic increment: UPDATE ... SET next_index = next_index + 1 RETURNING *
-      const [method] = await tx
-        .update(paymentMethods)
-        .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
-        .where(eq(paymentMethods.id, chainId))
-        .returning();
+  const maxRetries = 10;
+  const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
 
-      if (!method) throw new Error(`Chain not found: ${chainId}`);
-      if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Step 1: Atomically claim the next index OUTSIDE the transaction.
+    // This survives even if the transaction below rolls back on address collision.
+    const [method] = await db
+      .update(paymentMethods)
+      .set({ nextIndex: sql`${paymentMethods.nextIndex} + 1` })
+      .where(eq(paymentMethods.id, chainId))
+      .returning();
 
-      // The index we use is the value BEFORE increment (returned value - 1)
-      const index = method.nextIndex - 1;
+    if (!method) throw new Error(`Chain not found: ${chainId}`);
+    if (!method.xpub) throw new Error(`No xpub configured for chain: ${chainId}`);
 
-      // Route to the right derivation function
-      let address: string;
-      if (method.type === "native" && method.chain === "dogecoin") {
-        address = deriveP2pkhAddress(method.xpub, index, "dogecoin");
-      } else if (method.type === "native" && (method.chain === "bitcoin" || method.chain === "litecoin")) {
-        address = deriveAddress(method.xpub, index, "mainnet", method.chain as "bitcoin" | "litecoin");
-      } else {
-        // EVM (all ERC20 + native ETH) — same derivation
+    const index = method.nextIndex - 1;
+
+    // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
+    let address: string;
+    switch (method.addressType) {
+      case "bech32":
+        address = deriveAddress(
+          method.xpub,
+          index,
+          (method.network ?? "mainnet") as "mainnet" | "testnet" | "regtest",
+          method.chain as "bitcoin" | "litecoin",
+        );
+        break;
+      case "p2pkh":
+        address = deriveP2pkhAddress(method.xpub, index, method.chain);
+        break;
+      case "evm":
         address = deriveDepositAddress(method.xpub, index);
-      }
+        break;
+      default:
+        throw new Error(`Unknown address type: ${method.addressType}`);
+    }
 
-      // Record in immutable log (inside same transaction)
-      await tx.insert(derivedAddresses).values({
-        chainId,
-        derivationIndex: index,
-        address: address.toLowerCase(),
-        tenantId,
+    // Step 2: Record in immutable log. If this address was already derived by a
+    // sibling chain (shared xpub), the unique constraint fires and we retry
+    // with the next index (which is already incremented above).
+    try {
+      await dbWithTx.transaction(async (tx: DrizzleDb) => {
+        // bech32/evm addresses are case-insensitive (lowercase by spec).
+        // p2pkh (Base58Check) addresses are case-sensitive — do NOT lowercase.
+        const normalizedAddress = method.addressType === "p2pkh" ? address : address.toLowerCase();
+        await tx.insert(derivedAddresses).values({
+          chainId,
+          derivationIndex: index,
+          address: normalizedAddress,
+          tenantId,
+        });
       });
-
       return { address, index, chain: method.chain, token: method.token };
-    },
-  ) as Promise<{ address: string; index: number; chain: string; token: string }>;
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "23505" && attempt < maxRetries) continue; // collision — index already advanced, retry
+      throw err;
+    }
+  }
+  throw new Error(`Failed to derive unique address for ${chainId} after ${maxRetries} retries`);
 }
 
 /** Validate Bearer token from Authorization header. */
@@ -299,6 +326,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       confirmations?: number;
       display_name?: string;
       oracle_address?: string;
+      address_type?: string;
     }>();
 
     if (!body.id || !body.xpub || !body.token) {
@@ -337,6 +365,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       rpcUrl: body.rpc_url,
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
+      addressType: body.address_type ?? "evm",
       confirmations: body.confirmations ?? 6,
     });
 

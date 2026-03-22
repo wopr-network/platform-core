@@ -81,6 +81,7 @@ export const paymentMethods = pgTable("payment_methods", {
   rpcUrl: text("rpc_url"), // chain node RPC endpoint
   oracleAddress: text("oracle_address"), // Chainlink feed address for price (null = 1:1 stablecoin)
   xpub: text("xpub"), // HD wallet extended public key for deposit address derivation
+  addressType: text("address_type").notNull().default("evm"), // "bech32" (BTC/LTC), "p2pkh" (DOGE), "evm" (ETH/ERC20)
   confirmations: integer("confirmations").notNull().default(1),
   nextIndex: integer("next_index").notNull().default(0), // atomic derivation counter, never reuses
   createdAt: text("created_at").notNull().default(sql`(now())`),
