@@ -64,7 +64,12 @@ async function deriveNextAddress(
     let address: string;
     switch (method.addressType) {
       case "bech32":
-        address = deriveAddress(method.xpub, index, (method.network ?? "mainnet") as "mainnet" | "testnet" | "regtest", method.chain as "bitcoin" | "litecoin");
+        address = deriveAddress(
+          method.xpub,
+          index,
+          (method.network ?? "mainnet") as "mainnet" | "testnet" | "regtest",
+          method.chain as "bitcoin" | "litecoin",
+        );
         break;
       case "p2pkh":
         address = deriveP2pkhAddress(method.xpub, index, method.chain);
