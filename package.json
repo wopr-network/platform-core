@@ -128,6 +128,7 @@
   },
   "packageManager": "pnpm@10.31.0",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1014.0",
     "@hono/node-server": "^1.19.11",
     "@noble/hashes": "^2.0.1",
     "@scure/base": "^2.0.0",
