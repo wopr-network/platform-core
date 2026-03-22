@@ -98,7 +98,8 @@ async function deriveNextAddress(
       });
       return { address, index, chain: method.chain, token: method.token };
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code;
+      // Drizzle wraps PG errors — check both top-level and cause for the constraint violation code
+      const code = (err as { code?: string }).code ?? (err as { cause?: { code?: string } }).cause?.code;
       if (code === "23505" && attempt < maxRetries) continue; // collision — index already advanced, retry
       throw err;
     }
