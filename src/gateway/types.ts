@@ -98,10 +98,11 @@ export interface ProviderConfig {
 
 /** Full gateway configuration. */
 export interface GatewayConfig {
-  /** Force all LLM requests to use this model, ignoring the client's model field.
-   *  When set, the gateway rewrites body.model before forwarding to the upstream provider.
-   *  This enforces "we serve one model" pricing — clients don't get to choose. */
+  /** Static model override — rewrites body.model before forwarding to upstream. */
   defaultModel?: string;
+  /** Dynamic model resolver — called per-request, takes priority over defaultModel.
+   *  Return null to fall back to defaultModel / client-specified. */
+  resolveDefaultModel?: () => string | null;
   /** MeterEmitter instance for usage tracking */
   meter: MeterEmitter;
   /** BudgetChecker instance for pre-call budget validation */

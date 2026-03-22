@@ -68,6 +68,8 @@ export interface ProxyDeps {
   graceBufferCents?: number;
   providers: ProviderConfig;
   defaultModel?: string;
+  /** Dynamic model resolver — called per-request, overrides defaultModel. Return null to use defaultModel fallback. */
+  resolveDefaultModel?: () => string | null;
   defaultMargin: number;
   fetchFn: FetchFn;
   arbitrageRouter?: import("../monetization/arbitrage/router.js").ArbitrageRouter;
@@ -93,6 +95,7 @@ export function buildProxyDeps(config: GatewayConfig): ProxyDeps {
     graceBufferCents: config.graceBufferCents,
     providers: config.providers,
     defaultModel: config.defaultModel,
+    resolveDefaultModel: config.resolveDefaultModel,
     defaultMargin: config.defaultMargin ?? DEFAULT_MARGIN,
     fetchFn: config.fetchFn ?? fetch,
     arbitrageRouter: config.arbitrageRouter,
@@ -180,19 +183,20 @@ export function chatCompletions(deps: ProxyDeps) {
           temperature?: number;
         }
       | undefined;
+    // Resolve the enforced model once — dynamic DB resolver takes priority over static env var.
+    const enforcedModel = deps.resolveDefaultModel?.() ?? deps.defaultModel ?? null;
     try {
       parsedBody = JSON.parse(rawBody) as typeof parsedBody;
       isStreaming = parsedBody?.stream === true;
-      // Enforce single-model gateway: override whatever model the client sent.
-      if (deps.defaultModel && parsedBody) {
-        parsedBody.model = deps.defaultModel;
+      if (enforcedModel && parsedBody) {
+        parsedBody.model = enforcedModel;
       }
       requestModel = parsedBody?.model;
     } catch {
       // Not valid JSON, assume non-streaming
     }
     // Re-serialize if model was overridden, otherwise forward raw body.
-    const body = deps.defaultModel && parsedBody ? JSON.stringify(parsedBody) : rawBody;
+    const body = enforcedModel && parsedBody ? JSON.stringify(parsedBody) : rawBody;
 
     deps.metrics?.recordGatewayRequest("chat-completions");
 
