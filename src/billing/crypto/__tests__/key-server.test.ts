@@ -239,6 +239,64 @@ describe("key-server routes", () => {
     expect(body.index).toBe(1); // skipped index 0
   });
 
+  it("POST /address retries on Drizzle-wrapped collision error (cause.code)", async () => {
+    // Drizzle wraps PG errors: err.code is undefined, err.cause.code has "23505"
+    const pgError = Object.assign(new Error("unique_violation"), { code: "23505" });
+    const drizzleError = Object.assign(new Error("DrizzleQueryError"), { cause: pgError });
+    let callCount = 0;
+
+    const mockMethod = {
+      id: "eth",
+      type: "native",
+      token: "ETH",
+      chain: "base",
+      xpub: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
+      nextIndex: 0,
+      decimals: 18,
+      addressType: "evm",
+      confirmations: 1,
+    };
+
+    const db = {
+      update: vi.fn().mockImplementation(() => ({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockImplementation(() => {
+              callCount++;
+              return Promise.resolve([{ ...mockMethod, nextIndex: callCount }]);
+            }),
+          }),
+        }),
+      })),
+      insert: vi.fn().mockImplementation(() => ({
+        values: vi.fn().mockImplementation(() => {
+          if (callCount <= 1) throw drizzleError;
+          return { onConflictDoNothing: vi.fn().mockResolvedValue({ rowCount: 1 }) };
+        }),
+      })),
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }),
+      }),
+      transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => fn(db)),
+    };
+
+    const deps = mockDeps();
+    (deps as unknown as { db: unknown }).db = db;
+    const app = createKeyServerApp(deps);
+
+    const res = await app.request("/address", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chain: "eth" }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.address).toMatch(/^0x/);
+    expect(callCount).toBe(2);
+    expect(body.index).toBe(1);
+  });
+
   it("POST /charges creates a charge", async () => {
     const app = createKeyServerApp(mockDeps());
     const res = await app.request("/charges", {
