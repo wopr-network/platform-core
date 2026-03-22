@@ -19,6 +19,8 @@ import type { BtcPaymentEvent } from "./btc/types.js";
 import { BtcWatcher, createBitcoindRpc } from "./btc/watcher.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
 import type { IWatcherCursorStore } from "./cursor-store.js";
+import type { EthPaymentEvent } from "./evm/eth-watcher.js";
+import { EthWatcher } from "./evm/eth-watcher.js";
 import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./evm/types.js";
 import { createRpcCaller, EvmWatcher } from "./evm/watcher.js";
 import type { IPriceOracle } from "./oracle/types.js";
@@ -349,8 +351,76 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     );
   }
 
-  // --- EVM Watchers ---
-  for (const method of evmMethods) {
+  // --- Native ETH Watchers (block-scanning for value transfers) ---
+  const nativeEvmMethods = evmMethods.filter((m) => m.type === "native");
+  const erc20Methods = evmMethods.filter((m) => m.type === "erc20" || m.contractAddress);
+
+  for (const method of nativeEvmMethods) {
+    if (!method.rpcUrl) continue;
+
+    const rpcCall = createRpcCaller(method.rpcUrl);
+    const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
+    const latestBlock = Number.parseInt(latestHex, 16);
+
+    const activeAddresses = await chargeStore.listActiveDepositAddresses();
+    const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
+
+    const watcher = new EthWatcher({
+      chain: method.chain as EvmChain,
+      rpcCall,
+      oracle,
+      fromBlock: latestBlock,
+      watchedAddresses: chainAddresses,
+      cursorStore,
+      onPayment: async (event: EthPaymentEvent) => {
+        log("ETH payment", {
+          chain: event.chain,
+          to: event.to,
+          txHash: event.txHash,
+          valueWei: event.valueWei,
+          confirmations: event.confirmations,
+          confirmationsRequired: event.confirmationsRequired,
+        });
+        await handlePayment(
+          db,
+          chargeStore,
+          event.to,
+          event.valueWei,
+          {
+            txHash: event.txHash,
+            confirmations: event.confirmations,
+            confirmationsRequired: event.confirmationsRequired,
+            amountReceivedCents: event.amountUsdCents,
+          },
+          log,
+        );
+      },
+    });
+
+    await watcher.init();
+    log(`ETH watcher started (${method.chain}:${method.token})`, { addresses: chainAddresses.length });
+
+    let ethPolling = false;
+    timers.push(
+      setInterval(async () => {
+        if (ethPolling) return;
+        ethPolling = true;
+        try {
+          const fresh = await chargeStore.listActiveDepositAddresses();
+          const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
+          watcher.setWatchedAddresses(freshChain);
+          await watcher.poll();
+        } catch (err) {
+          log("ETH poll error", { chain: method.chain, error: String(err) });
+        } finally {
+          ethPolling = false;
+        }
+      }, pollMs),
+    );
+  }
+
+  // --- ERC20 Watchers (log-based Transfer event scanning) ---
+  for (const method of erc20Methods) {
     if (!method.rpcUrl || !method.contractAddress) continue;
 
     const rpcCall = createRpcCaller(method.rpcUrl);
@@ -398,7 +468,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     let evmPolling = false;
     timers.push(
       setInterval(async () => {
-        if (evmPolling) return; // Prevent overlapping polls
+        if (evmPolling) return;
         evmPolling = true;
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
@@ -426,7 +496,13 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     }, deliveryMs),
   );
 
-  log("All watchers started", { utxo: utxoMethods.length, evm: evmMethods.length, pollMs, deliveryMs });
+  log("All watchers started", {
+    utxo: utxoMethods.length,
+    evm: erc20Methods.length,
+    eth: nativeEvmMethods.length,
+    pollMs,
+    deliveryMs,
+  });
 
   return () => {
     for (const t of timers) clearInterval(t);
