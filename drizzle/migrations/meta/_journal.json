@@ -134,6 +134,13 @@
       "when": 1743177600000,
       "tag": "0018_address_type_column",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1743264000000,
+      "tag": "0019_icon_url_column",
+      "breakpoints": true
     }
   ]
 }

@@ -100,6 +100,7 @@ function mockDeps(): KeyServerDeps & {
       oracleAddress: "0x64c911996D3c6aC71f9b455B1E8E7266BcbD848F",
       xpub: null,
       displayOrder: 0,
+      iconUrl: null,
       enabled: true,
       rpcUrl: null,
     }),
