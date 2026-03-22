@@ -284,6 +284,9 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
         session_token: {
           attributes: cookieDomain ? { domain: cookieDomain } : {},
         },
+        session_data: {
+          attributes: cookieDomain ? { domain: cookieDomain } : {},
+        },
       },
     },
     plugins: cfg.twoFactor !== false ? [twoFactor()] : [],
