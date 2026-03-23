@@ -80,6 +80,10 @@ export interface BetterAuthConfig {
   /** Trusted origins for CORS. Falls back to UI_ORIGIN env var. */
   trustedOrigins?: string[];
 
+  // --- Branding ---
+  /** Brand name used in email templates. Default: "WOPR" */
+  brandName?: string;
+
   // --- Lifecycle hooks ---
   /** Called after a new user signs up (e.g., create personal tenant). */
   onUserCreated?: (userId: string, userName: string, email: string) => Promise<void>;
@@ -228,7 +232,7 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
       sendResetPassword: async ({ user, url }) => {
         try {
           const emailClient = getEmailClient();
-          const template = passwordResetEmailTemplate(url, user.email);
+          const template = passwordResetEmailTemplate(url, user.email, cfg.brandName);
           await emailClient.send({
             to: user.email,
             ...template,
@@ -266,7 +270,7 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
               const { token } = await generateVerificationToken(pool, user.id);
               const verifyUrl = `${baseURL}${basePath}/verify?token=${token}`;
               const emailClient = getEmailClient();
-              const template = verifyEmailTemplate(verifyUrl, user.email);
+              const template = verifyEmailTemplate(verifyUrl, user.email, cfg.brandName);
               await emailClient.send({
                 to: user.email,
                 ...template,

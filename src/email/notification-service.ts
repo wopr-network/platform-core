@@ -11,7 +11,13 @@ export class NotificationService {
   constructor(
     private readonly queue: INotificationQueueRepository,
     private readonly appBaseUrl: string,
+    private readonly brandName: string = "WOPR",
   ) {}
+
+  /** Enqueue with brandName injected into every data bag. */
+  private enqueue(tenantId: string, template: string, data: Record<string, unknown>): void {
+    this.queue.enqueue(tenantId, template, { ...data, brandName: this.brandName });
+  }
 
   private creditsUrl(): string {
     return `${this.appBaseUrl}/billing/credits`;
@@ -22,7 +28,7 @@ export class NotificationService {
   // ---------------------------------------------------------------------------
 
   notifyLowBalance(tenantId: string, email: string, balanceDollars: string, estimatedDays: number): void {
-    this.queue.enqueue(tenantId, "low-balance", {
+    this.enqueue(tenantId, "low-balance", {
       email,
       balanceDollars,
       estimatedDaysRemaining: estimatedDays,
@@ -31,14 +37,14 @@ export class NotificationService {
   }
 
   notifyCreditsDepeleted(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "credits-depleted", {
+    this.enqueue(tenantId, "credits-depleted", {
       email,
       creditsUrl: this.creditsUrl(),
     });
   }
 
   notifyGracePeriodStart(tenantId: string, email: string, balanceDollars: string, graceDays: number): void {
-    this.queue.enqueue(tenantId, "grace-period-start", {
+    this.enqueue(tenantId, "grace-period-start", {
       email,
       balanceDollars,
       graceDays,
@@ -47,14 +53,14 @@ export class NotificationService {
   }
 
   notifyGracePeriodWarning(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "grace-period-warning", {
+    this.enqueue(tenantId, "grace-period-warning", {
       email,
       creditsUrl: this.creditsUrl(),
     });
   }
 
   notifyAutoSuspended(tenantId: string, email: string, reason: string): void {
-    this.queue.enqueue(tenantId, "auto-suspended", {
+    this.enqueue(tenantId, "auto-suspended", {
       email,
       reason,
       creditsUrl: this.creditsUrl(),
@@ -62,7 +68,7 @@ export class NotificationService {
   }
 
   notifyAutoTopUpSuccess(tenantId: string, email: string, amountDollars: string, newBalanceDollars: string): void {
-    this.queue.enqueue(tenantId, "auto-topup-success", {
+    this.enqueue(tenantId, "auto-topup-success", {
       email,
       amountDollars,
       newBalanceDollars,
@@ -71,14 +77,14 @@ export class NotificationService {
   }
 
   notifyAutoTopUpFailed(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "auto-topup-failed", {
+    this.enqueue(tenantId, "auto-topup-failed", {
       email,
       creditsUrl: this.creditsUrl(),
     });
   }
 
   notifyAffiliateCreditMatch(tenantId: string, email: string, amountDollars: string): void {
-    this.queue.enqueue(tenantId, "affiliate-credit-match", {
+    this.enqueue(tenantId, "affiliate-credit-match", {
       email,
       amountDollars,
       creditsUrl: this.creditsUrl(),
@@ -92,7 +98,7 @@ export class NotificationService {
     amountDollars: string,
     reason: string,
   ): void {
-    this.queue.enqueue(tenantId, "dispute-created", {
+    this.enqueue(tenantId, "dispute-created", {
       email,
       disputeId,
       amountDollars,
@@ -102,7 +108,7 @@ export class NotificationService {
   }
 
   notifyDisputeWon(tenantId: string, email: string, disputeId: string, amountDollars: string): void {
-    this.queue.enqueue(tenantId, "dispute-won", {
+    this.enqueue(tenantId, "dispute-won", {
       email,
       disputeId,
       amountDollars,
@@ -111,7 +117,7 @@ export class NotificationService {
   }
 
   notifyDisputeLost(tenantId: string, email: string, disputeId: string, amountDollars: string): void {
-    this.queue.enqueue(tenantId, "dispute-lost", {
+    this.enqueue(tenantId, "dispute-lost", {
       email,
       disputeId,
       amountDollars,
@@ -125,7 +131,7 @@ export class NotificationService {
     currentSpendDollars: string,
     alertAtDollars: string,
   ): void {
-    this.queue.enqueue(tenantId, "spend-alert", {
+    this.enqueue(tenantId, "spend-alert", {
       email,
       currentSpendDollars,
       alertAtDollars,
@@ -134,7 +140,7 @@ export class NotificationService {
   }
 
   notifyCreditPurchaseReceipt(tenantId: string, email: string, amountDollars: string, newBalanceDollars: string): void {
-    this.queue.enqueue(tenantId, "credit-purchase-receipt", {
+    this.enqueue(tenantId, "credit-purchase-receipt", {
       email,
       amountDollars,
       newBalanceDollars,
@@ -156,7 +162,7 @@ export class NotificationService {
     weekEndDate: string,
   ): void {
     const unsubscribeUrl = `${this.appBaseUrl}/settings/notifications`;
-    this.queue.enqueue(tenantId, "dividend-weekly-digest", {
+    this.enqueue(tenantId, "dividend-weekly-digest", {
       email,
       weeklyTotalDollars,
       weeklyTotalCents,
@@ -178,7 +184,7 @@ export class NotificationService {
     amountDollars: string,
     newBalanceDollars: string,
   ): void {
-    this.queue.enqueue(tenantId, "crypto-payment-confirmed", {
+    this.enqueue(tenantId, "crypto-payment-confirmed", {
       email,
       amountDollars,
       newBalanceDollars,
@@ -190,23 +196,23 @@ export class NotificationService {
   // ---------------------------------------------------------------------------
 
   notifyAdminSuspended(tenantId: string, email: string, reason: string): void {
-    this.queue.enqueue(tenantId, "admin-suspended", { email, reason });
+    this.enqueue(tenantId, "admin-suspended", { email, reason });
   }
 
   notifyAdminReactivated(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "admin-reactivated", { email });
+    this.enqueue(tenantId, "admin-reactivated", { email });
   }
 
   notifyCreditsGranted(tenantId: string, email: string, amountDollars: string, reason: string): void {
-    this.queue.enqueue(tenantId, "credits-granted", { email, amountDollars, reason });
+    this.enqueue(tenantId, "credits-granted", { email, amountDollars, reason });
   }
 
   notifyRoleChanged(tenantId: string, email: string, newRole: string): void {
-    this.queue.enqueue(tenantId, "role-changed", { email, newRole });
+    this.enqueue(tenantId, "role-changed", { email, newRole });
   }
 
   notifyTeamInvite(tenantId: string, email: string, tenantName: string, inviteUrl: string): void {
-    this.queue.enqueue(tenantId, "team-invite", { email, tenantName, inviteUrl });
+    this.enqueue(tenantId, "team-invite", { email, tenantName, inviteUrl });
   }
 
   // ---------------------------------------------------------------------------
@@ -214,11 +220,11 @@ export class NotificationService {
   // ---------------------------------------------------------------------------
 
   notifyAgentCreated(tenantId: string, email: string, agentName: string): void {
-    this.queue.enqueue(tenantId, "agent-created", { email, agentName });
+    this.enqueue(tenantId, "agent-created", { email, agentName });
   }
 
   notifyChannelConnected(tenantId: string, email: string, channelName: string, agentName: string): void {
-    this.queue.enqueue(tenantId, "channel-connected", { email, channelName, agentName });
+    this.enqueue(tenantId, "channel-connected", { email, channelName, agentName });
   }
 
   notifyChannelDisconnected(
@@ -228,11 +234,11 @@ export class NotificationService {
     agentName: string,
     reason: string,
   ): void {
-    this.queue.enqueue(tenantId, "channel-disconnected", { email, channelName, agentName, reason });
+    this.enqueue(tenantId, "channel-disconnected", { email, channelName, agentName, reason });
   }
 
   notifyAgentSuspended(tenantId: string, email: string, agentName: string, reason: string): void {
-    this.queue.enqueue(tenantId, "agent-suspended", { email, agentName, reason });
+    this.enqueue(tenantId, "agent-suspended", { email, agentName, reason });
   }
 
   // ---------------------------------------------------------------------------
@@ -240,7 +246,7 @@ export class NotificationService {
   // ---------------------------------------------------------------------------
 
   notifyAccountDeletionRequested(tenantId: string, email: string, deleteAfterDate: string): void {
-    this.queue.enqueue(tenantId, "account-deletion-requested", {
+    this.enqueue(tenantId, "account-deletion-requested", {
       email,
       deleteAfterDate,
       cancelUrl: `${this.appBaseUrl}/settings/account`,
@@ -248,11 +254,11 @@ export class NotificationService {
   }
 
   notifyAccountDeletionCancelled(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "account-deletion-cancelled", { email });
+    this.enqueue(tenantId, "account-deletion-cancelled", { email });
   }
 
   notifyAccountDeletionCompleted(tenantId: string, email: string): void {
-    this.queue.enqueue(tenantId, "account-deletion-completed", { email });
+    this.enqueue(tenantId, "account-deletion-completed", { email });
   }
 
   // ---------------------------------------------------------------------------
@@ -266,7 +272,7 @@ export class NotificationService {
     changelogDate: string,
     changelogSummary: string,
   ): void {
-    this.queue.enqueue(tenantId, "fleet-update-available", {
+    this.enqueue(tenantId, "fleet-update-available", {
       email,
       version,
       changelogDate,
@@ -276,7 +282,7 @@ export class NotificationService {
   }
 
   notifyFleetUpdateComplete(tenantId: string, email: string, version: string, succeeded: number, failed: number): void {
-    this.queue.enqueue(tenantId, "fleet-update-complete", {
+    this.enqueue(tenantId, "fleet-update-complete", {
       email,
       version,
       succeeded,
@@ -291,6 +297,6 @@ export class NotificationService {
   // ---------------------------------------------------------------------------
 
   sendCustomEmail(tenantId: string, email: string, subject: string, bodyText: string): void {
-    this.queue.enqueue(tenantId, "custom", { email, subject, bodyText });
+    this.enqueue(tenantId, "custom", { email, subject, bodyText });
   }
 }

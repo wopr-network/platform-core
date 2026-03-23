@@ -92,6 +92,33 @@ export class DrizzleNotificationTemplateRepository implements INotificationTempl
     return result.length;
   }
 
+  /**
+   * Re-seed all templates using upsert — overwrites existing content
+   * while preserving row IDs and createdAt timestamps.
+   */
+  async reseedAll(
+    templates: Array<{
+      name: string;
+      description: string;
+      subject: string;
+      htmlBody: string;
+      textBody: string;
+    }>,
+  ): Promise<number> {
+    let count = 0;
+    for (const t of templates) {
+      await this.upsert(t.name, {
+        description: t.description,
+        subject: t.subject,
+        htmlBody: t.htmlBody,
+        textBody: t.textBody,
+        active: true,
+      });
+      count++;
+    }
+    return count;
+  }
+
   private toRow(r: typeof notificationTemplates.$inferSelect): NotificationTemplateRow {
     return {
       id: r.id,
