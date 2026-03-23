@@ -27,7 +27,7 @@ function layoutOpen(title: string): string {
 }
 
 const LAYOUT_CLOSE = `        </table>
-        <p style="margin-top: 20px; color: #a0aec0; font-size: 12px;">&copy; ${YEAR} WOPR Network. All rights reserved.</p>
+        <p style="margin-top: 20px; color: #a0aec0; font-size: 12px;">&copy; ${YEAR} {{brandName}}. All rights reserved.</p>
       </td>
     </tr>
   </table>
@@ -70,7 +70,7 @@ function html(title: string, ...rows: string[]): string {
   return `${layoutOpen(title)}\n${rows.join("\n")}\n${LAYOUT_CLOSE}`;
 }
 
-const CR = `\n\n(c) ${YEAR} WOPR Network. All rights reserved.`;
+const CR = `\n\n(c) ${YEAR} {{brandName}}. All rights reserved.`;
 
 // ---------------------------------------------------------------------------
 // Template definitions
@@ -89,19 +89,19 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: "credits-depleted",
     description: "Sent when tenant credit balance reaches zero",
-    subject: "Your WOPR credits are depleted \u2014 capabilities paused",
+    subject: "Your {{brandName}} credits are depleted \u2014 capabilities paused",
     htmlBody: html(
       "Credits Depleted",
-      hd("Your WOPR Credits Are Depleted"),
+      hd("Your {{brandName}} Credits Are Depleted"),
       p(
-        "<p>Your WOPR credit balance has reached $0. All agent capabilities have been paused.</p><p>Add credits now to resume service immediately.</p>",
+        "<p>Your {{brandName}} credit balance has reached $0. All agent capabilities have been paused.</p><p>Add credits now to resume service immediately.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Add Credits")}{{/if}}`,
       ft("Your data is preserved. Add credits to reactivate."),
     ),
-    textBody: `Your WOPR Credits Are Depleted
+    textBody: `Your {{brandName}} Credits Are Depleted
 
-Your WOPR credit balance has reached $0. All agent capabilities have been paused.
+Your {{brandName}} credit balance has reached $0. All agent capabilities have been paused.
 
 Add credits now to resume service immediately.
 {{#if creditsUrl}}
@@ -111,17 +111,17 @@ Add credits: {{creditsUrl}}
   {
     name: "grace-period-start",
     description: "Sent when a tenant enters the grace period after failed billing",
-    subject: "Action needed: top up to keep your WOPRs running",
+    subject: "Action needed: top up to keep your {{brandName}} agents running",
     htmlBody: html(
       "Grace Period Started",
-      hd("Action Needed: Top Up to Keep Your WOPRs Running"),
+      hd("Action Needed: Top Up to Keep Your {{brandName}} Agents Running"),
       p(
         "<p>Your current balance is <strong>{{balanceDollars}}</strong> and the monthly deduction could not be processed.</p><p>You have a <strong>{{graceDays}}-day grace period</strong> to add credits before your account is suspended.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Add Credits Now")}{{/if}}`,
       ft("This is a critical notification about your account status."),
     ),
-    textBody: `Action Needed: Top Up to Keep Your WOPRs Running
+    textBody: `Action Needed: Top Up to Keep Your {{brandName}} Agents Running
 
 Your current balance is {{balanceDollars}} and the monthly deduction could not be processed.
 
@@ -133,17 +133,17 @@ Add credits: {{creditsUrl}}
   {
     name: "grace-period-warning",
     description: "Sent one day before grace period expires",
-    subject: "Last chance: your WOPRs will be suspended tomorrow",
+    subject: "Last chance: your agents will be suspended tomorrow",
     htmlBody: html(
       "Grace Period Warning",
-      hd("Last Chance: Your WOPRs Will Be Suspended Tomorrow"),
+      hd("Last Chance: Your Agents Will Be Suspended Tomorrow"),
       p(
         "<p>Your grace period expires tomorrow. If you do not add credits, your account will be suspended.</p><p>Add credits now to keep your agents running.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Add Credits Now", "#dc2626")}{{/if}}`,
       ft("This is a critical notification about your account status."),
     ),
-    textBody: `Last Chance: Your WOPRs Will Be Suspended Tomorrow
+    textBody: `Last Chance: Your Agents Will Be Suspended Tomorrow
 
 Your grace period expires tomorrow. If you do not add credits, your account will be suspended.
 {{#if creditsUrl}}
@@ -158,7 +158,7 @@ Add credits: {{creditsUrl}}
       "Account Suspended",
       hd("Your Account Has Been Suspended"),
       p(
-        "<p>Your WOPR account has been automatically suspended.</p><p><strong>Reason:</strong> {{reason}}</p><p>Add credits to reactivate your account immediately.</p>",
+        "<p>Your {{brandName}} account has been automatically suspended.</p><p><strong>Reason:</strong> {{reason}}</p><p>Add credits to reactivate your account immediately.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Add Credits to Reactivate")}{{/if}}`,
       ft("Your data is preserved for 30 days."),
@@ -205,7 +205,7 @@ View credits: {{creditsUrl}}
         "<p>Your auto top-up failed. We were unable to charge your payment method.</p><p>Please update your payment method or add credits manually to avoid service interruption.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Add Credits")}{{/if}}`,
-      ft("If you need help, contact support@wopr.bot."),
+      ft("If you need help, contact {{supportEmail}}."),
     ),
     textBody: `Auto Top-Up Failed
 
@@ -226,7 +226,7 @@ Add credits: {{creditsUrl}}
       p(
         "<p>Your crypto payment has been confirmed. <strong>{{amountDollars}}</strong> in credits has been added to your account.</p><p>Your new balance is <strong>{{newBalanceDollars}}</strong>.</p>",
       ),
-      ft("Thank you for supporting WOPR!"),
+      ft("Thank you for supporting {{brandName}}!"),
     ),
     textBody: `Crypto Payment Confirmed: {{amountDollars}} Credits Added
 
@@ -243,15 +243,15 @@ Your new balance is {{newBalanceDollars}}.${CR}`,
       "Account Suspended",
       hd("Your Account Has Been Suspended"),
       p(
-        "<p>Your WOPR account has been suspended by an administrator.</p><p><strong>Reason:</strong> {{reason}}</p><p>If you believe this is an error, please contact support@wopr.bot.</p>",
+        "<p>Your {{brandName}} account has been suspended by an administrator.</p><p><strong>Reason:</strong> {{reason}}</p><p>If you believe this is an error, please contact {{supportEmail}}.</p>",
       ),
-      ft("Contact support@wopr.bot if you have questions."),
+      ft("Contact {{supportEmail}} if you have questions."),
     ),
     textBody: `Your Account Has Been Suspended
 
 Reason: {{reason}}
 
-If you believe this is an error, please contact support@wopr.bot.${CR}`,
+If you believe this is an error, please contact {{supportEmail}}.${CR}`,
   },
   {
     name: "admin-reactivated",
@@ -261,13 +261,13 @@ If you believe this is an error, please contact support@wopr.bot.${CR}`,
       "Account Reactivated",
       hd("Your Account Has Been Reactivated"),
       p(
-        "<p>Your WOPR account has been reactivated. You now have full access to all services.</p><p>Your agents and channels are ready to use.</p>",
+        "<p>Your {{brandName}} account has been reactivated. You now have full access to all services.</p><p>Your agents and channels are ready to use.</p>",
       ),
       ft("Welcome back!"),
     ),
     textBody: `Your Account Has Been Reactivated
 
-Your WOPR account has been reactivated. You now have full access to all services.${CR}`,
+Your {{brandName}} account has been reactivated. You now have full access to all services.${CR}`,
   },
   {
     name: "credits-granted",
@@ -277,9 +277,9 @@ Your WOPR account has been reactivated. You now have full access to all services
       "Credits Granted",
       hd("You Received {{amountDollars}} in Credits"),
       p(
-        "<p><strong>{{amountDollars}}</strong> in credits has been added to your WOPR account.</p>{{#if reason}}<p><strong>Note:</strong> {{reason}}</p>{{/if}}",
+        "<p><strong>{{amountDollars}}</strong> in credits has been added to your {{brandName}} account.</p>{{#if reason}}<p><strong>Note:</strong> {{reason}}</p>{{/if}}",
       ),
-      ft("Thank you for using WOPR!"),
+      ft("Thank you for using {{brandName}}!"),
     ),
     textBody: `You Received {{amountDollars}} in Credits
 
@@ -295,9 +295,9 @@ Note: {{reason}}{{/if}}${CR}`,
       "Role Changed",
       hd("Your Role Has Been Updated"),
       p(
-        "<p>Your role on the WOPR platform has been updated to <strong>{{newRole}}</strong>.</p><p>Your new permissions are now active.</p>",
+        "<p>Your role on the {{brandName}} platform has been updated to <strong>{{newRole}}</strong>.</p><p>Your new permissions are now active.</p>",
       ),
-      ft("If you did not expect this change, contact support@wopr.bot."),
+      ft("If you did not expect this change, contact {{supportEmail}}."),
     ),
     textBody: `Your Role Has Been Updated
 
@@ -311,7 +311,7 @@ Your role has been updated to {{newRole}}.${CR}`,
       "Team Invite",
       hd("You've Been Invited to Join {{tenantName}}"),
       p(
-        "<p>You've been invited to join <strong>{{tenantName}}</strong> on the WOPR platform.</p><p>Click below to accept the invitation.</p>",
+        "<p>You've been invited to join <strong>{{tenantName}}</strong> on the {{brandName}} platform.</p><p>Click below to accept the invitation.</p>",
       ),
       `{{#if inviteUrl}}${btn("{{inviteUrl}}", "Accept Invitation")}{{/if}}`,
       ft("If you did not expect this invitation, you can ignore this email."),
@@ -325,16 +325,16 @@ Accept: {{inviteUrl}}
   {
     name: "agent-created",
     description: "Sent when a new agent is created",
-    subject: "Your WOPR {{agentName}} is ready",
+    subject: "Your {{brandName}} {{agentName}} is ready",
     htmlBody: html(
       "Agent Created",
-      hd("Your WOPR {{agentName}} Is Ready"),
+      hd("Your {{brandName}} {{agentName}} Is Ready"),
       p(
         "<p>Your new agent <strong>{{agentName}}</strong> has been created and is ready to use.</p><p>Connect it to a channel to start receiving and sending messages.</p>",
       ),
       ft("Happy building!"),
     ),
-    textBody: `Your WOPR {{agentName}} Is Ready
+    textBody: `Your {{brandName}} {{agentName}} Is Ready
 
 Your new agent has been created and is ready to use.${CR}`,
   },
@@ -382,7 +382,7 @@ Reason: {{reason}}
       p(
         "<p>Your agent <strong>{{agentName}}</strong> has been paused.</p>{{#if reason}}<p><strong>Reason:</strong> {{reason}}</p>{{/if}}",
       ),
-      ft("Contact support@wopr.bot if you have questions."),
+      ft("Contact {{supportEmail}} if you have questions."),
     ),
     textBody: `{{agentName}} Has Been Paused
 {{#if reason}}
@@ -393,21 +393,21 @@ Reason: {{reason}}
   {
     name: "account-deletion-requested",
     description: "Sent when a user requests account deletion",
-    subject: "Your WOPR account deletion request",
+    subject: "Your {{brandName}} account deletion request",
     htmlBody: html(
       "Account Deletion Requested",
       hd("Account Deletion Requested"),
       p(
-        "<p>Hi <strong>{{email}}</strong>,</p><p>We've received your request to delete your WOPR account and all associated data.</p><p>Your account will be permanently deleted on <strong>{{deleteAfterDate}}</strong>. Until then, you can cancel this request and keep your account.</p><p>After that date, all your data will be permanently and irreversibly removed, including bots, conversation history, credit records, and plugin configurations.</p>",
+        "<p>Hi <strong>{{email}}</strong>,</p><p>We've received your request to delete your {{brandName}} account and all associated data.</p><p>Your account will be permanently deleted on <strong>{{deleteAfterDate}}</strong>. Until then, you can cancel this request and keep your account.</p><p>After that date, all your data will be permanently and irreversibly removed, including bots, conversation history, credit records, and plugin configurations.</p>",
       ),
       `{{#if cancelUrl}}${btn("{{cancelUrl}}", "Cancel Deletion", "#22c55e")}{{/if}}`,
-      ft("If you did not request this, please contact support@wopr.bot immediately."),
+      ft("If you did not request this, please contact {{supportEmail}} immediately."),
     ),
     textBody: `Account Deletion Requested
 
 Hi {{email}},
 
-We've received your request to delete your WOPR account and all associated data.
+We've received your request to delete your {{brandName}} account and all associated data.
 
 Your account will be permanently deleted on {{deleteAfterDate}}. Until then, you can cancel this request.
 
@@ -415,19 +415,19 @@ After that date, all your data will be permanently and irreversibly removed.
 {{#if cancelUrl}}
 Cancel deletion: {{cancelUrl}}
 {{/if}}
-If you did not request this, please contact support@wopr.bot immediately.${CR}`,
+If you did not request this, please contact {{supportEmail}} immediately.${CR}`,
   },
   {
     name: "account-deletion-cancelled",
     description: "Sent when account deletion is cancelled",
-    subject: "Your WOPR account deletion has been cancelled",
+    subject: "Your {{brandName}} account deletion has been cancelled",
     htmlBody: html(
       "Account Deletion Cancelled",
       hd("Account Deletion Cancelled"),
       p(
         "<p>Hi <strong>{{email}}</strong>,</p><p>Your account deletion request has been cancelled. Your account and all data remain intact.</p><p>No further action is needed.</p>",
       ),
-      ft("If you didn't cancel this, please contact support@wopr.bot."),
+      ft("If you didn't cancel this, please contact {{supportEmail}}."),
     ),
     textBody: `Account Deletion Cancelled
 
@@ -440,33 +440,33 @@ No further action is needed.${CR}`,
   {
     name: "account-deletion-completed",
     description: "Sent after account is permanently deleted",
-    subject: "Your WOPR account has been deleted",
+    subject: "Your {{brandName}} account has been deleted",
     htmlBody: html(
       "Account Deleted",
       hd("Your Account Has Been Deleted"),
       p(
-        "<p>Hi <strong>{{email}}</strong>,</p><p>Your WOPR account and all associated data have been permanently deleted as requested.</p><p>This includes all bots, conversation history, credit records, billing data, and plugin configurations.</p><p>If you'd like to use WOPR again in the future, you're welcome to create a new account.</p>",
+        "<p>Hi <strong>{{email}}</strong>,</p><p>Your {{brandName}} account and all associated data have been permanently deleted as requested.</p><p>This includes all bots, conversation history, credit records, billing data, and plugin configurations.</p><p>If you'd like to use {{brandName}} again in the future, you're welcome to create a new account.</p>",
       ),
-      ft("Thank you for using WOPR. We're sorry to see you go."),
+      ft("Thank you for using {{brandName}}. We're sorry to see you go."),
     ),
     textBody: `Your Account Has Been Deleted
 
 Hi {{email}},
 
-Your WOPR account and all associated data have been permanently deleted as requested.
+Your {{brandName}} account and all associated data have been permanently deleted as requested.
 
 This includes all bots, conversation history, credit records, billing data, and plugin configurations.
 
-If you'd like to use WOPR again in the future, you're welcome to create a new account.${CR}`,
+If you'd like to use {{brandName}} again in the future, you're welcome to create a new account.${CR}`,
   },
   // -- Dividend & Affiliate --------------------------------------------------
   {
     name: "dividend-weekly-digest",
     description: "Weekly summary of dividend payouts",
-    subject: "WOPR paid you {{weeklyTotalDollars}} this week",
+    subject: "{{brandName}} paid you {{weeklyTotalDollars}} this week",
     htmlBody: html(
       "Weekly Dividend Digest",
-      hd("WOPR Paid You {{weeklyTotalDollars}} This Week"),
+      hd("{{brandName}} Paid You {{weeklyTotalDollars}} This Week"),
       p(
         `<p>Here's your weekly dividend summary for <strong>{{weekStartDate}} \u2013 {{weekEndDate}}</strong>.</p>` +
           `<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">` +
@@ -482,7 +482,7 @@ If you'd like to use WOPR again in the future, you're welcome to create a new ac
       ft("Community dividends are distributed daily from platform revenue. Keep your credits active to stay eligible."),
       '{{#if unsubscribeUrl}}<tr><td style="padding: 0 40px 20px 40px; text-align: center; color: #a0aec0; font-size: 12px;"><a href="{{unsubscribeUrl}}" style="color: #a0aec0; text-decoration: underline;">Unsubscribe from dividend digests</a></td></tr>{{/if}}',
     ),
-    textBody: `WOPR Paid You {{weeklyTotalDollars}} This Week
+    textBody: `{{brandName}} Paid You {{weeklyTotalDollars}} This Week
 
 Weekly summary for {{weekStartDate}} \u2013 {{weekEndDate}}:
 
@@ -509,7 +509,7 @@ Unsubscribe: {{unsubscribeUrl}}{{/if}}${CR}`,
         "<p>Great news! A user you referred just made their first purchase, and you've been credited <strong>{{amountDollars}}</strong>.</p>",
       ),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "View Credit Balance")}{{/if}}`,
-      ft("Thank you for spreading the word about WOPR!"),
+      ft("Thank you for spreading the word about {{brandName}}!"),
     ),
     textBody: `You Earned Affiliate Credits!
 
@@ -544,9 +544,9 @@ Review spending: {{creditsUrl}}
     subject: "{{subject}}",
     htmlBody: html(
       "{{subject}}",
-      hd("Message from WOPR"),
+      hd("Message from {{brandName}}"),
       p("<p>{{{bodyTextHtml}}}</p>"),
-      ft("This is an administrative message from WOPR Network."),
+      ft("This is an administrative message from {{brandName}}."),
     ),
     textBody: `{{bodyText}}${CR}`,
   },
@@ -554,15 +554,15 @@ Review spending: {{creditsUrl}}
   {
     name: "low-balance",
     description: "Sent when credit balance drops below threshold",
-    subject: "Your WOPR credits are running low",
+    subject: "Your {{brandName}} credits are running low",
     htmlBody: html(
       "Low Balance",
-      hd("Your WOPR Credits Are Running Low"),
+      hd("Your {{brandName}} Credits Are Running Low"),
       p("<p>Your balance is <strong>{{balanceDollars}}</strong>. Top up to keep your agents running.</p>"),
       `{{#if creditsUrl}}${btn("{{creditsUrl}}", "Buy Credits")}{{/if}}`,
       ft("This is an automated billing notification."),
     ),
-    textBody: `Your WOPR Credits Are Running Low
+    textBody: `Your {{brandName}} Credits Are Running Low
 
 Balance: {{balanceDollars}}
 {{#if creditsUrl}}
@@ -579,7 +579,7 @@ Buy credits: {{creditsUrl}}
       p(
         "<p><strong>{{amountDollars}}</strong> in credits has been added.</p>{{#if newBalanceDollars}}<p>New balance: <strong>{{newBalanceDollars}}</strong></p>{{/if}}",
       ),
-      ft("Thank you for supporting WOPR!"),
+      ft("Thank you for supporting {{brandName}}!"),
     ),
     textBody: `Credits Added
 
@@ -588,21 +588,21 @@ Buy credits: {{creditsUrl}}
   {
     name: "welcome",
     description: "Sent to new users after registration",
-    subject: "Welcome to WOPR",
+    subject: "Welcome to {{brandName}}",
     htmlBody: html(
       "Welcome",
-      hd("Welcome to WOPR!"),
+      hd("Welcome to {{brandName}}!"),
       p("<p>Your account is now active. Start building!</p>"),
       ft("Happy building!"),
     ),
-    textBody: `Welcome to WOPR!
+    textBody: `Welcome to {{brandName}}!
 
 Your account is now active.${CR}`,
   },
   {
     name: "password-reset",
     description: "Sent when a user requests a password reset",
-    subject: "Reset your WOPR password",
+    subject: "Reset your {{brandName}} password",
     htmlBody: html(
       "Reset Password",
       hd("Reset Your Password"),
