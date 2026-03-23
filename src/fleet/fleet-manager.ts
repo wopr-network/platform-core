@@ -449,7 +449,7 @@ export class FleetManager {
       Binds: binds.length > 0 ? binds : undefined,
       SecurityOpt: ["no-new-privileges"],
       CapDrop: isEphemeral ? undefined : ["ALL"],
-      CapAdd: isEphemeral ? undefined : ["NET_BIND_SERVICE"],
+      CapAdd: isEphemeral ? undefined : ["NET_BIND_SERVICE", "CHOWN", "DAC_OVERRIDE"],
       ReadonlyRootfs: !isEphemeral,
       Tmpfs: isEphemeral
         ? undefined
