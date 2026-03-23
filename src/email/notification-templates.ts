@@ -54,7 +54,7 @@ export type TemplateName = NotificationTemplateName;
 // Shared layout helpers (duplicated locally so this file is self-contained)
 // ---------------------------------------------------------------------------
 
-function wrapHtml(title: string, bodyContent: string): string {
+function wrapHtml(title: string, bodyContent: string, brandName = "WOPR"): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -69,7 +69,7 @@ function wrapHtml(title: string, bodyContent: string): string {
         <table role="presentation" style="width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           ${bodyContent}
         </table>
-        <p style="margin-top: 20px; color: #a0aec0; font-size: 12px;">&copy; ${new Date().getFullYear()} WOPR Network. All rights reserved.</p>
+        <p style="margin-top: 20px; color: #a0aec0; font-size: 12px;">&copy; ${new Date().getFullYear()} ${escapeHtml(brandName)}. All rights reserved.</p>
       </td>
     </tr>
   </table>
@@ -109,8 +109,13 @@ function footer(text: string): string {
 </tr>`;
 }
 
-function copyright(): string {
-  return `\n\n(c) ${new Date().getFullYear()} WOPR Network. All rights reserved.`;
+function copyright(brandName = "WOPR"): string {
+  return `\n\n(c) ${new Date().getFullYear()} ${brandName}. All rights reserved.`;
+}
+
+/** Extract the brand name from template data, defaulting to "WOPR". */
+function brand(data: Record<string, unknown>): string {
+  return (data.brandName as string) || "WOPR";
 }
 
 // ---------------------------------------------------------------------------
@@ -118,11 +123,12 @@ function copyright(): string {
 // ---------------------------------------------------------------------------
 
 function creditsDepletedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const creditsUrl = (data.creditsUrl as string) || "";
   const parts = [
-    heading("Your WOPR Credits Are Depleted"),
+    heading(`Your ${escapeHtml(b)} Credits Are Depleted`),
     paragraph(
-      "<p>Your WOPR credit balance has reached $0. All agent capabilities have been paused.</p>" +
+      `<p>Your ${escapeHtml(b)} credit balance has reached $0. All agent capabilities have been paused.</p>` +
         "<p>Add credits now to resume service immediately.</p>",
     ),
   ];
@@ -130,18 +136,19 @@ function creditsDepletedTemplate(data: Record<string, unknown>): TemplateResult 
   parts.push(footer("Your data is preserved. Add credits to reactivate."));
 
   return {
-    subject: "Your WOPR credits are depleted — capabilities paused",
-    html: wrapHtml("Credits Depleted", parts.join("\n")),
-    text: `Your WOPR Credits Are Depleted\n\nYour WOPR credit balance has reached $0. All agent capabilities have been paused.\n\nAdd credits now to resume service immediately.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    subject: `Your ${b} credits are depleted — capabilities paused`,
+    html: wrapHtml("Credits Depleted", parts.join("\n"), b),
+    text: `Your ${b} Credits Are Depleted\n\nYour ${b} credit balance has reached $0. All agent capabilities have been paused.\n\nAdd credits now to resume service immediately.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function gracePeriodStartTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const balanceDollars = escapeHtml((data.balanceDollars as string) || "$0.00");
   const graceDays = Number(data.graceDays) || 7;
   const creditsUrl = (data.creditsUrl as string) || "";
   const parts = [
-    heading("Action Needed: Top Up to Keep Your WOPRs Running"),
+    heading(`Action Needed: Top Up to Keep Your ${escapeHtml(b)} Agents Running`),
     paragraph(
       `<p>Your current balance is <strong>${balanceDollars}</strong> and the monthly deduction could not be processed.</p>` +
         `<p>You have a <strong>${graceDays}-day grace period</strong> to add credits before your account is suspended.</p>`,
@@ -151,16 +158,17 @@ function gracePeriodStartTemplate(data: Record<string, unknown>): TemplateResult
   parts.push(footer("This is a critical notification about your account status."));
 
   return {
-    subject: "Action needed: top up to keep your WOPRs running",
-    html: wrapHtml("Grace Period Started", parts.join("\n")),
-    text: `Action Needed: Top Up to Keep Your WOPRs Running\n\nYour current balance is ${data.balanceDollars} and the monthly deduction could not be processed.\n\nYou have a ${graceDays}-day grace period to add credits before your account is suspended.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    subject: `Action needed: top up to keep your ${b} agents running`,
+    html: wrapHtml("Grace Period Started", parts.join("\n"), b),
+    text: `Action Needed: Top Up to Keep Your ${b} Agents Running\n\nYour current balance is ${data.balanceDollars} and the monthly deduction could not be processed.\n\nYou have a ${graceDays}-day grace period to add credits before your account is suspended.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function gracePeriodWarningTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const creditsUrl = (data.creditsUrl as string) || "";
   const parts = [
-    heading("Last Chance: Your WOPRs Will Be Suspended Tomorrow"),
+    heading("Last Chance: Your Agents Will Be Suspended Tomorrow"),
     paragraph(
       "<p>Your grace period expires tomorrow. If you do not add credits, your account will be suspended.</p>" +
         "<p>Add credits now to keep your agents running.</p>",
@@ -170,19 +178,20 @@ function gracePeriodWarningTemplate(data: Record<string, unknown>): TemplateResu
   parts.push(footer("This is a critical notification about your account status."));
 
   return {
-    subject: "Last chance: your WOPRs will be suspended tomorrow",
-    html: wrapHtml("Grace Period Warning", parts.join("\n")),
-    text: `Last Chance: Your WOPRs Will Be Suspended Tomorrow\n\nYour grace period expires tomorrow. If you do not add credits, your account will be suspended.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    subject: "Last chance: your agents will be suspended tomorrow",
+    html: wrapHtml("Grace Period Warning", parts.join("\n"), b),
+    text: `Last Chance: Your Agents Will Be Suspended Tomorrow\n\nYour grace period expires tomorrow. If you do not add credits, your account will be suspended.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function autoSuspendedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const reason = escapeHtml((data.reason as string) || "Grace period expired");
   const creditsUrl = (data.creditsUrl as string) || "";
   const parts = [
     heading("Your Account Has Been Suspended"),
     paragraph(
-      `<p>Your WOPR account has been automatically suspended.</p>` +
+      `<p>Your ${escapeHtml(b)} account has been automatically suspended.</p>` +
         `<p><strong>Reason:</strong> ${reason}</p>` +
         `<p>Add credits to reactivate your account immediately.</p>`,
     ),
@@ -192,12 +201,13 @@ function autoSuspendedTemplate(data: Record<string, unknown>): TemplateResult {
 
   return {
     subject: "Your account has been suspended",
-    html: wrapHtml("Account Suspended", parts.join("\n")),
-    text: `Your Account Has Been Suspended\n\nReason: ${data.reason}\n\nAdd credits to reactivate your account immediately.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    html: wrapHtml("Account Suspended", parts.join("\n"), b),
+    text: `Your Account Has Been Suspended\n\nReason: ${data.reason}\n\nAdd credits to reactivate your account immediately.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function autoTopupSuccessTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const amountDollars = escapeHtml((data.amountDollars as string) || "$0.00");
   const newBalanceDollars = escapeHtml((data.newBalanceDollars as string) || "$0.00");
   const creditsUrl = (data.creditsUrl as string) || "";
@@ -213,13 +223,15 @@ function autoTopupSuccessTemplate(data: Record<string, unknown>): TemplateResult
 
   return {
     subject: `Auto top-up: ${data.amountDollars} credits added`,
-    html: wrapHtml("Auto Top-Up Successful", parts.join("\n")),
-    text: `Auto Top-Up: ${data.amountDollars} Credits Added\n\nYour auto top-up was successful. ${data.amountDollars} in credits has been added.\n\nYour new balance is ${data.newBalanceDollars}.\n${creditsUrl ? `\nView credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    html: wrapHtml("Auto Top-Up Successful", parts.join("\n"), b),
+    text: `Auto Top-Up: ${data.amountDollars} Credits Added\n\nYour auto top-up was successful. ${data.amountDollars} in credits has been added.\n\nYour new balance is ${data.newBalanceDollars}.\n${creditsUrl ? `\nView credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function autoTopupFailedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const creditsUrl = (data.creditsUrl as string) || "";
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
   const parts = [
     heading("Auto Top-Up Failed"),
     paragraph(
@@ -228,12 +240,12 @@ function autoTopupFailedTemplate(data: Record<string, unknown>): TemplateResult 
     ),
   ];
   if (creditsUrl) parts.push(button(creditsUrl, "Add Credits"));
-  parts.push(footer("If you need help, contact support@wopr.bot."));
+  parts.push(footer(`If you need help, contact ${escapeHtml(supportEmail)}.`));
 
   return {
     subject: "Auto top-up failed — update your payment method",
-    html: wrapHtml("Auto Top-Up Failed", parts.join("\n")),
-    text: `Auto Top-Up Failed\n\nYour auto top-up failed. We were unable to charge your payment method.\n\nPlease update your payment method or add credits manually to avoid service interruption.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright()}`,
+    html: wrapHtml("Auto Top-Up Failed", parts.join("\n"), b),
+    text: `Auto Top-Up Failed\n\nYour auto top-up failed. We were unable to charge your payment method.\n\nPlease update your payment method or add credits manually to avoid service interruption.\n${creditsUrl ? `\nAdd credits: ${creditsUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
@@ -247,39 +259,43 @@ function cryptoPaymentConfirmedTemplate(data: Record<string, unknown>): Template
         `<p>Your new balance is <strong>${newBalanceDollars}</strong>.</p>`,
     ),
   ];
-  parts.push(footer("Thank you for supporting WOPR!"));
+  const b = brand(data);
+  parts.push(footer(`Thank you for supporting ${escapeHtml(b)}!`));
 
   return {
     subject: `Crypto payment confirmed: ${data.amountDollars} credits added`,
-    html: wrapHtml("Crypto Payment Confirmed", parts.join("\n")),
-    text: `Crypto Payment Confirmed: ${data.amountDollars} Credits Added\n\nYour crypto payment has been confirmed. ${data.amountDollars} in credits has been added.\n\nYour new balance is ${data.newBalanceDollars}.\n${copyright()}`,
+    html: wrapHtml("Crypto Payment Confirmed", parts.join("\n"), b),
+    text: `Crypto Payment Confirmed: ${data.amountDollars} Credits Added\n\nYour crypto payment has been confirmed. ${data.amountDollars} in credits has been added.\n\nYour new balance is ${data.newBalanceDollars}.\n${copyright(b)}`,
   };
 }
 
 function adminSuspendedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const reason = escapeHtml((data.reason as string) || "Policy violation");
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
   const parts = [
     heading("Your Account Has Been Suspended"),
     paragraph(
-      `<p>Your WOPR account has been suspended by an administrator.</p>` +
+      `<p>Your ${escapeHtml(b)} account has been suspended by an administrator.</p>` +
         `<p><strong>Reason:</strong> ${reason}</p>` +
-        `<p>If you believe this is an error, please contact support@wopr.bot.</p>`,
+        `<p>If you believe this is an error, please contact ${escapeHtml(supportEmail)}.</p>`,
     ),
   ];
-  parts.push(footer("Contact support@wopr.bot if you have questions."));
+  parts.push(footer(`Contact ${escapeHtml(supportEmail)} if you have questions.`));
 
   return {
     subject: "Your account has been suspended",
-    html: wrapHtml("Account Suspended", parts.join("\n")),
-    text: `Your Account Has Been Suspended\n\nReason: ${data.reason}\n\nIf you believe this is an error, please contact support@wopr.bot.\n${copyright()}`,
+    html: wrapHtml("Account Suspended", parts.join("\n"), b),
+    text: `Your Account Has Been Suspended\n\nReason: ${data.reason}\n\nIf you believe this is an error, please contact ${supportEmail}.\n${copyright(b)}`,
   };
 }
 
-function adminReactivatedTemplate(_data: Record<string, unknown>): TemplateResult {
+function adminReactivatedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const parts = [
     heading("Your Account Has Been Reactivated"),
     paragraph(
-      "<p>Your WOPR account has been reactivated. You now have full access to all services.</p>" +
+      `<p>Your ${escapeHtml(b)} account has been reactivated. You now have full access to all services.</p>` +
         "<p>Your agents and channels are ready to use.</p>",
     ),
   ];
@@ -287,55 +303,59 @@ function adminReactivatedTemplate(_data: Record<string, unknown>): TemplateResul
 
   return {
     subject: "Your account has been reactivated",
-    html: wrapHtml("Account Reactivated", parts.join("\n")),
-    text: `Your Account Has Been Reactivated\n\nYour WOPR account has been reactivated. You now have full access to all services.\n${copyright()}`,
+    html: wrapHtml("Account Reactivated", parts.join("\n"), b),
+    text: `Your Account Has Been Reactivated\n\nYour ${b} account has been reactivated. You now have full access to all services.\n${copyright(b)}`,
   };
 }
 
 function creditsGrantedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const amountDollars = escapeHtml((data.amountDollars as string) || "$0.00");
   const reason = escapeHtml((data.reason as string) || "");
   const parts = [
     heading(`You Received ${amountDollars} in Credits`),
     paragraph(
-      `<p><strong>${amountDollars}</strong> in credits has been added to your WOPR account.</p>` +
+      `<p><strong>${amountDollars}</strong> in credits has been added to your ${escapeHtml(b)} account.</p>` +
         (reason ? `<p><strong>Note:</strong> ${reason}</p>` : ""),
     ),
   ];
-  parts.push(footer("Thank you for using WOPR!"));
+  parts.push(footer(`Thank you for using ${escapeHtml(b)}!`));
 
   return {
     subject: `You received ${data.amountDollars} in credits`,
-    html: wrapHtml("Credits Granted", parts.join("\n")),
-    text: `You Received ${data.amountDollars} in Credits\n\n${data.amountDollars} has been added to your account.${reason ? `\n\nNote: ${data.reason}` : ""}\n${copyright()}`,
+    html: wrapHtml("Credits Granted", parts.join("\n"), b),
+    text: `You Received ${data.amountDollars} in Credits\n\n${data.amountDollars} has been added to your account.${reason ? `\n\nNote: ${data.reason}` : ""}\n${copyright(b)}`,
   };
 }
 
 function roleChangedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const newRole = escapeHtml((data.newRole as string) || "");
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
   const parts = [
     heading("Your Role Has Been Updated"),
     paragraph(
-      `<p>Your role on the WOPR platform has been updated to <strong>${newRole}</strong>.</p>` +
+      `<p>Your role on the ${escapeHtml(b)} platform has been updated to <strong>${newRole}</strong>.</p>` +
         "<p>Your new permissions are now active.</p>",
     ),
   ];
-  parts.push(footer("If you did not expect this change, contact support@wopr.bot."));
+  parts.push(footer(`If you did not expect this change, contact ${escapeHtml(supportEmail)}.`));
 
   return {
     subject: "Your role has been updated",
-    html: wrapHtml("Role Changed", parts.join("\n")),
-    text: `Your Role Has Been Updated\n\nYour role has been updated to ${data.newRole}.\n${copyright()}`,
+    html: wrapHtml("Role Changed", parts.join("\n"), b),
+    text: `Your Role Has Been Updated\n\nYour role has been updated to ${data.newRole}.\n${copyright(b)}`,
   };
 }
 
 function teamInviteTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const tenantName = escapeHtml((data.tenantName as string) || "a tenant");
   const inviteUrl = (data.inviteUrl as string) || "";
   const parts = [
     heading(`You've Been Invited to Join ${tenantName}`),
     paragraph(
-      `<p>You've been invited to join <strong>${tenantName}</strong> on the WOPR platform.</p>` +
+      `<p>You've been invited to join <strong>${tenantName}</strong> on the ${escapeHtml(b)} platform.</p>` +
         "<p>Click below to accept the invitation.</p>",
     ),
   ];
@@ -344,15 +364,16 @@ function teamInviteTemplate(data: Record<string, unknown>): TemplateResult {
 
   return {
     subject: `You've been invited to join ${data.tenantName}`,
-    html: wrapHtml("Team Invite", parts.join("\n")),
-    text: `You've Been Invited to Join ${data.tenantName}\n\n${inviteUrl ? `Accept: ${inviteUrl}\n` : ""}${copyright()}`,
+    html: wrapHtml("Team Invite", parts.join("\n"), b),
+    text: `You've Been Invited to Join ${data.tenantName}\n\n${inviteUrl ? `Accept: ${inviteUrl}\n` : ""}${copyright(b)}`,
   };
 }
 
 function agentCreatedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const agentName = escapeHtml((data.agentName as string) || "your agent");
   const parts = [
-    heading(`Your WOPR ${agentName} Is Ready`),
+    heading(`Your ${escapeHtml(b)} ${agentName} Is Ready`),
     paragraph(
       `<p>Your new agent <strong>${agentName}</strong> has been created and is ready to use.</p>` +
         "<p>Connect it to a channel to start receiving and sending messages.</p>",
@@ -361,13 +382,14 @@ function agentCreatedTemplate(data: Record<string, unknown>): TemplateResult {
   parts.push(footer("Happy building!"));
 
   return {
-    subject: `Your WOPR ${data.agentName} is ready`,
-    html: wrapHtml("Agent Created", parts.join("\n")),
-    text: `Your WOPR ${data.agentName} Is Ready\n\nYour new agent has been created and is ready to use.\n${copyright()}`,
+    subject: `Your ${b} ${data.agentName} is ready`,
+    html: wrapHtml("Agent Created", parts.join("\n"), b),
+    text: `Your ${b} ${data.agentName} Is Ready\n\nYour new agent has been created and is ready to use.\n${copyright(b)}`,
   };
 }
 
 function channelConnectedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const channelName = escapeHtml((data.channelName as string) || "A channel");
   const agentName = escapeHtml((data.agentName as string) || "your agent");
   const parts = [
@@ -381,12 +403,13 @@ function channelConnectedTemplate(data: Record<string, unknown>): TemplateResult
 
   return {
     subject: `${data.channelName} connected to ${data.agentName}`,
-    html: wrapHtml("Channel Connected", parts.join("\n")),
-    text: `${data.channelName} Connected to ${data.agentName}\n\n${data.channelName} has been successfully connected to ${data.agentName}.\n${copyright()}`,
+    html: wrapHtml("Channel Connected", parts.join("\n"), b),
+    text: `${data.channelName} Connected to ${data.agentName}\n\n${data.channelName} has been successfully connected to ${data.agentName}.\n${copyright(b)}`,
   };
 }
 
 function channelDisconnectedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const channelName = escapeHtml((data.channelName as string) || "A channel");
   const agentName = escapeHtml((data.agentName as string) || "your agent");
   const reason = escapeHtml((data.reason as string) || "");
@@ -402,14 +425,16 @@ function channelDisconnectedTemplate(data: Record<string, unknown>): TemplateRes
 
   return {
     subject: `${data.channelName} disconnected from ${data.agentName}`,
-    html: wrapHtml("Channel Disconnected", parts.join("\n")),
-    text: `${data.channelName} Disconnected from ${data.agentName}\n\n${reason ? `Reason: ${data.reason}\n\n` : ""}Reconnect from your dashboard to restore service.\n${copyright()}`,
+    html: wrapHtml("Channel Disconnected", parts.join("\n"), b),
+    text: `${data.channelName} Disconnected from ${data.agentName}\n\n${reason ? `Reason: ${data.reason}\n\n` : ""}Reconnect from your dashboard to restore service.\n${copyright(b)}`,
   };
 }
 
 function agentSuspendedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const agentName = escapeHtml((data.agentName as string) || "Your agent");
   const reason = escapeHtml((data.reason as string) || "");
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
   const parts = [
     heading(`${agentName} Has Been Paused`),
     paragraph(
@@ -417,41 +442,45 @@ function agentSuspendedTemplate(data: Record<string, unknown>): TemplateResult {
         (reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""),
     ),
   ];
-  parts.push(footer("Contact support@wopr.bot if you have questions."));
+  parts.push(footer(`Contact ${escapeHtml(supportEmail)} if you have questions.`));
 
   return {
     subject: `${data.agentName} has been paused`,
-    html: wrapHtml("Agent Paused", parts.join("\n")),
-    text: `${data.agentName} Has Been Paused\n\n${reason ? `Reason: ${data.reason}\n` : ""}${copyright()}`,
+    html: wrapHtml("Agent Paused", parts.join("\n"), b),
+    text: `${data.agentName} Has Been Paused\n\n${reason ? `Reason: ${data.reason}\n` : ""}${copyright(b)}`,
   };
 }
 
 function accountDeletionRequestedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const email = escapeHtml((data.email as string) || "");
   const deleteAfterDate = escapeHtml((data.deleteAfterDate as string) || "");
   const cancelUrl = (data.cancelUrl as string) || "";
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
 
   const parts = [
     heading("Account Deletion Requested"),
     paragraph(
       `<p>Hi <strong>${email}</strong>,</p>` +
-        `<p>We've received your request to delete your WOPR account and all associated data.</p>` +
+        `<p>We've received your request to delete your ${escapeHtml(b)} account and all associated data.</p>` +
         `<p>Your account will be permanently deleted on <strong>${deleteAfterDate}</strong>. Until then, you can cancel this request and keep your account.</p>` +
         `<p>After that date, all your data will be permanently and irreversibly removed, including bots, conversation history, credit records, and plugin configurations.</p>`,
     ),
   ];
   if (cancelUrl) parts.push(button(cancelUrl, "Cancel Deletion", "#22c55e"));
-  parts.push(footer("If you did not request this, please contact support@wopr.bot immediately."));
+  parts.push(footer(`If you did not request this, please contact ${escapeHtml(supportEmail)} immediately.`));
 
   return {
-    subject: "Your WOPR account deletion request",
-    html: wrapHtml("Account Deletion Requested", parts.join("\n")),
-    text: `Account Deletion Requested\n\nHi ${data.email as string},\n\nWe've received your request to delete your WOPR account and all associated data.\n\nYour account will be permanently deleted on ${data.deleteAfterDate as string}. Until then, you can cancel this request.\n\nAfter that date, all your data will be permanently and irreversibly removed.\n${cancelUrl ? `\nCancel deletion: ${cancelUrl}\n` : ""}If you did not request this, please contact support@wopr.bot immediately.${copyright()}`,
+    subject: `Your ${b} account deletion request`,
+    html: wrapHtml("Account Deletion Requested", parts.join("\n"), b),
+    text: `Account Deletion Requested\n\nHi ${data.email as string},\n\nWe've received your request to delete your ${b} account and all associated data.\n\nYour account will be permanently deleted on ${data.deleteAfterDate as string}. Until then, you can cancel this request.\n\nAfter that date, all your data will be permanently and irreversibly removed.\n${cancelUrl ? `\nCancel deletion: ${cancelUrl}\n` : ""}If you did not request this, please contact ${supportEmail} immediately.${copyright(b)}`,
   };
 }
 
 function accountDeletionCancelledTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const email = escapeHtml((data.email as string) || "");
+  const supportEmail = (data.supportEmail as string) || "support@wopr.bot";
 
   const parts = [
     heading("Account Deletion Cancelled"),
@@ -460,38 +489,40 @@ function accountDeletionCancelledTemplate(data: Record<string, unknown>): Templa
         `<p>Your account deletion request has been cancelled. Your account and all data remain intact.</p>` +
         `<p>No further action is needed.</p>`,
     ),
-    footer("If you didn't cancel this, please contact support@wopr.bot."),
+    footer(`If you didn't cancel this, please contact ${escapeHtml(supportEmail)}.`),
   ];
 
   return {
-    subject: "Your WOPR account deletion has been cancelled",
-    html: wrapHtml("Account Deletion Cancelled", parts.join("\n")),
-    text: `Account Deletion Cancelled\n\nHi ${data.email as string},\n\nYour account deletion request has been cancelled. Your account and all data remain intact.\n\nNo further action is needed.${copyright()}`,
+    subject: `Your ${b} account deletion has been cancelled`,
+    html: wrapHtml("Account Deletion Cancelled", parts.join("\n"), b),
+    text: `Account Deletion Cancelled\n\nHi ${data.email as string},\n\nYour account deletion request has been cancelled. Your account and all data remain intact.\n\nNo further action is needed.${copyright(b)}`,
   };
 }
 
 function accountDeletionCompletedTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const email = escapeHtml((data.email as string) || "");
 
   const parts = [
     heading("Your Account Has Been Deleted"),
     paragraph(
       `<p>Hi <strong>${email}</strong>,</p>` +
-        `<p>Your WOPR account and all associated data have been permanently deleted as requested.</p>` +
+        `<p>Your ${escapeHtml(b)} account and all associated data have been permanently deleted as requested.</p>` +
         `<p>This includes all bots, conversation history, credit records, billing data, and plugin configurations.</p>` +
-        `<p>If you'd like to use WOPR again in the future, you're welcome to create a new account.</p>`,
+        `<p>If you'd like to use ${escapeHtml(b)} again in the future, you're welcome to create a new account.</p>`,
     ),
-    footer("Thank you for using WOPR. We're sorry to see you go."),
+    footer(`Thank you for using ${escapeHtml(b)}. We're sorry to see you go.`),
   ];
 
   return {
-    subject: "Your WOPR account has been deleted",
-    html: wrapHtml("Account Deleted", parts.join("\n")),
-    text: `Your Account Has Been Deleted\n\nHi ${data.email as string},\n\nYour WOPR account and all associated data have been permanently deleted as requested.\n\nThis includes all bots, conversation history, credit records, billing data, and plugin configurations.\n\nIf you'd like to use WOPR again in the future, you're welcome to create a new account.${copyright()}`,
+    subject: `Your ${b} account has been deleted`,
+    html: wrapHtml("Account Deleted", parts.join("\n"), b),
+    text: `Your Account Has Been Deleted\n\nHi ${data.email as string},\n\nYour ${b} account and all associated data have been permanently deleted as requested.\n\nThis includes all bots, conversation history, credit records, billing data, and plugin configurations.\n\nIf you'd like to use ${b} again in the future, you're welcome to create a new account.${copyright(b)}`,
   };
 }
 
 function dividendWeeklyDigestTemplate(data: Record<string, unknown>): TemplateResult {
+  const b = brand(data);
   const weeklyTotal = escapeHtml((data.weeklyTotalDollars as string) || "$0.00");
   const lifetimeTotal = escapeHtml((data.lifetimeTotalDollars as string) || "$0.00");
   const distributionCount = Number(data.distributionCount) || 0;
@@ -505,7 +536,7 @@ function dividendWeeklyDigestTemplate(data: Record<string, unknown>): TemplateRe
   const poolAvgDollars = `$${(poolAvgCents / 100).toFixed(2)}`;
 
   const parts = [
-    heading(`WOPR Paid You ${weeklyTotal} This Week`),
+    heading(`${escapeHtml(b)} Paid You ${weeklyTotal} This Week`),
     paragraph(
       `<p>Here's your weekly dividend summary for <strong>${weekStart} – ${weekEnd}</strong>.</p>` +
         `<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">` +
@@ -533,10 +564,10 @@ function dividendWeeklyDigestTemplate(data: Record<string, unknown>): TemplateRe
   }
 
   return {
-    subject: `WOPR paid you ${data.weeklyTotalDollars as string} this week`,
-    html: wrapHtml("Weekly Dividend Digest", parts.join("\n")),
+    subject: `${b} paid you ${data.weeklyTotalDollars as string} this week`,
+    html: wrapHtml("Weekly Dividend Digest", parts.join("\n"), b),
     text:
-      `WOPR Paid You ${data.weeklyTotalDollars as string} This Week\n\n` +
+      `${b} Paid You ${data.weeklyTotalDollars as string} This Week\n\n` +
       `Weekly summary for ${data.weekStartDate as string} – ${data.weekEndDate as string}:\n\n` +
       `This week's dividends: ${data.weeklyTotalDollars as string}\n` +
       `Days with distributions: ${distributionCount} of 7\n` +
@@ -546,22 +577,23 @@ function dividendWeeklyDigestTemplate(data: Record<string, unknown>): TemplateRe
       `Next dividend: ${data.nextDividendDate as string}\n\n` +
       `Community dividends are distributed daily from platform revenue.` +
       (unsubscribeUrl ? `\n\nUnsubscribe: ${unsubscribeUrl}` : "") +
-      copyright(),
+      copyright(b),
   };
 }
 
 function customTemplate(data: Record<string, unknown>): TemplateResult {
-  const subject = (data.subject as string) || "Message from WOPR";
+  const b = brand(data);
+  const subject = (data.subject as string) || `Message from ${b}`;
   const rawBody = (data.bodyText as string) || "";
   const escapedBody = escapeHtml(rawBody).replace(/\n/g, "<br>\n");
 
-  const parts = [heading("Message from WOPR"), paragraph(`<p>${escapedBody}</p>`)];
-  parts.push(footer("This is an administrative message from WOPR Network."));
+  const parts = [heading(`Message from ${escapeHtml(b)}`), paragraph(`<p>${escapedBody}</p>`)];
+  parts.push(footer(`This is an administrative message from ${escapeHtml(b)}.`));
 
   return {
     subject,
-    html: wrapHtml(escapeHtml(subject), parts.join("\n")),
-    text: `${rawBody}\n${copyright()}`,
+    html: wrapHtml(escapeHtml(subject), parts.join("\n"), b),
+    text: `${rawBody}\n${copyright(b)}`,
   };
 }
 
@@ -610,6 +642,7 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
     case "agent-suspended":
       return agentSuspendedTemplate(data);
     case "affiliate-credit-match": {
+      const b = brand(data);
       const amountDollars = escapeHtml((data.amountDollars as string) || "$0.00");
       const creditsUrl = (data.creditsUrl as string) || "";
       const parts = [
@@ -619,14 +652,15 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
         ),
       ];
       if (creditsUrl) parts.push(button(creditsUrl, "View Credit Balance"));
-      parts.push(footer("Thank you for spreading the word about WOPR!"));
+      parts.push(footer(`Thank you for spreading the word about ${escapeHtml(b)}!`));
       return {
         subject: `You earned ${data.amountDollars as string} in affiliate credits!`,
-        html: wrapHtml("Affiliate Credits Earned", parts.join("\n")),
-        text: `You Earned Affiliate Credits!\n\nA user you referred just made their first purchase, and you've been credited ${data.amountDollars as string}.\n${creditsUrl ? `\nView your balance: ${creditsUrl}\n` : ""}${copyright()}`,
+        html: wrapHtml("Affiliate Credits Earned", parts.join("\n"), b),
+        text: `You Earned Affiliate Credits!\n\nA user you referred just made their first purchase, and you've been credited ${data.amountDollars as string}.\n${creditsUrl ? `\nView your balance: ${creditsUrl}\n` : ""}${copyright(b)}`,
       };
     }
     case "spend-alert": {
+      const b = brand(data);
       const currentSpend = escapeHtml(String(data.currentSpendDollars ?? "$0.00"));
       const alertAt = escapeHtml(String(data.alertAtDollars ?? "$0.00"));
       const creditsUrl = (data.creditsUrl as string) || "";
@@ -642,12 +676,12 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
       parts.push(footer("This alert fires once per day when your spend exceeds your configured threshold."));
       return {
         subject: `Spending alert: you've reached your ${data.alertAtDollars as string} threshold`,
-        html: wrapHtml("Spending Alert", parts.join("\n")),
+        html: wrapHtml("Spending Alert", parts.join("\n"), b),
         text:
           `Spending Alert: Threshold Reached\n\nYour monthly spend has reached ${data.currentSpendDollars as string}, ` +
           `crossing your alert threshold of ${data.alertAtDollars as string}.\n` +
           (creditsUrl ? `\nReview spending: ${creditsUrl}\n` : "") +
-          copyright(),
+          copyright(b),
       };
     }
     case "custom":
@@ -661,6 +695,7 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
     case "account-deletion-completed":
       return accountDeletionCompletedTemplate(data);
     case "fleet-update-available": {
+      const b = brand(data);
       const version = escapeHtml((data.version as string) || "");
       const changelogDate = escapeHtml((data.changelogDate as string) || "");
       const changelogSummary = escapeHtml((data.changelogSummary as string) || "");
@@ -679,11 +714,12 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
       faParts.push(footer("Review the changelog and update when ready."));
       return {
         subject: `Fleet update available: ${data.version}`,
-        html: wrapHtml("Fleet Update Available", faParts.join("\n")),
-        text: `Fleet Update Available: ${data.version}\n\nA new version ${data.version} is available for your fleet.\n${changelogDate ? `Released: ${data.changelogDate}\n` : ""}${changelogSummary ? `Changelog: ${data.changelogSummary}\n` : ""}${fleetUrl ? `\nFleet dashboard: ${fleetUrl}\n` : ""}${copyright()}`,
+        html: wrapHtml("Fleet Update Available", faParts.join("\n"), b),
+        text: `Fleet Update Available: ${data.version}\n\nA new version ${data.version} is available for your fleet.\n${changelogDate ? `Released: ${data.changelogDate}\n` : ""}${changelogSummary ? `Changelog: ${data.changelogSummary}\n` : ""}${fleetUrl ? `\nFleet dashboard: ${fleetUrl}\n` : ""}${copyright(b)}`,
       };
     }
     case "fleet-update-complete": {
+      const b = brand(data);
       const fcVersion = escapeHtml((data.version as string) || "");
       const succeeded = Number(data.succeeded) || 0;
       const failed = Number(data.failed) || 0;
@@ -714,27 +750,31 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
       );
       return {
         subject: `Fleet updated to ${data.version} \u2014 ${statusText}`,
-        html: wrapHtml("Fleet Update Complete", fcParts.join("\n")),
-        text: `Fleet Updated to ${data.version}\n\nSucceeded: ${succeeded}\nFailed: ${failed}\nTotal: ${total}\n${failed > 0 ? "\nSome instances failed to update.\n" : ""}${fleetUrl2 ? `\nFleet dashboard: ${fleetUrl2}\n` : ""}${copyright()}`,
+        html: wrapHtml("Fleet Update Complete", fcParts.join("\n"), b),
+        text: `Fleet Updated to ${data.version}\n\nSucceeded: ${succeeded}\nFailed: ${failed}\nTotal: ${total}\n${failed > 0 ? "\nSome instances failed to update.\n" : ""}${fleetUrl2 ? `\nFleet dashboard: ${fleetUrl2}\n` : ""}${copyright(b)}`,
       };
     }
-    case "low-balance":
+    case "low-balance": {
+      const b = brand(data);
       return {
-        subject: "Your WOPR credits are running low",
+        subject: `Your ${b} credits are running low`,
         html: wrapHtml(
           "Low Balance",
           [
-            heading("Your WOPR Credits Are Running Low"),
+            heading(`Your ${escapeHtml(b)} Credits Are Running Low`),
             paragraph(
               `<p>Your balance is <strong>${escapeHtml((data.balanceDollars as string) || "$0.00")}</strong>. Top up to keep your agents running.</p>`,
             ),
             ...(data.creditsUrl ? [button(data.creditsUrl as string, "Buy Credits")] : []),
             footer("This is an automated billing notification."),
           ].join("\n"),
+          b,
         ),
-        text: `Your WOPR Credits Are Running Low\n\nBalance: ${data.balanceDollars}\n${data.creditsUrl ? `\nBuy credits: ${data.creditsUrl}\n` : ""}${copyright()}`,
+        text: `Your ${b} Credits Are Running Low\n\nBalance: ${data.balanceDollars}\n${data.creditsUrl ? `\nBuy credits: ${data.creditsUrl}\n` : ""}${copyright(b)}`,
       };
-    case "credit-purchase-receipt":
+    }
+    case "credit-purchase-receipt": {
+      const b = brand(data);
       return {
         subject: "Credits added to your account",
         html: wrapHtml(
@@ -747,27 +787,33 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
                   ? `<p>New balance: <strong>${escapeHtml(data.newBalanceDollars as string)}</strong></p>`
                   : ""),
             ),
-            footer("Thank you for supporting WOPR!"),
+            footer(`Thank you for supporting ${escapeHtml(b)}!`),
           ].join("\n"),
+          b,
         ),
-        text: `Credits Added\n\n${data.amountDollars} added.\n${copyright()}`,
+        text: `Credits Added\n\n${data.amountDollars} added.\n${copyright(b)}`,
       };
-    case "welcome":
+    }
+    case "welcome": {
+      const b = brand(data);
       return {
-        subject: "Welcome to WOPR",
+        subject: `Welcome to ${b}`,
         html: wrapHtml(
           "Welcome",
           [
-            heading("Welcome to WOPR!"),
+            heading(`Welcome to ${escapeHtml(b)}!`),
             paragraph("<p>Your account is now active. Start building!</p>"),
             footer("Happy building!"),
           ].join("\n"),
+          b,
         ),
-        text: `Welcome to WOPR!\n\nYour account is now active.\n${copyright()}`,
+        text: `Welcome to ${b}!\n\nYour account is now active.\n${copyright(b)}`,
       };
-    case "password-reset":
+    }
+    case "password-reset": {
+      const b = brand(data);
       return {
-        subject: "Reset your WOPR password",
+        subject: `Reset your ${b} password`,
         html: wrapHtml(
           "Reset Password",
           [
@@ -776,9 +822,11 @@ export function renderNotificationTemplate(template: TemplateName, data: Record<
             ...(data.resetUrl ? [button(data.resetUrl as string, "Reset Password")] : []),
             footer("If you did not request this, ignore this email."),
           ].join("\n"),
+          b,
         ),
-        text: `Reset Your Password\n\n${data.resetUrl ? `${data.resetUrl}\n` : ""}${copyright()}`,
+        text: `Reset Your Password\n\n${data.resetUrl ? `${data.resetUrl}\n` : ""}${copyright(b)}`,
       };
+    }
     default: {
       // Exhaustiveness check
       const _exhaustive: never = template;
