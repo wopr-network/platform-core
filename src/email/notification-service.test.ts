@@ -30,6 +30,7 @@ describe("NotificationService", () => {
         balanceDollars: "$2.50",
         estimatedDaysRemaining: 5,
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -40,6 +41,7 @@ describe("NotificationService", () => {
       expect(queue.enqueue).toHaveBeenCalledWith("tenant-1", "credits-depleted", {
         email: "user@example.com",
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -52,6 +54,7 @@ describe("NotificationService", () => {
         balanceDollars: "$0.50",
         graceDays: 7,
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -62,6 +65,7 @@ describe("NotificationService", () => {
       expect(queue.enqueue).toHaveBeenCalledWith("tenant-1", "grace-period-warning", {
         email: "user@example.com",
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -73,6 +77,7 @@ describe("NotificationService", () => {
         email: "user@example.com",
         reason: "Grace period expired",
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -83,6 +88,7 @@ describe("NotificationService", () => {
       expect(queue.enqueue).toHaveBeenCalledWith("tenant-1", "admin-suspended", {
         email: "user@example.com",
         reason: "ToS violation",
+        brandName: "WOPR",
       });
     });
   });
@@ -92,6 +98,7 @@ describe("NotificationService", () => {
       service.notifyAdminReactivated("tenant-1", "user@example.com");
       expect(queue.enqueue).toHaveBeenCalledWith("tenant-1", "admin-reactivated", {
         email: "user@example.com",
+        brandName: "WOPR",
       });
     });
   });
@@ -103,6 +110,7 @@ describe("NotificationService", () => {
         email: "user@example.com",
         amountDollars: "$5.00",
         reason: "Support credit",
+        brandName: "WOPR",
       });
     });
   });
@@ -113,6 +121,7 @@ describe("NotificationService", () => {
       expect(queue.enqueue).toHaveBeenCalledWith("tenant-1", "role-changed", {
         email: "user@example.com",
         newRole: "tenant_admin",
+        brandName: "WOPR",
       });
     });
   });
@@ -124,6 +133,7 @@ describe("NotificationService", () => {
         email: "user@example.com",
         tenantName: "Acme Corp",
         inviteUrl: "https://app.wopr.bot/invite/abc",
+        brandName: "WOPR",
       });
     });
   });
@@ -136,6 +146,7 @@ describe("NotificationService", () => {
         channelName: "Discord",
         agentName: "MyBot",
         reason: "Token expired",
+        brandName: "WOPR",
       });
     });
   });
@@ -147,6 +158,7 @@ describe("NotificationService", () => {
         email: "user@example.com",
         subject: "Hello there",
         bodyText: "This is the body.",
+        brandName: "WOPR",
       });
     });
   });
@@ -160,6 +172,7 @@ describe("NotificationService", () => {
         amountDollars: "$50.00",
         reason: "fraudulent",
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
@@ -172,6 +185,7 @@ describe("NotificationService", () => {
         disputeId: "dp_123",
         amountDollars: "$50.00",
         creditsUrl: `${BASE_URL}/billing/credits`,
+        brandName: "WOPR",
       });
     });
   });
