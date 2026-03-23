@@ -1,4 +1,5 @@
 export { createAdminFleetUpdateRouter } from "./admin-fleet-update-router.js";
+export { authSocialRouter } from "./auth-social-router.js";
 export { createFleetUpdateConfigRouter } from "./fleet-update-config-router.js";
 export {
   adminProcedure,
