@@ -6,6 +6,8 @@ import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
 export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
+export { PRODUCT_PRESETS } from "./presets.js";
+export type { ProductPreset } from "./presets.js";
 
 /**
  * Bootstrap product config from DB and register the service globally.
