@@ -1,10 +1,9 @@
 import type { DrizzleDb } from "../db/index.js";
+import type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
+import { platformBoot as rawPlatformBoot } from "./boot.js";
 import { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
-
-import { platformBoot as rawPlatformBoot } from "./boot.js";
-import type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
 
 export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
 
