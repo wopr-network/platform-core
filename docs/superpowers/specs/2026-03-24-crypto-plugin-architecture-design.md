@@ -174,19 +174,32 @@ interface WatcherOpts {
 
 Replaced by `key_rings` unique constraint on `(coin_type, account_index)`.
 
-## Plugin Packages
+## Plugin Monorepo
 
-Each chain is its own npm package:
+Single npm package: `@wopr-network/crypto-plugins`. One version, one CI, one install.
 
-| Package | Curve | Chains |
-|---------|-------|--------|
-| `crypto-plugin-evm` | secp256k1 | ETH, Base, Arbitrum, Polygon, Optimism, Avalanche, BSC |
-| `crypto-plugin-utxo-common` | — | Shared UTXO watcher, bitcoind RPC, sweep logic |
-| `crypto-plugin-bitcoin` | secp256k1 | BTC (depends on utxo-common) |
-| `crypto-plugin-litecoin` | secp256k1 | LTC (depends on utxo-common) |
-| `crypto-plugin-dogecoin` | secp256k1 | DOGE (depends on utxo-common) |
-| `crypto-plugin-tron` | secp256k1 | TRX + TRC-20 (handles T-address ↔ hex conversion internally) |
-| `crypto-plugin-solana` | ed25519 | SOL + SPL tokens |
+```
+crypto-plugins/
+  src/
+    evm/           # ETH, Base, Arbitrum, Polygon, Optimism, Avalanche, BSC
+    bitcoin/       # BTC (uses shared/utxo)
+    litecoin/      # LTC (uses shared/utxo)
+    dogecoin/      # DOGE (uses shared/utxo)
+    tron/          # TRX + TRC-20 (T-address ↔ hex conversion)
+    solana/        # SOL + SPL tokens (Ed25519)
+    shared/        # UTXO common (bitcoind RPC, watcher, sweep), test helpers
+    index.ts       # barrel export of all plugins
+  package.json     # peer dep on @wopr-network/platform-core
+```
+
+| Plugin | Curve | Subpath | Chains |
+|--------|-------|---------|--------|
+| `evm` | secp256k1 | `@wopr-network/crypto-plugins/evm` | ETH + all EVM L1/L2s |
+| `bitcoin` | secp256k1 | `@wopr-network/crypto-plugins/bitcoin` | BTC |
+| `litecoin` | secp256k1 | `@wopr-network/crypto-plugins/litecoin` | LTC |
+| `dogecoin` | secp256k1 | `@wopr-network/crypto-plugins/dogecoin` | DOGE |
+| `tron` | secp256k1 | `@wopr-network/crypto-plugins/tron` | TRX + TRC-20 |
+| `solana` | ed25519 | `@wopr-network/crypto-plugins/solana` | SOL + SPL |
 
 Platform-core exports interfaces as a peer dependency:
 ```
@@ -198,9 +211,9 @@ Platform-core exports interfaces as a peer dependency:
 Explicit imports in the key-server entry point:
 
 ```ts
-import { evmPlugin } from "@wopr-network/crypto-plugin-evm";
-import { bitcoinPlugin } from "@wopr-network/crypto-plugin-bitcoin";
-import { solanaPlugin } from "@wopr-network/crypto-plugin-solana";
+import { evmPlugin } from "@wopr-network/crypto-plugins/evm";
+import { bitcoinPlugin } from "@wopr-network/crypto-plugins/bitcoin";
+import { solanaPlugin } from "@wopr-network/crypto-plugins/solana";
 
 const registry = new PluginRegistry();
 registry.register(evmPlugin);
@@ -245,20 +258,17 @@ No per-chain env vars. RPC URLs and headers come from the chain server.
 
 ## Adding a New Chain
 
-### secp256k1 chain (e.g. XRP)
-1. `npm install @wopr-network/crypto-plugin-xrp`
-2. Add `registry.register(xrpPlugin)` to entry point
-3. Insert `key_ring` row (curve: secp256k1, derivation_mode: on-demand, coin_type: 144)
-4. Insert `payment_method` row (plugin_id: "xrp", encoding: "base58-xrp", key_ring_id: "xrp-main")
-5. Restart
-
-### Ed25519 chain (e.g. Solana)
-1. `npm install @wopr-network/crypto-plugin-solana`
-2. Add `registry.register(solanaPlugin)` to entry point
-3. Insert `key_ring` row (curve: ed25519, derivation_mode: pool, coin_type: 501)
-4. Insert `payment_method` row (plugin_id: "solana", encoding: "base58-solana", key_ring_id: "sol-main")
-5. Replenish pool: `openssl enc ... -d | npx @wopr-network/crypto-sweep replenish --chain solana --count 200`
+### Existing chain type (e.g. XRP — secp256k1)
+1. Add `src/xrp/` to `@wopr-network/crypto-plugins` with encoder + watcher + sweeper
+2. Add subpath export, bump version, publish
+3. Add `registry.register(xrpPlugin)` to key-server entry point
+4. `npm update @wopr-network/crypto-plugins`
+5. Insert `key_ring` row + `payment_method` row in DB
 6. Restart
+
+### New curve (e.g. Solana — Ed25519)
+Same as above, plus:
+- Replenish pool: `openssl enc ... -d | npx @wopr-network/crypto-sweep replenish --chain solana --count 200`
 
 No code changes to platform-core for either path.
 
@@ -282,19 +292,23 @@ Only change: admin `POST /admin/chains` takes `key_ring_id` + `encoding` + `plug
 - Backfill: create key_ring rows from existing xpub + address_type data, set `key_ring_id` + `encoding` + `plugin_id` on existing payment_methods
 - DB migration 2: drop old columns (`xpub`, `address_type`, `watcher_type`), drop `path_allocations`
 
-### Phase 2 — Extract existing chains into plugins
-- `crypto-plugin-evm` — from current `evm/watcher.ts`, `evm/eth-watcher.ts`
-- `crypto-plugin-utxo-common` + bitcoin/litecoin/dogecoin — from current UTXO watcher code
-- `crypto-plugin-tron` — from current tron code (address conversion handled internally by plugin)
+### Phase 2 — Extract existing chains into `@wopr-network/crypto-plugins` monorepo
+- New repo: `wopr-network/crypto-plugins`
+- `src/evm/` — from current `evm/watcher.ts`, `evm/eth-watcher.ts`
+- `src/shared/utxo/` — shared bitcoind RPC, UTXO watcher, sweep base
+- `src/bitcoin/`, `src/litecoin/`, `src/dogecoin/` — thin configs on shared/utxo
+- `src/tron/` — from current tron code (address conversion internal)
+- `src/shared/test-helpers/` — mock RPC, test fixtures
 - All existing behavior preserved, just restructured
+- One npm package, one version, subpath exports per chain
 
 ### Phase 3 — Unified sweep CLI
-- `@wopr-network/crypto-sweep` — sweep + replenish modes
+- Sweep + replenish modes live in `@wopr-network/crypto-plugins/sweep` (same monorepo, separate entrypoint)
 - Replaces `sweep-stablecoins.ts` and `sweep-tron.ts`
 
 ### Phase 4 — New chains
-- `crypto-plugin-solana` — first Ed25519 chain, proves pool model
-- Then TON, XRP, etc.
+- `src/solana/` in crypto-plugins — first Ed25519 chain, proves pool model
+- Then TON, XRP, etc. — each is a new directory + subpath export + version bump
 
 Each phase is independently deployable. Phase 1+2 is a refactor with no behavior change. Phase 3 replaces scripts. Phase 4 is new functionality.
 
