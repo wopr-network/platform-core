@@ -184,8 +184,14 @@ export function deriveCorsOrigins(product: Product, domains: ProductDomain[]): s
   return [...origins];
 }
 
-/** Derive brand config for UI from full product config. */
-export function toBrandConfig(config: ProductConfig): ProductBrandConfig {
+/**
+ * Derive brand config for UI from full product config.
+ *
+ * @param config - Full product config.
+ * @param userRole - Optional role of the requesting user. When omitted (public/unauthenticated),
+ *   nav items that require a role are excluded from the result.
+ */
+export function toBrandConfig(config: ProductConfig, userRole?: string): ProductBrandConfig {
   const { product, navItems, domains, features } = config;
   return {
     productName: product.productName,
@@ -204,7 +210,10 @@ export function toBrandConfig(config: ProductConfig): ProductBrandConfig {
     price: product.priceLabel,
     homePath: product.homePath,
     chatEnabled: features?.chatEnabled ?? true,
-    navItems: navItems.filter((n) => n.enabled).map((n) => ({ label: n.label, href: n.href })),
+    navItems: navItems
+      .filter((n) => n.enabled)
+      .filter((n) => !n.requiresRole || n.requiresRole === userRole)
+      .map((n) => ({ label: n.label, href: n.href })),
     domains: domains.length > 0 ? domains.map((d) => ({ host: d.host, role: d.role })) : undefined,
   };
 }

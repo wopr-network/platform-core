@@ -3,6 +3,8 @@ import { DrizzleProductConfigRepository } from "./drizzle-product-config-reposit
 import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
+export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
+export { platformBoot } from "./boot.js";
 export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 // Re-exports for consumers
 export type {
@@ -22,8 +24,6 @@ export type {
 } from "./repository-types.js";
 export { deriveCorsOrigins, toBrandConfig } from "./repository-types.js";
 export { ProductConfigService } from "./service.js";
-export { platformBoot } from "./boot.js";
-export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
 
 let _service: ProductConfigService | null = null;
 

@@ -73,49 +73,62 @@ export class DrizzleProductConfigRepository implements IProductConfigRepository 
   }
 
   async replaceNavItems(productId: string, items: NavItemInput[]): Promise<void> {
-    await this.db.delete(productNavItems).where(eq(productNavItems.productId, productId));
-    if (items.length > 0) {
-      await this.db.insert(productNavItems).values(
-        items.map((item) => ({
-          productId,
-          label: item.label,
-          href: item.href,
-          icon: item.icon ?? null,
-          sortOrder: item.sortOrder,
-          requiresRole: item.requiresRole ?? null,
-          enabled: item.enabled !== false,
-        })),
-      );
-    }
+    await this.db.transaction(async (tx) => {
+      await tx.delete(productNavItems).where(eq(productNavItems.productId, productId));
+      if (items.length > 0) {
+        await tx.insert(productNavItems).values(
+          items.map((item) => ({
+            productId,
+            label: item.label,
+            href: item.href,
+            icon: item.icon ?? null,
+            sortOrder: item.sortOrder,
+            requiresRole: item.requiresRole ?? null,
+            enabled: item.enabled !== false,
+          })),
+        );
+      }
+    });
   }
 
   async upsertFeatures(productId: string, data: Partial<ProductFeaturesType>): Promise<void> {
+    const { productId: _, ...rest } = data as Record<string, unknown>;
     await this.db
       .insert(productFeatures)
-      .values({ productId, ...(data as Record<string, unknown>) })
+      // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+      .values({ productId, ...rest } as any)
       .onConflictDoUpdate({
         target: productFeatures.productId,
-        set: { ...(data as Record<string, unknown>), updatedAt: new Date() },
+        // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+        set: { ...rest, updatedAt: new Date() } as any,
       });
   }
 
   async upsertFleetConfig(productId: string, data: Partial<ProductFleetConfigType>): Promise<void> {
+    const { productId: _, ...rest } = data as Record<string, unknown>;
     await this.db
       .insert(productFleetConfig)
-      .values({ productId, containerImage: "", ...(data as Record<string, unknown>) })
+      // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+      .values({ productId, containerImage: "", ...rest } as any)
       .onConflictDoUpdate({
         target: productFleetConfig.productId,
-        set: { ...(data as Record<string, unknown>), updatedAt: new Date() },
+        // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+        set: { ...rest, updatedAt: new Date() } as any,
       });
   }
 
   async upsertBillingConfig(productId: string, data: Partial<ProductBillingConfigType>): Promise<void> {
+    // TODO: stripeSecretKey and stripeWebhookSecret must be encrypted via the credential vault
+    // (CRYPTO_SERVICE_KEY) before reaching this method. The schema stores encrypted ciphertext.
+    const { productId: _, ...rest } = data as Record<string, unknown>;
     await this.db
       .insert(productBillingConfig)
-      .values({ productId, ...(data as Record<string, unknown>) })
+      // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+      .values({ productId, ...rest } as any)
       .onConflictDoUpdate({
         target: productBillingConfig.productId,
-        set: { ...(data as Record<string, unknown>), updatedAt: new Date() },
+        // biome-ignore lint/suspicious/noExplicitAny: Drizzle partial upsert requires unknown spread
+        set: { ...rest, updatedAt: new Date() } as any,
       });
   }
 

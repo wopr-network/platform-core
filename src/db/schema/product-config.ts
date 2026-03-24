@@ -42,7 +42,9 @@ export const productBillingConfig = pgTable("product_billing_config", {
     .primaryKey()
     .references(() => products.id, { onDelete: "cascade" }),
   stripePublishableKey: text("stripe_publishable_key"),
+  /** Encrypted via credential vault (CRYPTO_SERVICE_KEY) before storage. */
   stripeSecretKey: text("stripe_secret_key"),
+  /** Encrypted via credential vault (CRYPTO_SERVICE_KEY) before storage. */
   stripeWebhookSecret: text("stripe_webhook_secret"),
   creditPrices: jsonb("credit_prices").notNull().default({}),
   affiliateBaseUrl: text("affiliate_base_url"),
