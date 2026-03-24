@@ -14,6 +14,7 @@ const COINGECKO_IDS: Record<string, string> = {
   LINK: "chainlink",
   UNI: "uniswap",
   AERO: "aerodrome-finance",
+  TRX: "tron",
 };
 
 /** Default cache TTL: 60 seconds. CoinGecko free tier allows 10-30 req/min. */

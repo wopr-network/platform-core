@@ -25,6 +25,7 @@ import type { EvmChain, EvmPaymentEvent, StablecoinToken } from "./evm/types.js"
 import { createRpcCaller, EvmWatcher } from "./evm/watcher.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
+import { hexToTron, isTronAddress, tronToHex } from "./tron/address-convert.js";
 import type { CryptoChargeStatus } from "./types.js";
 
 const MAX_DELIVERY_ATTEMPTS = 10;
@@ -252,14 +253,10 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
   const methods = await methodStore.listEnabled();
 
-  const utxoMethods = methods.filter(
-    (m) => m.type === "native" && (m.chain === "bitcoin" || m.chain === "litecoin" || m.chain === "dogecoin"),
-  );
-  const evmMethods = methods.filter(
-    (m) =>
-      m.type === "erc20" ||
-      (m.type === "native" && m.chain !== "bitcoin" && m.chain !== "litecoin" && m.chain !== "dogecoin"),
-  );
+  // Route watchers by DB-driven watcherType — no hardcoded chain names.
+  // Adding a new chain is a DB INSERT with watcher_type = "utxo" or "evm".
+  const utxoMethods = methods.filter((m) => m.watcherType === "utxo");
+  const evmMethods = methods.filter((m) => m.watcherType === "evm");
 
   // --- UTXO Watchers (BTC, LTC, DOGE) ---
   for (const method of utxoMethods) {
@@ -363,6 +360,16 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
   const BACKFILL_BLOCKS = 1000; // Scan ~30min of blocks on first deploy to catch missed deposits
 
+  // Address conversion helpers for chains with non-EVM address formats (e.g. Tron T...).
+  // The EVM watcher uses 0x hex addresses; the DB stores native format (T... for Tron).
+  // Convert at the watcher boundary so the rest of the system is format-agnostic.
+  const toWatcherAddr = (addr: string): string => (isTronAddress(addr) ? tronToHex(addr) : addr);
+  const fromWatcherAddr = (addr: string, dbAddrs: string[]): string => {
+    // If any DB address for this chain is Tron format, convert the 0x back to T...
+    if (dbAddrs.length > 0 && isTronAddress(dbAddrs[0])) return hexToTron(addr);
+    return addr;
+  };
+
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
 
@@ -382,13 +389,14 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       rpcCall,
       oracle,
       fromBlock: backfillStart,
-      watchedAddresses: chainAddresses,
+      watchedAddresses: chainAddresses.map(toWatcherAddr),
       cursorStore,
       confirmations: method.confirmations,
       onPayment: async (event: EthPaymentEvent) => {
+        const dbAddr = fromWatcherAddr(event.to, chainAddresses);
         log("ETH payment", {
           chain: event.chain,
-          to: event.to,
+          to: dbAddr,
           txHash: event.txHash,
           valueWei: event.valueWei,
           confirmations: event.confirmations,
@@ -397,7 +405,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         await handlePayment(
           db,
           chargeStore,
-          event.to,
+          dbAddr,
           event.valueWei,
           {
             txHash: event.txHash,
@@ -423,7 +431,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           const freshNative = fresh
             .filter((a) => a.chain === method.chain && a.token === method.token)
             .map((a) => a.address);
-          watcher.setWatchedAddresses(freshNative);
+          watcher.setWatchedAddresses(freshNative.map(toWatcherAddr));
           await watcher.poll();
         } catch (err) {
           log("ETH poll error", { chain: method.chain, error: String(err) });
@@ -450,16 +458,17 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       token: method.token as StablecoinToken,
       rpcCall,
       fromBlock: latestBlock,
-      watchedAddresses: chainAddresses,
+      watchedAddresses: chainAddresses.map(toWatcherAddr),
       contractAddress: method.contractAddress,
       decimals: method.decimals,
       confirmations: method.confirmations,
       cursorStore,
       onPayment: async (event: EvmPaymentEvent) => {
+        const dbAddr = fromWatcherAddr(event.to, chainAddresses);
         log("EVM payment", {
           chain: event.chain,
           token: event.token,
-          to: event.to,
+          to: dbAddr,
           txHash: event.txHash,
           confirmations: event.confirmations,
           confirmationsRequired: event.confirmationsRequired,
@@ -467,7 +476,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         await handlePayment(
           db,
           chargeStore,
-          event.to,
+          dbAddr,
           event.rawAmount,
           {
             txHash: event.txHash,
@@ -491,7 +500,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
           const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
-          watcher.setWatchedAddresses(freshChain);
+          watcher.setWatchedAddresses(freshChain.map(toWatcherAddr));
           await watcher.poll();
         } catch (err) {
           log("EVM poll error", { chain: method.chain, token: method.token, error: String(err) });
