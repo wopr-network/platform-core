@@ -331,24 +331,6 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       return c.json({ error: "id, xpub, and token are required" }, 400);
     }
 
-    // Record the path allocation (idempotent — ignore if already exists)
-    const inserted = (await deps.db
-      .insert(pathAllocations)
-      .values({
-        coinType: body.coin_type,
-        accountIndex: body.account_index,
-        chainId: body.id,
-        xpub: body.xpub,
-      })
-      .onConflictDoNothing()) as { rowCount: number };
-
-    if (inserted.rowCount === 0) {
-      return c.json(
-        { error: "Path allocation already exists", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
-        409,
-      );
-    }
-
     // Validate encoding_params match address_type requirements
     const addrType = body.address_type ?? "evm";
     const encParams = body.encoding_params ?? {};
@@ -359,7 +341,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       return c.json({ error: "p2pkh address_type requires encoding_params.version" }, 400);
     }
 
-    // Upsert the payment method
+    // Upsert payment method FIRST (path_allocations has FK to payment_methods.id)
     await deps.methodStore.upsert({
       id: body.id,
       type: body.type ?? "native",
@@ -379,6 +361,24 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       watcherType: body.watcher_type ?? "evm",
       confirmations: body.confirmations ?? 6,
     });
+
+    // Record the path allocation (idempotent — ignore if already exists)
+    const inserted = (await deps.db
+      .insert(pathAllocations)
+      .values({
+        coinType: body.coin_type,
+        accountIndex: body.account_index,
+        chainId: body.id,
+        xpub: body.xpub,
+      })
+      .onConflictDoNothing()) as { rowCount: number };
+
+    if (inserted.rowCount === 0) {
+      return c.json(
+        { error: "Path allocation already exists, payment method updated", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
+        200,
+      );
+    }
 
     return c.json({ id: body.id, path: `m/44'/${body.coin_type}'/${body.account_index}'` }, 201);
   });
