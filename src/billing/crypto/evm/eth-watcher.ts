@@ -108,56 +108,68 @@ export class EthWatcher {
 
     const { priceMicros } = await this.oracle.getPrice("ETH");
 
-    // Scan up to latest (not just confirmed) to detect pending txs
-    for (let blockNum = this._cursor; blockNum <= latest; blockNum++) {
-      const block = (await this.rpc("eth_getBlockByNumber", [`0x${blockNum.toString(16)}`, true])) as {
-        transactions: RpcTransaction[];
-      } | null;
+    // Scan up to latest (not just confirmed) to detect pending txs.
+    // Fetch blocks in batches to avoid bursting RPC rate limits on fast chains (e.g. Tron 3s blocks).
+    const BATCH_SIZE = 5;
+    for (let batchStart = this._cursor; batchStart <= latest; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, latest);
+      const blockNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
 
-      if (!block) continue;
+      const blocks = await Promise.all(
+        blockNums.map((bn) =>
+          this.rpc("eth_getBlockByNumber", [`0x${bn.toString(16)}`, true]).then(
+            (b) => ({ blockNum: bn, block: b as { transactions: RpcTransaction[] } | null }),
+            () => ({ blockNum: bn, block: null }),
+          ),
+        ),
+      );
 
-      const confs = latest - blockNum;
+      for (const { blockNum, block } of blocks) {
+        if (!block) continue;
 
-      for (const tx of block.transactions) {
-        if (!tx.to) continue;
-        const to = tx.to.toLowerCase();
-        if (!this._watchedAddresses.has(to)) continue;
+        const confs = latest - blockNum;
 
-        const valueWei = BigInt(tx.value);
-        if (valueWei === 0n) continue;
+        for (const tx of block.transactions) {
+          if (!tx.to) continue;
+          const to = tx.to.toLowerCase();
+          if (!this._watchedAddresses.has(to)) continue;
 
-        // Skip if we already emitted at this confirmation count
-        if (this.cursorStore) {
-          const lastConf = await this.cursorStore.getConfirmationCount(this.watcherId, tx.hash);
-          if (lastConf !== null && confs <= lastConf) continue;
+          const valueWei = BigInt(tx.value);
+          if (valueWei === 0n) continue;
+
+          // Skip if we already emitted at this confirmation count
+          if (this.cursorStore) {
+            const lastConf = await this.cursorStore.getConfirmationCount(this.watcherId, tx.hash);
+            if (lastConf !== null && confs <= lastConf) continue;
+          }
+
+          const amountUsdCents = nativeToCents(valueWei, priceMicros, 18);
+
+          const event: EthPaymentEvent = {
+            chain: this.chain,
+            from: tx.from.toLowerCase(),
+            to,
+            valueWei: valueWei.toString(),
+            amountUsdCents,
+            txHash: tx.hash,
+            blockNumber: blockNum,
+            confirmations: confs,
+            confirmationsRequired: this.confirmations,
+          };
+
+          await this.onPayment(event);
+
+          if (this.cursorStore) {
+            await this.cursorStore.saveConfirmationCount(this.watcherId, tx.hash, confs);
+          }
         }
 
-        const amountUsdCents = nativeToCents(valueWei, priceMicros, 18);
-
-        const event: EthPaymentEvent = {
-          chain: this.chain,
-          from: tx.from.toLowerCase(),
-          to,
-          valueWei: valueWei.toString(),
-          amountUsdCents,
-          txHash: tx.hash,
-          blockNumber: blockNum,
-          confirmations: confs,
-          confirmationsRequired: this.confirmations,
-        };
-
-        await this.onPayment(event);
-
-        if (this.cursorStore) {
-          await this.cursorStore.saveConfirmationCount(this.watcherId, tx.hash, confs);
-        }
-      }
-
-      // Only advance cursor past fully-confirmed blocks
-      if (blockNum <= confirmed) {
-        this._cursor = blockNum + 1;
-        if (this.cursorStore) {
-          await this.cursorStore.save(this.watcherId, this._cursor);
+        // Only advance cursor past fully-confirmed blocks
+        if (blockNum <= confirmed) {
+          this._cursor = blockNum + 1;
+          if (this.cursorStore) {
+            await this.cursorStore.save(this.watcherId, this._cursor);
+          }
         }
       }
     }
