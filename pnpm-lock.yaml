@@ -29,6 +29,9 @@ importers:
       '@scure/bip39':
         specifier: ^2.0.1
         version: 2.0.1
+      '@wopr-network/crypto-plugins':
+        specifier: ^1.0.1
+        version: 1.0.1(@wopr-network/platform-core@1.65.0(c58cbdbcb30df9caa79d913f2a9a437e))(typescript@5.9.3)(zod@4.3.6)
       dockerode:
         specifier: '>=4'
         version: 4.0.9
@@ -1870,6 +1873,26 @@ packages:
 
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
+
+  '@wopr-network/crypto-plugins@1.0.1':
+    resolution: {integrity: sha512-fTVlf3fZzEPBILDg9f+XE9iW6WCZXQsJCr9NGykxaoJT4rQGiDU8cZMhQiQacMzx4hbAgbdBDTv7l5eMomQU+Q==}
+    hasBin: true
+    peerDependencies:
+      '@wopr-network/platform-core': '*'
+
+  '@wopr-network/platform-core@1.65.0':
+    resolution: {integrity: sha512-eNnHNdDRw7/+qmuUzu/CVfoqYRqPeEVqNgGdVy8SqIzM1TtLcT4mehBCLsgEOU5Rn30ePjWy3/nS1qDUHgiL3A==}
+    peerDependencies:
+      '@trpc/server': '>=11'
+      better-auth: '>=1.5'
+      dockerode: '>=4'
+      drizzle-orm: '>=0.45'
+      hono: '>=4'
+      pg: '>=8'
+      resend: '>=4'
+      stripe: '>=17'
+      ws: '>=8'
+      zod: '>=3'
 
   '@wopr-network/semantic-release-config@1.0.0':
     resolution: {integrity: sha512-9gzGlKzJPHLVmVv9V3+Ue1zwT2NNNeG9q9EA0M3Dv1uaE1e/H34MfS83p4GGopxtBJG6kEebL8++Qz6vt4xRIg==}
@@ -5992,6 +6015,51 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.0.18
       tinyrainbow: 3.0.3
+
+  '@wopr-network/crypto-plugins@1.0.1(@wopr-network/platform-core@1.65.0(c58cbdbcb30df9caa79d913f2a9a437e))(typescript@5.9.3)(zod@4.3.6)':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
+      '@wopr-network/platform-core': 1.65.0(c58cbdbcb30df9caa79d913f2a9a437e)
+      viem: 2.47.4(typescript@5.9.3)(zod@4.3.6)
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@wopr-network/platform-core@1.65.0(c58cbdbcb30df9caa79d913f2a9a437e)':
+    dependencies:
+      '@aws-sdk/client-ses': 3.1014.0
+      '@hono/node-server': 1.19.11(hono@4.12.7)
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
+      '@trpc/server': 11.12.0(typescript@5.9.3)
+      better-auth: 1.5.4(@prisma/client@7.4.2(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.0)(@prisma/client@7.4.2(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.18.0)(kysely@0.28.11)(mysql2@3.15.3)(pg@8.20.0)(postgres@3.4.7)(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)))(mongodb@7.1.0)(mysql2@3.15.3)(pg@8.20.0)(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.4.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
+      dockerode: 4.0.9
+      drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.0)(@prisma/client@7.4.2(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.18.0)(kysely@0.28.11)(mysql2@3.15.3)(pg@8.20.0)(postgres@3.4.7)(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))
+      handlebars: 4.7.8
+      hono: 4.12.7
+      js-yaml: 4.1.1
+      pg: 8.20.0
+      postmark: 4.0.7
+      resend: 6.9.3
+      stripe: 20.4.1(@types/node@25.4.0)
+      viem: 2.47.4(typescript@5.9.3)(zod@4.3.6)
+      ws: 8.18.3
+      yaml: 2.8.2
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - aws-crt
+      - bufferutil
+      - debug
+      - typescript
+      - utf-8-validate
 
   '@wopr-network/semantic-release-config@1.0.0(semantic-release@24.2.9(typescript@5.9.3))':
     dependencies:
