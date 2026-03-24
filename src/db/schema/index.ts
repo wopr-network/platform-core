@@ -44,6 +44,8 @@ export * from "./page-contexts.js";
 export * from "./platform-api-keys.js";
 export * from "./plugin-configs.js";
 export * from "./plugin-marketplace-content.js";
+export * from "./product-config.js";
+export * from "./products.js";
 export * from "./promotion-redemptions.js";
 export * from "./promotions.js";
 export * from "./provider-credentials.js";
