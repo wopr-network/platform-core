@@ -9,10 +9,10 @@
  */
 
 import { HDKey } from "@scure/bip32";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { DrizzleDb } from "../../db/index.js";
-import { derivedAddresses, pathAllocations, paymentMethods } from "../../db/schema/crypto.js";
+import { addressPool, derivedAddresses, keyRings, pathAllocations, paymentMethods } from "../../db/schema/crypto.js";
 import type { EncodingParams } from "./address-gen.js";
 import { deriveAddress } from "./address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
@@ -36,11 +36,57 @@ export interface KeyServerDeps {
 }
 
 /**
+ * Claim the next address from the pre-derived address pool.
+ * Used for Ed25519 chains (Solana, etc.) that can't derive from an xpub.
+ */
+async function claimFromPool(
+  db: DrizzleDb,
+  keyRingId: string,
+  chainId: string,
+  tenantId?: string,
+): Promise<{ address: string; index: number }> {
+  const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
+
+  const result = await dbWithTx.transaction(async (tx: DrizzleDb) => {
+    // Find the next unassigned address (lowest index first)
+    const [poolEntry] = await tx
+      .select()
+      .from(addressPool)
+      .where(and(eq(addressPool.keyRingId, keyRingId), isNull(addressPool.assignedTo)))
+      .orderBy(addressPool.derivationIndex)
+      .limit(1);
+
+    if (!poolEntry) {
+      throw new Error(`No available addresses in pool for ${keyRingId}. Run crypto-sweep replenish.`);
+    }
+
+    // Mark as assigned
+    const assignmentId = tenantId ? `${chainId}:${tenantId}` : chainId;
+    await tx.update(addressPool).set({ assignedTo: assignmentId }).where(eq(addressPool.id, poolEntry.id));
+
+    // Record in derived_addresses for tracking
+    await tx.insert(derivedAddresses).values({
+      chainId,
+      derivationIndex: poolEntry.derivationIndex,
+      address: poolEntry.address,
+      tenantId,
+    });
+
+    return { address: poolEntry.address, index: poolEntry.derivationIndex };
+  });
+
+  return result as { address: string; index: number };
+}
+
+/**
  * Derive the next unused address for a chain.
- * Atomically increments next_index and records address in a single transaction.
  *
- * EVM chains share an xpub (coin type 60), so ETH index 0 = USDC index 0 = same
- * address. The unique constraint on derived_addresses.address prevents reuse.
+ * For Ed25519 chains with a key ring in "pre-derived" mode (or no xpub),
+ * claims from the address pool instead of deriving from an xpub.
+ *
+ * For xpub-based chains, atomically increments next_index and records
+ * the address in a single transaction. EVM chains share an xpub (coin type 60),
+ * so the unique constraint on derived_addresses.address prevents reuse.
  * On collision, we skip the index and retry (up to maxRetries).
  */
 async function deriveNextAddress(
@@ -51,6 +97,21 @@ async function deriveNextAddress(
 ): Promise<{ address: string; index: number; chain: string; token: string }> {
   const maxRetries = 10;
   const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
+
+  // Check if this payment method uses pool-based derivation (Ed25519 chains).
+  // Look up the method first to check for key_ring_id with derivation_mode = 'pre-derived'.
+  const [methodCheck] = await db.select().from(paymentMethods).where(eq(paymentMethods.id, chainId));
+
+  if (methodCheck?.keyRingId) {
+    // Check the key ring's derivation mode
+    const [ring] = await db.select().from(keyRings).where(eq(keyRings.id, methodCheck.keyRingId));
+
+    if (ring?.derivationMode === "pre-derived" || (!methodCheck.xpub && ring)) {
+      // Pool mode: claim from pre-derived addresses
+      const { address, index } = await claimFromPool(db, methodCheck.keyRingId, chainId, tenantId);
+      return { address, index, chain: methodCheck.chain, token: methodCheck.token };
+    }
+  }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     // Step 1: Atomically claim the next index OUTSIDE the transaction.
@@ -440,5 +501,117 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     return c.body(null, 204);
   });
 
+  /** POST /admin/pool/replenish — upload pre-derived addresses for Ed25519 chains */
+  app.post("/admin/pool/replenish", async (c) => {
+    const body = await c.req.json<{
+      key_ring_id: string;
+      plugin_id: string;
+      encoding: string;
+      addresses: Array<{
+        index: number;
+        public_key: string;
+        address: string;
+      }>;
+    }>();
+
+    if (
+      !body.key_ring_id ||
+      !body.plugin_id ||
+      !body.encoding ||
+      !Array.isArray(body.addresses) ||
+      body.addresses.length === 0
+    ) {
+      return c.json({ error: "key_ring_id, plugin_id, encoding, and a non-empty addresses array are required" }, 400);
+    }
+
+    // Validate the key ring exists
+    const [ring] = await deps.db.select().from(keyRings).where(eq(keyRings.id, body.key_ring_id));
+    if (!ring) {
+      return c.json({ error: `Key ring not found: ${body.key_ring_id}` }, 404);
+    }
+
+    // Look up the plugin encoder for validation
+    const plugin = deps.registry?.get(body.plugin_id);
+    const encoder = plugin?.encoders[body.encoding];
+
+    // Validate each address against the public key
+    for (const entry of body.addresses) {
+      if (typeof entry.index !== "number" || !entry.public_key || !entry.address) {
+        return c.json(
+          { error: `Invalid entry at index ${entry.index}: index, public_key, and address are required` },
+          400,
+        );
+      }
+
+      // If we have an encoder, validate the address by re-encoding the public key
+      if (encoder) {
+        const pubKeyBytes = hexToBytes(entry.public_key);
+        const reEncoded = encoder.encode(pubKeyBytes, {});
+        if (reEncoded !== entry.address) {
+          return c.json(
+            {
+              error: `Address mismatch at index ${entry.index}: expected ${reEncoded}, got ${entry.address}`,
+            },
+            400,
+          );
+        }
+      }
+    }
+
+    // Insert validated addresses into the pool
+    let inserted = 0;
+    for (const entry of body.addresses) {
+      const result = (await deps.db
+        .insert(addressPool)
+        .values({
+          keyRingId: body.key_ring_id,
+          derivationIndex: entry.index,
+          publicKey: entry.public_key,
+          address: entry.address,
+        })
+        .onConflictDoNothing()) as { rowCount: number };
+      inserted += result.rowCount;
+    }
+
+    // Get total pool size for this key ring
+    const totalRows = await deps.db.select().from(addressPool).where(eq(addressPool.keyRingId, body.key_ring_id));
+
+    return c.json({ inserted, total: totalRows.length }, 201);
+  });
+
+  /** GET /admin/pool/status — pool stats per key ring */
+  app.get("/admin/pool/status", async (c) => {
+    // Get all key rings
+    const rings = await deps.db.select().from(keyRings);
+
+    const pools = await Promise.all(
+      rings.map(async (ring) => {
+        const allEntries = await deps.db.select().from(addressPool).where(eq(addressPool.keyRingId, ring.id));
+
+        const available = allEntries.filter((e) => e.assignedTo === null).length;
+        const assigned = allEntries.length - available;
+
+        return {
+          key_ring_id: ring.id,
+          total: allEntries.length,
+          available,
+          assigned,
+        };
+      }),
+    );
+
+    return c.json({ pools });
+  });
+
   return app;
+}
+
+/** Convert a hex string to Uint8Array. */
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number.parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
