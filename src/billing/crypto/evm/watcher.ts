@@ -192,7 +192,9 @@ export function createRpcCaller(rpcUrl: string, extraHeaders?: Record<string, st
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       const hasApiKey = "TRON-PRO-API-KEY" in headers;
-      console.error(`[rpc] ${method} ${res.status} auth=${hasApiKey} url=${rpcUrl.replace(/apikey=[^&]+/, "apikey=***")} body=${body.slice(0, 200)}`);
+      console.error(
+        `[rpc] ${method} ${res.status} auth=${hasApiKey} url=${rpcUrl.replace(/apikey=[^&]+/, "apikey=***")} body=${body.slice(0, 200)}`,
+      );
       throw new Error(`RPC ${method} failed: ${res.status}`);
     }
     const data = (await res.json()) as { result?: unknown; error?: { message: string } };
