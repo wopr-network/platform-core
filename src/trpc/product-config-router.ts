@@ -1,18 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import type { ProductConfigCache } from "../product-config/index.js";
-import type { IProductConfigRepository } from "../product-config/repository-types.js";
-import { toBrandConfig } from "../product-config/repository-types.js";
+import type { ProductConfigService } from "../product-config/service.js";
 import { adminProcedure, publicProcedure, router } from "./init.js";
 
 export function createProductConfigRouter(
-  getRepo: () => IProductConfigRepository,
-  getCache: () => ProductConfigCache,
+  getService: () => ProductConfigService,
   productSlug: string,
 ) {
   /** Resolve product id, throwing NOT_FOUND if the product doesn't exist. */
   async function resolveProductId(): Promise<string> {
-    const config = await getRepo().getBySlug(productSlug);
+    const config = await getService().getBySlug(productSlug);
     if (!config) {
       throw new TRPCError({ code: "NOT_FOUND", message: `Product not found: ${productSlug}` });
     }
@@ -24,16 +21,12 @@ export function createProductConfigRouter(
     // Public endpoints
     // -----------------------------------------------------------------------
 
-    /** Returns brand config for the current product (used by UI). */
     getBrandConfig: publicProcedure.query(async () => {
-      const config = await getCache().get(productSlug);
-      if (!config) return null;
-      return toBrandConfig(config);
+      return getService().getBrandConfig(productSlug);
     }),
 
-    /** Returns enabled nav items for the current product. */
     getNavItems: publicProcedure.query(async () => {
-      const config = await getCache().get(productSlug);
+      const config = await getService().getBySlug(productSlug);
       if (!config) return [];
       return config.navItems.filter((n) => n.enabled).map((n) => ({ label: n.label, href: n.href }));
     }),
@@ -43,17 +36,14 @@ export function createProductConfigRouter(
     // -----------------------------------------------------------------------
 
     admin: router({
-      /** Get full product config. */
       get: adminProcedure.query(async () => {
-        return getRepo().getBySlug(productSlug);
+        return getService().getBySlug(productSlug);
       }),
 
-      /** List all product configs. */
       listAll: adminProcedure.query(async () => {
-        return getRepo().listAll();
+        return getService().listAll();
       }),
 
-      /** Update brand fields. */
       updateBrand: adminProcedure
         .input(
           z.object({
@@ -66,20 +56,18 @@ export function createProductConfigRouter(
             companyLegal: z.string().optional(),
             priceLabel: z.string().optional(),
             defaultImage: z.string().optional(),
-            emailSupport: z.string().email().optional(),
-            emailPrivacy: z.string().email().optional(),
-            emailLegal: z.string().email().optional(),
-            fromEmail: z.string().email().optional(),
+            emailSupport: z.string().optional(),
+            emailPrivacy: z.string().optional(),
+            emailLegal: z.string().optional(),
+            fromEmail: z.string().optional(),
             homePath: z.string().optional(),
             storagePrefix: z.string().min(1).optional(),
           }),
         )
         .mutation(async ({ input }) => {
-          await getRepo().upsertProduct(productSlug, input);
-          getCache().invalidate(productSlug);
+          await getService().upsertProduct(productSlug, input);
         }),
 
-      /** Replace nav items. */
       updateNavItems: adminProcedure
         .input(
           z.array(
@@ -95,11 +83,9 @@ export function createProductConfigRouter(
         )
         .mutation(async ({ input }) => {
           const productId = await resolveProductId();
-          await getRepo().replaceNavItems(productId, input);
-          getCache().invalidate(productSlug);
+          await getService().replaceNavItems(productSlug, productId, input);
         }),
 
-      /** Update feature flags. */
       updateFeatures: adminProcedure
         .input(
           z.object({
@@ -116,11 +102,9 @@ export function createProductConfigRouter(
         )
         .mutation(async ({ input }) => {
           const productId = await resolveProductId();
-          await getRepo().upsertFeatures(productId, input);
-          getCache().invalidate(productSlug);
+          await getService().upsertFeatures(productSlug, productId, input);
         }),
 
-      /** Update fleet config. */
       updateFleet: adminProcedure
         .input(
           z.object({
@@ -137,11 +121,9 @@ export function createProductConfigRouter(
         )
         .mutation(async ({ input }) => {
           const productId = await resolveProductId();
-          await getRepo().upsertFleetConfig(productId, input);
-          getCache().invalidate(productSlug);
+          await getService().upsertFleetConfig(productSlug, productId, input);
         }),
 
-      /** Update billing config. */
       updateBilling: adminProcedure
         .input(
           z.object({
@@ -149,7 +131,7 @@ export function createProductConfigRouter(
             stripeSecretKey: z.string().optional(),
             stripeWebhookSecret: z.string().optional(),
             creditPrices: z.record(z.string(), z.number()).optional(),
-            affiliateBaseUrl: z.string().url().optional().or(z.literal("")),
+            affiliateBaseUrl: z.string().optional(),
             affiliateMatchRate: z.number().min(0).optional(),
             affiliateMaxCap: z.number().int().min(0).optional(),
             dividendRate: z.number().min(0).optional(),
@@ -158,8 +140,7 @@ export function createProductConfigRouter(
         )
         .mutation(async ({ input }) => {
           const productId = await resolveProductId();
-          await getRepo().upsertBillingConfig(productId, input);
-          getCache().invalidate(productSlug);
+          await getService().upsertBillingConfig(productSlug, productId, input);
         }),
     }),
   });

@@ -1,19 +1,18 @@
 import type { DrizzleDb } from "../db/index.js";
-import { ProductConfigCache } from "./cache.js";
 import { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
-import type { IProductConfigRepository, ProductBrandConfig, ProductConfig } from "./repository-types.js";
-import { toBrandConfig } from "./repository-types.js";
+import type { IProductConfigRepository } from "./repository-types.js";
+import { ProductConfigService } from "./service.js";
 
-export { ProductConfigCache } from "./cache.js";
-export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 // Re-exports for consumers
 export type {
   FleetBillingModel,
   FleetLifecycle,
   IProductConfigRepository,
+  NavItemInput,
   Product,
   ProductBillingConfig,
   ProductBrandConfig,
+  ProductBrandUpdate,
   ProductConfig,
   ProductDomain,
   ProductFeatures,
@@ -21,47 +20,30 @@ export type {
   ProductNavItem,
 } from "./repository-types.js";
 export { deriveCorsOrigins, toBrandConfig } from "./repository-types.js";
+export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
+export { ProductConfigService } from "./service.js";
 
-let _repo: IProductConfigRepository | null = null;
-let _cache: ProductConfigCache | null = null;
+let _service: ProductConfigService | null = null;
 
 /** Initialize the product config system. Call once at startup. */
-export function initProductConfig(db: DrizzleDb): void {
-  _repo = new DrizzleProductConfigRepository(db);
-  _cache = new ProductConfigCache((slug) => _repo?.getBySlug(slug) ?? Promise.resolve(null));
+export function initProductConfig(db: DrizzleDb): ProductConfigService {
+  const repo = new DrizzleProductConfigRepository(db);
+  _service = new ProductConfigService(repo);
+  return _service;
 }
 
-/** Initialize with a custom repository (for testing or alternative backends). */
-export function initProductConfigWithRepo(repo: IProductConfigRepository): void {
-  _repo = repo;
-  _cache = new ProductConfigCache((slug) => _repo?.getBySlug(slug) ?? Promise.resolve(null));
+/** Initialize with a custom repository (for testing). */
+export function initProductConfigWithRepo(repo: IProductConfigRepository): ProductConfigService {
+  _service = new ProductConfigService(repo);
+  return _service;
 }
 
-/** Get full product config by slug. Cached. */
-export async function getProductConfig(slug: string): Promise<ProductConfig | null> {
-  if (!_cache) throw new Error("Product config not initialized. Call initProductConfig() first.");
-  return _cache.get(slug);
-}
-
-/** Get brand config formatted for UI consumption. */
-export async function getProductBrand(slug: string): Promise<ProductBrandConfig | null> {
-  const config = await getProductConfig(slug);
-  if (!config) return null;
-  return toBrandConfig(config);
-}
-
-/** Get the repository for admin mutations. */
-export function getProductConfigRepo(): IProductConfigRepository {
-  if (!_repo) throw new Error("Product config not initialized.");
-  return _repo;
-}
-
-/** Invalidate cache for a product (call after admin mutations). */
-export function invalidateProductConfig(slug: string): void {
-  _cache?.invalidate(slug);
-}
-
-/** Invalidate all cached product configs. */
-export function invalidateAllProductConfigs(): void {
-  _cache?.invalidateAll();
+/**
+ * Get the product config service.
+ * This is the ONLY way to access product config — reads are cached,
+ * writes auto-invalidate the cache.
+ */
+export function getProductConfigService(): ProductConfigService {
+  if (!_service) throw new Error("Product config not initialized. Call initProductConfig() first.");
+  return _service;
 }
