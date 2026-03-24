@@ -1,15 +1,15 @@
 /**
  * Email Client — Template-based transactional email sender.
  *
- * Supports two backends:
- * - **Resend**: Set RESEND_API_KEY env var
- * - **AWS SES**: Set AWS_SES_REGION env var (+ AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
- *
- * SES takes priority when both are configured.
+ * Supports three backends (first match wins):
+ * 1. **AWS SES**: Set AWS_SES_REGION env var (+ AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+ * 2. **Postmark**: Set POSTMARK_API_KEY env var
+ * 3. **Resend**: Set RESEND_API_KEY env var
  */
 
 import { Resend } from "resend";
 import { logger } from "../config/logger.js";
+import { PostmarkTransport } from "./postmark-transport.js";
 import { SesTransport } from "./ses-transport.js";
 
 export interface EmailClientConfig {
@@ -134,7 +134,8 @@ class ResendTransport implements EmailTransport {
  *
  * Backend selection (first match wins):
  * 1. AWS SES — AWS_SES_REGION is set
- * 2. Resend — RESEND_API_KEY is set
+ * 2. Postmark — POSTMARK_API_KEY is set
+ * 3. Resend — RESEND_API_KEY is set
  *
  * Common env vars:
  * - EMAIL_FROM (default: "noreply@wopr.bot") — sender address
@@ -144,6 +145,9 @@ class ResendTransport implements EmailTransport {
  * - AWS_SES_REGION (e.g. "us-east-1")
  * - AWS_ACCESS_KEY_ID
  * - AWS_SECRET_ACCESS_KEY
+ *
+ * Postmark env vars:
+ * - POSTMARK_API_KEY (server token from Postmark dashboard)
  *
  * Resend env vars:
  * - RESEND_API_KEY
@@ -170,10 +174,18 @@ export function getEmailClient(): EmailClient {
       });
       _client = new EmailClient(transport);
       logger.info("Email client initialized with AWS SES", { region: sesRegion, from });
+    } else if (process.env.POSTMARK_API_KEY) {
+      const transport = new PostmarkTransport({
+        apiKey: process.env.POSTMARK_API_KEY,
+        from,
+        replyTo,
+      });
+      _client = new EmailClient(transport);
+      logger.info("Email client initialized with Postmark", { from });
     } else {
       const apiKey = process.env.RESEND_API_KEY;
       if (!apiKey) {
-        throw new Error("Either AWS_SES_REGION or RESEND_API_KEY environment variable is required");
+        throw new Error("Set AWS_SES_REGION, POSTMARK_API_KEY, or RESEND_API_KEY environment variable");
       }
       _client = new EmailClient({ apiKey, from, replyTo });
       logger.info("Email client initialized with Resend", { from });
