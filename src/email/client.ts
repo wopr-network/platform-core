@@ -158,10 +158,24 @@ class ResendTransport implements EmailTransport {
  */
 let _client: EmailClient | null = null;
 
-export function getEmailClient(): EmailClient {
+export interface EmailClientOverrides {
+  /** Sender address — overrides EMAIL_FROM env var. */
+  from?: string;
+  /** Reply-to address — overrides EMAIL_REPLY_TO env var. */
+  replyTo?: string;
+}
+
+/**
+ * Create a lazily-initialized singleton EmailClient.
+ *
+ * Optional overrides (from DB-driven product config) take precedence
+ * over env vars. Pass them on first call; subsequent calls return the
+ * cached singleton.
+ */
+export function getEmailClient(overrides?: EmailClientOverrides): EmailClient {
   if (!_client) {
-    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM || "noreply@wopr.bot";
-    const replyTo = process.env.EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || "support@wopr.bot";
+    const from = overrides?.from || process.env.EMAIL_FROM || process.env.RESEND_FROM || "noreply@wopr.bot";
+    const replyTo = overrides?.replyTo || process.env.EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || "support@wopr.bot";
 
     const sesRegion = process.env.AWS_SES_REGION;
     if (sesRegion) {
