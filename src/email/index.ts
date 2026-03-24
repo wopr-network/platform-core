@@ -11,7 +11,7 @@
 
 export type { BillingEmailServiceConfig, BillingEmailType } from "./billing-emails.js";
 export { BillingEmailService } from "./billing-emails.js";
-export type { EmailClientConfig, EmailSendResult, SendTemplateEmailOpts } from "./client.js";
+export type { EmailClientConfig, EmailClientOverrides, EmailSendResult, SendTemplateEmailOpts } from "./client.js";
 export { EmailClient, getEmailClient, resetEmailClient, setEmailClient } from "./client.js";
 export { DEFAULT_TEMPLATES } from "./default-templates.js";
 export type { IBillingEmailRepository } from "./drizzle-billing-email-repository.js";
