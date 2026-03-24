@@ -33,6 +33,15 @@ export {
 export * from "./oracle/index.js";
 export type { IPaymentMethodStore, PaymentMethodRecord } from "./payment-method-store.js";
 export { DrizzlePaymentMethodStore } from "./payment-method-store.js";
+export type {
+  IAddressEncoder,
+  IChainPlugin,
+  IChainWatcher,
+  ICurveDeriver,
+  ISweepStrategy,
+  PaymentEvent,
+} from "./plugin/index.js";
+export { PluginRegistry } from "./plugin/index.js";
 export type { CryptoCharge, CryptoChargeStatus, CryptoPaymentState } from "./types.js";
 export type { UnifiedCheckoutDeps, UnifiedCheckoutResult } from "./unified-checkout.js";
 export { createUnifiedCheckout, MIN_CHECKOUT_USD as MIN_PAYMENT_USD, MIN_CHECKOUT_USD } from "./unified-checkout.js";
