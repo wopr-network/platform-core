@@ -373,7 +373,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
 
-    const rpcCall = createRpcCaller(method.rpcUrl);
+    const rpcCall = createRpcCaller(method.rpcUrl, JSON.parse(method.rpcHeaders ?? "{}"));
     let latestBlock: number;
     try {
       const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
@@ -452,7 +452,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   for (const method of erc20Methods) {
     if (!method.rpcUrl || !method.contractAddress) continue;
 
-    const rpcCall = createRpcCaller(method.rpcUrl);
+    const rpcCall = createRpcCaller(method.rpcUrl, JSON.parse(method.rpcHeaders ?? "{}"));
     let latestBlock: number;
     try {
       const latestHex = (await rpcCall("eth_blockNumber", [])) as string;

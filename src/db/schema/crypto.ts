@@ -80,6 +80,7 @@ export const paymentMethods = pgTable("payment_methods", {
   displayOrder: integer("display_order").notNull().default(0),
   iconUrl: text("icon_url"),
   rpcUrl: text("rpc_url"), // chain node RPC endpoint
+  rpcHeaders: text("rpc_headers").notNull().default("{}"), // JSON: extra headers for RPC calls (e.g. {"TRON-PRO-API-KEY":"xxx"})
   oracleAddress: text("oracle_address"), // Chainlink feed address for price (null = 1:1 stablecoin)
   xpub: text("xpub"), // HD wallet extended public key for deposit address derivation
   addressType: text("address_type").notNull().default("evm"), // "bech32" (BTC/LTC), "p2pkh" (DOGE/TRX), "evm" (ETH/ERC20)
