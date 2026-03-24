@@ -1,15 +1,15 @@
 -- Watcher service schema additions: webhook outbox + charge amount tracking.
 
 -- 1. callback_url for webhook delivery
-ALTER TABLE "crypto_charges" ADD COLUMN "callback_url" text;
+ALTER TABLE "crypto_charges" ADD COLUMN IF NOT EXISTS "callback_url" text;
 --> statement-breakpoint
 
 -- 2. Expected crypto amount in native base units (locked at charge creation)
-ALTER TABLE "crypto_charges" ADD COLUMN "expected_amount" text;
+ALTER TABLE "crypto_charges" ADD COLUMN IF NOT EXISTS "expected_amount" text;
 --> statement-breakpoint
 
 -- 3. Running total of received crypto in native base units (partial payments)
-ALTER TABLE "crypto_charges" ADD COLUMN "received_amount" text;
+ALTER TABLE "crypto_charges" ADD COLUMN IF NOT EXISTS "received_amount" text;
 --> statement-breakpoint
 
 -- 4. Webhook delivery outbox — durable retry for payment callbacks

@@ -1,6 +1,6 @@
-ALTER TABLE "payment_methods" ADD COLUMN "oracle_address" text;
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "oracle_address" text;
 --> statement-breakpoint
-ALTER TABLE "payment_methods" ADD COLUMN "xpub" text;
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "xpub" text;
 --> statement-breakpoint
 UPDATE "payment_methods" SET "oracle_address" = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70' WHERE "id" = 'ETH:base';
 --> statement-breakpoint

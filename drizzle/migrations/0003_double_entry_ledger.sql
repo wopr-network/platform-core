@@ -9,7 +9,7 @@ DO $$ BEGIN
   CREATE TYPE "public"."entry_side" AS ENUM('debit','credit');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;--> statement-breakpoint
-CREATE TABLE "accounts" (
+CREATE TABLE IF NOT EXISTS "accounts" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"name" text NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE "accounts" (
 	"tenant_id" text,
 	"created_at" text DEFAULT (now()) NOT NULL
 );--> statement-breakpoint
-CREATE TABLE "journal_entries" (
+CREATE TABLE IF NOT EXISTS "journal_entries" (
 	"id" text PRIMARY KEY NOT NULL,
 	"posted_at" text DEFAULT (now()) NOT NULL,
 	"entry_type" text NOT NULL,
@@ -28,29 +28,29 @@ CREATE TABLE "journal_entries" (
 	"metadata" jsonb,
 	"created_by" text
 );--> statement-breakpoint
-CREATE TABLE "journal_lines" (
+CREATE TABLE IF NOT EXISTS "journal_lines" (
 	"id" text PRIMARY KEY NOT NULL,
 	"journal_entry_id" text NOT NULL REFERENCES "journal_entries"("id"),
 	"account_id" text NOT NULL REFERENCES "accounts"("id"),
 	"amount" bigint NOT NULL,
 	"side" "entry_side" NOT NULL
 );--> statement-breakpoint
-CREATE TABLE "account_balances" (
+CREATE TABLE IF NOT EXISTS "account_balances" (
 	"account_id" text PRIMARY KEY NOT NULL REFERENCES "accounts"("id"),
 	"balance" bigint DEFAULT 0 NOT NULL,
 	"last_updated" text DEFAULT (now()) NOT NULL
 );--> statement-breakpoint
-CREATE UNIQUE INDEX "idx_accounts_code" ON "accounts" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "idx_accounts_tenant" ON "accounts" USING btree ("tenant_id") WHERE "tenant_id" IS NOT NULL;--> statement-breakpoint
-CREATE INDEX "idx_accounts_type" ON "accounts" USING btree ("type");--> statement-breakpoint
-CREATE UNIQUE INDEX "idx_je_reference" ON "journal_entries" USING btree ("reference_id") WHERE "reference_id" IS NOT NULL;--> statement-breakpoint
-CREATE INDEX "idx_je_tenant" ON "journal_entries" USING btree ("tenant_id");--> statement-breakpoint
-CREATE INDEX "idx_je_type" ON "journal_entries" USING btree ("entry_type");--> statement-breakpoint
-CREATE INDEX "idx_je_posted" ON "journal_entries" USING btree ("posted_at");--> statement-breakpoint
-CREATE INDEX "idx_je_tenant_posted" ON "journal_entries" USING btree ("tenant_id","posted_at");--> statement-breakpoint
-CREATE INDEX "idx_jl_entry" ON "journal_lines" USING btree ("journal_entry_id");--> statement-breakpoint
-CREATE INDEX "idx_jl_account" ON "journal_lines" USING btree ("account_id");--> statement-breakpoint
-CREATE INDEX "idx_jl_account_side" ON "journal_lines" USING btree ("account_id","side");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_accounts_code" ON "accounts" USING btree ("code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_accounts_tenant" ON "accounts" USING btree ("tenant_id") WHERE "tenant_id" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_accounts_type" ON "accounts" USING btree ("type");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_je_reference" ON "journal_entries" USING btree ("reference_id") WHERE "reference_id" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_je_tenant" ON "journal_entries" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_je_type" ON "journal_entries" USING btree ("entry_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_je_posted" ON "journal_entries" USING btree ("posted_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_je_tenant_posted" ON "journal_entries" USING btree ("tenant_id","posted_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_jl_entry" ON "journal_lines" USING btree ("journal_entry_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_jl_account" ON "journal_lines" USING btree ("account_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_jl_account_side" ON "journal_lines" USING btree ("account_id","side");--> statement-breakpoint
 
 -- Seed system accounts
 INSERT INTO "accounts" ("id", "code", "name", "type", "normal_side") VALUES

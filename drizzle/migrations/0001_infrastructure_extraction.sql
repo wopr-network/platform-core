@@ -1,6 +1,6 @@
 CREATE TYPE "public"."rate_override_status" AS ENUM('scheduled', 'active', 'expired', 'cancelled');
 --> statement-breakpoint
-CREATE TABLE "admin_notes" (
+CREATE TABLE IF NOT EXISTS "admin_notes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
 	"author_id" text NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE "admin_notes" (
 	"updated_at" bigint DEFAULT (extract(epoch from now()))::bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "audit_log" (
+CREATE TABLE IF NOT EXISTS "audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"timestamp" bigint NOT NULL,
 	"user_id" text NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE "audit_log" (
 	"user_agent" text
 );
 --> statement-breakpoint
-CREATE TABLE "backup_status" (
+CREATE TABLE IF NOT EXISTS "backup_status" (
 	"container_id" text PRIMARY KEY NOT NULL,
 	"node_id" text NOT NULL,
 	"last_backup_at" text,
@@ -36,7 +36,7 @@ CREATE TABLE "backup_status" (
 	"updated_at" text DEFAULT (now()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "bot_instances" (
+CREATE TABLE IF NOT EXISTS "bot_instances" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE "bot_instances" (
 	"created_by_user_id" text
 );
 --> statement-breakpoint
-CREATE TABLE "bot_profiles" (
+CREATE TABLE IF NOT EXISTS "bot_profiles" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE "bot_profiles" (
 	"updated_at" text DEFAULT (now()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "bulk_undo_grants" (
+CREATE TABLE IF NOT EXISTS "bulk_undo_grants" (
 	"operation_id" text PRIMARY KEY NOT NULL,
 	"tenant_ids" text NOT NULL,
 	"amount_cents" integer NOT NULL,
@@ -77,14 +77,14 @@ CREATE TABLE "bulk_undo_grants" (
 	"undone" boolean DEFAULT false NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "circuit_breaker_states" (
+CREATE TABLE IF NOT EXISTS "circuit_breaker_states" (
 	"instance_id" text PRIMARY KEY NOT NULL,
 	"count" integer DEFAULT 0 NOT NULL,
 	"window_start" bigint NOT NULL,
 	"tripped_at" bigint
 );
 --> statement-breakpoint
-CREATE TABLE "fleet_events" (
+CREATE TABLE IF NOT EXISTS "fleet_events" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"event_type" text NOT NULL,
 	"fired" boolean DEFAULT false NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE "fleet_events" (
 	"cleared_at" bigint
 );
 --> statement-breakpoint
-CREATE TABLE "gateway_metrics" (
+CREATE TABLE IF NOT EXISTS "gateway_metrics" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"minute_key" bigint NOT NULL,
 	"capability" text NOT NULL,
@@ -101,7 +101,7 @@ CREATE TABLE "gateway_metrics" (
 	"credit_failures" integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "gpu_nodes" (
+CREATE TABLE IF NOT EXISTS "gpu_nodes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"droplet_id" text,
 	"host" text,
@@ -117,7 +117,7 @@ CREATE TABLE "gpu_nodes" (
 	"updated_at" bigint DEFAULT (extract(epoch from now()))::bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "node_registration_tokens" (
+CREATE TABLE IF NOT EXISTS "node_registration_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"label" text,
@@ -128,7 +128,7 @@ CREATE TABLE "node_registration_tokens" (
 	"used_at" bigint
 );
 --> statement-breakpoint
-CREATE TABLE "node_transitions" (
+CREATE TABLE IF NOT EXISTS "node_transitions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"node_id" text NOT NULL,
 	"from_status" text NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE "node_transitions" (
 	"created_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "nodes" (
+CREATE TABLE IF NOT EXISTS "nodes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"host" text NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE "nodes" (
 	"label" text
 );
 --> statement-breakpoint
-CREATE TABLE "oauth_states" (
+CREATE TABLE IF NOT EXISTS "oauth_states" (
 	"state" text PRIMARY KEY NOT NULL,
 	"provider" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -173,7 +173,7 @@ CREATE TABLE "oauth_states" (
 	"expires_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "plugin_configs" (
+CREATE TABLE IF NOT EXISTS "plugin_configs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"bot_id" text NOT NULL,
 	"plugin_id" text NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE "plugin_configs" (
 	CONSTRAINT "plugin_configs_bot_plugin_uniq" UNIQUE("bot_id","plugin_id")
 );
 --> statement-breakpoint
-CREATE TABLE "plugin_marketplace_content" (
+CREATE TABLE IF NOT EXISTS "plugin_marketplace_content" (
 	"plugin_id" text PRIMARY KEY NOT NULL,
 	"version" text NOT NULL,
 	"markdown" text NOT NULL,
@@ -193,13 +193,13 @@ CREATE TABLE "plugin_marketplace_content" (
 	"updated_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "provider_health_overrides" (
+CREATE TABLE IF NOT EXISTS "provider_health_overrides" (
 	"adapter" text PRIMARY KEY NOT NULL,
 	"healthy" integer DEFAULT 1 NOT NULL,
 	"marked_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "provisioned_phone_numbers" (
+CREATE TABLE IF NOT EXISTS "provisioned_phone_numbers" (
 	"sid" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
 	"phone_number" text NOT NULL,
@@ -207,7 +207,7 @@ CREATE TABLE "provisioned_phone_numbers" (
 	"last_billed_at" text
 );
 --> statement-breakpoint
-CREATE TABLE "recovery_events" (
+CREATE TABLE IF NOT EXISTS "recovery_events" (
 	"id" text PRIMARY KEY NOT NULL,
 	"node_id" text NOT NULL,
 	"trigger" text NOT NULL,
@@ -221,7 +221,7 @@ CREATE TABLE "recovery_events" (
 	"report_json" text
 );
 --> statement-breakpoint
-CREATE TABLE "restore_log" (
+CREATE TABLE IF NOT EXISTS "restore_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant" text NOT NULL,
 	"snapshot_key" text NOT NULL,
@@ -231,13 +231,13 @@ CREATE TABLE "restore_log" (
 	"reason" text
 );
 --> statement-breakpoint
-CREATE TABLE "tenant_security_settings" (
+CREATE TABLE IF NOT EXISTS "tenant_security_settings" (
 	"tenant_id" text PRIMARY KEY NOT NULL,
 	"require_two_factor" boolean DEFAULT false NOT NULL,
 	"updated_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "snapshots" (
+CREATE TABLE IF NOT EXISTS "snapshots" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant" text DEFAULT '' NOT NULL,
 	"instance_id" text NOT NULL,
@@ -259,13 +259,13 @@ CREATE TABLE "snapshots" (
 	CONSTRAINT "type_check" CHECK (type IN ('nightly', 'on-demand', 'pre-restore'))
 );
 --> statement-breakpoint
-CREATE TABLE "tenant_model_selection" (
+CREATE TABLE IF NOT EXISTS "tenant_model_selection" (
 	"tenant_id" text PRIMARY KEY NOT NULL,
 	"default_model" text DEFAULT 'openrouter/auto' NOT NULL,
 	"updated_at" text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "tenant_status" (
+CREATE TABLE IF NOT EXISTS "tenant_status" (
 	"tenant_id" text PRIMARY KEY NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"status_reason" text,
@@ -277,7 +277,7 @@ CREATE TABLE "tenant_status" (
 	"updated_at" bigint DEFAULT (extract(epoch from now()))::bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "vps_subscriptions" (
+CREATE TABLE IF NOT EXISTS "vps_subscriptions" (
 	"bot_id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
 	"stripe_subscription_id" text NOT NULL,
@@ -292,7 +292,7 @@ CREATE TABLE "vps_subscriptions" (
 	CONSTRAINT "vps_subscriptions_stripe_subscription_id_unique" UNIQUE("stripe_subscription_id")
 );
 --> statement-breakpoint
-CREATE TABLE "webhook_sig_penalties" (
+CREATE TABLE IF NOT EXISTS "webhook_sig_penalties" (
 	"ip" text NOT NULL,
 	"source" text NOT NULL,
 	"failures" integer DEFAULT 0 NOT NULL,
@@ -301,7 +301,7 @@ CREATE TABLE "webhook_sig_penalties" (
 	CONSTRAINT "webhook_sig_penalties_ip_source_pk" PRIMARY KEY("ip","source")
 );
 --> statement-breakpoint
-CREATE TABLE "marketplace_plugins" (
+CREATE TABLE IF NOT EXISTS "marketplace_plugins" (
 	"plugin_id" text PRIMARY KEY NOT NULL,
 	"npm_package" text NOT NULL,
 	"version" text NOT NULL,
@@ -317,7 +317,7 @@ CREATE TABLE "marketplace_plugins" (
 	"install_error" text
 );
 --> statement-breakpoint
-CREATE TABLE "onboarding_sessions" (
+CREATE TABLE IF NOT EXISTS "onboarding_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"anonymous_id" text,
@@ -331,7 +331,7 @@ CREATE TABLE "onboarding_sessions" (
 	CONSTRAINT "onboarding_sessions_wopr_session_name_unique" UNIQUE("wopr_session_name")
 );
 --> statement-breakpoint
-CREATE TABLE "onboarding_scripts" (
+CREATE TABLE IF NOT EXISTS "onboarding_scripts" (
 	"id" text PRIMARY KEY NOT NULL,
 	"content" text NOT NULL,
 	"version" integer NOT NULL,
@@ -340,7 +340,7 @@ CREATE TABLE "onboarding_scripts" (
 	CONSTRAINT "onboarding_scripts_version_unique" UNIQUE("version")
 );
 --> statement-breakpoint
-CREATE TABLE "setup_sessions" (
+CREATE TABLE IF NOT EXISTS "setup_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"session_id" text NOT NULL,
 	"plugin_id" text NOT NULL,
@@ -353,7 +353,7 @@ CREATE TABLE "setup_sessions" (
 	CONSTRAINT "setup_sessions_session_in_progress_uniq" UNIQUE("session_id","status")
 );
 --> statement-breakpoint
-CREATE TABLE "fleet_event_history" (
+CREATE TABLE IF NOT EXISTS "fleet_event_history" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"event_type" text NOT NULL,
 	"bot_id" text NOT NULL,
@@ -361,7 +361,7 @@ CREATE TABLE "fleet_event_history" (
 	"created_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "gpu_allocations" (
+CREATE TABLE IF NOT EXISTS "gpu_allocations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"gpu_node_id" text NOT NULL,
 	"tenant_id" text NOT NULL,
@@ -371,7 +371,7 @@ CREATE TABLE "gpu_allocations" (
 	"updated_at" bigint DEFAULT (extract(epoch from now()))::bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "gpu_configurations" (
+CREATE TABLE IF NOT EXISTS "gpu_configurations" (
 	"gpu_node_id" text PRIMARY KEY NOT NULL,
 	"memory_limit_mib" integer,
 	"model_assignments" text,
@@ -380,7 +380,7 @@ CREATE TABLE "gpu_configurations" (
 	"updated_at" bigint DEFAULT (extract(epoch from now()))::bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "provider_costs" (
+CREATE TABLE IF NOT EXISTS "provider_costs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"capability" text NOT NULL,
 	"adapter" text NOT NULL,
@@ -394,7 +394,7 @@ CREATE TABLE "provider_costs" (
 	"updated_at" text DEFAULT (now()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "recovery_items" (
+CREATE TABLE IF NOT EXISTS "recovery_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"recovery_event_id" text NOT NULL,
 	"tenant" text NOT NULL,
@@ -408,7 +408,7 @@ CREATE TABLE "recovery_items" (
 	"completed_at" bigint
 );
 --> statement-breakpoint
-CREATE TABLE "sell_rates" (
+CREATE TABLE IF NOT EXISTS "sell_rates" (
 	"id" text PRIMARY KEY NOT NULL,
 	"capability" text NOT NULL,
 	"display_name" text NOT NULL,
@@ -441,143 +441,143 @@ CREATE TABLE IF NOT EXISTS "page_contexts" (
 	"updated_at" bigint NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "onboarding_scripts_version_idx" ON "onboarding_scripts" ("version" DESC);
+CREATE INDEX IF NOT EXISTS "onboarding_scripts_version_idx" ON "onboarding_scripts" ("version" DESC);
 --> statement-breakpoint
-CREATE INDEX "idx_admin_notes_tenant" ON "admin_notes" USING btree ("tenant_id","created_at");
+CREATE INDEX IF NOT EXISTS "idx_admin_notes_tenant" ON "admin_notes" USING btree ("tenant_id","created_at");
 --> statement-breakpoint
-CREATE INDEX "idx_admin_notes_author" ON "admin_notes" USING btree ("author_id");
+CREATE INDEX IF NOT EXISTS "idx_admin_notes_author" ON "admin_notes" USING btree ("author_id");
 --> statement-breakpoint
-CREATE INDEX "idx_admin_notes_pinned" ON "admin_notes" USING btree ("tenant_id","is_pinned");
+CREATE INDEX IF NOT EXISTS "idx_admin_notes_pinned" ON "admin_notes" USING btree ("tenant_id","is_pinned");
 --> statement-breakpoint
-CREATE INDEX "idx_audit_timestamp" ON "audit_log" USING btree ("timestamp");
+CREATE INDEX IF NOT EXISTS "idx_audit_timestamp" ON "audit_log" USING btree ("timestamp");
 --> statement-breakpoint
-CREATE INDEX "idx_audit_user_id" ON "audit_log" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_audit_user_id" ON "audit_log" USING btree ("user_id");
 --> statement-breakpoint
-CREATE INDEX "idx_audit_action" ON "audit_log" USING btree ("action");
+CREATE INDEX IF NOT EXISTS "idx_audit_action" ON "audit_log" USING btree ("action");
 --> statement-breakpoint
-CREATE INDEX "idx_audit_resource" ON "audit_log" USING btree ("resource_type","resource_id");
+CREATE INDEX IF NOT EXISTS "idx_audit_resource" ON "audit_log" USING btree ("resource_type","resource_id");
 --> statement-breakpoint
-CREATE INDEX "idx_backup_status_node" ON "backup_status" USING btree ("node_id");
+CREATE INDEX IF NOT EXISTS "idx_backup_status_node" ON "backup_status" USING btree ("node_id");
 --> statement-breakpoint
-CREATE INDEX "idx_backup_status_last_backup" ON "backup_status" USING btree ("last_backup_at");
+CREATE INDEX IF NOT EXISTS "idx_backup_status_last_backup" ON "backup_status" USING btree ("last_backup_at");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_instances_tenant" ON "bot_instances" USING btree ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_bot_instances_tenant" ON "bot_instances" USING btree ("tenant_id");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_instances_billing_state" ON "bot_instances" USING btree ("billing_state");
+CREATE INDEX IF NOT EXISTS "idx_bot_instances_billing_state" ON "bot_instances" USING btree ("billing_state");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_instances_destroy_after" ON "bot_instances" USING btree ("destroy_after");
+CREATE INDEX IF NOT EXISTS "idx_bot_instances_destroy_after" ON "bot_instances" USING btree ("destroy_after");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_instances_node" ON "bot_instances" USING btree ("node_id");
+CREATE INDEX IF NOT EXISTS "idx_bot_instances_node" ON "bot_instances" USING btree ("node_id");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_profiles_tenant" ON "bot_profiles" USING btree ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_bot_profiles_tenant" ON "bot_profiles" USING btree ("tenant_id");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_profiles_name" ON "bot_profiles" USING btree ("tenant_id","name");
+CREATE INDEX IF NOT EXISTS "idx_bot_profiles_name" ON "bot_profiles" USING btree ("tenant_id","name");
 --> statement-breakpoint
-CREATE INDEX "idx_bot_profiles_release_channel" ON "bot_profiles" USING btree ("release_channel");
+CREATE INDEX IF NOT EXISTS "idx_bot_profiles_release_channel" ON "bot_profiles" USING btree ("release_channel");
 --> statement-breakpoint
-CREATE INDEX "idx_bulk_undo_deadline" ON "bulk_undo_grants" USING btree ("undo_deadline");
+CREATE INDEX IF NOT EXISTS "idx_bulk_undo_deadline" ON "bulk_undo_grants" USING btree ("undo_deadline");
 --> statement-breakpoint
-CREATE INDEX "idx_circuit_window" ON "circuit_breaker_states" USING btree ("window_start");
+CREATE INDEX IF NOT EXISTS "idx_circuit_window" ON "circuit_breaker_states" USING btree ("window_start");
 --> statement-breakpoint
-CREATE INDEX "idx_gateway_metrics_minute" ON "gateway_metrics" USING btree ("minute_key");
+CREATE INDEX IF NOT EXISTS "idx_gateway_metrics_minute" ON "gateway_metrics" USING btree ("minute_key");
 --> statement-breakpoint
-CREATE INDEX "idx_gpu_nodes_status" ON "gpu_nodes" USING btree ("status");
+CREATE INDEX IF NOT EXISTS "idx_gpu_nodes_status" ON "gpu_nodes" USING btree ("status");
 --> statement-breakpoint
-CREATE INDEX "idx_gpu_nodes_region" ON "gpu_nodes" USING btree ("region");
+CREATE INDEX IF NOT EXISTS "idx_gpu_nodes_region" ON "gpu_nodes" USING btree ("region");
 --> statement-breakpoint
-CREATE INDEX "idx_reg_tokens_user" ON "node_registration_tokens" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_reg_tokens_user" ON "node_registration_tokens" USING btree ("user_id");
 --> statement-breakpoint
-CREATE INDEX "idx_reg_tokens_expires" ON "node_registration_tokens" USING btree ("expires_at");
+CREATE INDEX IF NOT EXISTS "idx_reg_tokens_expires" ON "node_registration_tokens" USING btree ("expires_at");
 --> statement-breakpoint
-CREATE INDEX "idx_node_transitions_node" ON "node_transitions" USING btree ("node_id");
+CREATE INDEX IF NOT EXISTS "idx_node_transitions_node" ON "node_transitions" USING btree ("node_id");
 --> statement-breakpoint
-CREATE INDEX "idx_node_transitions_created" ON "node_transitions" USING btree ("created_at");
+CREATE INDEX IF NOT EXISTS "idx_node_transitions_created" ON "node_transitions" USING btree ("created_at");
 --> statement-breakpoint
-CREATE INDEX "idx_nodes_status" ON "nodes" USING btree ("status");
+CREATE INDEX IF NOT EXISTS "idx_nodes_status" ON "nodes" USING btree ("status");
 --> statement-breakpoint
-CREATE INDEX "idx_nodes_droplet" ON "nodes" USING btree ("droplet_id");
+CREATE INDEX IF NOT EXISTS "idx_nodes_droplet" ON "nodes" USING btree ("droplet_id");
 --> statement-breakpoint
-CREATE INDEX "idx_nodes_node_secret" ON "nodes" USING btree ("node_secret");
+CREATE INDEX IF NOT EXISTS "idx_nodes_node_secret" ON "nodes" USING btree ("node_secret");
 --> statement-breakpoint
-CREATE INDEX "idx_oauth_states_expires" ON "oauth_states" USING btree ("expires_at");
+CREATE INDEX IF NOT EXISTS "idx_oauth_states_expires" ON "oauth_states" USING btree ("expires_at");
 --> statement-breakpoint
-CREATE INDEX "idx_provisioned_phone_tenant" ON "provisioned_phone_numbers" USING btree ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_provisioned_phone_tenant" ON "provisioned_phone_numbers" USING btree ("tenant_id");
 --> statement-breakpoint
-CREATE INDEX "idx_provisioned_phone_last_billed" ON "provisioned_phone_numbers" USING btree ("last_billed_at");
+CREATE INDEX IF NOT EXISTS "idx_provisioned_phone_last_billed" ON "provisioned_phone_numbers" USING btree ("last_billed_at");
 --> statement-breakpoint
-CREATE INDEX "idx_recovery_events_node" ON "recovery_events" USING btree ("node_id");
+CREATE INDEX IF NOT EXISTS "idx_recovery_events_node" ON "recovery_events" USING btree ("node_id");
 --> statement-breakpoint
-CREATE INDEX "idx_recovery_events_status" ON "recovery_events" USING btree ("status");
+CREATE INDEX IF NOT EXISTS "idx_recovery_events_status" ON "recovery_events" USING btree ("status");
 --> statement-breakpoint
-CREATE INDEX "idx_restore_log_tenant" ON "restore_log" USING btree ("tenant","restored_at");
+CREATE INDEX IF NOT EXISTS "idx_restore_log_tenant" ON "restore_log" USING btree ("tenant","restored_at");
 --> statement-breakpoint
-CREATE INDEX "idx_restore_log_restored_by" ON "restore_log" USING btree ("restored_by");
+CREATE INDEX IF NOT EXISTS "idx_restore_log_restored_by" ON "restore_log" USING btree ("restored_by");
 --> statement-breakpoint
-CREATE INDEX "idx_snapshots_instance" ON "snapshots" USING btree ("instance_id","created_at" desc);
+CREATE INDEX IF NOT EXISTS "idx_snapshots_instance" ON "snapshots" USING btree ("instance_id","created_at" desc);
 --> statement-breakpoint
-CREATE INDEX "idx_snapshots_user" ON "snapshots" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_snapshots_user" ON "snapshots" USING btree ("user_id");
 --> statement-breakpoint
-CREATE INDEX "idx_snapshots_tenant" ON "snapshots" USING btree ("tenant");
+CREATE INDEX IF NOT EXISTS "idx_snapshots_tenant" ON "snapshots" USING btree ("tenant");
 --> statement-breakpoint
-CREATE INDEX "idx_snapshots_type" ON "snapshots" USING btree ("type");
+CREATE INDEX IF NOT EXISTS "idx_snapshots_type" ON "snapshots" USING btree ("type");
 --> statement-breakpoint
-CREATE INDEX "idx_snapshots_expires" ON "snapshots" USING btree ("expires_at");
+CREATE INDEX IF NOT EXISTS "idx_snapshots_expires" ON "snapshots" USING btree ("expires_at");
 --> statement-breakpoint
-CREATE INDEX "idx_tenant_status_status" ON "tenant_status" USING btree ("status");
+CREATE INDEX IF NOT EXISTS "idx_tenant_status_status" ON "tenant_status" USING btree ("status");
 --> statement-breakpoint
-CREATE INDEX "idx_tenant_status_grace" ON "tenant_status" USING btree ("grace_deadline");
+CREATE INDEX IF NOT EXISTS "idx_tenant_status_grace" ON "tenant_status" USING btree ("grace_deadline");
 --> statement-breakpoint
-CREATE INDEX "idx_tenant_status_delete" ON "tenant_status" USING btree ("data_delete_after");
+CREATE INDEX IF NOT EXISTS "idx_tenant_status_delete" ON "tenant_status" USING btree ("data_delete_after");
 --> statement-breakpoint
-CREATE INDEX "idx_vps_sub_tenant" ON "vps_subscriptions" USING btree ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_vps_sub_tenant" ON "vps_subscriptions" USING btree ("tenant_id");
 --> statement-breakpoint
-CREATE INDEX "idx_vps_sub_stripe" ON "vps_subscriptions" USING btree ("stripe_subscription_id");
+CREATE INDEX IF NOT EXISTS "idx_vps_sub_stripe" ON "vps_subscriptions" USING btree ("stripe_subscription_id");
 --> statement-breakpoint
-CREATE INDEX "idx_sig_penalties_blocked" ON "webhook_sig_penalties" USING btree ("blocked_until");
+CREATE INDEX IF NOT EXISTS "idx_sig_penalties_blocked" ON "webhook_sig_penalties" USING btree ("blocked_until");
 --> statement-breakpoint
-CREATE INDEX "marketplace_plugins_enabled_idx" ON "marketplace_plugins" USING btree ("enabled");
+CREATE INDEX IF NOT EXISTS "marketplace_plugins_enabled_idx" ON "marketplace_plugins" USING btree ("enabled");
 --> statement-breakpoint
-CREATE INDEX "onboarding_sessions_user_id_idx" ON "onboarding_sessions" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "onboarding_sessions_user_id_idx" ON "onboarding_sessions" USING btree ("user_id");
 --> statement-breakpoint
-CREATE INDEX "onboarding_sessions_anonymous_id_idx" ON "onboarding_sessions" USING btree ("anonymous_id");
+CREATE INDEX IF NOT EXISTS "onboarding_sessions_anonymous_id_idx" ON "onboarding_sessions" USING btree ("anonymous_id");
 --> statement-breakpoint
-CREATE INDEX "setup_sessions_session_id_idx" ON "setup_sessions" USING btree ("session_id");
+CREATE INDEX IF NOT EXISTS "setup_sessions_session_id_idx" ON "setup_sessions" USING btree ("session_id");
 --> statement-breakpoint
-CREATE INDEX "setup_sessions_plugin_id_idx" ON "setup_sessions" USING btree ("plugin_id");
+CREATE INDEX IF NOT EXISTS "setup_sessions_plugin_id_idx" ON "setup_sessions" USING btree ("plugin_id");
 --> statement-breakpoint
-CREATE INDEX "plugin_configs_bot_id_idx" ON "plugin_configs" USING btree ("bot_id");
+CREATE INDEX IF NOT EXISTS "plugin_configs_bot_id_idx" ON "plugin_configs" USING btree ("bot_id");
 --> statement-breakpoint
-CREATE INDEX "plugin_configs_setup_session_idx" ON "plugin_configs" USING btree ("setup_session_id");
+CREATE INDEX IF NOT EXISTS "plugin_configs_setup_session_idx" ON "plugin_configs" USING btree ("setup_session_id");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "adapter_rate_overrides_adapter_idx" ON "adapter_rate_overrides" ("adapter_id");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "adapter_rate_overrides_status_idx" ON "adapter_rate_overrides" ("status");
 --> statement-breakpoint
-CREATE INDEX "idx_gpu_allocations_gpu_node_id" ON "gpu_allocations" USING btree ("gpu_node_id");
+CREATE INDEX IF NOT EXISTS "idx_gpu_allocations_gpu_node_id" ON "gpu_allocations" USING btree ("gpu_node_id");
 --> statement-breakpoint
-CREATE INDEX "idx_gpu_allocations_tenant_id" ON "gpu_allocations" USING btree ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_gpu_allocations_tenant_id" ON "gpu_allocations" USING btree ("tenant_id");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "page_contexts_updated_at_idx" ON "page_contexts" USING btree ("updated_at");
 --> statement-breakpoint
-CREATE INDEX "idx_provider_costs_capability" ON "provider_costs" USING btree ("capability");
+CREATE INDEX IF NOT EXISTS "idx_provider_costs_capability" ON "provider_costs" USING btree ("capability");
 --> statement-breakpoint
-CREATE INDEX "idx_provider_costs_adapter" ON "provider_costs" USING btree ("adapter");
+CREATE INDEX IF NOT EXISTS "idx_provider_costs_adapter" ON "provider_costs" USING btree ("adapter");
 --> statement-breakpoint
-CREATE INDEX "idx_provider_costs_active" ON "provider_costs" USING btree ("is_active");
+CREATE INDEX IF NOT EXISTS "idx_provider_costs_active" ON "provider_costs" USING btree ("is_active");
 --> statement-breakpoint
-CREATE INDEX "idx_recovery_items_event" ON "recovery_items" USING btree ("recovery_event_id");
+CREATE INDEX IF NOT EXISTS "idx_recovery_items_event" ON "recovery_items" USING btree ("recovery_event_id");
 --> statement-breakpoint
-CREATE INDEX "idx_recovery_items_tenant" ON "recovery_items" USING btree ("tenant");
+CREATE INDEX IF NOT EXISTS "idx_recovery_items_tenant" ON "recovery_items" USING btree ("tenant");
 --> statement-breakpoint
-CREATE INDEX "idx_sell_rates_capability" ON "sell_rates" USING btree ("capability");
+CREATE INDEX IF NOT EXISTS "idx_sell_rates_capability" ON "sell_rates" USING btree ("capability");
 --> statement-breakpoint
-CREATE INDEX "idx_sell_rates_active" ON "sell_rates" USING btree ("is_active");
+CREATE INDEX IF NOT EXISTS "idx_sell_rates_active" ON "sell_rates" USING btree ("is_active");
 --> statement-breakpoint
-ALTER TABLE "marketplace_plugins" ADD COLUMN "previous_version" text;
+ALTER TABLE "marketplace_plugins" ADD COLUMN IF NOT EXISTS "previous_version" text;
 --> statement-breakpoint
-ALTER TABLE "marketplace_plugins" ADD COLUMN "manifest" jsonb;
+ALTER TABLE "marketplace_plugins" ADD COLUMN IF NOT EXISTS "manifest" jsonb;
 --> statement-breakpoint
-CREATE UNIQUE INDEX "idx_gateway_metrics_unique" ON "gateway_metrics" USING btree ("minute_key","capability");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_gateway_metrics_unique" ON "gateway_metrics" USING btree ("minute_key","capability");
 --> statement-breakpoint
 INSERT INTO "onboarding_scripts" ("id", "content", "version", "updated_at", "updated_by")
 VALUES ('seed-v1', $onboarding$# WOPR Onboarding

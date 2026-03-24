@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS "notification_templates" (
 	CONSTRAINT "notification_templates_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
-ALTER TABLE "notification_preferences" ADD COLUMN "fleet_updates" boolean DEFAULT true NOT NULL;
+ALTER TABLE "notification_preferences" ADD COLUMN IF NOT EXISTS "fleet_updates" boolean DEFAULT true NOT NULL;
