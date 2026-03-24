@@ -362,13 +362,12 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
   // Address conversion helpers for chains with non-EVM address formats (e.g. Tron T...).
   // The EVM watcher uses 0x hex addresses; the DB stores native format (T... for Tron).
-  // Convert at the watcher boundary so the rest of the system is format-agnostic.
-  const toWatcherAddr = (addr: string): string => (isTronAddress(addr) ? tronToHex(addr) : addr);
-  const fromWatcherAddr = (addr: string, dbAddrs: string[]): string => {
-    // If any DB address for this chain is Tron format, convert the 0x back to T...
-    if (dbAddrs.length > 0 && isTronAddress(dbAddrs[0])) return hexToTron(addr);
-    return addr;
-  };
+  // Determined by addressType from the DB — not by inspecting addresses at runtime.
+  const needsAddrConvert = (method: { addressType: string }): boolean => method.addressType === "p2pkh";
+  const toWatcherAddr = (addr: string, method: { addressType: string }): string =>
+    needsAddrConvert(method) && isTronAddress(addr) ? tronToHex(addr) : addr;
+  const fromWatcherAddr = (addr: string, method: { addressType: string }): string =>
+    needsAddrConvert(method) ? hexToTron(addr) : addr;
 
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
@@ -389,11 +388,11 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       rpcCall,
       oracle,
       fromBlock: backfillStart,
-      watchedAddresses: chainAddresses.map(toWatcherAddr),
+      watchedAddresses: chainAddresses.map((a) => toWatcherAddr(a, method)),
       cursorStore,
       confirmations: method.confirmations,
       onPayment: async (event: EthPaymentEvent) => {
-        const dbAddr = fromWatcherAddr(event.to, chainAddresses);
+        const dbAddr = fromWatcherAddr(event.to, method);
         log("ETH payment", {
           chain: event.chain,
           to: dbAddr,
@@ -431,7 +430,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
           const freshNative = fresh
             .filter((a) => a.chain === method.chain && a.token === method.token)
             .map((a) => a.address);
-          watcher.setWatchedAddresses(freshNative.map(toWatcherAddr));
+          watcher.setWatchedAddresses(freshNative.map((a) => toWatcherAddr(a, method)));
           await watcher.poll();
         } catch (err) {
           log("ETH poll error", { chain: method.chain, error: String(err) });
@@ -458,13 +457,13 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       token: method.token as StablecoinToken,
       rpcCall,
       fromBlock: latestBlock,
-      watchedAddresses: chainAddresses.map(toWatcherAddr),
+      watchedAddresses: chainAddresses.map((a) => toWatcherAddr(a, method)),
       contractAddress: method.contractAddress,
       decimals: method.decimals,
       confirmations: method.confirmations,
       cursorStore,
       onPayment: async (event: EvmPaymentEvent) => {
-        const dbAddr = fromWatcherAddr(event.to, chainAddresses);
+        const dbAddr = fromWatcherAddr(event.to, method);
         log("EVM payment", {
           chain: event.chain,
           token: event.token,
@@ -500,7 +499,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
         try {
           const fresh = await chargeStore.listActiveDepositAddresses();
           const freshChain = fresh.filter((a) => a.chain === method.chain).map((a) => a.address);
-          watcher.setWatchedAddresses(freshChain.map(toWatcherAddr));
+          watcher.setWatchedAddresses(freshChain.map((a) => toWatcherAddr(a, method)));
           await watcher.poll();
         } catch (err) {
           log("EVM poll error", { chain: method.chain, token: method.token, error: String(err) });
