@@ -2,11 +2,11 @@
 -- Adds atomic derivation counter + path registry + address log.
 
 -- 1. Add network column to payment_methods (parallel to chain)
-ALTER TABLE "payment_methods" ADD COLUMN "network" text NOT NULL DEFAULT 'mainnet';
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "network" text NOT NULL DEFAULT 'mainnet';
 --> statement-breakpoint
 
 -- 2. Add next_index atomic counter to payment_methods
-ALTER TABLE "payment_methods" ADD COLUMN "next_index" integer NOT NULL DEFAULT 0;
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "next_index" integer NOT NULL DEFAULT 0;
 --> statement-breakpoint
 
 -- 3. BIP-44 path allocation registry

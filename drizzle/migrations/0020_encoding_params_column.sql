@@ -1,4 +1,4 @@
-ALTER TABLE "payment_methods" ADD COLUMN "encoding_params" text DEFAULT '{}' NOT NULL;
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "encoding_params" text DEFAULT '{}' NOT NULL;
 --> statement-breakpoint
 UPDATE "payment_methods" SET "encoding_params" = '{"hrp":"bc"}' WHERE "address_type" = 'bech32' AND "chain" = 'bitcoin';
 --> statement-breakpoint

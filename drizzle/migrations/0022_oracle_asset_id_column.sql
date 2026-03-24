@@ -1,4 +1,4 @@
-ALTER TABLE "payment_methods" ADD COLUMN "oracle_asset_id" text;
+ALTER TABLE "payment_methods" ADD COLUMN IF NOT EXISTS "oracle_asset_id" text;
 --> statement-breakpoint
 UPDATE "payment_methods" SET "oracle_asset_id" = 'bitcoin' WHERE "token" = 'BTC';
 --> statement-breakpoint
