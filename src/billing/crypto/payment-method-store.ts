@@ -18,6 +18,7 @@ export interface PaymentMethodRecord {
   xpub: string | null;
   addressType: string;
   encodingParams: string;
+  watcherType: string;
   confirmations: number;
 }
 
@@ -91,6 +92,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         xpub: method.xpub,
         addressType: method.addressType,
         encodingParams: method.encodingParams,
+        watcherType: method.watcherType,
         confirmations: method.confirmations,
       })
       .onConflictDoUpdate({
@@ -110,6 +112,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
           xpub: method.xpub,
           addressType: method.addressType,
           encodingParams: method.encodingParams,
+          watcherType: method.watcherType,
           confirmations: method.confirmations,
         },
       });
@@ -152,6 +155,7 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     xpub: row.xpub,
     addressType: row.addressType,
     encodingParams: row.encodingParams,
+    watcherType: row.watcherType,
     confirmations: row.confirmations,
   };
 }
