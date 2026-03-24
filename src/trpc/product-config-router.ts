@@ -3,10 +3,7 @@ import { z } from "zod";
 import type { ProductConfigService } from "../product-config/service.js";
 import { adminProcedure, publicProcedure, router } from "./init.js";
 
-export function createProductConfigRouter(
-  getService: () => ProductConfigService,
-  productSlug: string,
-) {
+export function createProductConfigRouter(getService: () => ProductConfigService, productSlug: string) {
   /** Resolve product id, throwing NOT_FOUND if the product doesn't exist. */
   async function resolveProductId(): Promise<string> {
     const config = await getService().getBySlug(productSlug);

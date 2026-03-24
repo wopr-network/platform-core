@@ -3,6 +3,7 @@ import { DrizzleProductConfigRepository } from "./drizzle-product-config-reposit
 import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
+export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 // Re-exports for consumers
 export type {
   FleetBillingModel,
@@ -20,7 +21,6 @@ export type {
   ProductNavItem,
 } from "./repository-types.js";
 export { deriveCorsOrigins, toBrandConfig } from "./repository-types.js";
-export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 export { ProductConfigService } from "./service.js";
 
 let _service: ProductConfigService | null = null;

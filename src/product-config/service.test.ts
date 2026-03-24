@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { IProductConfigRepository } from "./repository-types.js";
-import type { Product, ProductConfig } from "./repository-types.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IProductConfigRepository, Product, ProductConfig } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
 function makeConfig(slug: string): ProductConfig {
