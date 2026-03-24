@@ -62,7 +62,12 @@ async function deriveNextAddress(
 
     // Universal address derivation — encoding type + params are DB-driven.
     // Adding a new chain is a DB INSERT, not a code change.
-    const encodingParams: EncodingParams = JSON.parse(method.encodingParams ?? "{}");
+    let encodingParams: EncodingParams = {};
+    try {
+      encodingParams = JSON.parse(method.encodingParams ?? "{}");
+    } catch {
+      throw new Error(`Invalid encoding_params JSON for chain ${chainId}: ${method.encodingParams}`);
+    }
     const address = deriveAddress(method.xpub, index, method.addressType, encodingParams);
 
     // Step 2: Record in immutable log. If this address was already derived by a

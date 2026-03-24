@@ -94,7 +94,10 @@ export function deriveAddress(xpub: string, index: number, addressType: string, 
     }
     case "p2pkh": {
       if (!params.version) throw new Error("p2pkh encoding requires 'version' param");
-      return encodeP2pkh(child.publicKey, Number(params.version));
+      const versionByte = Number(params.version);
+      if (!Number.isInteger(versionByte) || versionByte < 0 || versionByte > 255)
+        throw new Error(`Invalid p2pkh version byte: ${params.version}`);
+      return encodeP2pkh(child.publicKey, versionByte);
     }
     case "evm":
       return encodeEvm(child.publicKey);
@@ -119,7 +122,10 @@ export function deriveTreasury(xpub: string, addressType: string, params: Encodi
     }
     case "p2pkh": {
       if (!params.version) throw new Error("p2pkh encoding requires 'version' param");
-      return encodeP2pkh(child.publicKey, Number(params.version));
+      const versionByte = Number(params.version);
+      if (!Number.isInteger(versionByte) || versionByte < 0 || versionByte > 255)
+        throw new Error(`Invalid p2pkh version byte: ${params.version}`);
+      return encodeP2pkh(child.publicKey, versionByte);
     }
     case "evm":
       return encodeEvm(child.publicKey);

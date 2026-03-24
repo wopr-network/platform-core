@@ -35,8 +35,9 @@ export async function createBtcCheckout(deps: BtcCheckoutDeps, opts: BtcCheckout
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
+    const hrpMap = { mainnet: "bc", testnet: "tb", regtest: "bcrt" } as const;
     const depositAddress = deriveAddress(deps.xpub, derivationIndex, "bech32", {
-      hrp: network === "mainnet" ? "bc" : "tb",
+      hrp: hrpMap[network],
     });
     const referenceId = `btc:${depositAddress}`;
 
