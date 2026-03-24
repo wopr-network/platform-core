@@ -4,7 +4,9 @@
 
 -- Enums
 CREATE TYPE "fleet_lifecycle" AS ENUM ('managed', 'ephemeral');
+--> statement-breakpoint
 CREATE TYPE "fleet_billing_model" AS ENUM ('monthly', 'per_use', 'none');
+--> statement-breakpoint
 
 -- Products (anchor table)
 CREATE TABLE IF NOT EXISTS "products" (
@@ -28,8 +30,9 @@ CREATE TABLE IF NOT EXISTS "products" (
   "created_at" timestamptz NOT NULL DEFAULT now(),
   "updated_at" timestamptz NOT NULL DEFAULT now()
 );
-
+--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "products_slug_idx" ON "products" ("slug");
+--> statement-breakpoint
 
 -- Product navigation items
 CREATE TABLE IF NOT EXISTS "product_nav_items" (
@@ -43,8 +46,9 @@ CREATE TABLE IF NOT EXISTS "product_nav_items" (
   "enabled" boolean NOT NULL DEFAULT true,
   "created_at" timestamptz NOT NULL DEFAULT now()
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "product_nav_items_product_sort_idx" ON "product_nav_items" ("product_id", "sort_order");
+--> statement-breakpoint
 
 -- Product domains (multi-domain support)
 CREATE TABLE IF NOT EXISTS "product_domains" (
@@ -53,8 +57,9 @@ CREATE TABLE IF NOT EXISTS "product_domains" (
   "host" text NOT NULL,
   "role" text NOT NULL DEFAULT 'canonical'
 );
-
+--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "product_domains_product_host_idx" ON "product_domains" ("product_id", "host");
+--> statement-breakpoint
 
 -- Product feature flags
 CREATE TABLE IF NOT EXISTS "product_features" (
@@ -70,6 +75,7 @@ CREATE TABLE IF NOT EXISTS "product_features" (
   "shared_module_analytics" boolean NOT NULL DEFAULT true,
   "updated_at" timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 
 -- Product fleet configuration
 CREATE TABLE IF NOT EXISTS "product_fleet_config" (
@@ -85,6 +91,7 @@ CREATE TABLE IF NOT EXISTS "product_fleet_config" (
   "fleet_data_dir" text NOT NULL DEFAULT '/data/fleet',
   "updated_at" timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 
 -- Product billing configuration
 CREATE TABLE IF NOT EXISTS "product_billing_config" (
