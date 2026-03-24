@@ -323,6 +323,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       address_type?: string;
       encoding_params?: Record<string, string>;
       watcher_type?: string;
+      oracle_asset_id?: string;
       icon_url?: string;
       display_order?: number;
     }>();
@@ -359,6 +360,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       addressType: body.address_type ?? "evm",
       encodingParams: JSON.stringify(body.encoding_params ?? {}),
       watcherType: body.watcher_type ?? "evm",
+      oracleAssetId: body.oracle_asset_id ?? null,
       confirmations: body.confirmations ?? 6,
     });
 

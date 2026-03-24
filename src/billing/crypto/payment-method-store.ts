@@ -19,6 +19,7 @@ export interface PaymentMethodRecord {
   addressType: string;
   encodingParams: string;
   watcherType: string;
+  oracleAssetId: string | null;
   confirmations: number;
 }
 
@@ -93,6 +94,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         addressType: method.addressType,
         encodingParams: method.encodingParams,
         watcherType: method.watcherType,
+        oracleAssetId: method.oracleAssetId,
         confirmations: method.confirmations,
       })
       .onConflictDoUpdate({
@@ -113,6 +115,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
           addressType: method.addressType,
           encodingParams: method.encodingParams,
           watcherType: method.watcherType,
+          oracleAssetId: method.oracleAssetId,
           confirmations: method.confirmations,
         },
       });
@@ -156,6 +159,7 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     addressType: row.addressType,
     encodingParams: row.encodingParams,
     watcherType: row.watcherType,
+    oracleAssetId: row.oracleAssetId,
     confirmations: row.confirmations,
   };
 }

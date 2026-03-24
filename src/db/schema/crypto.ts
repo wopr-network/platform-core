@@ -85,6 +85,7 @@ export const paymentMethods = pgTable("payment_methods", {
   addressType: text("address_type").notNull().default("evm"), // "bech32" (BTC/LTC), "p2pkh" (DOGE), "evm" (ETH/ERC20)
   encodingParams: text("encoding_params").notNull().default("{}"), // JSON: {"hrp":"bc"}, {"version":"0x1e"}, etc.
   watcherType: text("watcher_type").notNull().default("evm"), // "utxo" (BTC/LTC/DOGE) or "evm" (ETH/ERC20/TRX)
+  oracleAssetId: text("oracle_asset_id"), // CoinGecko slug (e.g. "bitcoin", "tron"). Null = stablecoin (1:1 USD) or use token symbol fallback.
   confirmations: integer("confirmations").notNull().default(1),
   nextIndex: integer("next_index").notNull().default(0), // atomic derivation counter, never reuses
   createdAt: text("created_at").notNull().default(sql`(now())`),
