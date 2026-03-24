@@ -33,6 +33,7 @@
     "./node-agent": "./dist/node-agent/index.js",
     "./observability": "./dist/observability/index.js",
     "./onboarding": "./dist/onboarding/index.js",
+    "./product-config": "./dist/product-config/index.js",
     "./proxy": "./dist/proxy/index.js",
     "./security": "./dist/security/index.js",
     "./setup": "./dist/setup/index.js",
