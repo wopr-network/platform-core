@@ -22,6 +22,8 @@ export type {
 } from "./repository-types.js";
 export { deriveCorsOrigins, toBrandConfig } from "./repository-types.js";
 export { ProductConfigService } from "./service.js";
+export { platformBoot } from "./boot.js";
+export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
 
 let _service: ProductConfigService | null = null;
 
