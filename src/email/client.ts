@@ -175,7 +175,8 @@ export interface EmailClientOverrides {
 export function getEmailClient(overrides?: EmailClientOverrides): EmailClient {
   if (!_client) {
     const from = overrides?.from || process.env.EMAIL_FROM || process.env.RESEND_FROM || "noreply@wopr.bot";
-    const replyTo = overrides?.replyTo || process.env.EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || "support@wopr.bot";
+    const replyTo =
+      overrides?.replyTo || process.env.EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || "support@wopr.bot";
 
     const sesRegion = process.env.AWS_SES_REGION;
     if (sesRegion) {
