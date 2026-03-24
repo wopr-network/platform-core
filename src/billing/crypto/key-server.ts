@@ -377,7 +377,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
 
     if (inserted.rowCount === 0) {
       return c.json(
-        { error: "Path allocation already exists, payment method updated", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
+        { message: "Path allocation already exists, payment method updated", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
         200,
       );
     }
