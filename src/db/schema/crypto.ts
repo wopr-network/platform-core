@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, primaryKey, serial, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * Crypto payment charges — tracks the lifecycle of each payment.
@@ -89,6 +89,9 @@ export const paymentMethods = pgTable("payment_methods", {
   oracleAssetId: text("oracle_asset_id"), // CoinGecko slug (e.g. "bitcoin", "tron"). Null = stablecoin (1:1 USD) or use token symbol fallback.
   confirmations: integer("confirmations").notNull().default(1),
   nextIndex: integer("next_index").notNull().default(0), // atomic derivation counter, never reuses
+  keyRingId: text("key_ring_id"), // FK to key_rings.id (nullable during migration)
+  encoding: text("encoding"), // address encoding override (e.g. "bech32", "p2pkh", "evm")
+  pluginId: text("plugin_id"), // plugin identifier (e.g. "evm", "utxo", "solana")
   createdAt: text("created_at").notNull().default(sql`(now())`),
 });
 
@@ -160,4 +163,43 @@ export const watcherProcessed = pgTable(
     processedAt: text("processed_at").notNull().default(sql`(now())`),
   },
   (table) => [primaryKey({ columns: [table.watcherId, table.txId] })],
+);
+
+/**
+ * Key rings — decouples key material (xpub/seed) from payment methods.
+ * Each key ring maps to a BIP-44 coin type + account index.
+ */
+export const keyRings = pgTable(
+  "key_rings",
+  {
+    id: text("id").primaryKey(),
+    curve: text("curve").notNull(), // "secp256k1" | "ed25519"
+    derivationScheme: text("derivation_scheme").notNull(), // "bip32" | "slip10" | "ed25519-hd"
+    derivationMode: text("derivation_mode").notNull().default("on-demand"), // "on-demand" | "pre-derived"
+    keyMaterial: text("key_material").notNull().default("{}"), // JSON: { xpub: "..." }
+    coinType: integer("coin_type").notNull(), // BIP-44 coin type
+    accountIndex: integer("account_index").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`(now())`),
+  },
+  (table) => [uniqueIndex("key_rings_path_unique").on(table.coinType, table.accountIndex)],
+);
+
+/**
+ * Pre-derived address pool — for Ed25519 chains that need offline derivation.
+ * Addresses are derived in batches and assigned on demand.
+ */
+export const addressPool = pgTable(
+  "address_pool",
+  {
+    id: serial("id").primaryKey(),
+    keyRingId: text("key_ring_id")
+      .notNull()
+      .references(() => keyRings.id),
+    derivationIndex: integer("derivation_index").notNull(),
+    publicKey: text("public_key").notNull(),
+    address: text("address").notNull(),
+    assignedTo: text("assigned_to"), // charge reference or tenant ID
+    createdAt: text("created_at").notNull().default(sql`(now())`),
+  },
+  (table) => [uniqueIndex("address_pool_ring_index").on(table.keyRingId, table.derivationIndex)],
 );

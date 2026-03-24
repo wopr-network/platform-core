@@ -364,6 +364,9 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       watcherType: body.watcher_type ?? "evm",
       oracleAssetId: body.oracle_asset_id ?? null,
       confirmations: body.confirmations ?? 6,
+      keyRingId: null,
+      encoding: null,
+      pluginId: null,
     });
 
     // Record the path allocation (idempotent — ignore if already exists)
