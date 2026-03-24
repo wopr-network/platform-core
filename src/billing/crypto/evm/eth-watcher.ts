@@ -118,14 +118,19 @@ export class EthWatcher {
       const blocks = await Promise.all(
         blockNums.map((bn) =>
           this.rpc("eth_getBlockByNumber", [`0x${bn.toString(16)}`, true]).then(
-            (b) => ({ blockNum: bn, block: b as { transactions: RpcTransaction[] } | null }),
-            () => ({ blockNum: bn, block: null }),
+            (b) => ({ blockNum: bn, block: b as { transactions: RpcTransaction[] } | null, error: null }),
+            (err: unknown) => ({ blockNum: bn, block: null, error: err }),
           ),
         ),
       );
 
-      for (const { blockNum, block } of blocks) {
-        if (!block) continue;
+      // Stop processing at the first failed block so the cursor doesn't advance past it.
+      let batchFailed = false;
+      for (const { blockNum, block, error } of blocks) {
+        if (error !== null || !block) {
+          batchFailed = true;
+          break;
+        }
 
         const confs = latest - blockNum;
 
@@ -172,6 +177,8 @@ export class EthWatcher {
           }
         }
       }
+
+      if (batchFailed) break;
     }
   }
 }

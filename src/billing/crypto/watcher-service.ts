@@ -364,7 +364,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   // Only applies to chains routed through the EVM watcher but storing non-hex addresses.
   // UTXO chains (DOGE p2pkh) never enter this path — they use the UTXO watcher.
   const isTronMethod = (method: { addressType: string; chain: string }): boolean =>
-    method.addressType === "p2pkh" && method.chain === "tron";
+    (method.addressType === "p2pkh" || method.addressType === "keccak-b58check") && method.chain === "tron";
   const toWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>
     isTronMethod(method) && isTronAddress(addr) ? tronToHex(addr) : addr;
   const fromWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>

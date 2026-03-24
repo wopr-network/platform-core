@@ -148,6 +148,20 @@
       "when": 1743350400000,
       "tag": "0020_product_config_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1743436800000,
+      "tag": "0021_watcher_type_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1743523200000,
+      "tag": "0022_rpc_headers_column",
+      "breakpoints": true
     }
   ]
 }
