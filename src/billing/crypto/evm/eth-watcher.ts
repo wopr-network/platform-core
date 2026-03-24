@@ -125,12 +125,10 @@ export class EthWatcher {
       );
 
       // Stop processing at the first failed block so the cursor doesn't advance past it.
-      let batchFailed = false;
-      for (const { blockNum, block, error } of blocks) {
-        if (error !== null || !block) {
-          batchFailed = true;
-          break;
-        }
+      const firstFailIdx = blocks.findIndex((b) => b.error !== null || !b.block);
+      const safeBlocks = firstFailIdx === -1 ? blocks : blocks.slice(0, firstFailIdx);
+      for (const { blockNum, block } of safeBlocks) {
+        if (!block) break;
 
         const confs = latest - blockNum;
 
@@ -178,7 +176,7 @@ export class EthWatcher {
         }
       }
 
-      if (batchFailed) break;
+      if (firstFailIdx !== -1) break;
     }
   }
 }
