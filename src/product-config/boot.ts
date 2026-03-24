@@ -1,5 +1,6 @@
 import type { DrizzleDb } from "../db/index.js";
 import { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
+import { PRODUCT_PRESETS } from "./presets.js";
 import type { ProductConfig } from "./repository-types.js";
 import { deriveCorsOrigins } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
@@ -11,6 +12,8 @@ export interface PlatformBootResult {
   config: ProductConfig;
   /** CORS origins derived from product domains + optional dev origins. */
   corsOrigins: string[];
+  /** Whether the product was auto-seeded from built-in presets. */
+  seeded: boolean;
 }
 
 export interface PlatformBootOptions {
@@ -26,17 +29,8 @@ export interface PlatformBootOptions {
  * Bootstrap product configuration from DB.
  *
  * Call once at startup, after DB + migrations, before route registration.
- * Returns the service (for tRPC router wiring) and the resolved config
- * (for CORS, email, fleet, auth initialization).
- *
- * This replaces: BRAND_NAME, PLATFORM_DOMAIN, UI_ORIGIN, FROM_EMAIL,
- * SUPPORT_EMAIL, COOKIE_DOMAIN, APP_BASE_URL, and all other product-
- * specific env vars that platform-core modules previously read from
- * process.env.
- *
- * Product backends still own their specific wiring (crypto watchers,
- * fleet updaters, notification pipelines). platformBoot handles the
- * config-driven parts that are identical across products.
+ * If the product doesn't exist in the DB yet, auto-seeds from built-in
+ * presets (zero manual steps on first deploy).
  */
 export async function platformBoot(opts: PlatformBootOptions): Promise<PlatformBootResult> {
   const { slug, db, devOrigins = [] } = opts;
@@ -44,14 +38,42 @@ export async function platformBoot(opts: PlatformBootOptions): Promise<PlatformB
   const repo = new DrizzleProductConfigRepository(db);
   const service = new ProductConfigService(repo);
 
-  const config = await service.getBySlug(slug);
+  let config = await service.getBySlug(slug);
+  let seeded = false;
+
   if (!config) {
-    throw new Error(
-      `Product "${slug}" not found in database. Run the seed script: DATABASE_URL=... npx tsx scripts/seed-products.ts`,
+    const preset = PRODUCT_PRESETS[slug];
+    if (!preset) {
+      throw new Error(
+        `Product "${slug}" not found in database and no built-in preset exists. Known presets: ${Object.keys(PRODUCT_PRESETS).join(", ")}`,
+      );
+    }
+
+    // Auto-seed from preset
+    const { navItems, fleet, ...productData } = preset;
+    const product = await repo.upsertProduct(slug, productData);
+    await repo.replaceNavItems(
+      product.id,
+      navItems.map((item) => ({
+        label: item.label,
+        href: item.href,
+        sortOrder: item.sortOrder,
+        requiresRole: item.requiresRole,
+        enabled: true,
+      })),
     );
+    await repo.upsertFleetConfig(product.id, fleet);
+    await repo.upsertFeatures(product.id, {});
+
+    // Re-fetch to get the complete config
+    config = await service.getBySlug(slug);
+    if (!config) {
+      throw new Error(`Failed to seed product "${slug}" — database write succeeded but read returned null`);
+    }
+    seeded = true;
   }
 
   const corsOrigins = [...deriveCorsOrigins(config.product, config.domains), ...devOrigins];
 
-  return { service, config, corsOrigins };
+  return { service, config, corsOrigins, seeded };
 }
