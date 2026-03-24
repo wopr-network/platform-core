@@ -10,6 +10,7 @@
  *   - p2pkh:   DOGE (D...), TRON (T...) — params: { version }
  *   - evm:     ETH, ERC-20 (0x...) — params: {}
  */
+import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { ripemd160 } from "@noble/hashes/legacy.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bech32 } from "@scure/base";
@@ -64,7 +65,14 @@ function encodeP2pkh(pubkey: Uint8Array, versionByte: number): string {
 }
 
 function encodeEvm(pubkey: Uint8Array): string {
-  const hexPubKey = `0x${Array.from(pubkey, (b) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
+  // HDKey.publicKey is SEC1 compressed (33 bytes, 02/03 prefix).
+  // Ethereum addresses = keccak256(uncompressed_pubkey[1:]).slice(-20).
+  // viem's publicKeyToAddress expects uncompressed (65 bytes, 04 prefix).
+  // Decompress via secp256k1 point recovery before hashing.
+  const hexKey = Array.from(pubkey, (b) => b.toString(16).padStart(2, "0")).join("");
+  const uncompressed = secp256k1.Point.fromHex(hexKey).toBytes(false);
+  const hexPubKey =
+    `0x${Array.from(uncompressed, (b: number) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
   return publicKeyToAddress(hexPubKey);
 }
 
