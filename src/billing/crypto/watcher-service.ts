@@ -367,8 +367,14 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     if (!method.rpcUrl) continue;
 
     const rpcCall = createRpcCaller(method.rpcUrl);
-    const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
-    const latestBlock = Number.parseInt(latestHex, 16);
+    let latestBlock: number;
+    try {
+      const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
+      latestBlock = Number.parseInt(latestHex, 16);
+    } catch (err) {
+      log("Skipping ETH watcher — RPC unreachable", { chain: method.chain, token: method.token, error: String(err) });
+      continue;
+    }
     const backfillStart = Math.max(0, latestBlock - BACKFILL_BLOCKS);
 
     const activeAddresses = await chargeStore.listActiveDepositAddresses();
@@ -439,8 +445,14 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
     if (!method.rpcUrl || !method.contractAddress) continue;
 
     const rpcCall = createRpcCaller(method.rpcUrl);
-    const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
-    const latestBlock = Number.parseInt(latestHex, 16);
+    let latestBlock: number;
+    try {
+      const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
+      latestBlock = Number.parseInt(latestHex, 16);
+    } catch (err) {
+      log("Skipping EVM watcher — RPC unreachable", { chain: method.chain, token: method.token, error: String(err) });
+      continue;
+    }
 
     const activeAddresses = await chargeStore.listActiveDepositAddresses();
     const chainAddresses = activeAddresses.filter((a) => a.chain === method.chain).map((a) => a.address);
