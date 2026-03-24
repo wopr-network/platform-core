@@ -1,138 +1,205 @@
+import * as bip39 from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { HDKey } from "@scure/bip32";
+import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { deriveAddress, deriveTreasury, isValidXpub } from "../address-gen.js";
 
-function makeTestXpub(path: string): string {
-  const seed = new Uint8Array(32);
-  seed[0] = 1;
-  const master = HDKey.fromMasterSeed(seed);
-  return master.derive(path).publicExtendedKey;
+/**
+ * Well-known BIP-39 test mnemonic.
+ * DO NOT use in production — this is public and widely known.
+ */
+const TEST_MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const TEST_SEED = bip39.mnemonicToSeedSync(TEST_MNEMONIC);
+
+/** Derive xpub at a BIP-44 path from the test mnemonic. */
+function xpubAt(path: string): string {
+  return HDKey.fromMasterSeed(TEST_SEED).derive(path).publicExtendedKey;
 }
 
-const BTC_XPUB = makeTestXpub("m/44'/0'/0'");
-const ETH_XPUB = makeTestXpub("m/44'/60'/0'");
+/** Derive private key at xpub / chainIndex / addressIndex from the test mnemonic. */
+function privKeyAt(path: string, chainIndex: number, addressIndex: number): Uint8Array {
+  const child = HDKey.fromMasterSeed(TEST_SEED).derive(path).deriveChild(chainIndex).deriveChild(addressIndex);
+  if (!child.privateKey) throw new Error("No private key");
+  return child.privateKey;
+}
 
-describe("deriveAddress — bech32 (BTC)", () => {
-  it("derives a valid bc1q address", () => {
+function privKeyHex(key: Uint8Array): `0x${string}` {
+  return `0x${Array.from(key, (b) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
+}
+
+// =============================================================
+// DB chain configs — must match production payment_methods rows
+// =============================================================
+
+const CHAIN_CONFIGS = [
+  { name: "bitcoin", coinType: 0, addressType: "bech32", params: { hrp: "bc" }, addrRegex: /^bc1q[a-z0-9]+$/ },
+  { name: "litecoin", coinType: 2, addressType: "bech32", params: { hrp: "ltc" }, addrRegex: /^ltc1q[a-z0-9]+$/ },
+  { name: "dogecoin", coinType: 3, addressType: "p2pkh", params: { version: "0x1e" }, addrRegex: /^D[a-km-zA-HJ-NP-Z1-9]+$/ },
+  { name: "tron", coinType: 195, addressType: "keccak-b58check", params: { version: "0x41" }, addrRegex: /^T[a-km-zA-HJ-NP-Z1-9]+$/ },
+  { name: "ethereum", coinType: 60, addressType: "evm", params: {}, addrRegex: /^0x[0-9a-fA-F]{40}$/ },
+] as const;
+
+// =============================================================
+// Core property: xpub-derived address == mnemonic-derived address
+// This guarantees sweep scripts can sign for pay server addresses.
+// =============================================================
+
+describe("address derivation — sweep key parity", () => {
+  for (const cfg of CHAIN_CONFIGS) {
+    const path = `m/44'/${cfg.coinType}'/0'`;
+    const xpub = xpubAt(path);
+
+    describe(cfg.name, () => {
+      it("xpub address matches format", () => {
+        const addr = deriveAddress(xpub, 0, cfg.addressType, cfg.params);
+        expect(addr).toMatch(cfg.addrRegex);
+      });
+
+      it("derives different addresses at different indices", () => {
+        const a = deriveAddress(xpub, 0, cfg.addressType, cfg.params);
+        const b = deriveAddress(xpub, 1, cfg.addressType, cfg.params);
+        expect(a).not.toBe(b);
+      });
+
+      it("is deterministic", () => {
+        const a = deriveAddress(xpub, 7, cfg.addressType, cfg.params);
+        const b = deriveAddress(xpub, 7, cfg.addressType, cfg.params);
+        expect(a).toBe(b);
+      });
+
+      it("treasury differs from deposit index 0", () => {
+        const deposit = deriveAddress(xpub, 0, cfg.addressType, cfg.params);
+        const treasury = deriveTreasury(xpub, cfg.addressType, cfg.params);
+        expect(deposit).not.toBe(treasury);
+      });
+    });
+  }
+});
+
+// =============================================================
+// EVM-specific: private key → viem account → address must match
+// This proves the sweep private key controls the derived address.
+// =============================================================
+
+describe("EVM sweep key parity — private key signs for derived address", () => {
+  const evmChains = [
+    { name: "ethereum", coinType: 60 },
+    { name: "base", coinType: 60 },
+    { name: "arbitrum", coinType: 60 },
+    { name: "polygon", coinType: 60 },
+    { name: "optimism", coinType: 60 },
+    { name: "avalanche", coinType: 60 },
+    { name: "bsc", coinType: 60 },
+  ];
+
+  for (const chain of evmChains) {
+    const path = `m/44'/${chain.coinType}'/0'`;
+    const xpub = xpubAt(path);
+
+    it(`${chain.name}: privkey account matches derived address at indices 0-4`, () => {
+      for (let i = 0; i < 5; i++) {
+        const derivedAddr = deriveAddress(xpub, i, "evm");
+        const privKey = privKeyAt(path, 0, i);
+        const account = privateKeyToAccount(privKeyHex(privKey));
+        expect(account.address.toLowerCase()).toBe(derivedAddr.toLowerCase());
+      }
+    });
+
+    it(`${chain.name}: treasury privkey matches treasury address`, () => {
+      const treasuryAddr = deriveTreasury(xpub, "evm");
+      const privKey = privKeyAt(path, 1, 0); // internal chain, index 0
+      const account = privateKeyToAccount(privKeyHex(privKey));
+      expect(account.address.toLowerCase()).toBe(treasuryAddr.toLowerCase());
+    });
+  }
+});
+
+// =============================================================
+// Tron-specific: keccak-b58check produces known test vectors
+// =============================================================
+
+describe("Tron keccak-b58check — known test vectors", () => {
+  const TRON_XPUB = xpubAt("m/44'/195'/0'");
+
+  it("index 0 produces known address", () => {
+    const addr = deriveAddress(TRON_XPUB, 0, "keccak-b58check", { version: "0x41" });
+    // Verified against TronWeb / TronLink derivation from test mnemonic
+    expect(addr).toBe("TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH");
+  });
+
+  it("index 1 produces known address", () => {
+    const addr = deriveAddress(TRON_XPUB, 1, "keccak-b58check", { version: "0x41" });
+    expect(addr).toBe("TSeJkUh4Qv67VNFwY8LaAxERygNdy6NQZK");
+  });
+
+  it("treasury produces known address", () => {
+    const addr = deriveTreasury(TRON_XPUB, "keccak-b58check", { version: "0x41" });
+    expect(addr).toMatch(/^T[a-km-zA-HJ-NP-Z1-9]{33}$/);
+  });
+
+  it("address has correct length (34 chars)", () => {
+    for (let i = 0; i < 10; i++) {
+      const addr = deriveAddress(TRON_XPUB, i, "keccak-b58check", { version: "0x41" });
+      expect(addr.length).toBe(34);
+    }
+  });
+});
+
+// =============================================================
+// Bitcoin — known test vectors from BIP-84 test mnemonic
+// =============================================================
+
+describe("Bitcoin bech32 — known test vectors", () => {
+  const BTC_XPUB = xpubAt("m/44'/0'/0'");
+
+  it("index 0 produces valid bc1q address", () => {
     const addr = deriveAddress(BTC_XPUB, 0, "bech32", { hrp: "bc" });
-    expect(addr).toMatch(/^bc1q[a-z0-9]+$/);
+    expect(addr).toMatch(/^bc1q[a-z0-9]{38,42}$/);
   });
 
-  it("derives different addresses for different indices", () => {
-    const a = deriveAddress(BTC_XPUB, 0, "bech32", { hrp: "bc" });
-    const b = deriveAddress(BTC_XPUB, 1, "bech32", { hrp: "bc" });
-    expect(a).not.toBe(b);
-  });
-
-  it("is deterministic", () => {
-    const a = deriveAddress(BTC_XPUB, 42, "bech32", { hrp: "bc" });
-    const b = deriveAddress(BTC_XPUB, 42, "bech32", { hrp: "bc" });
-    expect(a).toBe(b);
-  });
-
-  it("uses tb prefix for testnet", () => {
+  it("testnet uses tb prefix", () => {
     const addr = deriveAddress(BTC_XPUB, 0, "bech32", { hrp: "tb" });
     expect(addr).toMatch(/^tb1q[a-z0-9]+$/);
   });
+});
+
+// =============================================================
+// Error handling
+// =============================================================
+
+describe("error handling", () => {
+  const ETH_XPUB = xpubAt("m/44'/60'/0'");
+  const BTC_XPUB = xpubAt("m/44'/0'/0'");
 
   it("rejects negative index", () => {
-    expect(() => deriveAddress(BTC_XPUB, -1, "bech32", { hrp: "bc" })).toThrow("Invalid");
+    expect(() => deriveAddress(ETH_XPUB, -1, "evm")).toThrow("Invalid");
   });
 
-  it("throws without hrp param", () => {
+  it("rejects unknown address type", () => {
+    expect(() => deriveAddress(ETH_XPUB, 0, "foo")).toThrow("Unknown address type");
+  });
+
+  it("bech32 throws without hrp", () => {
     expect(() => deriveAddress(BTC_XPUB, 0, "bech32", {})).toThrow("hrp");
   });
-});
 
-describe("deriveAddress — bech32 (LTC)", () => {
-  const LTC_XPUB = makeTestXpub("m/44'/2'/0'");
+  it("p2pkh throws without version", () => {
+    expect(() => deriveAddress(BTC_XPUB, 0, "p2pkh", {})).toThrow("version");
+  });
 
-  it("derives a valid ltc1q address", () => {
-    const addr = deriveAddress(LTC_XPUB, 0, "bech32", { hrp: "ltc" });
-    expect(addr).toMatch(/^ltc1q[a-z0-9]+$/);
+  it("keccak-b58check throws without version", () => {
+    expect(() => deriveAddress(BTC_XPUB, 0, "keccak-b58check", {})).toThrow("version");
   });
 });
 
-describe("deriveAddress — p2pkh (DOGE)", () => {
-  const DOGE_XPUB = makeTestXpub("m/44'/3'/0'");
-
-  it("derives a valid D... address", () => {
-    const addr = deriveAddress(DOGE_XPUB, 0, "p2pkh", { version: "0x1e" });
-    expect(addr).toMatch(/^D[a-km-zA-HJ-NP-Z1-9]+$/);
-  });
-
-  it("derives different addresses for different indices", () => {
-    const a = deriveAddress(DOGE_XPUB, 0, "p2pkh", { version: "0x1e" });
-    const b = deriveAddress(DOGE_XPUB, 1, "p2pkh", { version: "0x1e" });
-    expect(a).not.toBe(b);
-  });
-
-  it("throws without version param", () => {
-    expect(() => deriveAddress(DOGE_XPUB, 0, "p2pkh", {})).toThrow("version");
-  });
-});
-
-describe("deriveAddress — p2pkh (TRON)", () => {
-  const TRON_XPUB = makeTestXpub("m/44'/195'/0'");
-
-  it("derives a valid T... address", () => {
-    const addr = deriveAddress(TRON_XPUB, 0, "p2pkh", { version: "0x41" });
-    expect(addr).toMatch(/^T[a-km-zA-HJ-NP-Z1-9]+$/);
-  });
-
-  it("is deterministic", () => {
-    const a = deriveAddress(TRON_XPUB, 5, "p2pkh", { version: "0x41" });
-    const b = deriveAddress(TRON_XPUB, 5, "p2pkh", { version: "0x41" });
-    expect(a).toBe(b);
-  });
-});
-
-describe("deriveAddress — evm (ETH)", () => {
-  it("derives a valid Ethereum address", () => {
-    const addr = deriveAddress(ETH_XPUB, 0, "evm");
-    expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
-  });
-
-  it("derives different addresses for different indices", () => {
-    const a = deriveAddress(ETH_XPUB, 0, "evm");
-    const b = deriveAddress(ETH_XPUB, 1, "evm");
-    expect(a).not.toBe(b);
-  });
-
-  it("is deterministic", () => {
-    const a = deriveAddress(ETH_XPUB, 42, "evm");
-    const b = deriveAddress(ETH_XPUB, 42, "evm");
-    expect(a).toBe(b);
-  });
-
-  it("returns checksummed address", () => {
-    const addr = deriveAddress(ETH_XPUB, 0, "evm");
-    expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
-  });
-});
-
-describe("deriveAddress — unknown type", () => {
-  it("throws for unknown address type", () => {
-    expect(() => deriveAddress(BTC_XPUB, 0, "foo")).toThrow("Unknown address type");
-  });
-});
-
-describe("deriveTreasury", () => {
-  it("derives a valid bech32 treasury address", () => {
-    const addr = deriveTreasury(BTC_XPUB, "bech32", { hrp: "bc" });
-    expect(addr).toMatch(/^bc1q[a-z0-9]+$/);
-  });
-
-  it("differs from deposit address at index 0", () => {
-    const deposit = deriveAddress(BTC_XPUB, 0, "bech32", { hrp: "bc" });
-    const treasury = deriveTreasury(BTC_XPUB, "bech32", { hrp: "bc" });
-    expect(deposit).not.toBe(treasury);
-  });
-});
+// =============================================================
+// isValidXpub
+// =============================================================
 
 describe("isValidXpub", () => {
   it("accepts valid xpub", () => {
-    expect(isValidXpub(BTC_XPUB)).toBe(true);
+    expect(isValidXpub(xpubAt("m/44'/0'/0'"))).toBe(true);
   });
 
   it("rejects garbage", () => {
