@@ -14,6 +14,7 @@ export interface PaymentMethodRecord {
   displayOrder: number;
   iconUrl: string | null;
   rpcUrl: string | null;
+  rpcHeaders: string;
   oracleAddress: string | null;
   xpub: string | null;
   addressType: string;
@@ -89,6 +90,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         displayOrder: method.displayOrder,
         iconUrl: method.iconUrl,
         rpcUrl: method.rpcUrl,
+        rpcHeaders: method.rpcHeaders ?? "{}",
         oracleAddress: method.oracleAddress,
         xpub: method.xpub,
         addressType: method.addressType,
@@ -154,6 +156,7 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     displayOrder: row.displayOrder,
     iconUrl: row.iconUrl,
     rpcUrl: row.rpcUrl,
+    rpcHeaders: row.rpcHeaders ?? "{}",
     oracleAddress: row.oracleAddress,
     xpub: row.xpub,
     addressType: row.addressType,

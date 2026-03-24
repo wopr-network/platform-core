@@ -182,22 +182,21 @@ export class EvmWatcher {
 /** Create an RPC caller for a given URL (plain JSON-RPC over fetch). */
 export function createRpcCaller(rpcUrl: string, extraHeaders?: Record<string, string>): RpcCall {
   let id = 0;
-  // Extract apikey query param and pass as TRON-PRO-API-KEY header (TronGrid JSON-RPC ignores query params)
   const headers: Record<string, string> = { "Content-Type": "application/json", ...extraHeaders };
-  try {
-    const url = new URL(rpcUrl);
-    const apiKey = url.searchParams.get("apikey");
-    if (apiKey) headers["TRON-PRO-API-KEY"] = apiKey;
-  } catch {
-    // Not a valid URL — proceed without extra headers
-  }
   return async (method: string, params: unknown[]): Promise<unknown> => {
     const res = await fetch(rpcUrl, {
       method: "POST",
       headers,
       body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }),
     });
-    if (!res.ok) throw new Error(`RPC ${method} failed: ${res.status}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const hasApiKey = "TRON-PRO-API-KEY" in headers;
+      console.error(
+        `[rpc] ${method} ${res.status} auth=${hasApiKey} url=${rpcUrl.replace(/apikey=[^&]+/, "apikey=***")} body=${body.slice(0, 200)}`,
+      );
+      throw new Error(`RPC ${method} failed: ${res.status}`);
+    }
     const data = (await res.json()) as { result?: unknown; error?: { message: string } };
     if (data.error) throw new Error(`RPC ${method} error: ${data.error.message}`);
     return data.result;

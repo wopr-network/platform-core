@@ -13,6 +13,7 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { ripemd160 } from "@noble/hashes/legacy.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bech32 } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { publicKeyToAddress } from "viem/accounts";
@@ -76,6 +77,22 @@ function encodeEvm(pubkey: Uint8Array): string {
   return publicKeyToAddress(hexPubKey);
 }
 
+/** Keccak256-based Base58Check (Tron-style): keccak256(uncompressed[1:]) → last 20 bytes → version + checksum → Base58 */
+function encodeKeccakB58(pubkey: Uint8Array, versionByte: number): string {
+  const hexKey = Array.from(pubkey, (b) => b.toString(16).padStart(2, "0")).join("");
+  const uncompressed = secp256k1.Point.fromHex(hexKey).toBytes(false);
+  const hash = keccak_256(uncompressed.slice(1));
+  const addressBytes = hash.slice(-20);
+  const payload = new Uint8Array(21);
+  payload[0] = versionByte;
+  payload.set(addressBytes, 1);
+  const checksum = sha256(sha256(payload));
+  const full = new Uint8Array(25);
+  full.set(payload);
+  full.set(checksum.slice(0, 4), 21);
+  return base58encode(full);
+}
+
 // ---------- public API ----------
 
 /**
@@ -107,6 +124,13 @@ export function deriveAddress(xpub: string, index: number, addressType: string, 
         throw new Error(`Invalid p2pkh version byte: ${params.version}`);
       return encodeP2pkh(child.publicKey, versionByte);
     }
+    case "keccak-b58check": {
+      if (!params.version) throw new Error("keccak-b58check encoding requires 'version' param");
+      const versionByte = Number(params.version);
+      if (!Number.isInteger(versionByte) || versionByte < 0 || versionByte > 255)
+        throw new Error(`Invalid keccak-b58check version byte: ${params.version}`);
+      return encodeKeccakB58(child.publicKey, versionByte);
+    }
     case "evm":
       return encodeEvm(child.publicKey);
     default:
@@ -134,6 +158,13 @@ export function deriveTreasury(xpub: string, addressType: string, params: Encodi
       if (!Number.isInteger(versionByte) || versionByte < 0 || versionByte > 255)
         throw new Error(`Invalid p2pkh version byte: ${params.version}`);
       return encodeP2pkh(child.publicKey, versionByte);
+    }
+    case "keccak-b58check": {
+      if (!params.version) throw new Error("keccak-b58check encoding requires 'version' param");
+      const versionByte = Number(params.version);
+      if (!Number.isInteger(versionByte) || versionByte < 0 || versionByte > 255)
+        throw new Error(`Invalid keccak-b58check version byte: ${params.version}`);
+      return encodeKeccakB58(child.publicKey, versionByte);
     }
     case "evm":
       return encodeEvm(child.publicKey);

@@ -364,7 +364,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   // Only applies to chains routed through the EVM watcher but storing non-hex addresses.
   // UTXO chains (DOGE p2pkh) never enter this path — they use the UTXO watcher.
   const isTronMethod = (method: { addressType: string; chain: string }): boolean =>
-    method.addressType === "p2pkh" && method.chain === "tron";
+    (method.addressType === "p2pkh" || method.addressType === "keccak-b58check") && method.chain === "tron";
   const toWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>
     isTronMethod(method) && isTronAddress(addr) ? tronToHex(addr) : addr;
   const fromWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>
@@ -373,7 +373,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
 
-    const rpcCall = createRpcCaller(method.rpcUrl);
+    const rpcCall = createRpcCaller(method.rpcUrl, JSON.parse(method.rpcHeaders ?? "{}"));
     let latestBlock: number;
     try {
       const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
@@ -452,7 +452,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   for (const method of erc20Methods) {
     if (!method.rpcUrl || !method.contractAddress) continue;
 
-    const rpcCall = createRpcCaller(method.rpcUrl);
+    const rpcCall = createRpcCaller(method.rpcUrl, JSON.parse(method.rpcHeaders ?? "{}"));
     let latestBlock: number;
     try {
       const latestHex = (await rpcCall("eth_blockNumber", [])) as string;
@@ -471,7 +471,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       rpcCall,
       fromBlock: latestBlock,
       watchedAddresses: chainAddresses.map((a) => toWatcherAddr(a, method)),
-      contractAddress: method.contractAddress,
+      contractAddress: toWatcherAddr(method.contractAddress, method),
       decimals: method.decimals,
       confirmations: method.confirmations,
       cursorStore,

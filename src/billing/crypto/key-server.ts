@@ -317,6 +317,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       decimals: number;
       xpub: string;
       rpc_url: string;
+      rpc_headers?: Record<string, string>;
       confirmations?: number;
       display_name?: string;
       oracle_address?: string;
@@ -355,6 +356,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       displayOrder: body.display_order ?? 0,
       iconUrl: body.icon_url ?? null,
       rpcUrl: body.rpc_url,
+      rpcHeaders: JSON.stringify(body.rpc_headers ?? {}),
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
       addressType: body.address_type ?? "evm",
