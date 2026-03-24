@@ -207,9 +207,12 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       expectedAmount: expectedAmount.toString(),
     });
 
-    // Format display amount for the client
-    const divisor = 10 ** method.decimals;
-    const displayAmount = `${(Number(expectedAmount) / divisor).toFixed(Math.min(method.decimals, 8))} ${token}`;
+    // Format display amount for the client (BigInt-safe, no Number overflow)
+    const divisor = 10n ** BigInt(method.decimals);
+    const whole = expectedAmount / divisor;
+    const frac = expectedAmount % divisor;
+    const fracStr = frac.toString().padStart(method.decimals, "0").slice(0, 8).replace(/0+$/, "");
+    const displayAmount = `${whole}${fracStr ? `.${fracStr}` : ""} ${token}`;
 
     return c.json(
       {
