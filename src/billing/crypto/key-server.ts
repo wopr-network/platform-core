@@ -7,6 +7,8 @@
  *
  * ~200 lines of new code wrapping platform-core's existing crypto modules.
  */
+
+import { HDKey } from "@scure/bip32";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { DrizzleDb } from "../../db/index.js";
@@ -18,6 +20,7 @@ import { centsToNative } from "./oracle/convert.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import { AssetNotSupportedError } from "./oracle/types.js";
 import type { IPaymentMethodStore } from "./payment-method-store.js";
+import type { PluginRegistry } from "./plugin/registry.js";
 
 export interface KeyServerDeps {
   db: DrizzleDb;
@@ -28,6 +31,8 @@ export interface KeyServerDeps {
   serviceKey?: string;
   /** Bearer token for admin routes. If unset, admin routes are disabled. */
   adminToken?: string;
+  /** Plugin registry for address encoding. Falls back to address-gen.ts when absent. */
+  registry?: PluginRegistry;
 }
 
 /**
@@ -42,6 +47,7 @@ async function deriveNextAddress(
   db: DrizzleDb,
   chainId: string,
   tenantId?: string,
+  registry?: PluginRegistry,
 ): Promise<{ address: string; index: number; chain: string; token: string }> {
   const maxRetries = 10;
   const dbWithTx = db as unknown as { transaction: (fn: (tx: DrizzleDb) => Promise<unknown>) => Promise<unknown> };
@@ -68,7 +74,23 @@ async function deriveNextAddress(
     } catch {
       throw new Error(`Invalid encoding_params JSON for chain ${chainId}: ${method.encodingParams}`);
     }
-    const address = deriveAddress(method.xpub, index, method.addressType, encodingParams);
+
+    // Plugin-driven encoding: look up the plugin, use its encoder.
+    // Falls back to legacy deriveAddress() when no registry or no matching plugin.
+    let address: string;
+    const pluginId = method.pluginId ?? (method.watcherType === "utxo" ? "bitcoin" : method.watcherType);
+    const plugin = registry?.get(pluginId ?? "");
+    const encodingKey = method.encoding ?? method.addressType;
+    const encoder = plugin?.encoders[encodingKey];
+
+    if (encoder) {
+      const master = HDKey.fromExtendedKey(method.xpub);
+      const child = master.deriveChild(0).deriveChild(index);
+      if (!child.publicKey) throw new Error("Failed to derive public key");
+      address = encoder.encode(child.publicKey, encodingParams as Record<string, string | undefined>);
+    } else {
+      address = deriveAddress(method.xpub, index, method.addressType, encodingParams);
+    }
 
     // Step 2: Record in immutable log. If this address was already derived by a
     // sibling chain (shared xpub), the unique constraint fires and we retry
@@ -146,7 +168,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     if (!body.chain) return c.json({ error: "chain is required" }, 400);
 
     const tenantId = c.req.header("X-Tenant-Id");
-    const result = await deriveNextAddress(deps.db, body.chain, tenantId ?? undefined);
+    const result = await deriveNextAddress(deps.db, body.chain, tenantId ?? undefined, deps.registry);
     return c.json(result, 201);
   });
 
@@ -164,7 +186,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
     }
 
     const tenantId = c.req.header("X-Tenant-Id") ?? "unknown";
-    const { address, index, chain, token } = await deriveNextAddress(deps.db, body.chain, tenantId);
+    const { address, index, chain, token } = await deriveNextAddress(deps.db, body.chain, tenantId, deps.registry);
 
     // Look up payment method for decimals + oracle config
     const method = await deps.methodStore.getById(body.chain);

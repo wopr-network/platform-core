@@ -8,6 +8,14 @@
  */
 /* biome-ignore-all lint/suspicious/noConsole: standalone entry point */
 import { serve } from "@hono/node-server";
+import {
+  bitcoinPlugin,
+  dogecoinPlugin,
+  evmPlugin,
+  litecoinPlugin,
+  solanaPlugin,
+  tronPlugin,
+} from "@wopr-network/crypto-plugins";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
@@ -21,6 +29,8 @@ import { CoinGeckoOracle } from "./oracle/coingecko.js";
 import { CompositeOracle } from "./oracle/composite.js";
 import { FixedPriceOracle } from "./oracle/fixed.js";
 import { DrizzlePaymentMethodStore } from "./payment-method-store.js";
+import { PluginRegistry } from "./plugin/registry.js";
+import { startPluginWatchers } from "./plugin-watcher-service.js";
 import { startWatchers } from "./watcher-service.js";
 
 const PORT = Number(process.env.PORT ?? "3100");
@@ -64,6 +74,19 @@ async function main(): Promise<void> {
   const coingecko = new CoinGeckoOracle({ tokenIds: dbTokenIds });
   const oracle = new CompositeOracle(chainlink, coingecko);
 
+  // Build plugin registry — one plugin per chain family
+  const registry = new PluginRegistry();
+  registry.register(bitcoinPlugin);
+  registry.register(litecoinPlugin);
+  registry.register(dogecoinPlugin);
+  registry.register(evmPlugin);
+  registry.register(tronPlugin);
+  registry.register(solanaPlugin);
+  console.log(
+    `[crypto-key-server] Registered ${registry.list().length} chain plugins:`,
+    registry.list().map((p) => p.pluginId),
+  );
+
   const app = createKeyServerApp({
     db,
     chargeStore,
@@ -71,21 +94,34 @@ async function main(): Promise<void> {
     oracle,
     serviceKey: SERVICE_KEY,
     adminToken: ADMIN_TOKEN,
+    registry,
   });
 
-  // Boot watchers (BTC + EVM) — polls for payments, sends webhooks
+  // Boot plugin-driven watchers — polls for payments, sends webhooks.
+  // Falls back to legacy startWatchers() if USE_LEGACY_WATCHERS=1 is set.
   const cursorStore = new DrizzleWatcherCursorStore(db);
-  const stopWatchers = await startWatchers({
-    db,
-    chargeStore,
-    methodStore,
-    cursorStore,
-    oracle,
-    bitcoindUser: BITCOIND_USER,
-    bitcoindPassword: BITCOIND_PASSWORD,
-    serviceKey: SERVICE_KEY,
-    log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
-  });
+  const useLegacy = process.env.USE_LEGACY_WATCHERS === "1";
+  const stopWatchers = useLegacy
+    ? await startWatchers({
+        db,
+        chargeStore,
+        methodStore,
+        cursorStore,
+        oracle,
+        bitcoindUser: BITCOIND_USER,
+        bitcoindPassword: BITCOIND_PASSWORD,
+        serviceKey: SERVICE_KEY,
+        log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
+      })
+    : await startPluginWatchers({
+        db,
+        chargeStore,
+        methodStore,
+        cursorStore,
+        oracle,
+        registry,
+        log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
+      });
 
   const server = serve({ fetch: app.fetch, port: PORT });
   console.log(`[crypto-key-server] Listening on :${PORT}`);
