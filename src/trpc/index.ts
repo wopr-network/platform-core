@@ -18,3 +18,4 @@ export {
   createOrgRemovePaymentMethodRouter,
   type OrgRemovePaymentMethodDeps,
 } from "./org-remove-payment-method-router.js";
+export { createProductConfigRouter } from "./product-config-router.js";
