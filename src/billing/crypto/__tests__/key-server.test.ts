@@ -15,6 +15,7 @@ function createMockDb() {
     nextIndex: 1,
     decimals: 8,
     addressType: "bech32",
+    encodingParams: '{"hrp":"bc"}',
     confirmations: 6,
   };
 
@@ -195,6 +196,7 @@ describe("key-server routes", () => {
       nextIndex: 0,
       decimals: 18,
       addressType: "evm",
+      encodingParams: "{}",
       confirmations: 1,
     };
 
@@ -258,6 +260,7 @@ describe("key-server routes", () => {
       nextIndex: 0,
       decimals: 18,
       addressType: "evm",
+      encodingParams: "{}",
       confirmations: 1,
     };
 

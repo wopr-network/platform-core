@@ -1,4 +1,5 @@
-export { deriveDepositAddress, isValidXpub } from "./address-gen.js";
+export type { EncodingParams } from "../address-gen.js";
+export { deriveAddress, isValidXpub } from "../address-gen.js";
 export type { StablecoinCheckoutDeps, StablecoinCheckoutResult } from "./checkout.js";
 export { createStablecoinCheckout, MIN_STABLECOIN_USD } from "./checkout.js";
 export { centsFromTokenAmount, getChainConfig, getTokenConfig, tokenAmountFromCents } from "./config.js";

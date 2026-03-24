@@ -1,6 +1,6 @@
 import { Credit } from "../../../credits/credit.js";
+import { deriveAddress } from "../address-gen.js";
 import type { ICryptoChargeRepository } from "../charge-store.js";
-import { deriveDepositAddress } from "./address-gen.js";
 import { getTokenConfig, tokenAmountFromCents } from "./config.js";
 import type { StablecoinCheckoutOpts } from "./types.js";
 
@@ -47,7 +47,7 @@ export async function createStablecoinCheckout(
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
-    const depositAddress = deriveDepositAddress(deps.xpub, derivationIndex);
+    const depositAddress = deriveAddress(deps.xpub, derivationIndex, "evm");
     const referenceId = `sc:${opts.chain}:${opts.token.toLowerCase()}:${depositAddress.toLowerCase()}`;
 
     try {

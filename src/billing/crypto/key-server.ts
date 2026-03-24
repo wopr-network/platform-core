@@ -11,9 +11,9 @@ import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { DrizzleDb } from "../../db/index.js";
 import { derivedAddresses, pathAllocations, paymentMethods } from "../../db/schema/crypto.js";
-import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
+import type { EncodingParams } from "./address-gen.js";
+import { deriveAddress } from "./address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
-import { deriveDepositAddress } from "./evm/address-gen.js";
 import { centsToNative } from "./oracle/convert.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import { AssetNotSupportedError } from "./oracle/types.js";
@@ -60,26 +60,10 @@ async function deriveNextAddress(
 
     const index = method.nextIndex - 1;
 
-    // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
-    let address: string;
-    switch (method.addressType) {
-      case "bech32":
-        address = deriveAddress(
-          method.xpub,
-          index,
-          (method.network ?? "mainnet") as "mainnet" | "testnet" | "regtest",
-          method.chain as "bitcoin" | "litecoin",
-        );
-        break;
-      case "p2pkh":
-        address = deriveP2pkhAddress(method.xpub, index, method.chain);
-        break;
-      case "evm":
-        address = deriveDepositAddress(method.xpub, index);
-        break;
-      default:
-        throw new Error(`Unknown address type: ${method.addressType}`);
-    }
+    // Universal address derivation — encoding type + params are DB-driven.
+    // Adding a new chain is a DB INSERT, not a code change.
+    const encodingParams: EncodingParams = JSON.parse(method.encodingParams ?? "{}");
+    const address = deriveAddress(method.xpub, index, method.addressType, encodingParams);
 
     // Step 2: Record in immutable log. If this address was already derived by a
     // sibling chain (shared xpub), the unique constraint fires and we retry
@@ -329,6 +313,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       display_name?: string;
       oracle_address?: string;
       address_type?: string;
+      encoding_params?: Record<string, string>;
       icon_url?: string;
       display_order?: number;
     }>();
@@ -371,6 +356,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
       addressType: body.address_type ?? "evm",
+      encodingParams: JSON.stringify(body.encoding_params ?? {}),
       confirmations: body.confirmations ?? 6,
     });
 
