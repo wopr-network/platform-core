@@ -348,6 +348,16 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       );
     }
 
+    // Validate encoding_params match address_type requirements
+    const addrType = body.address_type ?? "evm";
+    const encParams = body.encoding_params ?? {};
+    if (addrType === "bech32" && !encParams.hrp) {
+      return c.json({ error: "bech32 address_type requires encoding_params.hrp" }, 400);
+    }
+    if (addrType === "p2pkh" && !encParams.version) {
+      return c.json({ error: "p2pkh address_type requires encoding_params.version" }, 400);
+    }
+
     // Upsert the payment method
     await deps.methodStore.upsert({
       id: body.id,
