@@ -471,7 +471,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
       rpcCall,
       fromBlock: latestBlock,
       watchedAddresses: chainAddresses.map((a) => toWatcherAddr(a, method)),
-      contractAddress: method.contractAddress,
+      contractAddress: toWatcherAddr(method.contractAddress, method),
       decimals: method.decimals,
       confirmations: method.confirmations,
       cursorStore,
