@@ -323,30 +323,13 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       address_type?: string;
       encoding_params?: Record<string, string>;
       watcher_type?: string;
+      oracle_asset_id?: string;
       icon_url?: string;
       display_order?: number;
     }>();
 
     if (!body.id || !body.xpub || !body.token) {
       return c.json({ error: "id, xpub, and token are required" }, 400);
-    }
-
-    // Record the path allocation (idempotent — ignore if already exists)
-    const inserted = (await deps.db
-      .insert(pathAllocations)
-      .values({
-        coinType: body.coin_type,
-        accountIndex: body.account_index,
-        chainId: body.id,
-        xpub: body.xpub,
-      })
-      .onConflictDoNothing()) as { rowCount: number };
-
-    if (inserted.rowCount === 0) {
-      return c.json(
-        { error: "Path allocation already exists", path: `m/44'/${body.coin_type}'/${body.account_index}'` },
-        409,
-      );
     }
 
     // Validate encoding_params match address_type requirements
@@ -359,7 +342,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       return c.json({ error: "p2pkh address_type requires encoding_params.version" }, 400);
     }
 
-    // Upsert the payment method
+    // Upsert payment method FIRST (path_allocations has FK to payment_methods.id)
     await deps.methodStore.upsert({
       id: body.id,
       type: body.type ?? "native",
@@ -377,8 +360,30 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       addressType: body.address_type ?? "evm",
       encodingParams: JSON.stringify(body.encoding_params ?? {}),
       watcherType: body.watcher_type ?? "evm",
+      oracleAssetId: body.oracle_asset_id ?? null,
       confirmations: body.confirmations ?? 6,
     });
+
+    // Record the path allocation (idempotent — ignore if already exists)
+    const inserted = (await deps.db
+      .insert(pathAllocations)
+      .values({
+        coinType: body.coin_type,
+        accountIndex: body.account_index,
+        chainId: body.id,
+        xpub: body.xpub,
+      })
+      .onConflictDoNothing()) as { rowCount: number };
+
+    if (inserted.rowCount === 0) {
+      return c.json(
+        {
+          message: "Path allocation already exists, payment method updated",
+          path: `m/44'/${body.coin_type}'/${body.account_index}'`,
+        },
+        200,
+      );
+    }
 
     return c.json({ id: body.id, path: `m/44'/${body.coin_type}'/${body.account_index}'` }, 201);
   });

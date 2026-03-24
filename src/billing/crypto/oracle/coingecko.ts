@@ -15,6 +15,9 @@ const COINGECKO_IDS: Record<string, string> = {
   UNI: "uniswap",
   AERO: "aerodrome-finance",
   TRX: "tron",
+  BNB: "binancecoin",
+  POL: "matic-network",
+  AVAX: "avalanche-2",
 };
 
 /** Default cache TTL: 60 seconds. CoinGecko free tier allows 10-30 req/min. */

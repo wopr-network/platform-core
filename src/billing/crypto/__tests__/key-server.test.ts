@@ -17,6 +17,7 @@ function createMockDb() {
     addressType: "bech32",
     encodingParams: '{"hrp":"bc"}',
     watcherType: "utxo",
+    oracleAssetId: "bitcoin",
     confirmations: 6,
   };
 
@@ -199,6 +200,7 @@ describe("key-server routes", () => {
       addressType: "evm",
       encodingParams: "{}",
       watcherType: "evm",
+      oracleAssetId: "ethereum",
       confirmations: 1,
     };
 
@@ -264,6 +266,7 @@ describe("key-server routes", () => {
       addressType: "evm",
       encodingParams: "{}",
       watcherType: "evm",
+      oracleAssetId: "ethereum",
       confirmations: 1,
     };
 

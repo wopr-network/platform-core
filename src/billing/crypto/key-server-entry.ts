@@ -55,7 +55,13 @@ async function main(): Promise<void> {
   const chainlink = BASE_RPC_URL
     ? new ChainlinkOracle({ rpcCall: createRpcCaller(BASE_RPC_URL) })
     : new FixedPriceOracle();
-  const coingecko = new CoinGeckoOracle();
+  // Build token→CoinGecko ID map from DB (zero-deploy chain additions)
+  const allMethods = await methodStore.listAll();
+  const dbTokenIds: Record<string, string> = {};
+  for (const m of allMethods) {
+    if (m.oracleAssetId) dbTokenIds[m.token] = m.oracleAssetId;
+  }
+  const coingecko = new CoinGeckoOracle({ tokenIds: dbTokenIds });
   const oracle = new CompositeOracle(chainlink, coingecko);
 
   const app = createKeyServerApp({
