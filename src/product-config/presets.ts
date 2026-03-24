@@ -69,7 +69,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       { label: "Settings", href: "/settings/profile", sortOrder: 11 },
       { label: "Admin", href: "/admin/tenants", sortOrder: 12, requiresRole: "platform_admin" },
     ],
-    fleet: { containerImage: "ghcr.io/wopr-network/wopr:latest", lifecycle: "managed", billingModel: "monthly", maxInstances: 5 },
+    fleet: {
+      containerImage: "ghcr.io/wopr-network/wopr:latest",
+      lifecycle: "managed",
+      billingModel: "monthly",
+      maxInstances: 5,
+    },
   },
   paperclip: {
     brandName: "Paperclip",
@@ -93,7 +98,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       { label: "Settings", href: "/settings/profile", sortOrder: 2 },
       { label: "Admin", href: "/admin/tenants", sortOrder: 3, requiresRole: "platform_admin" },
     ],
-    fleet: { containerImage: "ghcr.io/wopr-network/paperclip:managed", lifecycle: "managed", billingModel: "monthly", maxInstances: 5 },
+    fleet: {
+      containerImage: "ghcr.io/wopr-network/paperclip:managed",
+      lifecycle: "managed",
+      billingModel: "monthly",
+      maxInstances: 5,
+    },
   },
   holyship: {
     brandName: "Holy Ship",
@@ -120,7 +130,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       { label: "Settings", href: "/settings/profile", sortOrder: 5 },
       { label: "Admin", href: "/admin/tenants", sortOrder: 6, requiresRole: "platform_admin" },
     ],
-    fleet: { containerImage: "ghcr.io/wopr-network/holyship:latest", lifecycle: "ephemeral", billingModel: "none", maxInstances: 50 },
+    fleet: {
+      containerImage: "ghcr.io/wopr-network/holyship:latest",
+      lifecycle: "ephemeral",
+      billingModel: "none",
+      maxInstances: 50,
+    },
   },
   nemoclaw: {
     brandName: "NemoPod",
@@ -144,6 +159,11 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       { label: "Settings", href: "/settings/profile", sortOrder: 2 },
       { label: "Admin", href: "/admin/tenants", sortOrder: 3, requiresRole: "platform_admin" },
     ],
-    fleet: { containerImage: "ghcr.io/wopr-network/nemoclaw:latest", lifecycle: "managed", billingModel: "monthly", maxInstances: 5 },
+    fleet: {
+      containerImage: "ghcr.io/wopr-network/nemoclaw:latest",
+      lifecycle: "managed",
+      billingModel: "monthly",
+      maxInstances: 5,
+    },
   },
 };
