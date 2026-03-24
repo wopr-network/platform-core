@@ -1,7 +1,21 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import type { ProductConfig } from "../product-config/repository-types.js";
 import type { ProductConfigService } from "../product-config/service.js";
 import { adminProcedure, publicProcedure, router } from "./init.js";
+
+/** Mask Stripe secrets in admin responses — never send raw keys over the wire. */
+function redactSecrets(config: ProductConfig): ProductConfig {
+  if (!config.billing) return config;
+  return {
+    ...config,
+    billing: {
+      ...config.billing,
+      stripeSecretKey: config.billing.stripeSecretKey ? "sk_...redacted" : null,
+      stripeWebhookSecret: config.billing.stripeWebhookSecret ? "whsec_...redacted" : null,
+    },
+  };
+}
 
 export function createProductConfigRouter(getService: () => ProductConfigService, productSlug: string) {
   /** Resolve product id, throwing NOT_FOUND if the product doesn't exist. */
@@ -34,11 +48,14 @@ export function createProductConfigRouter(getService: () => ProductConfigService
 
     admin: router({
       get: adminProcedure.query(async () => {
-        return getService().getBySlug(productSlug);
+        const config = await getService().getBySlug(productSlug);
+        if (!config) return null;
+        return redactSecrets(config);
       }),
 
       listAll: adminProcedure.query(async () => {
-        return getService().listAll();
+        const configs = await getService().listAll();
+        return configs.map(redactSecrets);
       }),
 
       updateBrand: adminProcedure

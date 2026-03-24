@@ -3,8 +3,20 @@ import { DrizzleProductConfigRepository } from "./drizzle-product-config-reposit
 import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
+import { platformBoot as rawPlatformBoot } from "./boot.js";
+import type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
+
 export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
-export { platformBoot } from "./boot.js";
+
+/**
+ * Bootstrap product config from DB and register the service globally.
+ * Wraps the raw boot to ensure getProductConfigService() works after calling this.
+ */
+export async function platformBoot(opts: PlatformBootOptions): Promise<PlatformBootResult> {
+  const result = await rawPlatformBoot(opts);
+  _service = result.service;
+  return result;
+}
 export { DrizzleProductConfigRepository } from "./drizzle-product-config-repository.js";
 // Re-exports for consumers
 export type {
