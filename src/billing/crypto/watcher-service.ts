@@ -43,6 +43,8 @@ export interface WatcherServiceOpts {
   log?: (msg: string, meta?: Record<string, unknown>) => void;
   /** Allowed callback URL prefixes. Default: ["https://"] — enforces HTTPS. */
   allowedCallbackPrefixes?: string[];
+  /** Service key sent as Bearer token in webhook deliveries. */
+  serviceKey?: string;
 }
 
 // --- SSRF validation ---
@@ -79,6 +81,7 @@ async function processDeliveries(
   db: DrizzleDb,
   allowedPrefixes: string[],
   log: (msg: string, meta?: Record<string, unknown>) => void,
+  serviceKey?: string,
 ): Promise<number> {
   const now = new Date().toISOString();
   const pending = await db
@@ -103,9 +106,11 @@ async function processDeliveries(
     }
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (serviceKey) headers.Authorization = `Bearer ${serviceKey}`;
       const res = await fetch(row.callbackUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: row.payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -242,6 +247,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   const deliveryMs = opts.deliveryIntervalMs ?? 10_000;
   const log = opts.log ?? (() => {});
   const allowedPrefixes = opts.allowedCallbackPrefixes ?? ["https://"];
+  const serviceKey = opts.serviceKey;
   const timers: ReturnType<typeof setInterval>[] = [];
 
   const methods = await methodStore.listEnabled();
@@ -500,7 +506,7 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
   timers.push(
     setInterval(async () => {
       try {
-        const count = await processDeliveries(db, allowedPrefixes, log);
+        const count = await processDeliveries(db, allowedPrefixes, log, serviceKey);
         if (count > 0) log("Webhooks delivered", { count });
       } catch (err) {
         log("Delivery loop error", { error: String(err) });
