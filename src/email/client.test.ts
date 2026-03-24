@@ -116,8 +116,8 @@ describe("getEmailClient / setEmailClient / resetEmailClient", () => {
     delete process.env.RESEND_REPLY_TO;
   });
 
-  it("should throw if RESEND_API_KEY is not set", () => {
-    expect(() => getEmailClient()).toThrow("RESEND_API_KEY environment variable is required");
+  it("should throw if no email provider is configured", () => {
+    expect(() => getEmailClient()).toThrow("Set AWS_SES_REGION, POSTMARK_API_KEY, or RESEND_API_KEY");
   });
 
   it("should create client from env vars", () => {
