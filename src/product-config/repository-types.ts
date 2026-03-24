@@ -174,12 +174,15 @@ export interface IProductConfigRepository {
 // ---------------------------------------------------------------------------
 
 /** Derive CORS origins from product config. */
+/** Derive CORS origins — excludes redirect-only domains (they 301, never make requests). */
 export function deriveCorsOrigins(product: Product, domains: ProductDomain[]): string[] {
   const origins = new Set<string>();
   origins.add(`https://${product.domain}`);
   origins.add(`https://${product.appDomain}`);
   for (const d of domains) {
-    origins.add(`https://${d.host}`);
+    if (d.role !== "redirect") {
+      origins.add(`https://${d.host}`);
+    }
   }
   return [...origins];
 }
