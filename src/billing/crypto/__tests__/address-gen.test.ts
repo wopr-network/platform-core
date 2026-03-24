@@ -1,6 +1,6 @@
 import { HDKey } from "@scure/bip32";
 import * as bip39 from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english.js";
+
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { deriveAddress, deriveTreasury, isValidXpub } from "../address-gen.js";
@@ -120,7 +120,9 @@ describe("sweep key parity — privkey derives same address as xpub", () => {
           expect(child.publicKey).toBeDefined();
           // The xpub's child pubkey at index i must equal the full-key's child pubkey at index i
           const xpubChild = HDKey.fromExtendedKey(xpub).deriveChild(0).deriveChild(i);
-          expect(Buffer.from(child.publicKey!).toString("hex")).toBe(Buffer.from(xpubChild.publicKey!).toString("hex"));
+          const childPk = child.publicKey as Uint8Array;
+          const xpubPk = xpubChild.publicKey as Uint8Array;
+          expect(Buffer.from(childPk).toString("hex")).toBe(Buffer.from(xpubPk).toString("hex"));
           // And the address from xpub must match
           expect(fromXpub).toBe(fromPriv);
         }
@@ -129,7 +131,9 @@ describe("sweep key parity — privkey derives same address as xpub", () => {
       it("treasury pubkey matches", () => {
         const fullKey = HDKey.fromMasterSeed(TEST_SEED).derive(path).deriveChild(1).deriveChild(0);
         const xpubKey = HDKey.fromExtendedKey(xpub).deriveChild(1).deriveChild(0);
-        expect(Buffer.from(fullKey.publicKey!).toString("hex")).toBe(Buffer.from(xpubKey.publicKey!).toString("hex"));
+        const fullPk = fullKey.publicKey as Uint8Array;
+        const xpubPk = xpubKey.publicKey as Uint8Array;
+        expect(Buffer.from(fullPk).toString("hex")).toBe(Buffer.from(xpubPk).toString("hex"));
       });
     });
   }
