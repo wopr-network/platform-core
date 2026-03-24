@@ -10,16 +10,25 @@ import { sha256 } from "@noble/hashes/sha2.js";
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 function base58decode(s: string): Uint8Array {
+  // Count leading '1' characters (each represents a 0x00 byte)
+  let leadingZeros = 0;
+  for (const ch of s) {
+    if (ch !== "1") break;
+    leadingZeros++;
+  }
   let num = 0n;
   for (const ch of s) {
     const idx = BASE58_ALPHABET.indexOf(ch);
     if (idx < 0) throw new Error(`Invalid base58 character: ${ch}`);
     num = num * 58n + BigInt(idx);
   }
-  const hex = num.toString(16).padStart(50, "0"); // 25 bytes = 50 hex chars
-  const bytes = new Uint8Array(25);
-  for (let i = 0; i < 25; i++) bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return bytes;
+  const hex = num.toString(16).padStart(2, "0");
+  const dataBytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < dataBytes.length; i++) dataBytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  // Prepend leading zero bytes
+  const result = new Uint8Array(leadingZeros + dataBytes.length);
+  result.set(dataBytes, leadingZeros);
+  return result;
 }
 
 /**

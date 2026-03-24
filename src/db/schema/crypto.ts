@@ -82,7 +82,7 @@ export const paymentMethods = pgTable("payment_methods", {
   rpcUrl: text("rpc_url"), // chain node RPC endpoint
   oracleAddress: text("oracle_address"), // Chainlink feed address for price (null = 1:1 stablecoin)
   xpub: text("xpub"), // HD wallet extended public key for deposit address derivation
-  addressType: text("address_type").notNull().default("evm"), // "bech32" (BTC/LTC), "p2pkh" (DOGE), "evm" (ETH/ERC20)
+  addressType: text("address_type").notNull().default("evm"), // "bech32" (BTC/LTC), "p2pkh" (DOGE/TRX), "evm" (ETH/ERC20)
   encodingParams: text("encoding_params").notNull().default("{}"), // JSON: {"hrp":"bc"}, {"version":"0x1e"}, etc.
   watcherType: text("watcher_type").notNull().default("evm"), // "utxo" (BTC/LTC/DOGE) or "evm" (ETH/ERC20/TRX)
   oracleAssetId: text("oracle_asset_id"), // CoinGecko slug (e.g. "bitcoin", "tron"). Null = stablecoin (1:1 USD) or use token symbol fallback.

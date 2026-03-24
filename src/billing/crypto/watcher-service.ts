@@ -360,14 +360,15 @@ export async function startWatchers(opts: WatcherServiceOpts): Promise<() => voi
 
   const BACKFILL_BLOCKS = 1000; // Scan ~30min of blocks on first deploy to catch missed deposits
 
-  // Address conversion helpers for chains with non-EVM address formats (e.g. Tron T...).
-  // The EVM watcher uses 0x hex addresses; the DB stores native format (T... for Tron).
-  // Determined by addressType from the DB — not by inspecting addresses at runtime.
-  const needsAddrConvert = (method: { addressType: string }): boolean => method.addressType === "p2pkh";
-  const toWatcherAddr = (addr: string, method: { addressType: string }): string =>
-    needsAddrConvert(method) && isTronAddress(addr) ? tronToHex(addr) : addr;
-  const fromWatcherAddr = (addr: string, method: { addressType: string }): string =>
-    needsAddrConvert(method) ? hexToTron(addr) : addr;
+  // Address conversion for EVM-watched chains with non-0x address formats (Tron T...).
+  // Only applies to chains routed through the EVM watcher but storing non-hex addresses.
+  // UTXO chains (DOGE p2pkh) never enter this path — they use the UTXO watcher.
+  const isTronMethod = (method: { addressType: string; chain: string }): boolean =>
+    method.addressType === "p2pkh" && method.chain === "tron";
+  const toWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>
+    isTronMethod(method) && isTronAddress(addr) ? tronToHex(addr) : addr;
+  const fromWatcherAddr = (addr: string, method: { addressType: string; chain: string }): string =>
+    isTronMethod(method) ? hexToTron(addr) : addr;
 
   for (const method of nativeEvmMethods) {
     if (!method.rpcUrl) continue;
