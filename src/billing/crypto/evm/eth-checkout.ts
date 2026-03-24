@@ -1,8 +1,8 @@
 import { Credit } from "../../../credits/credit.js";
+import { deriveAddress } from "../address-gen.js";
 import type { ICryptoChargeRepository } from "../charge-store.js";
 import { centsToNative } from "../oracle/convert.js";
 import type { IPriceOracle } from "../oracle/types.js";
-import { deriveDepositAddress } from "./address-gen.js";
 import type { EvmChain } from "./types.js";
 
 export const MIN_ETH_USD = 10;
@@ -51,7 +51,7 @@ export async function createEthCheckout(deps: EthCheckoutDeps, opts: EthCheckout
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
-    const depositAddress = deriveDepositAddress(deps.xpub, derivationIndex);
+    const depositAddress = deriveAddress(deps.xpub, derivationIndex, "evm") as `0x${string}`;
     const referenceId = `eth:${opts.chain}:${depositAddress}`;
 
     try {

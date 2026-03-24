@@ -17,6 +17,7 @@ export interface PaymentMethodRecord {
   oracleAddress: string | null;
   xpub: string | null;
   addressType: string;
+  encodingParams: string;
   confirmations: number;
 }
 
@@ -89,6 +90,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
         oracleAddress: method.oracleAddress,
         xpub: method.xpub,
         addressType: method.addressType,
+        encodingParams: method.encodingParams,
         confirmations: method.confirmations,
       })
       .onConflictDoUpdate({
@@ -107,6 +109,7 @@ export class DrizzlePaymentMethodStore implements IPaymentMethodStore {
           oracleAddress: method.oracleAddress,
           xpub: method.xpub,
           addressType: method.addressType,
+          encodingParams: method.encodingParams,
           confirmations: method.confirmations,
         },
       });
@@ -148,6 +151,7 @@ function toRecord(row: typeof paymentMethods.$inferSelect): PaymentMethodRecord 
     oracleAddress: row.oracleAddress,
     xpub: row.xpub,
     addressType: row.addressType,
+    encodingParams: row.encodingParams,
     confirmations: row.confirmations,
   };
 }

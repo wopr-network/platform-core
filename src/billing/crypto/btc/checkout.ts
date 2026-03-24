@@ -1,6 +1,6 @@
 import { Credit } from "../../../credits/credit.js";
+import { deriveAddress } from "../address-gen.js";
 import type { ICryptoChargeRepository } from "../charge-store.js";
-import { deriveBtcAddress } from "./address-gen.js";
 import type { BtcCheckoutOpts } from "./types.js";
 
 export const MIN_BTC_USD = 10;
@@ -35,7 +35,10 @@ export async function createBtcCheckout(deps: BtcCheckoutDeps, opts: BtcCheckout
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
-    const depositAddress = deriveBtcAddress(deps.xpub, derivationIndex, network);
+    const hrpMap = { mainnet: "bc", testnet: "tb", regtest: "bcrt" } as const;
+    const depositAddress = deriveAddress(deps.xpub, derivationIndex, "bech32", {
+      hrp: hrpMap[network],
+    });
     const referenceId = `btc:${depositAddress}`;
 
     try {

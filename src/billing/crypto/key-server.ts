@@ -11,9 +11,9 @@ import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { DrizzleDb } from "../../db/index.js";
 import { derivedAddresses, pathAllocations, paymentMethods } from "../../db/schema/crypto.js";
-import { deriveAddress, deriveP2pkhAddress } from "./btc/address-gen.js";
+import type { EncodingParams } from "./address-gen.js";
+import { deriveAddress } from "./address-gen.js";
 import type { ICryptoChargeRepository } from "./charge-store.js";
-import { deriveDepositAddress } from "./evm/address-gen.js";
 import { centsToNative } from "./oracle/convert.js";
 import type { IPriceOracle } from "./oracle/types.js";
 import { AssetNotSupportedError } from "./oracle/types.js";
@@ -60,26 +60,15 @@ async function deriveNextAddress(
 
     const index = method.nextIndex - 1;
 
-    // Route to the right derivation function via address_type (DB-driven, no hardcoded chains)
-    let address: string;
-    switch (method.addressType) {
-      case "bech32":
-        address = deriveAddress(
-          method.xpub,
-          index,
-          (method.network ?? "mainnet") as "mainnet" | "testnet" | "regtest",
-          method.chain as "bitcoin" | "litecoin",
-        );
-        break;
-      case "p2pkh":
-        address = deriveP2pkhAddress(method.xpub, index, method.chain);
-        break;
-      case "evm":
-        address = deriveDepositAddress(method.xpub, index);
-        break;
-      default:
-        throw new Error(`Unknown address type: ${method.addressType}`);
+    // Universal address derivation — encoding type + params are DB-driven.
+    // Adding a new chain is a DB INSERT, not a code change.
+    let encodingParams: EncodingParams = {};
+    try {
+      encodingParams = JSON.parse(method.encodingParams ?? "{}");
+    } catch {
+      throw new Error(`Invalid encoding_params JSON for chain ${chainId}: ${method.encodingParams}`);
     }
+    const address = deriveAddress(method.xpub, index, method.addressType, encodingParams);
 
     // Step 2: Record in immutable log. If this address was already derived by a
     // sibling chain (shared xpub), the unique constraint fires and we retry
@@ -218,9 +207,12 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       expectedAmount: expectedAmount.toString(),
     });
 
-    // Format display amount for the client
-    const divisor = 10 ** method.decimals;
-    const displayAmount = `${(Number(expectedAmount) / divisor).toFixed(Math.min(method.decimals, 8))} ${token}`;
+    // Format display amount for the client (BigInt-safe, no Number overflow)
+    const divisor = 10n ** BigInt(method.decimals);
+    const whole = expectedAmount / divisor;
+    const frac = expectedAmount % divisor;
+    const fracStr = frac.toString().padStart(method.decimals, "0").slice(0, 8).replace(/0+$/, "");
+    const displayAmount = `${whole}${fracStr ? `.${fracStr}` : ""} ${token}`;
 
     return c.json(
       {
@@ -329,6 +321,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       display_name?: string;
       oracle_address?: string;
       address_type?: string;
+      encoding_params?: Record<string, string>;
       icon_url?: string;
       display_order?: number;
     }>();
@@ -355,6 +348,16 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       );
     }
 
+    // Validate encoding_params match address_type requirements
+    const addrType = body.address_type ?? "evm";
+    const encParams = body.encoding_params ?? {};
+    if (addrType === "bech32" && !encParams.hrp) {
+      return c.json({ error: "bech32 address_type requires encoding_params.hrp" }, 400);
+    }
+    if (addrType === "p2pkh" && !encParams.version) {
+      return c.json({ error: "p2pkh address_type requires encoding_params.version" }, 400);
+    }
+
     // Upsert the payment method
     await deps.methodStore.upsert({
       id: body.id,
@@ -371,6 +374,7 @@ export function createKeyServerApp(deps: KeyServerDeps): Hono {
       oracleAddress: body.oracle_address ?? null,
       xpub: body.xpub,
       addressType: body.address_type ?? "evm",
+      encodingParams: JSON.stringify(body.encoding_params ?? {}),
       confirmations: body.confirmations ?? 6,
     });
 
