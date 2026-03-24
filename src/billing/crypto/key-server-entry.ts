@@ -77,6 +77,7 @@ async function main(): Promise<void> {
     oracle,
     bitcoindUser: BITCOIND_USER,
     bitcoindPassword: BITCOIND_PASSWORD,
+    serviceKey: SERVICE_KEY,
     log: (msg, meta) => console.log(`[watcher] ${msg}`, meta ?? ""),
   });
 
