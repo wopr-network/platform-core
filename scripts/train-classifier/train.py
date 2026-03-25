@@ -109,15 +109,15 @@ class ComplexityHead(nn.Module):
             nn.Linear(input_dim, 512),
             nn.LayerNorm(512),
             nn.GELU(),
-            nn.Dropout(0.1),
+            nn.Dropout(0.05),
             nn.Linear(512, 128),
             nn.LayerNorm(128),
             nn.GELU(),
         )
 
         self.scorer = nn.Sequential(
-            ResidualBlock(128, expand=4, dropout=0.1),
-            ResidualBlock(128, expand=4, dropout=0.1),
+            ResidualBlock(128, expand=4, dropout=0.05),
+            ResidualBlock(128, expand=4, dropout=0.05),
             nn.LayerNorm(128),
             nn.Linear(128, 32),
             nn.GELU(),
