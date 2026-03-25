@@ -13,6 +13,8 @@ import type { CapabilityRateLimitConfig } from "../capability-rate-limit.js";
 import type { CircuitBreakerConfig } from "../circuit-breaker.js";
 import type { ICircuitBreakerRepository } from "../circuit-breaker-repository.js";
 import type { SellRateLookupFn } from "../rate-lookup.js";
+import type { SmartRouter } from "../smart-router/index.js";
+import type { TierConfig } from "../smart-router/tier-map.js";
 import type { FetchFn, GatewayTenant, ProviderConfig } from "../types.js";
 
 export interface ProtocolDeps {
@@ -44,4 +46,10 @@ export interface ProtocolDeps {
   onBalanceExhausted?: (tenantId: string, newBalanceCents: number) => void;
   /** Called after every successful credit debit to check spend alert thresholds. */
   onSpendAlertCrossed?: (tenantId: string) => void;
+  /** Smart model router — classifies prompt complexity and routes to the appropriate model tier. */
+  smartRouter?: SmartRouter;
+  /** Tier configuration for smart routing (from product config). */
+  smartRouterTiers?: TierConfig[];
+  /** Whether smart routing is enabled (feature flag from product config). */
+  smartRouterEnabled?: boolean;
 }

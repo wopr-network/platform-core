@@ -165,6 +165,12 @@ export interface GatewayConfig {
   spendingLimitsRepo?: import("../monetization/drizzle-spending-limits-repository.js").ISpendingLimitsRepository;
   /** Per-bot application metrics tracker (WOP-1514) */
   botMetricsTracker?: import("./bot-metrics-tracker.js").BotMetricsTracker;
+  /** Smart model router instance — loaded once at startup, optional. */
+  smartRouter?: import("./smart-router/index.js").SmartRouter;
+  /** Tier configuration for smart routing (from product config DB). */
+  smartRouterTiers?: import("./smart-router/tier-map.js").TierConfig[];
+  /** Whether smart routing is enabled (feature flag from product config DB). */
+  smartRouterEnabled?: boolean;
 }
 
 /** Standard gateway error response. */

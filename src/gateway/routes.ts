@@ -75,6 +75,9 @@ export function createGatewayRoutes(config: GatewayConfig): Hono<GatewayAuthEnv>
     onDebitComplete: config.onDebitComplete,
     onBalanceExhausted: config.onBalanceExhausted,
     onSpendAlertCrossed: config.onSpendAlertCrossed,
+    smartRouter: config.smartRouter,
+    smartRouterTiers: config.smartRouterTiers,
+    smartRouterEnabled: config.smartRouterEnabled,
   };
 
   gateway.route("/anthropic", createAnthropicRoutes(protocolDeps));

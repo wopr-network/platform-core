@@ -203,13 +203,38 @@ function chatCompletionsHandler(deps: ProtocolDeps) {
       // Detect streaming and extract model before forwarding
       let isStreaming = false;
       let requestModel: string | undefined;
+      let parsedBody:
+        | { stream?: boolean; model?: string; messages?: Array<{ role: string; content: string }> }
+        | undefined;
       try {
-        const parsed = JSON.parse(body) as { stream?: boolean; model?: string };
-        isStreaming = parsed.stream === true;
-        requestModel = parsed.model;
+        parsedBody = JSON.parse(body) as typeof parsedBody;
+        isStreaming = parsedBody?.stream === true;
+        requestModel = parsedBody?.model;
       } catch {
         // If body isn't valid JSON, proceed without streaming detection
       }
+
+      // Smart route — override model based on complexity
+      if (deps.smartRouter && deps.smartRouterEnabled && deps.smartRouterTiers?.length) {
+        try {
+          const messages = parsedBody?.messages ?? [];
+          const routeResult = await deps.smartRouter.route(messages, deps.smartRouterTiers);
+          if (parsedBody) {
+            parsedBody.model = routeResult.model;
+            requestModel = routeResult.model;
+          }
+          c.header("x-smart-route-score", routeResult.score.toFixed(3));
+          c.header("x-smart-route-model", routeResult.model);
+          c.header("x-smart-route-tier", routeResult.label);
+          c.header("x-smart-route-ms", routeResult.totalMs.toFixed(1));
+        } catch (err) {
+          // Classification failed — fall through to default model, don't block the request
+          logger.error("smart-router: classification failed, using default model", { error: err });
+        }
+      }
+
+      // Re-serialize if model was overridden by smart router, otherwise forward raw body
+      const forwardBody = parsedBody && deps.smartRouterEnabled ? JSON.stringify(parsedBody) : body;
 
       const res = await deps.fetchFn(`${baseUrl}/v1/chat/completions`, {
         method: "POST",
@@ -217,7 +242,7 @@ function chatCompletionsHandler(deps: ProtocolDeps) {
           Authorization: `Bearer ${providerCfg.apiKey}`,
           "Content-Type": "application/json",
         },
-        body,
+        body: forwardBody,
       });
 
       // For streaming responses, pipe the SSE stream through without JSON parsing.

@@ -167,6 +167,22 @@ function messagesHandler(deps: ProtocolDeps) {
       return anthropicErrorResponse(mapped.status, mapped.body);
     }
 
+    // Smart route — override model based on complexity
+    if (deps.smartRouter && deps.smartRouterEnabled && deps.smartRouterTiers?.length) {
+      try {
+        const messages = anthropicReq.messages ?? [];
+        const routeResult = await deps.smartRouter.route(messages, deps.smartRouterTiers);
+        anthropicReq.model = routeResult.model;
+        c.header("x-smart-route-score", routeResult.score.toFixed(3));
+        c.header("x-smart-route-model", routeResult.model);
+        c.header("x-smart-route-tier", routeResult.label);
+        c.header("x-smart-route-ms", routeResult.totalMs.toFixed(1));
+      } catch (err) {
+        // Classification failed — fall through to default model, don't block the request
+        logger.error("smart-router: classification failed, using default model", { error: err });
+      }
+    }
+
     // For now, always route through OpenRouter with format translation.
     // Future: check if Anthropic direct is cheaper and forward as-is.
     const providerCfg = deps.providers.openrouter;
