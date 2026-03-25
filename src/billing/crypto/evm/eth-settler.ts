@@ -2,7 +2,7 @@ import { Credit } from "../../../credits/credit.js";
 import type { ILedger } from "../../../credits/ledger.js";
 import type { ICryptoChargeRepository } from "../charge-store.js";
 import type { CryptoWebhookResult } from "../types.js";
-import type { EthPaymentEvent } from "./eth-watcher.js";
+import type { EthPaymentEvent } from "./types.js";
 
 export interface EthSettlerDeps {
   chargeStore: Pick<ICryptoChargeRepository, "getByDepositAddress" | "updateStatus" | "markCredited">;

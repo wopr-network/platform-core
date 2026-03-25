@@ -40,6 +40,23 @@ export interface EvmPaymentEvent {
   readonly confirmationsRequired: number;
 }
 
+/** Event emitted on each confirmation increment for a native ETH deposit. */
+export interface EthPaymentEvent {
+  readonly chain: EvmChain;
+  readonly from: string;
+  readonly to: string;
+  /** Raw value in wei (BigInt as string for serialization). */
+  readonly valueWei: string;
+  /** USD cents equivalent at detection time (integer). */
+  readonly amountUsdCents: number;
+  readonly txHash: string;
+  readonly blockNumber: number;
+  /** Current confirmation count (latest block - tx block). */
+  readonly confirmations: number;
+  /** Required confirmations for this chain. */
+  readonly confirmationsRequired: number;
+}
+
 /** Options for creating a stablecoin checkout. */
 export interface StablecoinCheckoutOpts {
   tenant: string;

@@ -1,15 +1,13 @@
-import { HDKey } from "@scure/bip32";
 import { describe, expect, it, vi } from "vitest";
 import { createStablecoinCheckout } from "../checkout.js";
 
-function makeTestXpub(): string {
-  const seed = new Uint8Array(32);
-  seed[0] = 1;
-  const master = HDKey.fromMasterSeed(seed);
-  return master.derive("m/44'/60'/0'").publicExtendedKey;
-}
+const TEST_XPUB =
+  "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
-const TEST_XPUB = makeTestXpub();
+/** Deterministic mock — returns a valid-looking EVM address for any index. */
+function mockDeriveAddress(_xpub: string, index: number, _encoding: string): string {
+  return `0x${index.toString(16).padStart(40, "0")}`;
+}
 
 describe("createStablecoinCheckout", () => {
   it("derives address and creates charge", async () => {
@@ -19,7 +17,7 @@ describe("createStablecoinCheckout", () => {
     };
 
     const result = await createStablecoinCheckout(
-      { chargeStore: mockChargeStore as never, xpub: TEST_XPUB },
+      { chargeStore: mockChargeStore as never, deriveAddress: mockDeriveAddress, xpub: TEST_XPUB },
       { tenant: "t1", amountUsd: 10, chain: "base", token: "USDC" },
     );
 
@@ -43,7 +41,7 @@ describe("createStablecoinCheckout", () => {
 
     await expect(
       createStablecoinCheckout(
-        { chargeStore: mockChargeStore as never, xpub: TEST_XPUB },
+        { chargeStore: mockChargeStore as never, deriveAddress: mockDeriveAddress, xpub: TEST_XPUB },
         { tenant: "t1", amountUsd: 5, chain: "base", token: "USDC" },
       ),
     ).rejects.toThrow("Minimum");
@@ -56,7 +54,7 @@ describe("createStablecoinCheckout", () => {
     };
 
     await createStablecoinCheckout(
-      { chargeStore: mockChargeStore as never, xpub: TEST_XPUB },
+      { chargeStore: mockChargeStore as never, deriveAddress: mockDeriveAddress, xpub: TEST_XPUB },
       { tenant: "t1", amountUsd: 10, chain: "base", token: "USDC" },
     );
 
@@ -71,7 +69,7 @@ describe("createStablecoinCheckout", () => {
     };
 
     const result = await createStablecoinCheckout(
-      { chargeStore: mockChargeStore as never, xpub: TEST_XPUB },
+      { chargeStore: mockChargeStore as never, deriveAddress: mockDeriveAddress, xpub: TEST_XPUB },
       { tenant: "t1", amountUsd: 25, chain: "base", token: "USDC" },
     );
 
