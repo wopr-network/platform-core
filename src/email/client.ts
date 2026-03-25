@@ -129,6 +129,18 @@ class ResendTransport implements EmailTransport {
   }
 }
 
+/** No-op transport that logs but does not send. Used when EMAIL_DISABLED=true. */
+class NoopTransport implements EmailTransport {
+  async send(opts: SendTemplateEmailOpts): Promise<EmailSendResult> {
+    logger.info("Email suppressed (EMAIL_DISABLED)", {
+      to: opts.to,
+      template: opts.templateName,
+      userId: opts.userId,
+    });
+    return { id: "noop", success: true };
+  }
+}
+
 /**
  * Create a lazily-initialized singleton EmailClient from environment variables.
  *
@@ -174,6 +186,12 @@ export interface EmailClientOverrides {
  */
 export function getEmailClient(overrides?: EmailClientOverrides): EmailClient {
   if (!_client) {
+    if (process.env.EMAIL_DISABLED === "true") {
+      _client = new EmailClient(new NoopTransport());
+      logger.info("Email client disabled (EMAIL_DISABLED=true)");
+      return _client;
+    }
+
     const from = overrides?.from || process.env.EMAIL_FROM || process.env.RESEND_FROM || "noreply@wopr.bot";
     const replyTo =
       overrides?.replyTo || process.env.EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || "support@wopr.bot";

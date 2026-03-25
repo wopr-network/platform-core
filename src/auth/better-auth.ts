@@ -265,6 +265,14 @@ function authOptions(cfg: BetterAuthConfig): BetterAuthOptions {
 
             if (user.emailVerified) return;
 
+            if (process.env.SKIP_EMAIL_VERIFICATION === "true") {
+              // raw SQL: better-auth manages the "user" table schema; Drizzle schema is not available in this auth hook context
+              await pool.query('UPDATE "user" SET "emailVerified" = true WHERE id = $1', [user.id]);
+              user.emailVerified = true;
+              logger.info("Email verification skipped (SKIP_EMAIL_VERIFICATION=true)", { userId: user.id });
+              return;
+            }
+
             try {
               await initVerificationSchema(pool);
               const { token } = await generateVerificationToken(pool, user.id);

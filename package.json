@@ -83,6 +83,7 @@
     "format": "biome format src/ --write"
   },
   "peerDependencies": {
+    "@aws-sdk/client-ses": ">=3",
     "@trpc/server": ">=11",
     "better-auth": ">=1.5",
     "dockerode": ">=4",
@@ -95,6 +96,7 @@
     "zod": ">=3"
   },
   "devDependencies": {
+    "@aws-sdk/client-ses": "^3.1014.0",
     "@biomejs/biome": "^2.4.6",
     "@electric-sql/pglite": "^0.3.16",
     "@sentry/node": "^10.43.0",
@@ -129,7 +131,6 @@
   },
   "packageManager": "pnpm@10.31.0",
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.1014.0",
     "@hono/node-server": "^1.19.11",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
