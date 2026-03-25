@@ -180,7 +180,7 @@ def train(args):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
     score_criterion = nn.HuberLoss(delta=0.05)
     recon_criterion = nn.MSELoss()
-    recon_weight = 0.1  # auxiliary loss weight
+    recon_weight = 0.05  # auxiliary loss weight
 
     # Train
     best_val_mae = float("inf")
