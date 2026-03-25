@@ -100,13 +100,13 @@ class ComplexityHead(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, 256),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Dropout(0.15),
+            nn.Dropout(0.08),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(0.05),
             nn.Linear(64, 1),
             nn.Sigmoid(),
         )
@@ -137,7 +137,7 @@ def train(args):
     # Model
     model = ComplexityHead(embedding_dim).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-    criterion = nn.HuberLoss(delta=0.1, reduction='mean')
+    criterion = nn.HuberLoss(delta=0.05, reduction='mean')
 
     # Train
     best_val_mae = float("inf")
