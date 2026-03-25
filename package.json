@@ -72,10 +72,6 @@
     "./api/routes/verify-email": "./dist/api/routes/verify-email.js",
     "./api/routes/ws-auth": "./dist/api/routes/ws-auth.js",
     "./trpc": "./dist/trpc/index.js",
-    "./crypto-plugin": {
-      "import": "./dist/billing/crypto/plugin/index.js",
-      "types": "./dist/billing/crypto/plugin/index.d.ts"
-    },
     "./*": "./dist/*.js"
   },
   "scripts": {

@@ -3,6 +3,20 @@ import { createEthCheckout, MIN_ETH_USD } from "../eth-checkout.js";
 
 const mockOracle = { getPrice: vi.fn().mockResolvedValue({ priceMicros: 3_500_000_000, updatedAt: new Date() }) };
 
+/** Deterministic mock — returns a valid-looking EVM address for any index. */
+function mockDeriveAddress(_xpub: string, index: number, _encoding: string): string {
+  return `0x${index.toString(16).padStart(40, "0")}`;
+}
+
+/**
+ * centsToNative: Convert USD cents to native token base units.
+ * Formula: (cents * 10_000 * 10^decimals) / priceMicros
+ * This mirrors the real oracle/convert.ts logic.
+ */
+function mockCentsToNative(cents: number, priceMicros: number, decimals: number): bigint {
+  return (BigInt(cents) * 10_000n * 10n ** BigInt(decimals)) / BigInt(priceMicros);
+}
+
 function makeDeps(derivationIndex = 0) {
   return {
     chargeStore: {
@@ -10,6 +24,8 @@ function makeDeps(derivationIndex = 0) {
       createStablecoinCharge: vi.fn().mockResolvedValue(undefined),
     },
     oracle: mockOracle,
+    deriveAddress: mockDeriveAddress,
+    centsToNative: mockCentsToNative,
     xpub: "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
   };
 }
@@ -22,7 +38,7 @@ describe("createEthCheckout", () => {
     expect(result.amountUsd).toBe(50);
     expect(result.priceMicros).toBe(3_500_000_000);
     expect(result.chain).toBe("base");
-    // $50 = 5000 cents × 10000 micros/cent × 10^18 / 3_500_000_000 micros = 14285714285714285n
+    // $50 = 5000 cents * 10000 micros/cent * 10^18 / 3_500_000_000 micros = 14285714285714285n
     expect(result.expectedWei).toBe("14285714285714285");
     expect(result.depositAddress).toMatch(/^0x/);
     expect(result.referenceId).toMatch(/^eth:base:0x/);

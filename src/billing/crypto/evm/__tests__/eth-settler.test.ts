@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { settleEthPayment } from "../eth-settler.js";
-import type { EthPaymentEvent } from "../eth-watcher.js";
+import type { EthPaymentEvent } from "../types.js";
 
 function makeEvent(overrides: Partial<EthPaymentEvent> = {}): EthPaymentEvent {
   return {

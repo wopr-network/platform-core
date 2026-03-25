@@ -1,5 +1,4 @@
 import { Credit } from "../../../credits/credit.js";
-import { deriveAddress } from "../address-gen.js";
 import type { ICryptoChargeRepository } from "../charge-store.js";
 import type { BtcCheckoutOpts } from "./types.js";
 
@@ -7,6 +6,8 @@ export const MIN_BTC_USD = 10;
 
 export interface BtcCheckoutDeps {
   chargeStore: Pick<ICryptoChargeRepository, "getNextDerivationIndex" | "createStablecoinCharge">;
+  /** HD key derivation function — injected from @wopr-network/platform-crypto-server. */
+  deriveAddress: (xpub: string, index: number, encoding: string, params?: { hrp?: string }) => string;
   xpub: string;
   network?: "mainnet" | "testnet" | "regtest";
 }
@@ -36,7 +37,7 @@ export async function createBtcCheckout(deps: BtcCheckoutDeps, opts: BtcCheckout
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const derivationIndex = await deps.chargeStore.getNextDerivationIndex();
     const hrpMap = { mainnet: "bc", testnet: "tb", regtest: "bcrt" } as const;
-    const depositAddress = deriveAddress(deps.xpub, derivationIndex, "bech32", {
+    const depositAddress = deps.deriveAddress(deps.xpub, derivationIndex, "bech32", {
       hrp: hrpMap[network],
     });
     const referenceId = `btc:${depositAddress}`;
