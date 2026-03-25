@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EmailClient, getEmailClient, resetEmailClient, setEmailClient } from "./client.js";
 
-const mockSend = vi.fn();
+const mockResendSend = vi.fn();
+const mockPostmarkSend = vi.fn();
 
 vi.mock("resend", () => ({
   Resend: class MockResend {
-    emails = { send: mockSend };
+    emails = { send: mockResendSend };
+  },
+}));
+
+vi.mock("postmark", () => ({
+  ServerClient: class MockPostmark {
+    sendEmail = mockPostmarkSend;
   },
 }));
 
@@ -18,16 +25,17 @@ vi.mock("../config/logger.js", () => ({
   },
 }));
 
-describe("EmailClient", () => {
+describe("EmailClient (Postmark)", () => {
   let client: EmailClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSend.mockResolvedValue({ data: { id: "email-123" }, error: null });
+    mockPostmarkSend.mockResolvedValue({ MessageID: "pm-123" });
     client = new EmailClient({
       apiKey: "test-api-key",
       from: "noreply@wopr.bot",
       replyTo: "support@wopr.bot",
+      transport: "postmark",
     });
   });
 
@@ -39,19 +47,20 @@ describe("EmailClient", () => {
       text: "Test",
     });
 
-    expect(result).toEqual({ id: "email-123", success: true });
-    expect(mockSend).toHaveBeenCalledWith({
-      from: "noreply@wopr.bot",
-      replyTo: "support@wopr.bot",
-      to: "user@test.com",
-      subject: "Test Subject",
-      html: "<p>Test</p>",
-      text: "Test",
+    expect(result).toEqual({ id: "pm-123", success: true });
+    expect(mockPostmarkSend).toHaveBeenCalledWith({
+      From: "noreply@wopr.bot",
+      ReplyTo: "support@wopr.bot",
+      To: "user@test.com",
+      Subject: "Test Subject",
+      HtmlBody: "<p>Test</p>",
+      TextBody: "Test",
+      MessageStream: "outbound",
     });
   });
 
-  it("should throw on Resend API error", async () => {
-    mockSend.mockResolvedValueOnce({ data: null, error: { message: "Rate limit" } });
+  it("should throw on Postmark API error", async () => {
+    mockPostmarkSend.mockRejectedValueOnce(new Error("Rate limit"));
 
     await expect(client.send({ to: "user@test.com", subject: "Test", html: "<p>T</p>", text: "T" })).rejects.toThrow(
       "Failed to send email: Rate limit",
@@ -93,9 +102,51 @@ describe("EmailClient", () => {
     expect(result.success).toBe(true);
     expect(callback).toHaveBeenCalled();
   });
+});
+
+describe("EmailClient (Resend)", () => {
+  let client: EmailClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResendSend.mockResolvedValue({ data: { id: "email-123" }, error: null });
+    client = new EmailClient({
+      apiKey: "test-api-key",
+      from: "noreply@wopr.bot",
+      replyTo: "support@wopr.bot",
+      transport: "resend",
+    });
+  });
+
+  it("should send email with correct parameters", async () => {
+    const result = await client.send({
+      to: "user@test.com",
+      subject: "Test Subject",
+      html: "<p>Test</p>",
+      text: "Test",
+    });
+
+    expect(result).toEqual({ id: "email-123", success: true });
+    expect(mockResendSend).toHaveBeenCalledWith({
+      from: "noreply@wopr.bot",
+      replyTo: "support@wopr.bot",
+      to: "user@test.com",
+      subject: "Test Subject",
+      html: "<p>Test</p>",
+      text: "Test",
+    });
+  });
+
+  it("should throw on Resend API error", async () => {
+    mockResendSend.mockResolvedValueOnce({ data: null, error: { message: "Rate limit" } });
+
+    await expect(client.send({ to: "user@test.com", subject: "Test", html: "<p>T</p>", text: "T" })).rejects.toThrow(
+      "Failed to send email: Rate limit",
+    );
+  });
 
   it("should handle empty id from Resend", async () => {
-    mockSend.mockResolvedValueOnce({ data: { id: undefined }, error: null });
+    mockResendSend.mockResolvedValueOnce({ data: { id: undefined }, error: null });
 
     const result = await client.send({
       to: "user@test.com",
@@ -111,36 +162,45 @@ describe("EmailClient", () => {
 describe("getEmailClient / setEmailClient / resetEmailClient", () => {
   beforeEach(() => {
     resetEmailClient();
+    delete process.env.POSTMARK_API_KEY;
     delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_FROM;
+    delete process.env.EMAIL_REPLY_TO;
     delete process.env.RESEND_FROM;
     delete process.env.RESEND_REPLY_TO;
   });
 
-  it("should throw if RESEND_API_KEY is not set", () => {
-    expect(() => getEmailClient()).toThrow("RESEND_API_KEY environment variable is required");
+  it("should throw if no email API key is set", () => {
+    expect(() => getEmailClient()).toThrow("Email not configured: set POSTMARK_API_KEY or RESEND_API_KEY");
   });
 
-  it("should create client from env vars", () => {
+  it("should prefer Postmark when POSTMARK_API_KEY is set", () => {
+    process.env.POSTMARK_API_KEY = "pm-test123";
+    const client = getEmailClient();
+    expect(client).toBeInstanceOf(EmailClient);
+  });
+
+  it("should fall back to Resend when only RESEND_API_KEY is set", () => {
     process.env.RESEND_API_KEY = "re_test123";
     const client = getEmailClient();
     expect(client).toBeInstanceOf(EmailClient);
   });
 
   it("should return singleton", () => {
-    process.env.RESEND_API_KEY = "re_test123";
+    process.env.POSTMARK_API_KEY = "pm-test123";
     const a = getEmailClient();
     const b = getEmailClient();
     expect(a).toBe(b);
   });
 
   it("should allow replacing singleton for testing", () => {
-    const mock = new EmailClient({ apiKey: "mock", from: "mock@test.com" });
+    const mock = new EmailClient({ apiKey: "mock", from: "mock@test.com", transport: "resend" });
     setEmailClient(mock);
     expect(getEmailClient()).toBe(mock);
   });
 
   it("should reset singleton", () => {
-    process.env.RESEND_API_KEY = "re_test123";
+    process.env.POSTMARK_API_KEY = "pm-test123";
     const a = getEmailClient();
     resetEmailClient();
     const b = getEmailClient();
