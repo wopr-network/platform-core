@@ -162,7 +162,7 @@ def train(args):
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
-    score_criterion = nn.HuberLoss(delta=0.05)
+    score_criterion = nn.MSELoss()
     recon_criterion = nn.MSELoss()
     recon_weight = 0.0  # no reconstruction in direct feedforward mode
 
