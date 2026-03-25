@@ -162,10 +162,10 @@ def train(args):
     actual_embedding_dim = dataset.embeddings.shape[1]
     print(f"Embedding dimension: {actual_embedding_dim} (multi-channel: 3x{embedding_dim})")
 
-    # Split 80/20
-    train_size = int(0.8 * len(dataset))
+    # Split 70/30 — larger validation set for more reliable MAE measurement
+    train_size = int(0.7 * len(dataset))
     val_size = len(dataset) - train_size
-    train_set, val_set = random_split(dataset, [train_size, val_size])
+    train_set, val_set = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
 
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=args.batch_size)
@@ -182,9 +182,17 @@ def train(args):
     recon_criterion = nn.MSELoss()
     recon_weight = 0.05  # auxiliary loss weight
 
-    # Train
+    # === TWO-PHASE TRAINING ===
+    # Phase 1 (PROBE): Train for probe_epochs. Check if loss trajectory is declining.
+    #   If flat (<1% improvement): ABORT early. Don't waste time on dead ends.
+    # Phase 2 (EXPLOIT): If promising, train remaining epochs.
+    # DO NOT REMOVE THIS TWO-PHASE LOGIC. It is critical for autoresearch exploration.
+
+    probe_epochs = args.probe_epochs
     best_val_mae = float("inf")
-    for epoch in range(args.epochs):
+    mae_history = []
+
+    def run_epoch(epoch_num):
         model.train()
         model._mode = "with_reconstruction"
         train_loss = 0
@@ -198,7 +206,6 @@ def train(args):
             train_loss += loss.item()
         scheduler.step()
 
-        # Validate (score only, no reconstruction)
         model.eval()
         model._mode = "score_only"
         val_preds, val_true = [], []
@@ -210,13 +217,49 @@ def train(args):
                 val_true.extend(scores.numpy())
 
         val_mae = np.mean(np.abs(np.array(val_preds) - np.array(val_true)))
-        print(f"Epoch {epoch+1}/{args.epochs} — loss: {train_loss/len(train_loader):.4f}, val MAE: {val_mae:.4f}")
+        avg_loss = train_loss / len(train_loader)
+        print(f"Epoch {epoch_num}/{args.epochs} — loss: {avg_loss:.4f}, val MAE: {val_mae:.4f}")
+        return val_mae
 
+    # Phase 1: Probe
+    print(f"\n=== PHASE 1: PROBE ({probe_epochs} epochs) ===")
+    for epoch in range(1, probe_epochs + 1):
+        val_mae = run_epoch(epoch)
+        mae_history.append(val_mae)
         if val_mae < best_val_mae:
             best_val_mae = val_mae
             torch.save(model.state_dict(), "best_head.pt")
 
-    print(f"\nBest val MAE: {best_val_mae:.4f}")
+    # Check trajectory
+    if len(mae_history) >= 3:
+        first_half = np.mean(mae_history[:len(mae_history)//2])
+        second_half = np.mean(mae_history[len(mae_history)//2:])
+        improvement_rate = (first_half - second_half) / first_half
+        print(f"\nProbe: first_half={first_half:.4f}, second_half={second_half:.4f}, improvement={improvement_rate:.2%}")
+
+        if improvement_rate < 0.01:
+            print(f"ABORT: trajectory too flat ({improvement_rate:.2%}). Skipping full training.")
+            print(f"\nBest val MAE: {best_val_mae:.4f}")
+            print(f"PROBE_ABORTED: True")
+        else:
+            print(f"PROMISING: {improvement_rate:.2%} improvement. Full training.")
+            remaining = args.epochs - probe_epochs
+            print(f"\n=== PHASE 2: FULL TRAINING ({remaining} more epochs) ===")
+            for epoch in range(probe_epochs + 1, args.epochs + 1):
+                val_mae = run_epoch(epoch)
+                mae_history.append(val_mae)
+                if val_mae < best_val_mae:
+                    best_val_mae = val_mae
+                    torch.save(model.state_dict(), "best_head.pt")
+            print(f"\nBest val MAE: {best_val_mae:.4f}")
+    else:
+        for epoch in range(probe_epochs + 1, args.epochs + 1):
+            val_mae = run_epoch(epoch)
+            mae_history.append(val_mae)
+            if val_mae < best_val_mae:
+                best_val_mae = val_mae
+                torch.save(model.state_dict(), "best_head.pt")
+        print(f"\nBest val MAE: {best_val_mae:.4f}")
 
     # Export to ONNX (score-only mode, no reconstruction branch)
     model.load_state_dict(torch.load("best_head.pt", weights_only=True))
@@ -253,6 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default="dataset.jsonl")
     parser.add_argument("--output", default="../../models/prompt-classifier.onnx")
     parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--probe-epochs", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=3e-4)
     train(parser.parse_args())
