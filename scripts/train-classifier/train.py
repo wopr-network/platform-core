@@ -25,62 +25,45 @@ class PromptDataset(Dataset):
     def __init__(self, path: str, encoder: SentenceTransformer):
         self.samples = []
         self.encoder = encoder
+        self.raw_messages = []
 
         with open(path) as f:
             for line in f:
                 record = json.loads(line)
-                text = self._extract_text(record["messages"])
+                messages = record["messages"]
                 score = float(record["score"])
-                self.samples.append((text, score))
+                self.samples.append((messages, score))
+                self.raw_messages.append(messages)
 
         print(f"Loaded {len(self.samples)} samples")
 
-        # Pre-encode all texts
-        texts = [s[0] for s in self.samples]
-        print("Encoding texts...")
-        self.embeddings = encoder.encode(texts, show_progress_bar=True, convert_to_numpy=True)
+        # Pre-encode all texts with multi-channel approach
+        print("Encoding texts (multi-channel)...")
+        self.embeddings = []
+        for messages in self.raw_messages:
+            system_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "system"])
+            user_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "user"])
+            asst_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "assistant"])
+
+            # Get embeddings for each channel
+            system_emb = encoder.encode(system_text or "[EMPTY]", convert_to_numpy=True)
+            user_emb = encoder.encode(user_text or "[EMPTY]", convert_to_numpy=True)
+            asst_emb = encoder.encode(asst_text or "[EMPTY]", convert_to_numpy=True)
+
+            # Weight and concatenate
+            combined = np.concatenate([
+                system_emb * 0.5,  # system: lower weight
+                user_emb * 1.0,    # user: baseline weight
+                asst_emb * 0.8,    # assistant: moderate weight
+            ])
+            self.embeddings.append(combined)
+
+            if len(self.embeddings) % 50 == 0:
+                print(f"  Encoded {len(self.embeddings)} / {len(self.raw_messages)}")
+
+        self.embeddings = np.array(self.embeddings, dtype=np.float32)
         self.scores = np.array([s[1] for s in self.samples], dtype=np.float32)
 
-    def _extract_text(self, messages: list) -> str:
-        """Extract text with exponential weighting towards recent messages and structural signals."""
-        parts = []
-
-        # Count turns and extract tool call signals
-        turn_count = len([m for m in messages if m["role"] == "user"])
-        tool_call_count = sum(1 for m in messages if m["role"] == "assistant" and "tool_use" in m.get("content", ""))
-
-        # Exponentially weight recent messages (more recent = higher weight)
-        n_msgs = len(messages)
-        weights = {}
-        for i, msg in enumerate(messages):
-            # Exponential weight: earlier messages get lower weight
-            weight = 2.0 ** (i / max(1, n_msgs - 1))  # 1.0 to 2.0 range
-            weights[i] = weight
-
-        max_weight = weights[n_msgs - 1] if n_msgs > 0 else 1.0
-
-        # Extract features by role with weighting
-        for i, msg in enumerate(messages):
-            role = msg["role"]
-            content = msg.get("content", "")
-
-            if role == "system":
-                parts.append(f"[SYSTEM] {content}")
-            elif role == "user":
-                weight = weights.get(i, 1.0)
-                # Repeat recent user messages to give them more weight
-                repeat_count = max(1, int(weight))
-                parts.append(f"[USER {int(weight)}x] {content}" * repeat_count)
-            elif role == "assistant":
-                weight = weights.get(i, 1.0)
-                repeat_count = max(1, int(weight))
-                # Highlight tool usage
-                tool_marker = "[TOOLS]" if "tool_use" in content else ""
-                parts.append(f"[ASST {int(weight)}x] {tool_marker} {content}"[:1024] * repeat_count)
-
-        # Add structural features as prefix
-        structural = f"[TURNS:{turn_count}] [TOOLS:{tool_call_count}] [LEN:{len(messages)}]"
-        return (structural + " " + " ".join(parts))[:2048]
 
     def __len__(self):
         return len(self.samples)
@@ -93,21 +76,22 @@ class PromptDataset(Dataset):
 
 
 class ComplexityHead(nn.Module):
-    """Multi-layer regression head on top of sentence embeddings."""
+    """Multi-layer regression head on top of concatenated multi-channel embeddings."""
 
     def __init__(self, input_dim: int):
         super().__init__()
+        # Adapt to multi-channel input (1152-dim for 3x384)
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 512),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(256, 128),
+            nn.Linear(512, 256),
             nn.ReLU(),
             nn.Dropout(0.08),
-            nn.Linear(128, 64),
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Dropout(0.05),
-            nn.Linear(64, 1),
+            nn.Linear(128, 1),
             nn.Sigmoid(),
         )
 
