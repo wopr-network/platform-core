@@ -75,28 +75,79 @@ class PromptDataset(Dataset):
         )
 
 
-class ComplexityHead(nn.Module):
-    """Multi-layer regression head on top of concatenated multi-channel embeddings."""
+class ResidualBlock(nn.Module):
+    """Pre-norm residual: LayerNorm → expand → GELU → contract → add."""
 
-    def __init__(self, input_dim: int):
+    def __init__(self, dim: int, expand: int = 4, dropout: float = 0.1):
         super().__init__()
-        # Adapt to multi-channel input (1152-dim for 3x384)
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(0.08),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Dropout(0.05),
-            nn.Linear(128, 1),
-            nn.Sigmoid(),
+        self.norm = nn.LayerNorm(dim)
+        self.ff = nn.Sequential(
+            nn.Linear(dim, dim * expand),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim * expand, dim),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
-        return self.net(x).squeeze(-1)
+        return x + self.ff(self.norm(x))
+
+
+class ComplexityHead(nn.Module):
+    """Autoencoder complexity scorer.
+
+    Encoder: input → 512 → 256 → 64 bottleneck (compact complexity representation)
+    Decoder: 64 → 256 → 512 → input (reconstruction, auxiliary loss)
+    Scorer: bottleneck → 4 residual blocks → prediction
+
+    The autoencoder forces the model to learn what MATTERS about the input.
+    The scorer predicts from that compressed representation.
+    """
+
+    def __init__(self, input_dim: int):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 512),
+            nn.LayerNorm(512),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            nn.Linear(512, 256),
+            nn.LayerNorm(256),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, 64),
+            nn.LayerNorm(64),
+            nn.GELU(),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(64, 256),
+            nn.GELU(),
+            nn.Linear(256, 512),
+            nn.GELU(),
+            nn.Linear(512, input_dim),
+        )
+
+        self.scorer = nn.Sequential(
+            ResidualBlock(64, expand=4, dropout=0.1),
+            ResidualBlock(64, expand=4, dropout=0.1),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            nn.LayerNorm(64),
+            nn.Linear(64, 32),
+            nn.GELU(),
+            nn.Linear(32, 1),
+            nn.Sigmoid(),
+        )
+
+        self._mode = "score_only"  # or "with_reconstruction"
+
+    def forward(self, x):
+        z = self.encoder(x)
+        score = self.scorer(z).squeeze(-1)
+        if self._mode == "with_reconstruction":
+            return score, self.decoder(z)
+        return score
 
 
 def train(args):
@@ -110,6 +161,10 @@ def train(args):
     # Load dataset
     dataset = PromptDataset(args.dataset, encoder)
 
+    # Get actual embedding dimension from dataset (multi-channel = 3 * embedding_dim)
+    actual_embedding_dim = dataset.embeddings.shape[1]
+    print(f"Embedding dimension: {actual_embedding_dim} (multi-channel: 3x{embedding_dim})")
+
     # Split 80/20
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
@@ -119,26 +174,36 @@ def train(args):
     val_loader = DataLoader(val_set, batch_size=args.batch_size)
 
     # Model
-    model = ComplexityHead(embedding_dim).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-    criterion = nn.HuberLoss(delta=0.05, reduction='mean')
+    model = ComplexityHead(actual_embedding_dim).to(device)
+    model._mode = "with_reconstruction"
+    param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model parameters: {param_count:,}")
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
+    score_criterion = nn.HuberLoss(delta=0.05)
+    recon_criterion = nn.MSELoss()
+    recon_weight = 0.1  # auxiliary loss weight
 
     # Train
     best_val_mae = float("inf")
     for epoch in range(args.epochs):
         model.train()
+        model._mode = "with_reconstruction"
         train_loss = 0
         for embeddings, scores in train_loader:
             embeddings, scores = embeddings.to(device), scores.to(device)
-            pred = model(embeddings)
-            loss = criterion(pred, scores)
+            pred, recon = model(embeddings)
+            loss = score_criterion(pred, scores) + recon_weight * recon_criterion(recon, embeddings)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
+        scheduler.step()
 
-        # Validate
+        # Validate (score only, no reconstruction)
         model.eval()
+        model._mode = "score_only"
         val_preds, val_true = [], []
         with torch.no_grad():
             for embeddings, scores in val_loader:
@@ -156,12 +221,13 @@ def train(args):
 
     print(f"\nBest val MAE: {best_val_mae:.4f}")
 
-    # Export to ONNX
+    # Export to ONNX (score-only mode, no reconstruction branch)
     model.load_state_dict(torch.load("best_head.pt", weights_only=True))
     model.eval()
+    model._mode = "score_only"
     model.to("cpu")
 
-    dummy = torch.randn(1, embedding_dim)
+    dummy = torch.randn(1, actual_embedding_dim)
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     torch.onnx.export(
         model,
@@ -189,7 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default="dataset.jsonl")
     parser.add_argument("--output", default="../../models/prompt-classifier.onnx")
-    parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--lr", type=float, default=3e-4)
     train(parser.parse_args())
