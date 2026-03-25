@@ -42,12 +42,45 @@ class PromptDataset(Dataset):
         self.scores = np.array([s[1] for s in self.samples], dtype=np.float32)
 
     def _extract_text(self, messages: list) -> str:
-        """Extract system prompt + all user messages, concatenated."""
+        """Extract text with exponential weighting towards recent messages and structural signals."""
         parts = []
-        for msg in messages:
-            if msg["role"] in ("system", "user"):
-                parts.append(msg["content"])
-        return " ".join(parts)[:2048]  # Truncate to ~512 tokens worth
+
+        # Count turns and extract tool call signals
+        turn_count = len([m for m in messages if m["role"] == "user"])
+        tool_call_count = sum(1 for m in messages if m["role"] == "assistant" and "tool_use" in m.get("content", ""))
+
+        # Exponentially weight recent messages (more recent = higher weight)
+        n_msgs = len(messages)
+        weights = {}
+        for i, msg in enumerate(messages):
+            # Exponential weight: earlier messages get lower weight
+            weight = 2.0 ** (i / max(1, n_msgs - 1))  # 1.0 to 2.0 range
+            weights[i] = weight
+
+        max_weight = weights[n_msgs - 1] if n_msgs > 0 else 1.0
+
+        # Extract features by role with weighting
+        for i, msg in enumerate(messages):
+            role = msg["role"]
+            content = msg.get("content", "")
+
+            if role == "system":
+                parts.append(f"[SYSTEM] {content}")
+            elif role == "user":
+                weight = weights.get(i, 1.0)
+                # Repeat recent user messages to give them more weight
+                repeat_count = max(1, int(weight))
+                parts.append(f"[USER {int(weight)}x] {content}" * repeat_count)
+            elif role == "assistant":
+                weight = weights.get(i, 1.0)
+                repeat_count = max(1, int(weight))
+                # Highlight tool usage
+                tool_marker = "[TOOLS]" if "tool_use" in content else ""
+                parts.append(f"[ASST {int(weight)}x] {tool_marker} {content}"[:1024] * repeat_count)
+
+        # Add structural features as prefix
+        structural = f"[TURNS:{turn_count}] [TOOLS:{tool_call_count}] [LEN:{len(messages)}]"
+        return (structural + " " + " ".join(parts))[:2048]
 
     def __len__(self):
         return len(self.samples)
