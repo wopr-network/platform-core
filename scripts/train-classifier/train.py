@@ -37,32 +37,29 @@ class PromptDataset(Dataset):
 
         print(f"Loaded {len(self.samples)} samples")
 
-        # Pre-encode all texts with multi-channel approach
-        print("Encoding texts (multi-channel)...")
-        self.embeddings = []
+        # Pre-encode all texts with batched multi-channel approach
+        print("Extracting text channels...")
+        system_texts, user_texts, asst_texts = [], [], []
         for messages in self.raw_messages:
-            system_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "system"])
-            user_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "user"])
-            asst_text = " ".join([m.get("content", "") for m in messages if m.get("role") == "assistant"])
+            system_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "system"]) or "[EMPTY]")
+            user_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "user"]) or "[EMPTY]")
+            asst_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "assistant"]) or "[EMPTY]")
 
-            # Get embeddings for each channel
-            system_emb = encoder.encode(system_text or "[EMPTY]", convert_to_numpy=True)
-            user_emb = encoder.encode(user_text or "[EMPTY]", convert_to_numpy=True)
-            asst_emb = encoder.encode(asst_text or "[EMPTY]", convert_to_numpy=True)
+        print(f"Encoding {len(system_texts)} system prompts...")
+        system_embs = encoder.encode(system_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
+        print(f"Encoding {len(user_texts)} user messages...")
+        user_embs = encoder.encode(user_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
+        print(f"Encoding {len(asst_texts)} assistant messages...")
+        asst_embs = encoder.encode(asst_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
 
-            # Weight and concatenate
-            combined = np.concatenate([
-                system_emb * 0.5,  # system: lower weight
-                user_emb * 1.0,    # user: baseline weight
-                asst_emb * 0.8,    # assistant: moderate weight
-            ])
-            self.embeddings.append(combined)
-
-            if len(self.embeddings) % 50 == 0:
-                print(f"  Encoded {len(self.embeddings)} / {len(self.raw_messages)}")
-
-        self.embeddings = np.array(self.embeddings, dtype=np.float32)
+        # Weight and concatenate channels
+        self.embeddings = np.concatenate([
+            system_embs * 0.5,
+            user_embs * 1.0,
+            asst_embs * 0.8,
+        ], axis=1).astype(np.float32)
         self.scores = np.array([s[1] for s in self.samples], dtype=np.float32)
+        print(f"Embeddings shape: {self.embeddings.shape}")
 
 
     def __len__(self):
