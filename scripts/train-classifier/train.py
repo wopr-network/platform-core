@@ -93,15 +93,21 @@ class PromptDataset(Dataset):
 
 
 class ComplexityHead(nn.Module):
-    """Single regression head on top of sentence embeddings."""
+    """Multi-layer regression head on top of sentence embeddings."""
 
     def __init__(self, input_dim: int):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.15),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(128, 1),
+            nn.Linear(64, 1),
             nn.Sigmoid(),
         )
 
