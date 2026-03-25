@@ -16,54 +16,63 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, random_split
-from sentence_transformers import SentenceTransformer
+# SentenceTransformer encoding is now in encode.py — train.py loads cached embeddings
 
 
 class PromptDataset(Dataset):
-    """Dataset of prompts with complexity scores."""
+    """Dataset loaded from pre-cached embeddings (embeddings.npz).
 
-    def __init__(self, path: str, encoder: SentenceTransformer):
-        self.samples = []
-        self.encoder = encoder
-        self.raw_messages = []
+    Channel weights and normalization are applied here — these are
+    the parameters autoresearch should evolve.
+    """
 
-        with open(path) as f:
-            for line in f:
-                record = json.loads(line)
-                messages = record["messages"]
-                score = float(record["score"])
-                self.samples.append((messages, score))
-                self.raw_messages.append(messages)
+    # === EVOLVABLE PARAMETERS ===
+    SYSTEM_WEIGHT = 0.3
+    USER_WEIGHT = 1.0
+    ASSISTANT_WEIGHT = 1.2
+    NORMALIZE = "none"  # "none", "l2", "zscore", "minmax"
 
-        print(f"Loaded {len(self.samples)} samples")
+    def __init__(self, path: str):
+        data = np.load(path)
+        system_embs = data["system"]
+        user_embs = data["user"]
+        asst_embs = data["assistant"]
+        self.scores = data["scores"]
 
-        # Pre-encode all texts with batched multi-channel approach
-        print("Extracting text channels...")
-        system_texts, user_texts, asst_texts = [], [], []
-        for messages in self.raw_messages:
-            system_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "system"]) or "[EMPTY]")
-            user_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "user"]) or "[EMPTY]")
-            asst_texts.append(" ".join([m.get("content", "")[:1000] for m in messages if m.get("role") == "assistant"]) or "[EMPTY]")
+        print(f"Loaded {len(self.scores)} samples from cache")
+        print(f"Channel weights: system={self.SYSTEM_WEIGHT}, user={self.USER_WEIGHT}, assistant={self.ASSISTANT_WEIGHT}")
+        print(f"Normalization: {self.NORMALIZE}")
 
-        print(f"Encoding {len(system_texts)} system prompts...")
-        system_embs = encoder.encode(system_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
-        print(f"Encoding {len(user_texts)} user messages...")
-        user_embs = encoder.encode(user_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
-        print(f"Encoding {len(asst_texts)} assistant messages...")
-        asst_embs = encoder.encode(asst_texts, show_progress_bar=True, convert_to_numpy=True, batch_size=256)
+        # Apply channel weights
+        weighted_system = system_embs * self.SYSTEM_WEIGHT
+        weighted_user = user_embs * self.USER_WEIGHT
+        weighted_asst = asst_embs * self.ASSISTANT_WEIGHT
 
-        # Weight and concatenate channels
-        self.embeddings = np.concatenate([
-            system_embs * 0.3,
-            user_embs * 1.0,
-            asst_embs * 1.2,
-        ], axis=1).astype(np.float32)
-        self.scores = np.array([s[1] for s in self.samples], dtype=np.float32)
+        # Concatenate channels
+        self.embeddings = np.concatenate([weighted_system, weighted_user, weighted_asst], axis=1)
+
+        # Apply normalization
+        if self.NORMALIZE == "l2":
+            norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True)
+            norms[norms == 0] = 1
+            self.embeddings = self.embeddings / norms
+        elif self.NORMALIZE == "zscore":
+            mean = self.embeddings.mean(axis=0, keepdims=True)
+            std = self.embeddings.std(axis=0, keepdims=True)
+            std[std == 0] = 1
+            self.embeddings = (self.embeddings - mean) / std
+        elif self.NORMALIZE == "minmax":
+            mn = self.embeddings.min(axis=0, keepdims=True)
+            mx = self.embeddings.max(axis=0, keepdims=True)
+            rng = mx - mn
+            rng[rng == 0] = 1
+            self.embeddings = (self.embeddings - mn) / rng
+
+        self.embeddings = self.embeddings.astype(np.float32)
         print(f"Embeddings shape: {self.embeddings.shape}")
 
-
     def __len__(self):
-        return len(self.samples)
+        return len(self.scores)
 
     def __getitem__(self, idx):
         return (
@@ -151,16 +160,12 @@ def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    # Load encoder (frozen — we only train the head)
-    encoder = SentenceTransformer("all-MiniLM-L6-v2")
-    embedding_dim = encoder.get_sentence_embedding_dimension()
+    # Load cached embeddings (run encode.py first)
+    dataset = PromptDataset(args.dataset)
 
-    # Load dataset
-    dataset = PromptDataset(args.dataset, encoder)
-
-    # Get actual embedding dimension from dataset (multi-channel = 3 * embedding_dim)
+    # Get embedding dimension from cached data
     actual_embedding_dim = dataset.embeddings.shape[1]
-    print(f"Embedding dimension: {actual_embedding_dim} (multi-channel: 3x{embedding_dim})")
+    print(f"Embedding dimension: {actual_embedding_dim}")
 
     # Split 70/30 — larger validation set for more reliable MAE measurement
     train_size = int(0.7 * len(dataset))
@@ -293,7 +298,7 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", default="dataset.jsonl")
+    parser.add_argument("--dataset", default="embeddings.npz")
     parser.add_argument("--output", default="../../models/prompt-classifier.onnx")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--probe-epochs", type=int, default=5)
