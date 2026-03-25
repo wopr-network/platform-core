@@ -30,7 +30,7 @@ class PromptDataset(Dataset):
     SYSTEM_WEIGHT = 0.3
     USER_WEIGHT = 1.0
     ASSISTANT_WEIGHT = 1.2
-    NORMALIZE = "none"  # "none", "l2", "zscore", "minmax"
+    NORMALIZE = "l2"  # "none", "l2", "zscore", "minmax"
 
     def __init__(self, path: str):
         data = np.load(path)
