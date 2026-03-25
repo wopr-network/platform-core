@@ -97,41 +97,59 @@ class ResidualBlock(nn.Module):
 
 
 class ComplexityHead(nn.Module):
-    """Direct feedforward complexity scorer (no autoencoder).
+    """Autoencoder complexity scorer.
 
-    input → 512 → 128 → 2 residual blocks → prediction
-    Wider network for more capacity.
+    Encoder: input → 512 → 256 → 64 bottleneck (compact complexity representation)
+    Decoder: 64 → 256 → 512 → input (reconstruction, auxiliary loss)
+    Scorer: bottleneck → 4 residual blocks → prediction
+
+    The autoencoder forces the model to learn what MATTERS about the input.
+    The scorer predicts from that compressed representation.
     """
 
     def __init__(self, input_dim: int):
         super().__init__()
-        self.net = nn.Sequential(
+        self.encoder = nn.Sequential(
             nn.Linear(input_dim, 512),
             nn.LayerNorm(512),
             nn.GELU(),
             nn.Dropout(0.05),
-            nn.Linear(512, 128),
-            nn.LayerNorm(128),
+            nn.Linear(512, 256),
+            nn.LayerNorm(256),
+            nn.GELU(),
+            nn.Dropout(0.05),
+            nn.Linear(256, 64),
+            nn.LayerNorm(64),
             nn.GELU(),
         )
 
+        self.decoder = nn.Sequential(
+            nn.Linear(64, 256),
+            nn.GELU(),
+            nn.Linear(256, 512),
+            nn.GELU(),
+            nn.Linear(512, input_dim),
+        )
+
         self.scorer = nn.Sequential(
-            ResidualBlock(128, expand=4, dropout=0.05),
-            ResidualBlock(128, expand=4, dropout=0.05),
-            nn.LayerNorm(128),
-            nn.Linear(128, 32),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            ResidualBlock(64, expand=4, dropout=0.05),
+            nn.LayerNorm(64),
+            nn.Linear(64, 32),
             nn.GELU(),
             nn.Linear(32, 1),
             nn.Sigmoid(),
         )
 
-        self._mode = "score_only"  # kept for API compat
+        self._mode = "score_only"  # or "with_reconstruction"
 
     def forward(self, x):
-        z = self.net(x)
+        z = self.encoder(x)
         score = self.scorer(z).squeeze(-1)
         if self._mode == "with_reconstruction":
-            return score, x  # dummy reconstruction (identity)
+            return score, self.decoder(z)
         return score
 
 
@@ -160,11 +178,11 @@ def train(args):
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {param_count:,}")
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
     score_criterion = nn.MSELoss()
     recon_criterion = nn.MSELoss()
-    recon_weight = 0.0  # no reconstruction in direct feedforward mode
+    recon_weight = 0.05  # auxiliary loss weight
 
     # === TWO-PHASE TRAINING ===
     # Phase 1 (PROBE): Train for probe_epochs. Check if loss trajectory is declining.
