@@ -27,29 +27,26 @@ class PromptDataset(Dataset):
     """
 
     # === EVOLVABLE PARAMETERS ===
-    SYSTEM_WEIGHT = 0.3
     USER_WEIGHT = 1.0
     ASSISTANT_WEIGHT = 1.2
     NORMALIZE = "l2"  # "none", "l2", "zscore", "minmax"
 
     def __init__(self, path: str):
         data = np.load(path)
-        system_embs = data["system"]
         user_embs = data["user"]
         asst_embs = data["assistant"]
         self.scores = data["scores"]
 
         print(f"Loaded {len(self.scores)} samples from cache")
-        print(f"Channel weights: system={self.SYSTEM_WEIGHT}, user={self.USER_WEIGHT}, assistant={self.ASSISTANT_WEIGHT}")
+        print(f"Channel weights: user={self.USER_WEIGHT}, assistant={self.ASSISTANT_WEIGHT}")
         print(f"Normalization: {self.NORMALIZE}")
 
-        # Apply channel weights
-        weighted_system = system_embs * self.SYSTEM_WEIGHT
+        # Apply channel weights (no system — dropped as static noise)
         weighted_user = user_embs * self.USER_WEIGHT
         weighted_asst = asst_embs * self.ASSISTANT_WEIGHT
 
         # Concatenate channels
-        self.embeddings = np.concatenate([weighted_system, weighted_user, weighted_asst], axis=1)
+        self.embeddings = np.concatenate([weighted_user, weighted_asst], axis=1)
 
         # Apply normalization
         if self.NORMALIZE == "l2":
