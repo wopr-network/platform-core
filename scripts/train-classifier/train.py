@@ -99,27 +99,27 @@ class ResidualBlock(nn.Module):
 class ComplexityHead(nn.Module):
     """Direct feedforward complexity scorer (no autoencoder).
 
-    input → 256 → 2 residual blocks → 64 → prediction
-    Simpler model converges faster in limited epochs.
+    input → 512 → 128 → 2 residual blocks → prediction
+    Wider network for more capacity.
     """
 
     def __init__(self, input_dim: int):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
-            nn.LayerNorm(256),
+            nn.Linear(input_dim, 512),
+            nn.LayerNorm(512),
             nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(256, 64),
-            nn.LayerNorm(64),
+            nn.Linear(512, 128),
+            nn.LayerNorm(128),
             nn.GELU(),
         )
 
         self.scorer = nn.Sequential(
-            ResidualBlock(64, expand=4, dropout=0.1),
-            ResidualBlock(64, expand=4, dropout=0.1),
-            nn.LayerNorm(64),
-            nn.Linear(64, 32),
+            ResidualBlock(128, expand=4, dropout=0.1),
+            ResidualBlock(128, expand=4, dropout=0.1),
+            nn.LayerNorm(128),
+            nn.Linear(128, 32),
             nn.GELU(),
             nn.Linear(32, 1),
             nn.Sigmoid(),
