@@ -224,6 +224,8 @@ export class DrizzleProductConfigRepository implements IProductConfigRepository 
       affiliateMaxCap: row.affiliateMaxCap,
       dividendRate: Number(row.dividendRate),
       marginConfig: row.marginConfig ?? null,
+      smartRouterEnabled: row.smartRouterEnabled,
+      smartRouterTiers: (row.smartRouterTiers ?? []) as ProductBillingConfigType["smartRouterTiers"],
     };
   }
 }

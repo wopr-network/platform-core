@@ -8,8 +8,15 @@ import type {
   ProductConfig,
   ProductFeatures,
   ProductFleetConfig,
+  TierConfig,
 } from "./repository-types.js";
 import { toBrandConfig } from "./repository-types.js";
+
+/** Smart model router configuration for a product. */
+export interface SmartRouterConfig {
+  enabled: boolean;
+  tiers: TierConfig[];
+}
 
 interface CacheEntry {
   config: ProductConfig;
@@ -59,6 +66,19 @@ export class ProductConfigService {
 
   async listAll(): Promise<ProductConfig[]> {
     return this.repo.listAll();
+  }
+
+  /**
+   * Get smart model router config for a product.
+   * Returns { enabled: false, tiers: [] } when the product or billing row is missing.
+   */
+  async getSmartRouterConfig(slug: string): Promise<SmartRouterConfig> {
+    const config = await this.getBySlug(slug);
+    if (!config?.billing) return { enabled: false, tiers: [] };
+    return {
+      enabled: config.billing.smartRouterEnabled,
+      tiers: config.billing.smartRouterTiers,
+    };
   }
 
   // ---------------------------------------------------------------------------

@@ -50,7 +50,7 @@ export async function platformBoot(opts: PlatformBootOptions): Promise<PlatformB
     }
 
     // Auto-seed from preset
-    const { navItems, fleet, ...productData } = preset;
+    const { navItems, fleet, billing, ...productData } = preset;
     const product = await repo.upsertProduct(slug, productData);
     await repo.replaceNavItems(
       product.id,
@@ -64,6 +64,10 @@ export async function platformBoot(opts: PlatformBootOptions): Promise<PlatformB
     );
     await repo.upsertFleetConfig(product.id, fleet);
     await repo.upsertFeatures(product.id, {});
+    await repo.upsertBillingConfig(product.id, {
+      smartRouterEnabled: false,
+      smartRouterTiers: billing.smartRouterTiers,
+    });
 
     // Re-fetch to get the complete config
     config = await service.getBySlug(slug);

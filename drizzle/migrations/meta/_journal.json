@@ -162,6 +162,13 @@
       "when": 1743523200000,
       "tag": "0022_rpc_headers_column",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1743609600000,
+      "tag": "0025_smart_router_columns",
+      "breakpoints": true
     }
   ]
 }

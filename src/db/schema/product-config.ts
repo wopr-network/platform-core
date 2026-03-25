@@ -52,5 +52,9 @@ export const productBillingConfig = pgTable("product_billing_config", {
   affiliateMaxCap: integer("affiliate_max_cap").notNull().default(20000),
   dividendRate: numeric("dividend_rate").notNull().default("1.0"),
   marginConfig: jsonb("margin_config"),
+  /** Whether smart model routing is enabled for this product. Default false for safe rollout. */
+  smartRouterEnabled: boolean("smart_router_enabled").notNull().default(false),
+  /** Tier configuration: array of {maxScore, model, label} sorted by maxScore ascending. */
+  smartRouterTiers: jsonb("smart_router_tiers").notNull().default([]),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

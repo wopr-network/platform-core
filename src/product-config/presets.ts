@@ -3,6 +3,8 @@
  * Used by platformBoot() for auto-seeding and by scripts/seed-products.ts.
  */
 
+import type { TierConfig } from "./repository-types.js";
+
 export interface NavItemPreset {
   label: string;
   href: string;
@@ -15,6 +17,11 @@ export interface FleetPreset {
   lifecycle: "managed" | "ephemeral";
   billingModel: "monthly" | "per_use" | "none";
   maxInstances: number;
+}
+
+export interface BillingPreset {
+  /** Default tiers for smart model router. */
+  smartRouterTiers: TierConfig[];
 }
 
 export interface ProductPreset {
@@ -35,6 +42,7 @@ export interface ProductPreset {
   storagePrefix: string;
   navItems: NavItemPreset[];
   fleet: FleetPreset;
+  billing: BillingPreset;
 }
 
 export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
@@ -75,6 +83,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       billingModel: "monthly",
       maxInstances: 5,
     },
+    billing: {
+      smartRouterTiers: [
+        { maxScore: 0.2, model: "deepseek/deepseek-chat-v3-0324", label: "economy" },
+        { maxScore: 1.0, model: "qwen/qwen3-coder", label: "standard" },
+      ],
+    },
   },
   paperclip: {
     brandName: "Paperclip",
@@ -103,6 +117,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       lifecycle: "managed",
       billingModel: "monthly",
       maxInstances: 5,
+    },
+    billing: {
+      smartRouterTiers: [
+        { maxScore: 0.2, model: "deepseek/deepseek-chat-v3-0324", label: "economy" },
+        { maxScore: 1.0, model: "qwen/qwen3-coder", label: "standard" },
+      ],
     },
   },
   holyship: {
@@ -136,6 +156,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       billingModel: "none",
       maxInstances: 50,
     },
+    billing: {
+      smartRouterTiers: [
+        { maxScore: 0.2, model: "deepseek/deepseek-chat-v3-0324", label: "economy" },
+        { maxScore: 1.0, model: "qwen/qwen3-coder", label: "standard" },
+      ],
+    },
   },
   nemoclaw: {
     brandName: "NemoPod",
@@ -164,6 +190,12 @@ export const PRODUCT_PRESETS: Record<string, ProductPreset> = {
       lifecycle: "managed",
       billingModel: "monthly",
       maxInstances: 5,
+    },
+    billing: {
+      smartRouterTiers: [
+        { maxScore: 0.2, model: "deepseek/deepseek-chat-v3-0324", label: "economy" },
+        { maxScore: 1.0, model: "qwen/qwen3-coder", label: "standard" },
+      ],
     },
   },
 };

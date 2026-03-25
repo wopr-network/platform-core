@@ -97,6 +97,16 @@ export interface ProductFleetConfig {
 // ProductBillingConfig
 // ---------------------------------------------------------------------------
 
+/** Tier configuration entry for the smart model router. */
+export interface TierConfig {
+  /** Upper bound score (0-1). Requests scoring <= maxScore route to this tier's model. */
+  maxScore: number;
+  /** OpenRouter-style model identifier (e.g. "deepseek/deepseek-chat-v3-0324"). */
+  model: string;
+  /** Human-readable label (e.g. "economy", "standard", "premium"). */
+  label: string;
+}
+
 export interface ProductBillingConfig {
   productId: string;
   stripePublishableKey: string | null;
@@ -108,6 +118,10 @@ export interface ProductBillingConfig {
   affiliateMaxCap: number;
   dividendRate: number;
   marginConfig: unknown;
+  /** Whether smart model routing is enabled for this product. */
+  smartRouterEnabled: boolean;
+  /** Tier configuration sorted by maxScore ascending. */
+  smartRouterTiers: TierConfig[];
 }
 
 // ---------------------------------------------------------------------------

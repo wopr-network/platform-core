@@ -6,7 +6,7 @@ import type { IProductConfigRepository } from "./repository-types.js";
 import { ProductConfigService } from "./service.js";
 
 export type { PlatformBootOptions, PlatformBootResult } from "./boot.js";
-export type { ProductPreset } from "./presets.js";
+export type { BillingPreset, ProductPreset } from "./presets.js";
 export { PRODUCT_PRESETS } from "./presets.js";
 
 /**
@@ -34,8 +34,10 @@ export type {
   ProductFeatures,
   ProductFleetConfig,
   ProductNavItem,
+  TierConfig,
 } from "./repository-types.js";
 export { deriveCorsOrigins, toBrandConfig } from "./repository-types.js";
+export type { SmartRouterConfig } from "./service.js";
 export { ProductConfigService } from "./service.js";
 
 let _service: ProductConfigService | null = null;
