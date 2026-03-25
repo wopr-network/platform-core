@@ -130,8 +130,8 @@ def train(args):
 
     # Model
     model = ComplexityHead(embedding_dim).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    criterion = nn.HuberLoss(delta=0.1, reduction='mean')
 
     # Train
     best_val_mae = float("inf")
