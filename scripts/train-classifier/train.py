@@ -54,9 +54,9 @@ class PromptDataset(Dataset):
 
         # Weight and concatenate channels
         self.embeddings = np.concatenate([
-            system_embs * 0.5,
+            system_embs * 0.3,
             user_embs * 1.0,
-            asst_embs * 0.8,
+            asst_embs * 1.2,
         ], axis=1).astype(np.float32)
         self.scores = np.array([s[1] for s in self.samples], dtype=np.float32)
         print(f"Embeddings shape: {self.embeddings.shape}")
