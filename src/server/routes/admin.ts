@@ -330,5 +330,31 @@ export function createAdminRouter(container: PlatformContainer, config?: AdminRo
         orgCount,
       };
     }),
+
+    // -----------------------------------------------------------------------
+    // Hot pool config (DB-driven, admin-only)
+    // -----------------------------------------------------------------------
+
+    getPoolConfig: adminProcedure.query(async () => {
+      if (!container.hotPool) {
+        return { enabled: false, poolSize: 0, warmCount: 0 };
+      }
+      const poolSize = await container.hotPool.getPoolSize();
+      const warmRes = await container.pool.query<{ count: string }>(
+        "SELECT COUNT(*)::int AS count FROM pool_instances WHERE status = 'warm'",
+      );
+      const warmCount = Number(warmRes.rows[0]?.count ?? 0);
+      return { enabled: true, poolSize, warmCount };
+    }),
+
+    setPoolSize: adminProcedure
+      .input(z.object({ size: z.number().int().min(0).max(50) }))
+      .mutation(async ({ input }) => {
+        if (!container.hotPool) {
+          throw new Error("Hot pool not enabled");
+        }
+        await container.hotPool.setPoolSize(input.size);
+        return { poolSize: input.size };
+      }),
   });
 }
