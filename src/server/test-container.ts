@@ -12,6 +12,7 @@ import type { IUserRoleRepository } from "../auth/user-role-repository.js";
 import type { ILedger } from "../credits/ledger.js";
 import type { DrizzleDb } from "../db/index.js";
 import type { ProductConfig } from "../product-config/repository-types.js";
+import type { ProductConfigService } from "../product-config/service.js";
 import type { IOrgMemberRepository } from "../tenancy/org-member-repository.js";
 import type { OrgService } from "../tenancy/org-service.js";
 import type { PlatformContainer } from "./container.js";
@@ -103,6 +104,9 @@ export function createTestContainer(overrides?: Partial<PlatformContainer>): Pla
     db: {} as DrizzleDb,
     pool: { end: async () => {} } as never,
     productConfig: stubProductConfig(),
+    productConfigService: {
+      getBySlug: async () => stubProductConfig(),
+    } as unknown as ProductConfigService,
     creditLedger: stubLedger(),
     orgMemberRepo: stubOrgMemberRepo(),
     orgService: {} as OrgService,

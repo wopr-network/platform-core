@@ -19,6 +19,7 @@ import type { FleetManager } from "../fleet/fleet-manager.js";
 import type { IProfileStore } from "../fleet/profile-store.js";
 import type { IServiceKeyRepository } from "../gateway/service-key-repository.js";
 import type { ProductConfig } from "../product-config/repository-types.js";
+import type { ProductConfigService } from "../product-config/service.js";
 import type { ProxyManagerInterface } from "../proxy/types.js";
 import type { IOrgMemberRepository } from "../tenancy/org-member-repository.js";
 import type { OrgService } from "../tenancy/org-service.js";
@@ -75,6 +76,7 @@ export interface PlatformContainer {
   db: DrizzleDb;
   pool: Pool;
   productConfig: ProductConfig;
+  productConfigService: ProductConfigService;
   creditLedger: ILedger;
   orgMemberRepo: IOrgMemberRepository;
   orgService: OrgService;
@@ -128,7 +130,7 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
 
   // 4. Bootstrap product config from DB (auto-seeds from presets if needed)
   const { platformBoot } = await import("../product-config/boot.js");
-  const { config: productConfig } = await platformBoot({ slug: bootConfig.slug, db });
+  const { config: productConfig, service: productConfigService } = await platformBoot({ slug: bootConfig.slug, db });
 
   // 5. Credit ledger
   const { DrizzleLedger } = await import("../credits/ledger.js");
@@ -232,6 +234,7 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
     db,
     pool,
     productConfig,
+    productConfigService,
     creditLedger,
     orgMemberRepo,
     orgService,
