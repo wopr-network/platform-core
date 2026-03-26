@@ -25,7 +25,7 @@ export interface HotPoolHandles {
 // Pool size — DB-driven, no env vars
 // ---------------------------------------------------------------------------
 
-async function getPoolSize(container: PlatformContainer): Promise<number> {
+export async function getPoolSize(container: PlatformContainer): Promise<number> {
   try {
     const res = await container.pool.query("SELECT pool_size FROM pool_config WHERE id = 1");
     return res.rows[0]?.pool_size ?? 2;
