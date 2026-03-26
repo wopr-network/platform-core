@@ -23,6 +23,34 @@ export interface TRPCContext {
 }
 
 // ---------------------------------------------------------------------------
+// Context factory — resolves BetterAuth session into TRPCContext
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a TRPCContext from an incoming request.
+ * Resolves the user from BetterAuth session cookies.
+ */
+export async function createTRPCContext(req: Request): Promise<TRPCContext> {
+  let user: AuthUser | undefined;
+  let tenantId: string | undefined;
+  try {
+    const { getAuth } = await import("../auth/better-auth.js");
+    const auth = getAuth();
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (session?.user) {
+      const sessionUser = session.user as { id: string; role?: string };
+      const roles: string[] = [];
+      if (sessionUser.role) roles.push(sessionUser.role);
+      user = { id: sessionUser.id, roles };
+      tenantId = req.headers.get("x-tenant-id") || sessionUser.id;
+    }
+  } catch {
+    // No session — unauthenticated request
+  }
+  return { user, tenantId: tenantId ?? "" };
+}
+
+// ---------------------------------------------------------------------------
 // tRPC init
 // ---------------------------------------------------------------------------
 
