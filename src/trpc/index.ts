@@ -13,6 +13,7 @@ export { createFleetUpdateConfigRouter } from "./fleet-update-config-router.js";
 export {
   adminProcedure,
   createCallerFactory,
+  createTRPCContext,
   orgAdminProcedure,
   orgMemberProcedure,
   protectedProcedure,
@@ -28,3 +29,6 @@ export {
   type OrgRemovePaymentMethodDeps,
 } from "./org-remove-payment-method-router.js";
 export { createProductConfigRouter } from "./product-config-router.js";
+export { type PageContextRouterDeps, pageContextRouter, setPageContextRouterDeps } from "./routers/page-context.js";
+export { type ProfileRouterDeps, profileRouter, setProfileRouterDeps } from "./routers/profile.js";
+export { type SettingsRouterDeps, setSettingsRouterDeps, settingsRouter } from "./routers/settings.js";
