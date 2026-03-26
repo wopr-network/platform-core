@@ -94,7 +94,7 @@ export async function claimPoolInstance(
 
   // ---- Step 3: Create fleet profile ----
   const serviceKeyRepo = container.fleet.serviceKeyRepo;
-  const gatewayKey = serviceKeyRepo ? await serviceKeyRepo.generate(tenantId, name) : crypto.randomUUID();
+  const gatewayKey = serviceKeyRepo ? await serviceKeyRepo.generate(tenantId, instanceId) : crypto.randomUUID();
 
   const store = container.fleet.profileStore;
   const profile = {

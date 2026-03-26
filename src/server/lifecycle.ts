@@ -40,6 +40,16 @@ export async function startBackgroundServices(container: PlatformContainer): Pro
     }
   }
 
+  // Hot pool manager (if enabled)
+  if (container.hotPool) {
+    try {
+      const poolHandles = await container.hotPool.start();
+      handles.unsubscribes.push(poolHandles.stop);
+    } catch {
+      // Non-fatal — pool will be empty but claiming falls back to cold create
+    }
+  }
+
   return handles;
 }
 
