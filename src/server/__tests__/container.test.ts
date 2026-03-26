@@ -164,6 +164,7 @@ describe("createTestContainer", () => {
       stripe: {} as never,
       webhookSecret: "whsec_test",
       customerRepo: {} as never,
+      processor: {} as never,
     };
 
     const gateway: GatewayServices = {
