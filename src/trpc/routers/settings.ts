@@ -89,9 +89,9 @@ export const settingsRouter = router({
         account_team_invites: z.boolean().optional(),
       }),
     )
-    .mutation(({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       const store = deps().getNotificationPrefsStore();
-      store.update(ctx.tenantId, input);
+      await store.update(ctx.tenantId, input);
       return store.get(ctx.tenantId);
     }),
 });
