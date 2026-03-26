@@ -247,12 +247,14 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
   if (bootConfig.features.hotPool && fleet) {
     const { startHotPool, setPoolSize: setSize, getPoolSize: getSize } = await import("./services/hot-pool.js");
     const { claimPoolInstance } = await import("./services/hot-pool-claim.js");
+    const { DrizzlePoolRepository } = await import("./services/pool-repository.js");
+    const poolRepo = new DrizzlePoolRepository(pool);
 
     result.hotPool = {
-      start: () => startHotPool(result),
-      claim: (name, tenantId, adminUser) => claimPoolInstance(result, name, tenantId, adminUser),
-      getPoolSize: () => getSize(result),
-      setPoolSize: (size) => setSize(result, size),
+      start: () => startHotPool(result, poolRepo),
+      claim: (name, tenantId, adminUser) => claimPoolInstance(result, poolRepo, name, tenantId, adminUser),
+      getPoolSize: () => getSize(poolRepo),
+      setPoolSize: (size) => setSize(poolRepo, size),
     };
   }
 

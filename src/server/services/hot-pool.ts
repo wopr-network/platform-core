@@ -1,8 +1,8 @@
 /**
  * Hot pool manager — pre-provisions warm containers for instant claiming.
  *
- * Reads desired pool size from DB (`pool_config` table). Periodically
- * replenishes the pool and cleans up dead containers.
+ * Reads desired pool size from DB (`pool_config` table) via IPoolRepository.
+ * Periodically replenishes the pool and cleans up dead containers.
  *
  * All config is DB-driven — no env vars for pool size, container image,
  * or port. Admin API updates pool_config, this reads it.
@@ -10,6 +10,7 @@
 
 import { logger } from "../../config/logger.js";
 import type { PlatformContainer } from "../container.js";
+import type { IPoolRepository } from "./pool-repository.js";
 
 export interface HotPoolConfig {
   /** Replenish interval in ms. Default: 60_000. */
@@ -22,36 +23,22 @@ export interface HotPoolHandles {
 }
 
 // ---------------------------------------------------------------------------
-// Pool size — DB-driven, no env vars
+// Pool size — delegates to repository
 // ---------------------------------------------------------------------------
 
-export async function getPoolSize(container: PlatformContainer): Promise<number> {
-  try {
-    const res = await container.pool.query("SELECT pool_size FROM pool_config WHERE id = 1");
-    return res.rows[0]?.pool_size ?? 2;
-  } catch {
-    return 2;
-  }
+export async function getPoolSize(repo: IPoolRepository): Promise<number> {
+  return repo.getPoolSize();
 }
 
-export async function setPoolSize(container: PlatformContainer, size: number): Promise<void> {
-  await container.pool.query(
-    `INSERT INTO pool_config (id, pool_size) VALUES (1, $1)
-     ON CONFLICT (id) DO UPDATE SET pool_size = $1`,
-    [size],
-  );
+export async function setPoolSize(repo: IPoolRepository, size: number): Promise<void> {
+  return repo.setPoolSize(size);
 }
 
 // ---------------------------------------------------------------------------
 // Warm container management
 // ---------------------------------------------------------------------------
 
-async function warmCount(container: PlatformContainer): Promise<number> {
-  const res = await container.pool.query("SELECT COUNT(*)::int AS count FROM pool_instances WHERE status = 'warm'");
-  return res.rows[0].count;
-}
-
-async function createWarmContainer(container: PlatformContainer): Promise<void> {
+async function createWarmContainer(container: PlatformContainer, repo: IPoolRepository): Promise<void> {
   if (!container.fleet) throw new Error("Fleet services required for hot pool");
 
   const pc = container.productConfig;
@@ -94,10 +81,7 @@ async function createWarmContainer(container: PlatformContainer): Promise<void> 
       await network.connect({ Container: warmContainer.id });
     }
 
-    await container.pool.query("INSERT INTO pool_instances (id, container_id, status) VALUES ($1, $2, 'warm')", [
-      id,
-      warmContainer.id,
-    ]);
+    await repo.insertWarm(id, warmContainer.id);
 
     logger.info(`Hot pool: created warm container ${containerName} (${id})`);
   } catch (err) {
@@ -107,9 +91,9 @@ async function createWarmContainer(container: PlatformContainer): Promise<void> 
   }
 }
 
-export async function replenishPool(container: PlatformContainer): Promise<void> {
-  const desired = await getPoolSize(container);
-  const current = await warmCount(container);
+export async function replenishPool(container: PlatformContainer, repo: IPoolRepository): Promise<void> {
+  const desired = await repo.getPoolSize();
+  const current = await repo.warmCount();
   const deficit = desired - current;
 
   if (deficit <= 0) return;
@@ -117,51 +101,55 @@ export async function replenishPool(container: PlatformContainer): Promise<void>
   logger.info(`Hot pool: replenishing ${deficit} container(s) (have ${current}, want ${desired})`);
 
   for (let i = 0; i < deficit; i++) {
-    await createWarmContainer(container);
+    await createWarmContainer(container, repo);
   }
 }
 
-async function cleanupDead(container: PlatformContainer): Promise<void> {
+async function cleanupDead(container: PlatformContainer, repo: IPoolRepository): Promise<void> {
   if (!container.fleet) return;
 
   const docker = container.fleet.docker;
-  const res = await container.pool.query("SELECT id, container_id FROM pool_instances WHERE status = 'warm'");
+  const warmInstances = await repo.listWarm();
 
-  for (const row of res.rows) {
+  for (const instance of warmInstances) {
     try {
-      const c = docker.getContainer(row.container_id);
+      const c = docker.getContainer(instance.containerId);
       const info = await c.inspect();
       if (!info.State.Running) {
-        await container.pool.query("UPDATE pool_instances SET status = 'dead' WHERE id = $1", [row.id]);
+        await repo.markDead(instance.id);
         try {
           await c.remove({ force: true });
         } catch {
           /* already gone */
         }
-        logger.warn(`Hot pool: marked dead container ${row.id}`);
+        logger.warn(`Hot pool: marked dead container ${instance.id}`);
       }
     } catch {
-      await container.pool.query("UPDATE pool_instances SET status = 'dead' WHERE id = $1", [row.id]);
-      logger.warn(`Hot pool: marked missing container ${row.id} as dead`);
+      await repo.markDead(instance.id);
+      logger.warn(`Hot pool: marked missing container ${instance.id} as dead`);
     }
   }
 
-  await container.pool.query("DELETE FROM pool_instances WHERE status = 'dead'");
+  await repo.deleteDead();
 }
 
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-export async function startHotPool(container: PlatformContainer, config?: HotPoolConfig): Promise<HotPoolHandles> {
-  await cleanupDead(container);
-  await replenishPool(container);
+export async function startHotPool(
+  container: PlatformContainer,
+  repo: IPoolRepository,
+  config?: HotPoolConfig,
+): Promise<HotPoolHandles> {
+  await cleanupDead(container, repo);
+  await replenishPool(container, repo);
 
   const intervalMs = config?.replenishIntervalMs ?? 60_000;
   const replenishTimer = setInterval(async () => {
     try {
-      await cleanupDead(container);
-      await replenishPool(container);
+      await cleanupDead(container, repo);
+      await replenishPool(container, repo);
     } catch (err) {
       logger.error("Hot pool tick failed", { error: (err as Error).message });
     }
