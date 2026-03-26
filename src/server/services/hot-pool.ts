@@ -13,6 +13,8 @@ import type { PlatformContainer } from "../container.js";
 import type { IPoolRepository } from "./pool-repository.js";
 
 export interface HotPoolConfig {
+  /** Shared secret for provision auth between platform and managed instances. */
+  provisionSecret: string;
   /** Replenish interval in ms. Default: 60_000. */
   replenishIntervalMs?: number;
 }
@@ -38,13 +40,17 @@ export async function setPoolSize(repo: IPoolRepository, size: number): Promise<
 // Warm container management
 // ---------------------------------------------------------------------------
 
-async function createWarmContainer(container: PlatformContainer, repo: IPoolRepository): Promise<void> {
+async function createWarmContainer(
+  container: PlatformContainer,
+  repo: IPoolRepository,
+  config: HotPoolConfig,
+): Promise<void> {
   if (!container.fleet) throw new Error("Fleet services required for hot pool");
 
   const pc = container.productConfig;
   const containerImage = pc.fleet?.containerImage ?? "ghcr.io/wopr-network/platform:latest";
   const containerPort = pc.fleet?.containerPort ?? 3100;
-  const provisionSecret = pc.fleet?.provisionSecret ?? "";
+  const provisionSecret = config.provisionSecret;
   const dockerNetwork = pc.fleet?.dockerNetwork ?? "";
   const docker = container.fleet.docker;
   const id = crypto.randomUUID();
@@ -91,7 +97,11 @@ async function createWarmContainer(container: PlatformContainer, repo: IPoolRepo
   }
 }
 
-export async function replenishPool(container: PlatformContainer, repo: IPoolRepository): Promise<void> {
+export async function replenishPool(
+  container: PlatformContainer,
+  repo: IPoolRepository,
+  config: HotPoolConfig,
+): Promise<void> {
   const desired = await repo.getPoolSize();
   const current = await repo.warmCount();
   const deficit = desired - current;
@@ -101,7 +111,7 @@ export async function replenishPool(container: PlatformContainer, repo: IPoolRep
   logger.info(`Hot pool: replenishing ${deficit} container(s) (have ${current}, want ${desired})`);
 
   for (let i = 0; i < deficit; i++) {
-    await createWarmContainer(container, repo);
+    await createWarmContainer(container, repo, config);
   }
 }
 
@@ -140,16 +150,16 @@ async function cleanupDead(container: PlatformContainer, repo: IPoolRepository):
 export async function startHotPool(
   container: PlatformContainer,
   repo: IPoolRepository,
-  config?: HotPoolConfig,
+  config: HotPoolConfig,
 ): Promise<HotPoolHandles> {
   await cleanupDead(container, repo);
-  await replenishPool(container, repo);
+  await replenishPool(container, repo, config);
 
-  const intervalMs = config?.replenishIntervalMs ?? 60_000;
+  const intervalMs = config.replenishIntervalMs ?? 60_000;
   const replenishTimer = setInterval(async () => {
     try {
       await cleanupDead(container, repo);
-      await replenishPool(container, repo);
+      await replenishPool(container, repo, config);
     } catch (err) {
       logger.error("Hot pool tick failed", { error: (err as Error).message });
     }

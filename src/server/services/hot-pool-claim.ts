@@ -12,6 +12,8 @@ import { replenishPool } from "./hot-pool.js";
 import type { IPoolRepository } from "./pool-repository.js";
 
 export interface ClaimConfig {
+  /** Shared secret for provision auth. */
+  provisionSecret: string;
   /** Container name prefix. Default: "wopr". */
   containerPrefix?: string;
 }
@@ -39,7 +41,7 @@ export async function claimPoolInstance(
   repo: IPoolRepository,
   name: string,
   tenantId: string,
-  adminUser: ClaimAdminUser,
+  _adminUser: ClaimAdminUser,
   config?: ClaimConfig,
 ): Promise<ClaimResult | null> {
   if (!container.fleet) throw new Error("Fleet services required for pool claim");
@@ -85,7 +87,7 @@ export async function claimPoolInstance(
       PORT: String(containerPort),
       HOST: "0.0.0.0",
       NODE_ENV: "production",
-      PROVISION_SECRET: pc.fleet?.provisionSecret ?? "",
+      PROVISION_SECRET: config?.provisionSecret ?? "",
       BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
       DATA_HOME: "/data",
       HOSTED_MODE: "true",
@@ -119,7 +121,7 @@ export async function claimPoolInstance(
   }
 
   // ---- Step 5: Replenish pool in background ----
-  replenishPool(container, repo).catch((err) => {
+  replenishPool(container, repo, { provisionSecret: config?.provisionSecret ?? "" }).catch((err) => {
     logger.error("Pool replenish after claim failed", { error: (err as Error).message });
   });
 
