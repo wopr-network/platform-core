@@ -44,6 +44,7 @@ export interface StripeServices {
   stripe: Stripe;
   webhookSecret: string;
   customerRepo: ITenantCustomerRepository;
+  processor: { handleWebhook(payload: Buffer, signature: string): Promise<unknown> };
 }
 
 export interface GatewayServices {
