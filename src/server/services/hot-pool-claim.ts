@@ -1,10 +1,7 @@
 /**
  * Atomic hot pool claiming.
  *
- * Uses PostgreSQL `FOR UPDATE SKIP LOCKED` to atomically grab a warm
- * container from the hot pool and convert it into a named fleet instance.
- *
- * Generic — no product-specific env vars or branding.
+ * Uses IPoolRepository for all DB operations. No raw pool.query().
  */
 
 import { randomBytes } from "node:crypto";
@@ -12,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { logger } from "../../config/logger.js";
 import type { PlatformContainer } from "../container.js";
 import { replenishPool } from "./hot-pool.js";
+import type { IPoolRepository } from "./pool-repository.js";
 
 export interface ClaimConfig {
   /** Container name prefix. Default: "wopr". */
@@ -38,6 +36,7 @@ export interface ClaimResult {
  */
 export async function claimPoolInstance(
   container: PlatformContainer,
+  repo: IPoolRepository,
   name: string,
   tenantId: string,
   adminUser: ClaimAdminUser,
@@ -52,31 +51,10 @@ export async function claimPoolInstance(
   const prefix = config?.containerPrefix ?? "wopr";
 
   // ---- Step 1: Atomically claim a warm instance ----
-  const claimRes = await container.pool.query(
-    `UPDATE pool_instances
-        SET status = 'claimed',
-            claimed_at = NOW(),
-            tenant_id = $1,
-            name = $2
-      WHERE id = (
-        SELECT id FROM pool_instances
-         WHERE status = 'warm'
-         ORDER BY created_at ASC
-         LIMIT 1
-           FOR UPDATE SKIP LOCKED
-      )
-      RETURNING id, container_id`,
-    [tenantId, name],
-  );
+  const claimed = await repo.claimWarm(tenantId, name);
+  if (!claimed) return null;
 
-  if (claimRes.rowCount === 0) {
-    return null;
-  }
-
-  const { id: instanceId, container_id: containerId } = claimRes.rows[0] as {
-    id: string;
-    container_id: string;
-  };
+  const { id: instanceId, containerId } = claimed;
 
   // ---- Step 2: Rename Docker container ----
   const docker = container.fleet.docker;
@@ -88,7 +66,7 @@ export async function claimPoolInstance(
     logger.info(`Pool claim: renamed container to ${containerName}`);
   } catch (err) {
     logger.error("Pool claim: rename failed", { error: (err as Error).message });
-    await container.pool.query("UPDATE pool_instances SET status = 'dead' WHERE id = $1", [instanceId]);
+    await repo.markDead(instanceId);
     return null;
   }
 
@@ -141,7 +119,7 @@ export async function claimPoolInstance(
   }
 
   // ---- Step 5: Replenish pool in background ----
-  replenishPool(container).catch((err) => {
+  replenishPool(container, repo).catch((err) => {
     logger.error("Pool replenish after claim failed", { error: (err as Error).message });
   });
 
