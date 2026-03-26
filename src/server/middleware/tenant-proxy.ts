@@ -152,12 +152,13 @@ export function createTenantProxyMiddleware(
     // Verify tenant ownership -- user must belong to the org that owns this subdomain
     const profiles = await container.fleet.profileStore.list();
     const profile = profiles.find((p) => p.name === subdomain);
-    if (profile) {
-      const { validateTenantAccess } = await import("../../auth/index.js");
-      const hasAccess = await validateTenantAccess(user.id, profile.tenantId, container.orgMemberRepo);
-      if (!hasAccess) {
-        return c.json({ error: "Forbidden: not a member of this tenant" }, 403);
-      }
+    if (!profile) {
+      return c.json({ error: "Tenant not found" }, 404);
+    }
+    const { validateTenantAccess } = await import("../../auth/index.js");
+    const hasAccess = await validateTenantAccess(user.id, profile.tenantId, container.orgMemberRepo);
+    if (!hasAccess) {
+      return c.json({ error: "Forbidden: not a member of this tenant" }, 403);
     }
 
     // Resolve fleet container URL via proxy route table

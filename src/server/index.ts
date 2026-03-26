@@ -68,6 +68,7 @@ export async function bootPlatformServer(config: BootConfig): Promise<BootResult
   );
 
   let handles: BackgroundHandles | null = null;
+  let server: { close: () => void } | null = null;
 
   return {
     app,
@@ -77,11 +78,12 @@ export async function bootPlatformServer(config: BootConfig): Promise<BootResult
       const listenPort = port ?? config.port ?? 3001;
       const hostname = config.host ?? "0.0.0.0";
 
-      serve({ fetch: app.fetch, hostname, port: listenPort }, async () => {
+      server = serve({ fetch: app.fetch, hostname, port: listenPort }, async () => {
         handles = await startBackgroundServices(container);
       });
     },
     stop: async () => {
+      if (server) server.close();
       if (handles) {
         await gracefulShutdown(container, handles);
       }

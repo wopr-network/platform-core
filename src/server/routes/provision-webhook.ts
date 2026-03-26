@@ -120,8 +120,8 @@ export function createProvisionWebhookRoutes(container: PlatformContainer, confi
       updatePolicy: "manual",
     });
 
-    // Register proxy route
-    const prefix = config.containerPrefix ?? "managed";
+    // Register proxy route — container name must match FleetManager naming convention
+    const prefix = config.containerPrefix ?? "wopr";
     const containerName = `${prefix}-${subdomain}`;
     await proxy.addRoute({
       instanceId: instance.id,
