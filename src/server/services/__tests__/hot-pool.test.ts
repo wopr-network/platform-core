@@ -1,5 +1,5 @@
 /**
- * Tests for hot pool service functions (getPoolSize, setPoolSize, replenishPool).
+ * Tests for hot pool service functions (getPoolSize, setPoolSize).
  *
  * Uses InMemoryPoolRepository to test service logic without Docker or DB.
  */
