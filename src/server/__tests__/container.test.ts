@@ -172,7 +172,10 @@ describe("createTestContainer", () => {
     };
 
     const hotPool: HotPoolServices = {
-      poolManager: {},
+      start: async () => ({ stop: () => {} }),
+      claim: async () => null,
+      getPoolSize: async () => 2,
+      setPoolSize: async () => {},
     };
 
     const c = createTestContainer({ fleet, crypto, stripe, gateway, hotPool });

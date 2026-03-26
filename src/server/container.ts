@@ -53,8 +53,18 @@ export interface GatewayServices {
 }
 
 export interface HotPoolServices {
-  /** Will be typed properly when extracted from nemoclaw. */
-  poolManager: unknown;
+  /** Start the pool manager (replenish loop + cleanup). */
+  start: () => Promise<{ stop: () => void }>;
+  /** Claim a warm instance from the pool. Returns null if empty. */
+  claim: (
+    name: string,
+    tenantId: string,
+    adminUser: { id: string; email: string; name: string },
+  ) => Promise<{ id: string; name: string; subdomain: string } | null>;
+  /** Get current pool size from DB. */
+  getPoolSize: () => Promise<number>;
+  /** Set pool size in DB. */
+  setPoolSize: (size: number) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,10 +227,8 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
     gateway = { serviceKeyRepo };
   }
 
-  // hotPool: not yet implemented — needs nemoclaw extraction
-  const hotPool: HotPoolServices | null = null;
-
-  return {
+  // 12. Build the container (hotPool bound after construction)
+  const result: PlatformContainer = {
     db,
     pool,
     productConfig,
@@ -232,6 +240,25 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
     crypto,
     stripe,
     gateway,
-    hotPool,
+    hotPool: null,
   };
+
+  // Bind hot pool after container construction (closures need the full container)
+  if (bootConfig.features.hotPool && fleet) {
+    const { startHotPool, setPoolSize: setSize, getPoolSize: getSize } = await import("./services/hot-pool.js");
+    const { claimPoolInstance } = await import("./services/hot-pool-claim.js");
+    const { DrizzlePoolRepository } = await import("./services/pool-repository.js");
+    const poolRepo = new DrizzlePoolRepository(pool);
+
+    const hotPoolConfig = { provisionSecret: bootConfig.provisionSecret };
+    result.hotPool = {
+      start: () => startHotPool(result, poolRepo, hotPoolConfig),
+      claim: (name, tenantId, adminUser) =>
+        claimPoolInstance(result, poolRepo, name, tenantId, adminUser, hotPoolConfig),
+      getPoolSize: () => getSize(poolRepo),
+      setPoolSize: (size) => setSize(poolRepo, size),
+    };
+  }
+
+  return result;
 }
