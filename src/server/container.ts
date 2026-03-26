@@ -110,23 +110,30 @@ export interface PlatformContainer {
  * `bootConfig.features`. Disabled features yield `null`.
  */
 export async function buildContainer(bootConfig: BootConfig): Promise<PlatformContainer> {
-  if (!bootConfig.databaseUrl) {
-    throw new Error("buildContainer: databaseUrl is required");
+  // 1. Database pool — reuse existing or create new
+  let pool: Pool;
+  if (bootConfig.pool) {
+    pool = bootConfig.pool;
+  } else {
+    if (!bootConfig.databaseUrl) {
+      throw new Error("buildContainer: databaseUrl is required when pool is not provided");
+    }
+    const { Pool: PgPool } = await import("pg");
+    pool = new PgPool({ connectionString: bootConfig.databaseUrl });
   }
-
-  // 1. Database pool
-  const { Pool: PgPool } = await import("pg");
-  const pool: Pool = new PgPool({ connectionString: bootConfig.databaseUrl });
 
   // 2. Drizzle ORM instance
   const { createDb } = await import("../db/index.js");
   const db = createDb(pool);
 
-  // 3. Run Drizzle migrations
-  const { migrate } = await import("drizzle-orm/node-postgres/migrator");
-  const path = await import("node:path");
-  const migrationsFolder = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../drizzle");
-  await migrate(db as never, { migrationsFolder });
+  // 3. Run Drizzle migrations (skip when caller provided their own pool —
+  //    they are responsible for running product-specific migrations first)
+  if (!bootConfig.pool) {
+    const { migrate } = await import("drizzle-orm/node-postgres/migrator");
+    const path = await import("node:path");
+    const migrationsFolder = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../drizzle");
+    await migrate(db as never, { migrationsFolder });
+  }
 
   // 4. Bootstrap product config from DB (auto-seeds from presets if needed)
   const { platformBoot } = await import("../product-config/boot.js");

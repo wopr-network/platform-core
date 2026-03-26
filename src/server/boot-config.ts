@@ -37,8 +37,19 @@ export interface BootConfig {
   /** Short product identifier (e.g. "paperclip", "wopr", "holyship"). */
   slug: string;
 
-  /** PostgreSQL connection string. */
+  /** PostgreSQL connection string. Required unless `pool` is provided. */
   databaseUrl: string;
+
+  /**
+   * Pre-created PostgreSQL connection pool. When provided, buildContainer
+   * reuses this pool and skips pool creation + Drizzle migrations. The
+   * caller is responsible for running their own migrations before calling
+   * buildContainer.
+   *
+   * Use this when the product has its own migration set (e.g. wopr-platform
+   * generates migrations locally from the shared schema).
+   */
+  pool?: import("pg").Pool;
 
   /** Bind host (default "0.0.0.0"). */
   host?: string;
