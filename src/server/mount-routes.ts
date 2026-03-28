@@ -106,7 +106,21 @@ export function mountRoutes(
       "*",
       createTenantProxyMiddleware(container, {
         platformDomain: config.platformDomain,
-        resolveUser: async () => undefined, // Products override via plugin or direct middleware
+        resolveUser: async (req: Request) => {
+          try {
+            const { getAuth } = await import("../auth/better-auth.js");
+            const auth = getAuth();
+            const session = await auth.api.getSession({ headers: req.headers });
+            if (!session?.user) return undefined;
+            return {
+              id: session.user.id,
+              email: session.user.email ?? undefined,
+              name: session.user.name ?? undefined,
+            };
+          } catch {
+            return undefined;
+          }
+        },
       }),
     );
   }
