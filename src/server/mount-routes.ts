@@ -57,7 +57,7 @@ export function mountRoutes(
     cors({
       origin: origins,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+      allowHeaders: ["Content-Type", "Authorization", "X-Request-ID", "X-Tenant-ID", "X-Session-ID"],
       credentials: true,
     }),
   );
