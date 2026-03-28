@@ -95,6 +95,7 @@ export function buildUpstreamHeaders(incoming: Headers, user: ProxyUserInfo, ten
   const host = incoming.get("host");
   if (host) headers.set("host", host);
   headers.set("x-platform-user-id", user.id);
+  headers.set("x-paperclip-user-id", user.id); // compat: Paperclip sidecar reads this header
   headers.set("x-platform-tenant", tenantSubdomain);
   if (user.email) headers.set("x-platform-user-email", user.email);
   if (user.name) headers.set("x-platform-user-name", user.name);
