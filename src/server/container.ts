@@ -178,12 +178,17 @@ export async function buildContainer(bootConfig: BootConfig): Promise<PlatformCo
     const profileStore: IProfileStore = new ProfileStore(fleetDataDir);
     const proxy: ProxyManagerInterface = new ProxyManager();
     const serviceKeyRepo: IServiceKeyRepository = new DrizzleServiceKeyRepository(db as never);
+    const { DrizzleBotInstanceRepository } = await import("../fleet/drizzle-bot-instance-repository.js");
+    const botInstanceRepo = new DrizzleBotInstanceRepository(db as never);
+
     const manager: FleetManager = new FleetManagerClass(
       docker,
       profileStore,
       undefined, // platformDiscovery
       undefined, // networkPolicy
       proxy,
+      undefined, // commandBus
+      botInstanceRepo,
     );
 
     fleet = { manager, docker, proxy, profileStore, serviceKeyRepo };
